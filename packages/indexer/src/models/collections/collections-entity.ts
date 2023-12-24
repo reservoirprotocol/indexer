@@ -5,6 +5,7 @@ export type CollectionsEntityUpdateParams = {
   slug?: string;
   name?: string;
   metadata?: string;
+  imageVersion?: number;
   royalties?: string;
   community?: string;
   contract?: string;
@@ -26,6 +27,7 @@ export type CollectionsEntityUpdateParams = {
   lastMetadataSync?: string;
   floorSellValue?: number;
   creator?: string;
+  isSpam?: number;
 };
 
 export type CollectionsMetadata = {
@@ -35,7 +37,7 @@ export type CollectionsMetadata = {
   externalUrl?: string | undefined;
   bannerImageUrl?: string | undefined;
   twitterUsername?: string | undefined;
-  openseaVerificationStatus?: string | undefined;
+  safelistRequestStatus?: string | undefined;
 };
 
 export type CollectionsRoyalties = {
@@ -48,6 +50,7 @@ export type CollectionsEntityParams = {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
+  imageVersion: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: Buffer;
@@ -71,6 +74,7 @@ export type CollectionsEntityParams = {
   minted_timestamp: number;
   floor_sell_value: number;
   creator: Buffer;
+  is_spam: number | null;
 };
 
 export class CollectionsEntity {
@@ -78,6 +82,7 @@ export class CollectionsEntity {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
+  imageVersion: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: string;
@@ -101,12 +106,14 @@ export class CollectionsEntity {
   mintedTimestamp: number;
   floorSellValue: number;
   creator: string;
+  isSpam: number;
 
   constructor(params: CollectionsEntityParams) {
     this.id = params.id;
     this.slug = params.slug;
     this.name = params.name;
     this.metadata = params.metadata;
+    this.imageVersion = params.imageVersion;
     this.royalties = params.royalties ? params.royalties : [];
     this.community = params.community;
     this.contract = fromBuffer(params.contract);
@@ -130,5 +137,6 @@ export class CollectionsEntity {
     this.mintedTimestamp = params.minted_timestamp;
     this.floorSellValue = params.floor_sell_value;
     this.creator = params.creator ? fromBuffer(params.creator) : params.creator;
+    this.isSpam = Number(params.is_spam);
   }
 }

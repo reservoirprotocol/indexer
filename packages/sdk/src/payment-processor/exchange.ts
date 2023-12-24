@@ -1,4 +1,4 @@
-import { Result } from "@ethersproject/abi";
+import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumber } from "@ethersproject/bignumber";
@@ -142,85 +142,142 @@ export class Exchange {
     };
   }
 
+  // --- Fill multiple listings from the same collection ---
+
+  public sweepCollectionTx(
+    taker: string,
+    bundledOrder: Order,
+    orders: Order[],
+    options?: {
+      source?: string;
+    }
+  ): TxData {
+    let price = bn(0);
+
+    const sweepMatchedOrder = bundledOrder.getSweepMatchedOrder(orders);
+    if (sweepMatchedOrder.bundleDetails.paymentCoin === AddressZero) {
+      price = price.add(bundledOrder.params.price);
+    }
+
+    const data = this.contract.interface.encodeFunctionData("sweepCollection", [
+      sweepMatchedOrder.signedOffer,
+      sweepMatchedOrder.bundleDetails,
+      sweepMatchedOrder.bundleItems,
+      sweepMatchedOrder.signedListings,
+    ]);
+
+    return {
+      from: taker,
+      to: this.contract.address,
+      value: price.toString(),
+      data: data + generateSourceBytes(options?.source),
+    };
+  }
+
+  // --- Check if operator is allowed to transfer ---
+
+  public async isTransferAllowed(
+    provider: Provider,
+    contract: string,
+    operator: string,
+    from: string,
+    to: string
+  ) {
+    const c = new Contract(
+      contract,
+      new Interface([
+        "function isTransferAllowed(address caller, address from, address to) view returns (bool)",
+      ]),
+      provider
+    );
+    return c.isTransferAllowed(operator, from, to);
+  }
+
   // --- Attach signatures ---
 
   public attachTakerSignatures(txData: string, signatures: string[]) {
     const iface = this.contract.interface;
 
-    const isBatch = txData.startsWith("0x5ed1f9bb");
-    const inputs = isBatch
-      ? iface.decodeFunctionData("buyBatchOfListings", txData)
-      : iface.decodeFunctionData("buySingleListing", txData);
-
-    const rawCalldata = isBatch
-      ? iface.encodeFunctionData("buyBatchOfListings", [
-          inputs.saleDetailsArray,
-          inputs.signedListings,
-          inputs.signedOffers,
-        ])
-      : iface.encodeFunctionData("buySingleListing", [
-          inputs.saleDetails,
-          inputs.signedListing,
-          inputs.signedOffer,
-        ]);
-
-    const sourceBytes = txData.substring(rawCalldata.length, txData.length);
-
-    const saleDetailsArray = isBatch ? inputs.saleDetailsArray : [inputs.saleDetails];
-    const signedListings = isBatch ? inputs.signedListings : [inputs.signedListing];
-    const signedOffers = isBatch ? inputs.signedOffers : [inputs.signedOffer];
-
-    const newSaleDetails = saleDetailsArray.map((c: Result, i: number) => {
-      const signedListing = signedListings[i];
-      const signedOffer = signedOffers[i];
-
-      const { r, s, v } = splitSignature(signatures[i]);
-
-      let newSignedListing = {
-        r: signedListing.r,
-        s: signedListing.s,
-        v: signedListing.v,
-      };
-      if (signedListing.v === 0) {
-        newSignedListing = {
-          r,
-          s,
-          v,
-        };
-      }
-
-      let newSignedOffer = {
-        r: signedOffer.r,
-        s: signedOffer.s,
-        v: signedOffer.v,
-      };
-      if (signedOffer.v === 0) {
-        newSignedOffer = {
-          r,
-          s,
-          v,
-        };
-      }
-
-      return {
-        saleDetail: c,
-        signedListing: newSignedListing,
-        signedOffer: newSignedOffer,
-      };
+    const { name: methodName, args: inputs } = iface.parseTransaction({
+      data: txData,
     });
 
-    return (
-      (isBatch
-        ? iface.encodeFunctionData("buyBatchOfListings", [
-            newSaleDetails.map((c: Result) => c.saleDetail),
-            newSaleDetails.map((c: Result) => c.signedListing),
-            newSaleDetails.map((c: Result) => c.signedOffer),
-          ])
-        : iface.encodeFunctionData("buySingleListing", [
-            newSaleDetails[0].saleDetail,
-            newSaleDetails[0].signedListing,
-            newSaleDetails[0].signedOffer,
-          ])) + sourceBytes
-    );
+    const rawCalldata = iface.encodeFunctionData(methodName, inputs);
+    const sourceBytes = txData.substring(rawCalldata.length, txData.length);
+
+    let newInputs = [];
+    if (["buyBatchOfListings", "buySingleListing"].includes(methodName)) {
+      const isBatch = methodName === "buyBatchOfListings";
+      const saleDetailsArray = isBatch ? inputs.saleDetailsArray : [inputs.saleDetails];
+      const signedListings = isBatch ? inputs.signedListings : [inputs.signedListing];
+      const signedOffers = isBatch ? inputs.signedOffers : [inputs.signedOffer];
+
+      const newSaleDetails = saleDetailsArray.map((c: Result, i: number) => {
+        const signedListing = signedListings[i];
+        const signedOffer = signedOffers[i];
+
+        const { r, s, v } = splitSignature(signatures[i]);
+
+        let newSignedListing = {
+          r: signedListing.r,
+          s: signedListing.s,
+          v: signedListing.v,
+        };
+        if (signedListing.v === 0) {
+          newSignedListing = {
+            r,
+            s,
+            v,
+          };
+        }
+
+        let newSignedOffer = {
+          r: signedOffer.r,
+          s: signedOffer.s,
+          v: signedOffer.v,
+        };
+        if (signedOffer.v === 0) {
+          newSignedOffer = {
+            r,
+            s,
+            v,
+          };
+        }
+
+        return {
+          saleDetail: c,
+          signedListing: newSignedListing,
+          signedOffer: newSignedOffer,
+        };
+      });
+
+      if (isBatch) {
+        newInputs = [
+          newSaleDetails.map((c: Result) => c.saleDetail),
+          newSaleDetails.map((c: Result) => c.signedListing),
+          newSaleDetails.map((c: Result) => c.signedOffer),
+        ];
+      } else {
+        newInputs = [
+          newSaleDetails[0].saleDetail,
+          newSaleDetails[0].signedListing,
+          newSaleDetails[0].signedOffer,
+        ];
+      }
+    } else {
+      const { r, s, v } = splitSignature(signatures[0]);
+      newInputs = [
+        {
+          r,
+          s,
+          v,
+        },
+        inputs.bundleDetails,
+        inputs.bundleItems,
+        inputs.signedListings,
+      ];
+    }
+
+    return iface.encodeFunctionData(methodName, newInputs) + sourceBytes;
   }
 }

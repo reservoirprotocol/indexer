@@ -11,7 +11,7 @@ export type ProcessArchiveDataJobPayload = {
   nextBatchTime?: string | null;
 };
 
-export class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
+export default class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
   queueName = "process-archive-data-queue";
   maxRetries = 10;
   concurrency = 1;
@@ -27,7 +27,7 @@ export class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
     switch (tableName) {
       case "bid_events":
         // Archive bid events
-        if (await acquireLock(this.getLockName(tableName), 60 * 10 - 5)) {
+        if (await acquireLock(this.getLockName(tableName), 60 * 60 - 5)) {
           lock = true;
 
           try {
@@ -43,7 +43,7 @@ export class ProcessArchiveDataJob extends AbstractRabbitMqJobHandler {
         // Archive bid events
         if (
           type === "bids" &&
-          (await acquireLock(this.getLockName(`${tableName}${nextBatchTime}`), 60 * 10 - 5))
+          (await acquireLock(this.getLockName(`${tableName}${nextBatchTime}`), 60 * 60 - 5))
         ) {
           lock = true;
 

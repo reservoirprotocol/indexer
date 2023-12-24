@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   BaseStreamMessage,
   CollectionOfferEventPayload,
@@ -16,10 +18,10 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { now } from "lodash";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
-import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
+import { generateHash } from "@/websockets/opensea/utils";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
@@ -27,14 +29,18 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleItemCancelled } from "@/websockets/opensea/handlers/item_cancelled";
 import { handleEvent as handleOrderRevalidate } from "@/websockets/opensea/handlers/order_revalidate";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
-import MetadataApi from "@/utils/metadata-api";
 
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
-import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
+import _ from "lodash";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+
+let lastReceivedEventTimestamp: number;
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
-  const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
+  const network = getNetworkSettings().isTestnet ? Network.TESTNET : Network.MAINNET;
   const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
 
@@ -45,7 +51,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.warn("opensea-websocket", `network=${network}, error=${error}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
@@ -65,19 +71,30 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     ],
     async (event) => {
       try {
+        lastReceivedEventTimestamp = now();
+
         if (await isDuplicateEvent(event)) {
           return;
         }
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        );
-
-        // await saveEvent(event);
-
+        const chainName = (event.payload as any).chain;
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
+
+        // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
+        if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
+          logger.debug(
+            "opensea-websocket",
+            JSON.stringify({
+              message: "Processing event.",
+              network,
+              event,
+              isSupported: !!openSeaOrderParams,
+              chainName,
+              hasChainName: !!chainName,
+            })
+          );
+        }
 
         if (openSeaOrderParams) {
           const protocolData = parseProtocolData(event.payload);
@@ -120,47 +137,55 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  if (config.chainId === 1) {
-    client.onItemMetadataUpdated("*", async (event) => {
-      try {
-        if (getSupportedChainName() != event.payload.item.chain.name) {
-          return;
-        }
-
-        if (await isDuplicateEvent(event)) {
-          return;
-        }
-
-        const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-        const metadata = {
-          asset_contract: {
-            address: contract,
-          },
-          collection: {
-            slug: event.payload.collection.slug,
-          },
-          token_id: tokenId,
-          name: event.payload.item.metadata.name ?? undefined,
-          description: event.payload.item.metadata.description ?? undefined,
-          image_url: event.payload.item.metadata.image_url ?? undefined,
-          animation_url: event.payload.item.metadata.animation_url ?? undefined,
-          traits: event.payload.item.metadata.traits,
-        };
-
-        const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
-
-        if (parsedMetadata) {
-          await metadataIndexWriteJob.addToQueue([parsedMetadata]);
-        }
-      } catch (error) {
-        logger.error(
-          "opensea-websocket-item-metadata-update-event",
-          `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
-        );
+  client.onItemMetadataUpdated("*", async (event) => {
+    try {
+      if (getOpenseaNetworkName() != event.payload.item.chain.name) {
+        return;
       }
-    });
-  }
+
+      if (await isDuplicateEvent(event)) {
+        return;
+      }
+
+      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+
+      if (config.chainId === 1) {
+        const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              contract,
+              tokenId,
+              collection: collection?.id || contract,
+            },
+          },
+        ]);
+      } else {
+        await metadataIndexFetchJob.addToQueue([
+          {
+            kind: "single-token",
+            data: {
+              method: config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection: contract,
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      logger.error(
+        "opensea-websocket-item-metadata-update-event",
+        JSON.stringify({
+          message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+          error,
+        })
+      );
+    }
+  });
 }
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
@@ -279,4 +304,8 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
   }
 
   return undefined;
+};
+
+export const getLastReceivedEventTimestamp = (): number => {
+  return lastReceivedEventTimestamp;
 };

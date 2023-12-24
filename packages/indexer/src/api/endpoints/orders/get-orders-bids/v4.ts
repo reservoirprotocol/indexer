@@ -7,7 +7,13 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject, JoiAttributeKeyValueObject } from "@/common/joi";
+import {
+  JoiPrice,
+  getJoiPriceObject,
+  JoiAttributeKeyValueObject,
+  getJoiSourceObject,
+  JoiSource,
+} from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -172,7 +178,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
           )
             .allow(null)
             .optional(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
             .items(
@@ -593,13 +599,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
           metadata: query.includeMetadata ? r.metadata : undefined,
-          source: {
-            id: source?.address,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-            domain: source?.domain,
-          },
+          source: getJoiSourceObject(source),
           feeBps: feeBps,
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),

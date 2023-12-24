@@ -6,9 +6,8 @@ import Joi from "joi";
 import _ from "lodash";
 
 import { config } from "@/config/index";
-import { redis } from "@/common/redis";
-import { Channel } from "@/pubsub/channels";
-import { getNetworkName } from "@/config/network";
+import { allChainsSyncRedis, redis } from "@/common/redis";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 
 export const postPauseRabbitQueueOptions: RouteOptions = {
@@ -20,6 +19,7 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       queueName: Joi.string().description("The queue name to pause").required(),
+      allChains: Joi.boolean().default(false),
     }),
   },
   handler: async (request: Request) => {
@@ -28,9 +28,6 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
     }
 
     const payload = request.payload as any;
-    if (!_.startsWith(payload.queueName, `${getNetworkName()}.`)) {
-      payload.queueName = `${getNetworkName()}.${payload.queueName}`;
-    }
 
     // Check if the queue is paused
     const pausedQueues = await PausedRabbitMqQueues.getPausedQueues();
@@ -38,10 +35,17 @@ export const postPauseRabbitQueueOptions: RouteOptions = {
       return { message: `${payload.queueName} already paused` };
     }
 
-    await redis.publish(
-      Channel.PauseRabbitConsumerQueue,
-      JSON.stringify({ queueName: payload.queueName })
-    );
+    if (payload.allChains) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.PauseRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    } else {
+      await redis.publish(
+        Channel.PauseRabbitConsumerQueue,
+        JSON.stringify({ queueName: payload.queueName })
+      );
+    }
 
     return { message: `${payload.queueName} paused` };
   },

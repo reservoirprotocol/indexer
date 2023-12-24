@@ -1,13 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import _ from "lodash";
 
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
-import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  BaseActivityEventHandler,
+  NftTransferEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
-import { logger } from "@/common/logger";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -81,9 +85,12 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",
                         tokens.media AS "token_media",
+                        tokens.is_spam AS "token_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.image_version AS "collection_image_version"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
                     WHERE nft_transfer_events.address = tokens.contract
@@ -93,5 +100,51 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
   parseEvent(data: any) {
     data.timestamp = data.event_timestamp;
+  }
+
+  static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
+    const activities: ActivityDocument[] = [];
+
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(
+        `('${_.replace(event.txHash, "0x", "\\x")}', '${event.logIndex}', '${event.batchIndex}')`
+      );
+    }
+
+    const results = await idb.manyOrNone(
+      `
+                ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
+                WHERE (tx_hash,log_index, batch_index) IN ($/eventsFilter:raw/);  
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
+    );
+
+    for (const result of results) {
+      try {
+        const eventHandler = new NftTransferEventCreatedEventHandler(
+          result.event_tx_hash,
+          result.event_log_index,
+          result.event_batch_index
+        );
+
+        const activity = eventHandler.buildDocument(result);
+
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "nft-transfer-event-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
+    }
+
+    return activities;
   }
 }

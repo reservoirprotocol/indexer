@@ -5,106 +5,12 @@ export const CONFIG_DEFAULT = {
   mappings: {
     dynamic: "false",
     properties: {
-      id: { type: "keyword" },
-      createdAt: { type: "date" },
-      indexedAt: { type: "date" },
-      type: { type: "keyword" },
-      timestamp: { type: "float" },
-      contract: { type: "keyword" },
-      fromAddress: { type: "keyword" },
-      toAddress: { type: "keyword" },
-      amount: { type: "keyword" },
-      token: {
+      chain: {
         properties: {
-          id: { type: "keyword" },
+          id: { type: "integer" },
           name: { type: "keyword" },
-          image: { type: "keyword" },
-          media: { type: "keyword" },
         },
       },
-      collection: {
-        properties: {
-          id: { type: "keyword" },
-          name: { type: "keyword" },
-          image: { type: "keyword" },
-        },
-      },
-      order: {
-        properties: {
-          id: { type: "keyword" },
-          side: { type: "keyword" },
-          sourceId: { type: "integer" },
-          criteria: {
-            properties: {
-              kind: { type: "keyword" },
-              data: {
-                properties: {
-                  token: {
-                    properties: {
-                      tokenId: { type: "keyword" },
-                    },
-                  },
-                  collection: {
-                    properties: {
-                      id: { type: "keyword" },
-                    },
-                  },
-                  attribute: {
-                    properties: {
-                      key: { type: "keyword" },
-                      value: { type: "keyword" },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      event: {
-        properties: {
-          timestamp: { type: "float" },
-          txHash: { type: "keyword" },
-          logIndex: { type: "integer" },
-          batchIndex: { type: "integer" },
-          blockHash: { type: "keyword" },
-        },
-      },
-      pricing: {
-        properties: {
-          price: { type: "keyword" },
-          priceDecimal: { type: "double" },
-          currencyPrice: { type: "keyword" },
-          usdPrice: { type: "keyword" },
-          feeBps: { type: "integer" },
-          currency: { type: "keyword" },
-          value: { type: "keyword" },
-          valueDecimal: { type: "double" },
-          currencyValue: { type: "keyword" },
-          normalizedValue: { type: "keyword" },
-          normalizedValueDecimal: { type: "double" },
-          currencyNormalizedValue: { type: "keyword" },
-        },
-      },
-    },
-  } as MappingTypeMapping,
-  settings: {
-    number_of_shards:
-      getNetworkSettings().elasticsearch?.indexes?.activities?.numberOfShards ||
-      getNetworkSettings().elasticsearch?.numberOfShards ||
-      1,
-    number_of_replicas: 0,
-    sort: {
-      field: ["timestamp", "createdAt"],
-      order: ["desc", "desc"],
-    },
-  },
-};
-
-export const CONFIG_1689873821 = {
-  mappings: {
-    dynamic: "false",
-    properties: {
       id: { type: "keyword" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
@@ -120,6 +26,7 @@ export const CONFIG_1689873821 = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           media: { type: "keyword" },
+          isSpam: { type: "boolean" },
         },
       },
       collection: {
@@ -127,6 +34,8 @@ export const CONFIG_1689873821 = {
           id: { type: "keyword" },
           name: { type: "keyword" },
           image: { type: "keyword" },
+          isSpam: { type: "boolean" },
+          imageVersion: { type: "date", format: "epoch_second" },
         },
       },
       order: {
@@ -168,6 +77,8 @@ export const CONFIG_1689873821 = {
           logIndex: { type: "integer" },
           batchIndex: { type: "integer" },
           blockHash: { type: "keyword" },
+          fillSourceId: { type: "integer" },
+          washTradingScore: { type: "double" },
         },
       },
       pricing: {

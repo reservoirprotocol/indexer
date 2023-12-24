@@ -11,10 +11,10 @@ export type HandleNewSellOrderJobPayload = {
   previousPrice: number | null;
 };
 
-export class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
+export default class HandleNewSellOrderJob extends AbstractRabbitMqJobHandler {
   queueName = "handle-new-sell-order-queue";
   maxRetries = 10;
-  concurrency = 6;
+  concurrency = 2;
 
   protected async process(payload: HandleNewSellOrderJobPayload) {
     const { contract, tokenId, price, previousPrice } = payload;

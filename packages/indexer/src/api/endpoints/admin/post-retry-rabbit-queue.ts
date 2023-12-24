@@ -6,8 +6,6 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import _ from "lodash";
-import { getNetworkName } from "@/config/network";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 
 export const postRetryRabbitQueue: RouteOptions = {
@@ -30,13 +28,13 @@ export const postRetryRabbitQueue: RouteOptions = {
     }
 
     const payload = request.payload as any;
-    if (!_.startsWith(payload.queueName, `${getNetworkName()}.`)) {
-      payload.queueName = `${getNetworkName()}.${payload.queueName}`;
-    }
 
     try {
       const retriedMessagesCount = await RabbitMqJobsConsumer.retryQueue(payload.queueName);
-      return { message: `${retriedMessagesCount} messages in ${payload.queueName} sent to retry` };
+
+      return {
+        message: `${retriedMessagesCount} messages in ${payload.queueName} sent to retry`,
+      };
     } catch (error) {
       logger.error("post-set-community-handler", `Handler failure: ${error}`);
       throw error;

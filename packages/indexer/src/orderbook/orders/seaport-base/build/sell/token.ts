@@ -32,12 +32,12 @@ export class SellTokenBuilderBase {
   ): Promise<T> {
     const collectionResult = await redb.oneOrNone(
       `
-              SELECT
-                tokens.collection_id
-              FROM tokens
-              WHERE tokens.contract = $/contract/
-                AND tokens.token_id = $/tokenId/
-            `,
+        SELECT
+          tokens.collection_id
+        FROM tokens
+        WHERE tokens.contract = $/contract/
+          AND tokens.token_id = $/tokenId/
+      `,
       {
         contract: toBuffer(options.contract!),
         tokenId: options.tokenId,
@@ -50,7 +50,6 @@ export class SellTokenBuilderBase {
     const buildInfo = await this.getBuildInfoFunc(options, collectionResult.collection_id, "sell");
 
     const builder = new Sdk.SeaportBase.Builders.SingleToken(config.chainId);
-
     return builder.build({ ...buildInfo.params, tokenId: options.tokenId }, orderBuilder);
   }
 }

@@ -3,13 +3,14 @@ import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { logger } from "@/common/logger";
 import { Event } from "@/events-sync/storage/nft-transfer-events";
+import { config } from "@/config/index";
 
 export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
   queueName = "transfer-updates";
   maxRetries = 10;
-  concurrency = 5;
+  concurrency = [137].includes(config.chainId) ? 1 : 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   protected async process(payload: Event) {
     const { from, to, tokenId } = payload;

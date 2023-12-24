@@ -222,7 +222,7 @@ describe("[ReservoirV6_0_1] - PaymentProcessor offers", () => {
     await erc1155.connect(seller).mintMany(tokenId, amount);
     await erc1155
       .connect(seller)
-      .safeTransferFrom(seller.address, paymentProcessorModule.address, tokenId, amount, "0x00");
+      .safeTransferFrom(seller.address, paymentProcessorModule.address, tokenId, amount, "0x");
 
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 

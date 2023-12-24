@@ -242,7 +242,7 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
               )
             : undefined,
           validUntil: r.price ? Number(r.valid_until) : null,
-          source: sources.get(r.order_source_id_int)?.name,
+          source: sources.get(r.order_source_id_int)?.name ?? null,
         },
         event: {
           id: r.id,

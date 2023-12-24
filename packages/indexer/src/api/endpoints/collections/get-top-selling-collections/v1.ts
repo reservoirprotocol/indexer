@@ -7,26 +7,29 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 
+import { redis } from "@/common/redis";
+
 import {
   getTopSellingCollections,
   TopSellingFillOptions,
+  getRecentSalesByCollection,
 } from "@/elasticsearch/indexes/activities";
 
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 
-const version = "v5";
+const version = "v1";
 
-export const getTopSellingCollectionsOptions: RouteOptions = {
+export const getTopSellingCollectionsV1Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
   description: "Top Selling Collections",
   notes: "Get top selling and minting collections",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -66,6 +69,8 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           count: Joi.number().integer(),
           volume: Joi.number(),
+          volumePercentChange: Joi.number().unsafe().allow(null),
+          countPercentChange: Joi.number().unsafe().allow(null),
           recentSales: Joi.array().items(
             Joi.object({
               contract: Joi.string(),
@@ -100,40 +105,87 @@ export const getTopSellingCollectionsOptions: RouteOptions = {
     const { startTime, endTime, fillType, limit, includeRecentSales } = request.query;
 
     try {
-      const collectionsResult = await getTopSellingCollections({
-        startTime,
-        endTime,
-        fillType,
-        limit,
-        includeRecentSales,
-      });
+      const oneDayAgo = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
+      const cacheKey = `top-selling-collections:v2:1d:${fillType}:sales`;
+
+      let cachedResults = null;
+      let collectionsResult = [];
+
+      // if approx 24 hours ago, use cache
+      if (Math.abs(startTime - oneDayAgo) <= 1000) {
+        cachedResults = await redis.get(cacheKey);
+      }
+
+      if (cachedResults) {
+        collectionsResult = JSON.parse(cachedResults).slice(0, limit);
+
+        let recentSalesPerCollection: any = {};
+
+        if (includeRecentSales) {
+          recentSalesPerCollection = await getRecentSalesByCollection(
+            collectionsResult.map((collection: any) => collection.id),
+            fillType
+          );
+        }
+
+        collectionsResult = collectionsResult.map((collection: any) => {
+          return {
+            ...collection,
+            recentSales: recentSalesPerCollection[collection.id] ?? [],
+          };
+        });
+
+        logger.info(
+          "get-top-selling-collections-v1-cache-hit",
+          `using cached results startTime=${startTime} fillType=${fillType}`
+        );
+      } else {
+        logger.info(
+          "get-top-selling-collections-v1-cache-miss",
+          `No cached results for startTime=${startTime} fillType=${fillType}`
+        );
+        collectionsResult = await getTopSellingCollections({
+          startTime,
+          endTime,
+          fillType,
+          limit,
+          includeRecentSales,
+        });
+
+        if (fillType === "mint") {
+          await redis.set(cacheKey, JSON.stringify(collectionsResult), "EX", 1800);
+        }
+      }
 
       const collections = await Promise.all(
         collectionsResult.map(async (collection: any) => {
           return {
             ...collection,
-            recentSales: await Promise.all(
-              collection.recentSales.map(async (sale: any) => {
-                const { pricing, ...salesData } = sale;
-                const price = pricing
-                  ? await getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
-                          nativeAmount: String(pricing?.price ?? 0),
-                          usdAmount: String(pricing.usdPrice ?? 0),
-                        },
-                      },
-                      pricing.currency
-                    )
-                  : null;
+            recentSales:
+              includeRecentSales && collection?.recentSales
+                ? await Promise.all(
+                    collection.recentSales.map(async (sale: any) => {
+                      const { pricing, ...salesData } = sale;
+                      const price = pricing
+                        ? await getJoiPriceObject(
+                            {
+                              gross: {
+                                amount: String(pricing?.currencyPrice ?? pricing?.price ?? 0),
+                                nativeAmount: String(pricing?.price ?? 0),
+                                usdAmount: String(pricing.usdPrice ?? 0),
+                              },
+                            },
+                            pricing.currency
+                          )
+                        : null;
 
-                return {
-                  ...salesData,
-                  price,
-                };
-              })
-            ),
+                      return {
+                        ...salesData,
+                        price,
+                      };
+                    })
+                  )
+                : [],
           };
         })
       );

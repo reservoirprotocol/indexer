@@ -4,12 +4,12 @@ import { logger } from "@/common/logger";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { config } from "@/config/index";
 
-export class EventsSyncProcessRealtimeJob extends AbstractRabbitMqJobHandler {
+export default class EventsSyncProcessRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-realtime";
   maxRetries = 10;
   concurrency = config.chainId === 137 ? 5 : 20;
   lazyMode = true;
-  consumerTimeout = 120000;
+  timeout = 120000;
   backoff = {
     type: "exponential",
     delay: 10000,

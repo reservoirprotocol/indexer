@@ -39,6 +39,7 @@ if (config.doBackgroundWork) {
             nft_transfer_events.token_id
           FROM nft_transfer_events
           WHERE nft_transfer_events.block = $/block/
+            AND nft_transfer_events.is_deleted = 0
           ORDER BY
             nft_transfer_events.log_index,
             nft_transfer_events.batch_index
@@ -71,6 +72,7 @@ if (config.doBackgroundWork) {
                   FROM nft_transfer_events
                   WHERE nft_transfer_events.address = $/contract/
                     AND nft_transfer_events.token_id = $/tokenId/
+                    AND nft_transfer_events.is_deleted = 0
                 `,
                 {
                   contract: toBuffer(contract),

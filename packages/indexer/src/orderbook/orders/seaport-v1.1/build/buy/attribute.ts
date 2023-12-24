@@ -3,8 +3,8 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getBuildInfo } from "@/orderbook/orders/seaport-v1.1/build/utils";
 import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
+import { getBuildInfo } from "@/orderbook/orders/seaport-v1.1/build/utils";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {
   // TODO: refactor

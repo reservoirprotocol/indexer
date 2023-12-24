@@ -23,7 +23,6 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v6";
 
@@ -177,8 +176,6 @@ export const getExecuteSellV6Options: RouteOptions = {
         throw Boom.badData("Unknown token");
       }
 
-      const isFlagged = Boolean(tokenResult.is_flagged);
-
       // Scenario 3: pass raw orders that don't yet exist
       if (payload.rawOrder) {
         // Hack: As the raw order is processed, set it to the `orderId`
@@ -279,7 +276,6 @@ export const getExecuteSellV6Options: RouteOptions = {
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
-                ${isFlagged ? "AND orders.kind NOT IN ('x2y2', 'seaport')" : ""}
               ORDER BY orders.value DESC
             `,
             {
@@ -392,25 +388,16 @@ export const getExecuteSellV6Options: RouteOptions = {
           tokenId,
           amount: payload.quantity,
           owner,
-        }
+        },
+        payload.taker
       );
 
       if (
-        [
-          "x2y2",
-          "seaport-v1.4",
-          "seaport-v1.5",
-          "seaport-v1.4-partial",
-          "seaport-v1.5-partial",
-        ].includes(bidDetails!.kind)
+        ["seaport-v1.4", "seaport-v1.5", "seaport-v1.4-partial", "seaport-v1.5-partial"].includes(
+          bidDetails!.kind
+        )
       ) {
-        const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-          tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
-        );
-        if (
-          (tokenToSuspicious.has(payload.token) && tokenToSuspicious.get(payload.token)) ||
-          tokenResult.is_flagged
-        ) {
+        if (tokenResult.is_flagged) {
           throw Boom.badData("Token is flagged");
         }
       }
@@ -470,7 +457,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
         const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
         for (const contract of contracts) {
-          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const operator = Sdk.BlurV2.Addresses.Delegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
@@ -599,6 +586,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),

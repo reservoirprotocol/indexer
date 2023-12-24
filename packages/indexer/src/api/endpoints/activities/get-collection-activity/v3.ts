@@ -10,6 +10,7 @@ import { Sources } from "@/models/sources";
 
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { JoiSource, getJoiSourceObject } from "@/common/joi";
 
 const version = "v3";
 
@@ -102,7 +103,7 @@ export const getCollectionActivityV3Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
           }),
         })
       ),
@@ -170,13 +171,7 @@ export const getCollectionActivityV3Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: getJoiSourceObject(orderSource, false),
               }
             : undefined,
         };

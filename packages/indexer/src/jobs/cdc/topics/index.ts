@@ -1,4 +1,3 @@
-import { config } from "@/config/index";
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import { IndexerFillEventsHandler } from "@/jobs/cdc/topics/indexer-fill-events";
 import { IndexerTransferEventsHandler } from "@/jobs/cdc/topics/indexer-nft-transfer-events";
@@ -15,6 +14,4 @@ export const TopicHandlers: KafkaEventHandler[] = [
   new IndexerTokenAttributesHandler(),
 ];
 
-if (!config.doOldOrderWebsocketWork) {
-  TopicHandlers.push(new IndexerOrdersHandler());
-}
+TopicHandlers.push(new IndexerOrdersHandler());

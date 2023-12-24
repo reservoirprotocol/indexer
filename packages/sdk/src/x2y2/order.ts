@@ -38,7 +38,7 @@ export class Order {
       amount: localOrder.amount,
       maker: localOrder.user,
       delegateType: localOrder.delegateType,
-      taker: AddressZero,
+      taker: localOrder.taker ?? AddressZero,
       deadline: localOrder.deadline,
       nft: {
         token: decodedItems[0][0].token,

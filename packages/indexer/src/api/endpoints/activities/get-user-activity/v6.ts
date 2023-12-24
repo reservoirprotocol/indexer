@@ -4,14 +4,19 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { regex } from "@/common/utils";
+import { fromBuffer, regex } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import {
+  getJoiActivityObject,
   getJoiActivityOrderObject,
+  getJoiCollectionObject,
   getJoiPriceObject,
+  getJoiSourceObject,
+  getJoiTokenObject,
   JoiActivityOrder,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
 import { config } from "@/config/index";
@@ -19,6 +24,11 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import * as Sdk from "@reservoir0x/sdk";
 import { Collections } from "@/models/collections";
+import { redis } from "@/common/redis";
+import { redb } from "@/common/db";
+import { Sources } from "@/models/sources";
+import { MetadataStatus } from "@/models/metadata-status";
+import { Assets } from "@/utils/assets";
 
 const version = "v6";
 
@@ -57,6 +67,9 @@ export const getUserActivityV6Options: RouteOptions = {
       ).description(
         "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any activities marked as spam."),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
@@ -129,6 +142,7 @@ export const getUserActivityV6Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
@@ -149,6 +163,7 @@ export const getUserActivityV6Options: RouteOptions = {
             collectionId: Joi.string().allow(null),
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
           }),
           txHash: Joi.string()
             .lowercase()
@@ -157,6 +172,7 @@ export const getUserActivityV6Options: RouteOptions = {
             .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
+          fillSource: JoiSource.allow(null),
           order: JoiActivityOrder,
           createdAt: Joi.string(),
         })
@@ -209,16 +225,129 @@ export const getUserActivityV6Options: RouteOptions = {
         types: query.types,
         users: query.users,
         collections: query.collection,
+        excludeSpam: query.excludeSpam,
         contracts: query.contracts,
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
         limit: query.limit,
         continuation: query.continuation,
       });
 
+      let tokensMetadata: any[] = [];
+      let disabledCollectionMetadata: any = {};
+
+      if (query.includeMetadata) {
+        try {
+          let tokensToFetch = activities
+            .filter((activity) => activity.token)
+            .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
+
+          disabledCollectionMetadata = await MetadataStatus.get(
+            activities.map((activity) => activity.collection?.id ?? "")
+          );
+
+          if (tokensToFetch.length) {
+            // Make sure each token is unique
+            tokensToFetch = [...new Set(tokensToFetch).keys()];
+
+            tokensMetadata = await redis.mget(tokensToFetch);
+            tokensMetadata = tokensMetadata
+              .filter((token) => token)
+              .map((token) => JSON.parse(token));
+
+            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
+              const [, contract, tokenId] = tokenToFetch.split(":");
+
+              return (
+                tokensMetadata.find((token) => {
+                  return token.contract === contract && token.token_id === tokenId;
+                }) === undefined
+              );
+            });
+
+            if (nonCachedTokensToFetch.length) {
+              const tokensFilter = [];
+
+              for (const nonCachedTokenToFetch of nonCachedTokensToFetch) {
+                const [, contract, tokenId] = nonCachedTokenToFetch.split(":");
+
+                tokensFilter.push(`('${_.replace(contract, "0x", "\\x")}', '${tokenId}')`);
+              }
+
+              // Fetch details for all tokens
+              const tokensResult = await redb.manyOrNone(
+                `
+          SELECT
+            tokens.contract,
+            tokens.token_id,
+            tokens.name,
+            tokens.image,
+            tokens.metadata_disabled,
+            tokens.image_version,
+            tokens.rarity_score,
+            tokens.rarity_rank
+          FROM tokens
+          WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
+        `,
+                { tokensFilter: _.join(tokensFilter, ",") }
+              );
+
+              if (tokensResult?.length) {
+                tokensMetadata = tokensMetadata.concat(
+                  tokensResult.map((token) => ({
+                    contract: fromBuffer(token.contract),
+                    token_id: token.token_id,
+                    name: token.name,
+                    image: token.image,
+                    image_version: token.image_version,
+                    metadata_disabled: token.metadata_disabled,
+                    rarity_score: token.rarity_score,
+                    rarity_rank: token.rarity_rank,
+                  }))
+                );
+
+                const redisMulti = redis.multi();
+
+                for (const tokenResult of tokensResult) {
+                  const tokenResultContract = fromBuffer(tokenResult.contract);
+
+                  await redisMulti.set(
+                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                    JSON.stringify({
+                      contract: tokenResultContract,
+                      token_id: tokenResult.token_id,
+                      name: tokenResult.name,
+                      image: tokenResult.image,
+                      image_version: tokenResult.image_version,
+                      metadata_disabled: tokenResult.metadata_disabled,
+                      rarity_score: tokenResult.rarity_score,
+                      rarity_rank: tokenResult.rarity_rank,
+                    })
+                  );
+
+                  await redisMulti.expire(
+                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
+                    60 * 60 * 24
+                  );
+                }
+
+                await redisMulti.exec();
+              }
+            }
+          }
+        } catch (error) {
+          logger.error(`get-user-activity-${version}-handler`, `Token cache error: ${error}`);
+        }
+      }
+
       const result = _.map(activities, async (activity) => {
         const currency = activity.pricing?.currency
           ? activity.pricing.currency
           : Sdk.Common.Addresses.Native[config.chainId];
+
+        const tokenMetadata = tokensMetadata?.find(
+          (token) =>
+            token.contract == activity.contract && `${token.token_id}` == activity.token?.id
+        );
 
         let order;
 
@@ -229,20 +358,31 @@ export const getUserActivityV6Options: RouteOptions = {
             orderCriteria = {
               kind: activity.order.criteria.kind,
               data: {
-                collection: {
-                  id: activity.collection?.id,
-                  name: activity.collection?.name,
-                  image: activity.collection?.image,
-                },
+                collection: getJoiCollectionObject(
+                  {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
+                    isSpam: activity.collection?.isSpam,
+                  },
+                  disabledCollectionMetadata[activity.collection?.id ?? ""],
+                  activity.contract
+                ),
               },
             };
 
             if (activity.order.criteria.kind === "token") {
-              (orderCriteria as any).data.token = {
-                tokenId: activity.token?.id,
-                name: activity.token?.name,
-                image: activity.token?.image,
-              };
+              (orderCriteria as any).data.token = getJoiTokenObject(
+                {
+                  tokenId: activity.token?.id,
+                  name: tokenMetadata ? tokenMetadata.name : activity.token?.name,
+                  image: tokenMetadata ? tokenMetadata.image : activity.token?.image,
+                  isSpam: activity.token?.isSpam,
+                },
+                tokenMetadata?.metadata_disabled ||
+                  disabledCollectionMetadata[activity.collection?.id ?? ""],
+                true
+              );
             }
 
             if (activity.order.criteria.kind === "attribute") {
@@ -269,47 +409,78 @@ export const getUserActivityV6Options: RouteOptions = {
             : undefined;
         }
 
-        return {
-          type: activity.type,
-          fromAddress: activity.fromAddress,
-          toAddress: activity.toAddress || null,
-          price: activity.pricing?.currency
-            ? await getJoiPriceObject(
-                {
-                  gross: {
-                    amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                    nativeAmount: String(activity.pricing?.price),
+        const sources = await Sources.getInstance();
+        const fillSource = activity.event?.fillSourceId
+          ? sources.get(activity.event?.fillSourceId)
+          : undefined;
+
+        const originalImageUrl = query.includeMetadata
+          ? (tokenMetadata ? tokenMetadata.image : activity.token?.image) || null
+          : undefined;
+
+        let tokenImageUrl = null;
+        if (originalImageUrl) {
+          tokenImageUrl = Assets.getResizedImageUrl(
+            originalImageUrl,
+            undefined,
+            tokenMetadata?.image_version
+          );
+        }
+
+        return getJoiActivityObject(
+          {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: activity.pricing?.currency
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                      nativeAmount: String(activity.pricing?.price),
+                    },
                   },
-                },
-                currency,
-                query.displayCurrency
-              )
-            : undefined,
-          amount: Number(activity.amount),
-          timestamp: activity.timestamp,
-          createdAt: new Date(activity.createdAt).toISOString(),
-          contract: activity.contract,
-          token: {
-            tokenId: activity.token?.id || null,
-            tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
-            tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
-            tokenMedia: query.includeMetadata ? null : undefined,
-            tokenRarityRank: query.includeMetadata ? null : undefined,
-            tokenRarityScore: query.includeMetadata ? null : undefined,
-          },
-          collection: {
-            collectionId: activity.collection?.id,
-            collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-            collectionImage:
-              query.includeMetadata && activity.collection?.image != null
-                ? activity.collection?.image
+                  currency,
+                  query.displayCurrency
+                )
+              : undefined,
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata
+                ? (tokenMetadata ? tokenMetadata.name : activity.token?.name) || null
                 : undefined,
+              tokenImage: tokenImageUrl,
+              tokenMedia: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? tokenMetadata?.rarity_score : undefined,
+              tokenRarityScore: query.includeMetadata ? tokenMetadata?.rarity_rank : undefined,
+              isSpam: activity.token?.isSpam,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? Assets.getResizedImageUrl(
+                      activity.collection?.image,
+                      undefined,
+                      activity.collection?.imageVersion
+                    )
+                  : undefined,
+              isSpam: activity.collection?.isSpam,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
+            order,
           },
-          txHash: activity.event?.txHash,
-          logIndex: activity.event?.logIndex,
-          batchIndex: activity.event?.batchIndex,
-          order,
-        };
+          Boolean(tokenMetadata?.metadata_disabled),
+          disabledCollectionMetadata
+        );
       });
 
       return { activities: await Promise.all(result), continuation };

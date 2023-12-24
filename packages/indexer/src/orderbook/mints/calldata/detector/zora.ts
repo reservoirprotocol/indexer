@@ -3,7 +3,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
-
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
@@ -17,10 +16,14 @@ import {
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 import { AllowlistItem, allowlistExists, createAllowlist } from "@/orderbook/mints/allowlists";
-import { getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import { getStatus, toSafeNumber, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
 import { getContractKind } from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "zora";
+
+export type Info = {
+  minter?: string;
+};
 
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
@@ -28,6 +31,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
   const c = new Contract(
     collection,
     new Interface([
+      `function computeTotalReward(uint256 numTokens) view returns(uint256)`,
       `
         function saleDetails() view returns (
           (
@@ -53,6 +57,12 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
   try {
     const saleDetails = await c.saleDetails();
     const fee = await c.zoraFeeForAmount(1).then((f: { fee: BigNumber }) => f.fee);
+    let totalRewards: BigNumber | undefined;
+    try {
+      totalRewards = await c.computeTotalReward(1);
+    } catch {
+      // Skip error for old version
+    }
 
     // Public sale
     if (saleDetails.publicSaleActive) {
@@ -69,22 +79,46 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
         details: {
           tx: {
             to: collection,
-            data: {
-              // `purchase`
-              signature: "0xefef39a1",
-              params: [
-                {
-                  kind: "quantity",
-                  abiType: "uint256",
-                },
-              ],
-            },
+            data:
+              totalRewards == undefined
+                ? {
+                    // `purchase`
+                    signature: "0xefef39a1",
+                    params: [
+                      {
+                        kind: "quantity",
+                        abiType: "uint256",
+                      },
+                    ],
+                  }
+                : {
+                    // `mintWithRewards`
+                    signature: "0x45368181",
+                    params: [
+                      {
+                        kind: "recipient",
+                        abiType: "address",
+                      },
+                      {
+                        kind: "quantity",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "comment",
+                        abiType: "string",
+                      },
+                      {
+                        kind: "referrer",
+                        abiType: "address",
+                      },
+                    ],
+                  },
           },
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
         price,
-        maxMintsPerWallet: saleDetails.maxSalePurchasePerAddress.toString(),
-        maxSupply: saleDetails.maxSupply.toString(),
+        maxMintsPerWallet: toSafeNumber(saleDetails.maxSalePurchasePerAddress),
+        maxSupply: toSafeNumber(saleDetails.maxSupply),
         startTime: toSafeTimestamp(saleDetails.publicSaleStart),
         endTime: toSafeTimestamp(saleDetails.publicSaleEnd),
       });
@@ -125,32 +159,64 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
         details: {
           tx: {
             to: collection,
-            data: {
-              // `purchasePresale`
-              signature: "0x25024a2b",
-              params: [
-                {
-                  kind: "quantity",
-                  abiType: "uint256",
-                },
-                {
-                  kind: "allowlist",
-                  abiType: "uint256",
-                },
-                {
-                  kind: "allowlist",
-                  abiType: "uint256",
-                },
-                {
-                  kind: "allowlist",
-                  abiType: "bytes32[]",
-                },
-              ],
-            },
+            data:
+              totalRewards == undefined
+                ? {
+                    // `purchasePresale`
+                    signature: "0x25024a2b",
+                    params: [
+                      {
+                        kind: "quantity",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "bytes32[]",
+                      },
+                    ],
+                  }
+                : {
+                    // `purchasePresaleWithRewards`
+                    signature: "0xae6e7875",
+                    params: [
+                      {
+                        kind: "quantity",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "uint256",
+                      },
+                      {
+                        kind: "allowlist",
+                        abiType: "bytes32[]",
+                      },
+                      {
+                        kind: "comment",
+                        abiType: "string",
+                      },
+                      {
+                        kind: "referrer",
+                        abiType: "address",
+                      },
+                    ],
+                  },
           },
         },
         currency: Sdk.Common.Addresses.Native[config.chainId],
-        maxSupply: saleDetails.maxSupply.toString(),
+        maxSupply: toSafeNumber(saleDetails.maxSupply),
         startTime: toSafeTimestamp(saleDetails.presaleStart),
         endTime: toSafeTimestamp(saleDetails.presaleEnd),
         allowlistId: merkleRoot,
@@ -175,14 +241,17 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
 
 export const extractByCollectionERC1155 = async (
   collection: string,
-  tokenId: string
+  tokenId: string,
+  minter?: string
 ): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
   const c = new Contract(
     collection,
     new Interface([
+      "function computeTotalReward(uint256 numTokens) view returns(uint256)",
       "function getPermissions(uint256 tokenId, address user) view returns (uint256)",
+      "function permissions(uint256 tokenId, address user) view returns (uint256)",
       "function mintFee() external view returns(uint256)",
       `function getTokenInfo(uint256 tokenId) view returns (
         (
@@ -196,14 +265,36 @@ export const extractByCollectionERC1155 = async (
   );
 
   try {
-    const zoraFactory = new Contract(
+    let totalRewards: BigNumber | undefined;
+    try {
+      totalRewards = await c.computeTotalReward(1);
+    } catch {
+      // Skip error for old version
+    }
+
+    const defaultMinters: string[] = minter ? [minter] : [];
+    for (const factory of [
       Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
-      new Interface(["function defaultMinters() view returns (address[])"]),
-      baseProvider
-    );
-    const defaultMinters = await zoraFactory.defaultMinters();
+      Sdk.Zora.Addresses.ERC1155FactoryV2[config.chainId],
+    ]) {
+      try {
+        const zoraFactory = new Contract(
+          factory,
+          new Interface(["function defaultMinters() view returns (address[])"]),
+          baseProvider
+        );
+        defaultMinters.push(...(await zoraFactory.defaultMinters()));
+      } catch {
+        // Skip errors
+      }
+    }
+
     for (const minter of defaultMinters) {
-      const permissions = await c.getPermissions(tokenId, minter);
+      // Try both `getPermissions` and `permissions` to cover as many versions as possible
+      const permissions = await c
+        .getPermissions(tokenId, minter)
+        .catch(() => c.permissions(tokenId, minter));
+
       // Need to have mint permissions
       if (permissions.toNumber() === 4) {
         const s = new Contract(
@@ -247,39 +338,68 @@ export const extractByCollectionERC1155 = async (
             details: {
               tx: {
                 to: collection,
-                data: {
-                  // `mint`
-                  signature: "0x731133e9",
-                  params: [
-                    {
-                      kind: "unknown",
-                      abiType: "address",
-                      abiValue: minter.toLowerCase(),
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: tokenId,
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint256",
-                    },
-                    {
-                      kind: "custom",
-                      abiType: "bytes",
-                    },
-                  ],
-                },
+                data:
+                  totalRewards == undefined
+                    ? {
+                        // `mint`
+                        signature: "0x731133e9",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId,
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "custom",
+                            abiType: "bytes",
+                          },
+                        ],
+                      }
+                    : {
+                        // `mintWithRewards`
+                        signature: "0x9dbb844d",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId,
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "custom",
+                            abiType: "bytes",
+                          },
+                          {
+                            kind: "referrer",
+                            abiType: "address",
+                          },
+                        ],
+                      },
               },
+              info: minter ? { minter } : undefined,
             },
+            tokenId,
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price,
-            maxMintsPerWallet: bn(saleConfig.maxTokensPerAddress).gt(0)
-              ? saleConfig.maxTokensPerAddress.toString()
-              : undefined,
-            tokenId,
-            maxSupply: tokenInfo.maxSupply.toString(),
+            maxMintsPerWallet: toSafeNumber(saleConfig.maxTokensPerAddress),
+            maxSupply: toSafeNumber(tokenInfo.maxSupply),
             startTime: toSafeTimestamp(saleConfig.saleStart),
             endTime: toSafeTimestamp(saleConfig.saleEnd),
           });
@@ -340,34 +460,64 @@ export const extractByCollectionERC1155 = async (
             details: {
               tx: {
                 to: collection,
-                data: {
-                  // `mint`
-                  signature: "0x731133e9",
-                  params: [
-                    {
-                      kind: "unknown",
-                      abiType: "address",
-                      abiValue: minter.toLowerCase(),
-                    },
-                    {
-                      kind: "unknown",
-                      abiType: "uint256",
-                      abiValue: tokenId.toString(),
-                    },
-                    {
-                      kind: "quantity",
-                      abiType: "uint256",
-                    },
-                    {
-                      kind: "allowlist",
-                      abiType: "bytes",
-                    },
-                  ],
-                },
+                data:
+                  totalRewards == undefined
+                    ? {
+                        // `mint`
+                        signature: "0x731133e9",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId.toString(),
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "allowlist",
+                            abiType: "bytes",
+                          },
+                        ],
+                      }
+                    : {
+                        // `mintWithRewards`
+                        signature: "0x9dbb844d",
+                        params: [
+                          {
+                            kind: "unknown",
+                            abiType: "address",
+                            abiValue: minter.toLowerCase(),
+                          },
+                          {
+                            kind: "unknown",
+                            abiType: "uint256",
+                            abiValue: tokenId.toString(),
+                          },
+                          {
+                            kind: "quantity",
+                            abiType: "uint256",
+                          },
+                          {
+                            kind: "allowlist",
+                            abiType: "bytes",
+                          },
+                          {
+                            kind: "referrer",
+                            abiType: "address",
+                          },
+                        ],
+                      },
               },
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
-            maxSupply: tokenInfo.maxSupply.toString(),
+            maxSupply: toSafeNumber(tokenInfo.maxSupply),
             startTime: toSafeTimestamp(saleConfig.presaleStart),
             endTime: toSafeTimestamp(saleConfig.presaleEnd),
             allowlistId: merkleRoot,
@@ -405,6 +555,8 @@ export const extractByTx = async (
       "0x03ee2733", // `purchaseWithComment`
       "0x25024a2b", // `purchasePresale`
       "0x2e706b5a", // `purchasePresaleWithComment`
+      "0x45368181", // `mintWithRewards`
+      "0xae6e7875", // `purchasePresaleWithRewards`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     return extractByCollectionERC721(collection);
@@ -414,14 +566,36 @@ export const extractByTx = async (
   if (
     [
       "0x731133e9", // `mint`
+      "0x9dbb844d", // `mintWithRewards`
+      "0xc9a05470", // `premint`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
-    const tokenId = new Interface([
+    const iface = new Interface([
       "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
-    ])
-      .decodeFunctionData("mint", tx.data)
-      .tokenId.toString();
-    return extractByCollectionERC1155(collection, tokenId);
+      "function mintWithRewards(address minter, uint256 tokenId, uint256 quantity, bytes minterArguments, address mintReferral)",
+      "function premint((address, string, string) contractConfig, ((string, uint256, uint64, uint96, uint64, uint64, uint32, uint32, address, address), uint32 tokenId, uint32, bool) premintConfig, bytes signature, uint256 quantityToMint, string mintComment)",
+    ]);
+
+    let tokenId: string;
+    let minter: string | undefined;
+    switch (tx.data.slice(0, 10)) {
+      case "0x731133e9":
+        tokenId = iface.decodeFunctionData("mint", tx.data).tokenId.toString();
+        break;
+
+      case "0x9dbb844d": {
+        const parseArgs = iface.decodeFunctionData("mintWithRewards", tx.data);
+        tokenId = parseArgs.tokenId.toString();
+        minter = parseArgs.minter.toLowerCase();
+        break;
+      }
+
+      case "0xc9a05470":
+        tokenId = String(iface.decodeFunctionData("premint", tx.data).premintConfig.tokenId);
+        break;
+    }
+
+    return extractByCollectionERC1155(collection, tokenId!, minter);
   }
 
   return [];
@@ -432,10 +606,10 @@ export const refreshByCollection = async (collection: string) => {
     standard: STANDARD,
   });
 
-  const refresh = async (tokenId?: string) => {
+  const refresh = async (tokenId?: string, minter?: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
-      ? await extractByCollectionERC1155(collection, tokenId)
+      ? await extractByCollectionERC1155(collection, tokenId, minter)
       : await extractByCollectionERC721(collection);
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);
@@ -476,7 +650,11 @@ export const refreshByCollection = async (collection: string) => {
     );
     await Promise.all(tokenIds.map(async ({ token_id }) => refresh(token_id)));
   } else {
-    await Promise.all(existingCollectionMints.map(async ({ tokenId }) => refresh(tokenId)));
+    await Promise.all(
+      existingCollectionMints.map(async ({ tokenId, details }) =>
+        refresh(tokenId, (details.info as Info | undefined)?.minter)
+      )
+    );
   }
 };
 

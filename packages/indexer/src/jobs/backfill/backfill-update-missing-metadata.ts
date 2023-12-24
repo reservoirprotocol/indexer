@@ -15,7 +15,7 @@ import { Tokens } from "@/models/tokens";
 import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
-import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
@@ -71,7 +71,6 @@ if (config.doBackgroundWork) {
       );
 
       // push queue messages
-      await metadataIndexProcessBySlugJob.addToQueue();
       await metadataIndexProcessJob.addToQueue({ method: "opensea" });
 
       if (_.size(collections) === limit) {
@@ -143,6 +142,12 @@ async function processCollectionTokens(
   // push to tokens refresh queue
   const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
   await pendingRefreshTokens.add(unindexedTokens);
+
+  if (indexingMethod === "onchain") {
+    await onchainMetadataFetchTokenUriJob.addToQueue();
+  } else {
+    await metadataIndexProcessJob.addToQueue({ method: indexingMethod });
+  }
 }
 
 async function processCollection(collection: {
@@ -168,16 +173,12 @@ async function processCollection(collection: {
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
     const tokenId = await Tokens.getSingleToken(collection.id);
-    await collectionMetadataQueueJob.addToQueue(
-      {
-        contract: collection.contract,
-        tokenId,
-        community: "opensea",
-        forceRefresh: false,
-      },
-      0,
-      QUEUE_NAME
-    );
+    await collectionMetadataQueueJob.addToQueue({
+      contract: collection.contract,
+      tokenId,
+      community: "opensea",
+      forceRefresh: false,
+    });
     await processCollectionTokens(collection, limit, indexingMethod);
     return;
   }

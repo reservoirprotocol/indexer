@@ -3,12 +3,12 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { logger } from "@/common/logger";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 
-export class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
+export default class EventsSyncProcessBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-process-backfill";
   maxRetries = 10;
-  concurrency = 15;
+  concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 120000;
+  timeout = 120000;
 
   protected async process(payload: EventsBatch) {
     const { id, events, backfill } = payload;

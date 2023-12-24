@@ -13,7 +13,7 @@ export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
   maxRetries = 5;
   concurrency = 10;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -61,6 +61,13 @@ export class FillPostProcessJob extends AbstractRabbitMqJobHandler {
             WHERE tx_hash = $/txHash/
               AND log_index = $/logIndex/
               AND batch_index = $/batchIndex/
+              AND (wash_trading_score IS DISTINCT FROM $/washTradingScore/
+                   OR royalty_fee_bps IS DISTINCT FROM $/royaltyFeeBps/
+                   OR marketplace_fee_bps IS DISTINCT FROM $/marketplaceFeeBps/
+                   OR royalty_fee_breakdown IS DISTINCT FROM $/royaltyFeeBreakdown:json/
+                   OR marketplace_fee_breakdown IS DISTINCT FROM $/marketplaceFeeBreakdown:json/
+                   OR paid_full_royalty IS DISTINCT FROM $/paidFullRoyalty/
+                   OR net_amount IS DISTINCT FROM $/netAmount/)
           `,
         values: {
           washTradingScore: event.washTradingScore || 0,

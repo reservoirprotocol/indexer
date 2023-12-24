@@ -1,11 +1,10 @@
 import { now, toTime } from "@/common/utils";
-import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { ItemReceivedBidEventPayload } from "@opensea/stream-js";
-import { getNetworkSettings } from "@/config/network";
+import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 
 export const handleEvent = (payload: ItemReceivedBidEventPayload): OpenseaOrderParams | null => {
-  if (getSupportedChainName() != payload.item.chain.name) {
+  if (getOpenseaNetworkName() != payload.item.chain.name) {
     return null;
   }
 

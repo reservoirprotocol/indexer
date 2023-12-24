@@ -8,6 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderDepth, getJoiOrderDepthObject } from "@/common/joi";
 import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { Collections } from "@/models/collections";
 
 const version = "v1";
 
@@ -60,6 +61,7 @@ export const getOrdersDepthV1Options: RouteOptions = {
         `
           SELECT
             orders.kind,
+            orders.price,
             orders.currency_price,
             orders.currency,
             orders.quantity_remaining,
@@ -116,7 +118,10 @@ export const getOrdersDepthV1Options: RouteOptions = {
                     AND token_sets.attribute_id IS NULL
                   `
                   : !query.collection.match(regex.address)
-                  ? " AND tokens.collection_id = $/collection/"
+                  ? `
+                    AND orders.contract = $/contract/
+                    AND tokens.collection_id = $/collection/
+                  `
                   : " AND orders.contract = $/contract/"
                 : ""
             }
@@ -125,7 +130,13 @@ export const getOrdersDepthV1Options: RouteOptions = {
         `,
         {
           side,
-          contract: query.token ? toBuffer(query.token.split(":")[0]) : toBuffer(query.collection),
+          contract: query.token
+            ? toBuffer(query.token.split(":")[0])
+            : query.collection.match(regex.address)
+            ? toBuffer(query.collection)
+            : toBuffer(
+                await Collections.getById(query.collection).then((c) => c!.contract ?? "0x")
+              ),
           tokenId: query.token && query.token.split(":")[1],
           tokenSetId: query.token && `token:${query.token}`,
           collection: query.collection,
@@ -137,7 +148,7 @@ export const getOrdersDepthV1Options: RouteOptions = {
         results.map(async (r) =>
           getJoiOrderDepthObject(
             r.kind,
-            r.currency_price,
+            r.currency_price ?? r.price,
             fromBuffer(r.currency),
             r.quantity_remaining,
             r.raw_data,

@@ -14,12 +14,12 @@ export type BlockCheckJobPayload = {
   delay?: number;
 };
 
-export class BlockCheckJob extends AbstractRabbitMqJobHandler {
+export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 30000,
@@ -32,9 +32,14 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
       // Generic method for handling an orphan block
       const handleOrphanBlock = async (block: { number: number; hash: string }) => {
         // Resync the detected orphaned block
-        await eventsSyncBackfillJob.addToQueue(block.number, block.number, {
-          prioritized: true,
-        });
+        await eventsSyncBackfillJob.addToQueue(
+          block.number,
+          block.number,
+          {},
+          {
+            prioritized: 1,
+          }
+        );
         await unsyncEvents(block.number, block.hash);
 
         // Delete the orphaned block from the `blocks` table
@@ -54,7 +59,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
               (SELECT
                 nft_transfer_events.block_hash
               FROM nft_transfer_events
-              WHERE nft_transfer_events.block = $/block/)
+              WHERE nft_transfer_events.block = $/block/ AND nft_transfer_events.is_deleted = 0)
 
               UNION
 
@@ -75,7 +80,7 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
               (SELECT
                 fill_events_2.block_hash
               FROM fill_events_2
-              WHERE fill_events_2.block = $/block/)
+              WHERE fill_events_2.block = $/block/ AND fill_events_2.is_deleted = 0)
 
               UNION
 
@@ -97,18 +102,32 @@ export class BlockCheckJob extends AbstractRabbitMqJobHandler {
         for (const { block_hash } of result) {
           const blockHash = fromBuffer(block_hash);
           if (blockHash.toLowerCase() !== upstreamBlockHash.toLowerCase()) {
-            logger.info(this.queueName, `Detected orphan block ${block} with hash ${blockHash}}`);
+            logger.info(
+              this.queueName,
+              `Detected orphan block ${block} with hash ${blockHash}}, upstream hash: ${upstreamBlockHash}, delay=${payload.delay}`
+            );
             await handleOrphanBlock({ number: block, hash: blockHash });
           }
         }
       } else {
         if (upstreamBlockHash.toLowerCase() !== blockHash.toLowerCase()) {
-          logger.info(this.queueName, `Detected orphan block ${block} with hash ${blockHash}}`);
+          logger.info(
+            this.queueName,
+            `Detected orphan block ${block} with hash ${blockHash}}, upstream hash: ${upstreamBlockHash}, delay=${payload.delay}`
+          );
           await handleOrphanBlock({ number: block, hash: blockHash });
         }
       }
     } catch (error) {
-      logger.error(this.queueName, `Block check failed: ${error}`);
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          message: `Failed to process block ${block} with hash ${blockHash}. error=${error}`,
+          payload,
+          error,
+        })
+      );
+
       throw error;
     }
   }

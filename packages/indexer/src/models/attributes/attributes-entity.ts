@@ -2,7 +2,14 @@
 export type AttributesEntityUpdateParams = {
   tokenCount?: number;
   onSaleCount?: number;
+  floorSellId?: string | null;
   floorSellValue?: number | null;
+  floorSellCurrency?: Buffer | null;
+  floorSellCurrencyValue?: number | null;
+  floorSellMaker?: Buffer | null;
+  floorSellValidFrom?: number | null;
+  floorSellValidTo?: number | null;
+  floorSellSourceIdInt?: number | null;
   topBuyValue?: number | null;
   sellUpdatedAt?: string | null;
   buyUpdatedAt?: string | null;

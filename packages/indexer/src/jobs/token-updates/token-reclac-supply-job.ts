@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Tokens } from "@/models/tokens";
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
@@ -13,9 +13,9 @@ export type TokenRecalcSupplyPayload = {
   tokenId: string;
 };
 
-export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
+export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
   queueName = "token-reclac-supply";
-  maxRetries = 10;
+  maxRetries = 1;
   concurrency = 10;
   useSharedChannel = true;
   lazyMode = true;
@@ -34,13 +34,30 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    const totalSupply = await this.calcTotalSupply(contract, tokenId);
+    let totalSupply = await this.calcTotalSupply(contract, tokenId);
     const totalRemainingSupply = await this.calcRemainingSupply(contract, tokenId);
 
-    await Tokens.update(contract, tokenId, {
-      supply: totalSupply,
-      remainingSupply: totalRemainingSupply,
-    });
+    if (totalRemainingSupply > totalSupply) {
+      totalSupply = totalRemainingSupply;
+    }
+
+    await idb.none(
+      `
+              UPDATE tokens SET
+                supply = $/totalSupply/,
+                remaining_supply = $/totalRemainingSupply/,
+                updated_at = now()
+              WHERE tokens.contract = $/contract/
+                AND tokens.token_id = $/tokenId/
+                AND (supply IS DISTINCT FROM $/totalSupply/ OR remaining_supply IS DISTINCT FROM $/totalRemainingSupply/)
+            `,
+      {
+        contract: toBuffer(contract),
+        tokenId,
+        totalSupply,
+        totalRemainingSupply,
+      }
+    );
   }
 
   public async calcRemainingSupply(contract: string, tokenId: string) {
@@ -122,6 +139,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
         WHERE address = $/contract/
         AND token_id = $/tokenId/
         AND nft_transfer_events.from IN ($/mintAddresses:list/)
+        AND is_deleted = 0
         ${continuation}
         ORDER BY "timestamp", tx_hash, log_index, batch_index
         LIMIT $/limit/

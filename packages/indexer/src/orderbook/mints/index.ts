@@ -18,7 +18,14 @@ export type CollectionMintStandard =
   | "thirdweb"
   | "zora"
   | "decent"
-  | "foundation";
+  | "foundation"
+  | "lanyard"
+  | "mintdotfun"
+  | "soundxyz"
+  | "createdotfun"
+  | "titlesxyz"
+  | "artblocks"
+  | "highlightxyz";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
@@ -35,13 +42,23 @@ export type CollectionMint = {
   standard: CollectionMintStandard;
   details: CollectionMintDetails;
   currency: string;
+  // At most one of `price` and `pricePerQuantity` should be set
+  // - `price`: every quantity that is minted has the same price (also, any quantity is mintable)
+  // - `pricePerQuantity`: different quantities have different prices (also, only specific quantites are mintable)
   price?: string;
+  pricePerQuantity?: PricePerQuantity[];
   tokenId?: string;
   maxMintsPerWallet?: string;
+  maxMintsPerTransaction?: string;
   maxSupply?: string;
   startTime?: number;
   endTime?: number;
   allowlistId?: string;
+};
+
+export type PricePerQuantity = {
+  price: string;
+  quantity: number;
 };
 
 export const getCollectionMints = async (
@@ -98,8 +115,10 @@ export const getCollectionMints = async (
         details: r.details,
         currency: fromBuffer(r.currency),
         price: r.price ?? undefined,
+        pricePerQuantity: r.price_per_quantity ?? undefined,
         tokenId: r.token_id ?? undefined,
         maxMintsPerWallet: r.max_mints_per_wallet ?? undefined,
+        maxMintsPerTransaction: r.max_mints_per_transaction ?? undefined,
         maxSupply: r.max_supply ?? undefined,
         startTime: r.start_time ? Math.floor(new Date(r.start_time).getTime() / 1000) : undefined,
         endTime: r.end_time ? Math.floor(new Date(r.end_time).getTime() / 1000) : undefined,
@@ -108,14 +127,7 @@ export const getCollectionMints = async (
   );
 };
 
-export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
-  const simulationResult = await simulateCollectionMint(collectionMint);
-  if (simulationResult) {
-    collectionMint.status = "open";
-  } else {
-    collectionMint.status = "closed";
-  }
-
+export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
   const isOpen = collectionMint.status === "open";
 
   const existingCollectionMint = await getCollectionMints(collectionMint.collection, {
@@ -156,6 +168,11 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
       updatedParams.maxMintsPerWallet = collectionMint.maxMintsPerWallet;
     }
 
+    if (collectionMint.maxMintsPerTransaction !== existingCollectionMint.maxMintsPerTransaction) {
+      updatedFields.push(" max_mints_per_transaction = $/maxMintsPerTransaction/");
+      updatedParams.maxMintsPerTransaction = collectionMint.maxMintsPerTransaction;
+    }
+
     if (collectionMint.maxSupply !== existingCollectionMint.maxSupply) {
       updatedFields.push(" max_supply = $/maxSupply/");
       updatedParams.maxSupply = collectionMint.maxSupply;
@@ -178,6 +195,28 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
     if (collectionMint.allowlistId !== existingCollectionMint.allowlistId) {
       updatedFields.push(" allowlist_id = $/allowlistId/");
       updatedParams.allowlistId = collectionMint.allowlistId;
+    }
+
+    if (collectionMint.pricePerQuantity) {
+      if (!existingCollectionMint.pricePerQuantity) {
+        updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+        updatedParams.pricePerQuantity = collectionMint.pricePerQuantity;
+      } else {
+        const unknownEntries = collectionMint.pricePerQuantity.filter(
+          (current) =>
+            !existingCollectionMint.pricePerQuantity?.find(
+              (old) => old.quantity === current.quantity
+            )
+        );
+
+        if (unknownEntries.length) {
+          updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+          updatedParams.pricePerQuantity = [
+            ...existingCollectionMint.pricePerQuantity,
+            ...unknownEntries,
+          ];
+        }
+      }
     }
 
     if (updatedFields.length) {
@@ -245,7 +284,11 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
           standard: collectionMint.standard,
         }
       );
-    } else if (standardResult.standard !== collectionMint.standard) {
+    } else if (
+      standardResult.standard !== collectionMint.standard &&
+      // Never update back to "unknown"
+      collectionMint.standard !== "unknown"
+    ) {
       await idb.none(
         `
           UPDATE collection_mint_standards SET
@@ -254,6 +297,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
         `,
         {
           collection: collectionMint.collection,
+          standard: collectionMint.standard,
         }
       );
 
@@ -281,6 +325,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
           price,
           token_id,
           max_mints_per_wallet,
+          max_mints_per_transaction,
           max_supply,
           start_time,
           end_time,
@@ -295,6 +340,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
           $/price/,
           $/tokenId/,
           $/maxMintsPerWallet/,
+          $/maxMintsPerTransaction/,
           $/maxSupply/,
           $/startTime/,
           $/endTime/,
@@ -311,6 +357,7 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
         price: collectionMint.price ?? null,
         tokenId: collectionMint.tokenId ?? null,
         maxMintsPerWallet: collectionMint.maxMintsPerWallet ?? null,
+        maxMintsPerTransaction: collectionMint.maxMintsPerTransaction ?? null,
         maxSupply: collectionMint.maxSupply ?? null,
         startTime: collectionMint.startTime ? new Date(collectionMint.startTime * 1000) : null,
         endTime: collectionMint.endTime ? new Date(collectionMint.endTime * 1000) : null,
@@ -339,6 +386,13 @@ export const simulateAndUpsertCollectionMint = async (collectionMint: Collection
   return false;
 };
 
+export const simulateAndUpsertCollectionMint = async (collectionMint: CollectionMint) => {
+  const simulationResult = await simulateCollectionMint(collectionMint);
+  collectionMint.status = simulationResult ? "open" : "closed";
+
+  return upsertCollectionMint(collectionMint);
+};
+
 export const getAmountMintableByWallet = async (
   collectionMint: CollectionMint,
   user: string
@@ -362,6 +416,17 @@ export const getAmountMintableByWallet = async (
       amountMintable = remainingAmount;
     } else {
       amountMintable = remainingAmount.lt(amountMintable) ? remainingAmount : amountMintable;
+    }
+  }
+
+  // Handle maximum amount mintable per transaction
+  if (collectionMint.maxMintsPerTransaction) {
+    if (!amountMintable) {
+      amountMintable = bn(collectionMint.maxMintsPerTransaction);
+    } else {
+      amountMintable = amountMintable.gt(collectionMint.maxMintsPerTransaction)
+        ? bn(collectionMint.maxMintsPerTransaction)
+        : amountMintable;
     }
   }
 

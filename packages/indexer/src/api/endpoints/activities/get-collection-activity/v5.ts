@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { JoiOrderCriteria } from "@/common/joi";
+import { JoiOrderCriteria, JoiSource, getJoiSourceObject } from "@/common/joi";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { Collections } from "@/models/collections";
@@ -114,7 +114,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
+            source: JoiSource.allow(null),
             criteria: JoiOrderCriteria.allow(null),
           }),
         })
@@ -205,13 +205,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: getJoiSourceObject(orderSource, false),
                 criteria: orderCriteria,
               }
             : undefined;
@@ -219,13 +213,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
           order = activity.order?.id
             ? {
                 id: activity.order.id,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: getJoiSourceObject(orderSource, false),
               }
             : undefined;
         }

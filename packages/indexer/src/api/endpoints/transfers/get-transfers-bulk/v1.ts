@@ -23,7 +23,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 10,
+      deprecated: true,
     },
   },
   validate: {

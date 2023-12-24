@@ -1,24 +1,27 @@
 import { Log } from "@ethersproject/abstract-provider";
+import { AddressZero } from "@ethersproject/constants";
+import _ from "lodash";
 
 import { concat } from "@/common/utils";
 import { EventKind, EventSubKind } from "@/events-sync/data";
-import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
+import {
+  assignMintCommentToFillEvents,
+  assignSourceToFillEvents,
+} from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
-import { AddressZero } from "@ethersproject/constants";
 import {
   recalcOwnerCountQueueJob,
   RecalcOwnerCountQueueJobPayload,
 } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
-
 import {
   processActivityEventJob,
   EventKind as ProcessActivityEventKind,
   ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
+} from "@/jobs/elasticsearch/activities/process-activity-event-job";
 import { fillUpdatesJob, FillUpdatesJobPayload } from "@/jobs/fill-updates/fill-updates-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { mintsProcessJob, MintsProcessJobPayload } from "@/jobs/mints/mints-process-job";
@@ -31,8 +34,11 @@ import {
   OrderUpdatesByMakerJobPayload,
 } from "@/jobs/order-updates/order-updates-by-maker-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import _ from "lodash";
 import { transferUpdatesJob } from "@/jobs/transfer-updates/transfer-updates-job";
+import {
+  permitUpdatesJob,
+  PermitUpdatesJobPayload,
+} from "@/jobs/permit-updates/permit-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -40,6 +46,14 @@ export type EnhancedEvent = {
   subKind: EventSubKind;
   baseEventParams: BaseEventParams;
   log: Log;
+};
+
+export type MintComment = {
+  token: string;
+  tokenId?: string;
+  quantity: number;
+  comment: string;
+  baseEventParams: BaseEventParams;
 };
 
 // Data extracted from purely on-chain information
@@ -70,10 +84,14 @@ export type OnChainData = {
   fillInfos: FillUpdatesJobPayload[];
   mintInfos: MintQueueJobPayload[];
   mints: MintsProcessJobPayload[];
+  mintComments: MintComment[];
 
   // For properly keeping orders validated on the go
   orderInfos: OrderUpdatesByIdJobPayload[];
   makerInfos: OrderUpdatesByMakerJobPayload[];
+
+  // For properly keeping permits validated on the go
+  permitInfos: PermitUpdatesJobPayload[];
 
   // Orders
   orders: GenericOrderInfo[];
@@ -97,9 +115,12 @@ export const initOnChainData = (): OnChainData => ({
   fillInfos: [],
   mintInfos: [],
   mints: [],
+  mintComments: [],
 
   orderInfos: [],
   makerInfos: [],
+
+  permitInfos: [],
 
   orders: [],
 });
@@ -121,6 +142,12 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       )
     );
   });
+
+  const startAssignMintCommentToFillEvents = Date.now();
+  if (!backfill) {
+    await Promise.all([assignMintCommentToFillEvents(allFillEvents, data.mintComments)]);
+  }
+  const endAssignMintCommentToFillEvents = Date.now();
 
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
@@ -165,6 +192,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     await Promise.all([
       orderUpdatesByIdJob.addToQueue(data.orderInfos),
       orderUpdatesByMakerJob.addToQueue(data.makerInfos),
+      permitUpdatesJob.addToQueue(data.permitInfos),
       orderbookOrdersJob.addToQueue(data.orders),
     ]);
   }
@@ -173,6 +201,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
+
   if (!backfill) {
     await mintsProcessJob.addToQueue(data.mints);
   }
@@ -204,7 +233,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     return {
       kind: ProcessActivityEventKind.fillEvent,
       data: {
-        transactionHash: event.baseEventParams.txHash,
+        txHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
       },
@@ -224,7 +253,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       const fillActivityInfoData = fillActivityInfo.data;
 
       return (
-        fillActivityInfoData.transactionHash === event.baseEventParams.txHash &&
+        fillActivityInfoData.txHash === event.baseEventParams.txHash &&
         fillActivityInfoData.logIndex === event.baseEventParams.logIndex &&
         fillActivityInfoData.batchIndex === event.baseEventParams.batchIndex
       );
@@ -236,7 +265,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     (event) => ({
       kind: ProcessActivityEventKind.nftTransferEvent,
       data: {
-        transactionHash: event.baseEventParams.txHash,
+        txHash: event.baseEventParams.txHash,
         logIndex: event.baseEventParams.logIndex,
         batchIndex: event.baseEventParams.batchIndex,
       },
@@ -248,7 +277,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   const endProcessTransferActivityEvent = Date.now();
 
   return {
-    // return the time it took to process each step
+    // Return the time it took to process each step
+    assignMintCommentToFillEvents:
+      endAssignMintCommentToFillEvents - startAssignMintCommentToFillEvents,
     assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,
     persistEvents: endPersistEvents - startPersistEvents,
     persistOtherEvents: endPersistOtherEvents - startPersistOtherEvents,
@@ -257,7 +288,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     processTransferActivityEvent:
       endProcessTransferActivityEvent - startProcessTransferActivityEvent,
 
-    // return the number of events processed
+    // Return the number of events processed
     fillEvents: data.fillEvents.length,
     fillEventsPartial: data.fillEventsPartial.length,
     fillEventsOnChain: data.fillEventsOnChain.length,
@@ -273,6 +304,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     makerInfos: data.makerInfos.length,
     orders: data.orders.length,
     mints: data.mints.length,
+    mintComments: data.mintComments.length,
     mintInfos: data.mintInfos.length,
   };
 };

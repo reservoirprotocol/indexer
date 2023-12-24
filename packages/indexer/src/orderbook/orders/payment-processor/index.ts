@@ -2,22 +2,27 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import {
+  OrderUpdatesByIdJobPayload,
+  orderUpdatesByIdJob,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 import { offChainCheck } from "@/orderbook/orders/payment-processor/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
+import * as erc721c from "@/utils/erc721c";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as paymentProcessor from "@/utils/payment-processor";
+import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
-import _ from "lodash";
-import {
-  orderUpdatesByIdJob,
-  OrderUpdatesByIdJobPayload,
-} from "@/jobs/order-updates/order-updates-by-id-job";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessor.Types.BaseOrder;
@@ -63,22 +68,56 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // const exchange = new Contract(
-      //   Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-      //   new Interface([
-      //     "function getTokenSecurityPolicyId(address collectionAddress) public view returns (uint256)",
-      //   ]),
-      //   baseProvider
-      // );
-      // const securityId = await exchange.getTokenSecurityPolicyId(order.params.tokenAddress);
+      const ppConfig = await paymentProcessor.getConfigByContract(order.params.tokenAddress);
+      if (ppConfig && ppConfig.securityPolicy.enforcePricingConstraints) {
+        if (order.params.coin.toLowerCase() != ppConfig.paymentCoin!.toLowerCase()) {
+          return results.push({
+            id,
+            status: "payment-token-not-whitelisted",
+          });
+        }
 
-      // // For now, only the default security policy is supported
-      // if (securityId.toString() != "0") {
-      //   return results.push({
-      //     id,
-      //     status: "unsupported-security-policy",
-      //   });
-      // }
+        const price = bn(order.params.price).div(order.params.amount);
+        if (price.lt(ppConfig.pricingBounds!.floorPrice)) {
+          return results.push({
+            id,
+            status: "sale-price-below-configured-floor-price",
+          });
+        }
+        if (price.gt(ppConfig.pricingBounds!.ceilingPrice)) {
+          return results.push({
+            id,
+            status: "sale-price-above-configured-ceiling-price",
+          });
+        }
+      } else if (ppConfig?.securityPolicy.enforcePaymentMethodWhitelist) {
+        const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId).contract.connect(
+          baseProvider
+        );
+
+        if (order.params.coin !== Sdk.Common.Addresses.Native[config.chainId]) {
+          const isWhitelisted = await exchange.isPaymentMethodApproved(
+            ppConfig.securityPolicy.id,
+            order.params.coin
+          );
+          if (!isWhitelisted) {
+            return results.push({
+              id,
+              status: "payment-token-not-whitelisted",
+            });
+          }
+        }
+      }
+
+      const isFiltered = await checkMarketplaceIsFiltered(order.params.tokenAddress, [
+        Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      ]);
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
@@ -99,19 +138,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return results.push({
           id,
           status: "expired",
-        });
-      }
-
-      // Check: order has ETH as payment token
-      if (
-        ![
-          Sdk.Common.Addresses.Native[config.chainId],
-          Sdk.Common.Addresses.WNative[config.chainId],
-        ].includes(order.params.coin)
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
         });
       }
 
@@ -199,6 +225,29 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       const side = ["sale-approval"].includes(order.params.kind!) ? "sell" : "buy";
 
+      // Handle: security level 4 and 6 EOA verification
+      if (side === "buy") {
+        const configV1 = await erc721c.v1.getConfig(order.params.tokenAddress);
+        const configV2 = await erc721c.v2.getConfig(order.params.tokenAddress);
+        if (
+          (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+          (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+        ) {
+          const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
+          const isVerified = await erc721c.isVerifiedEOA(
+            transferValidator,
+            order.params.sellerOrBuyer
+          );
+          if (!isVerified) {
+            return results.push({
+              id,
+              status: "eoa-not-verified",
+            });
+          }
+        }
+      }
+
       // Handle: currency
       const currency = order.params.coin;
 
@@ -213,7 +262,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
       ).map((r) => ({ kind: "royalty", ...r }));
 
-      const price = bn(order.params.price).div(order.params.amount).toString();
+      if (
+        order.params.marketplace !== AddressZero &&
+        Number(order.params.marketplaceFeeNumerator) !== 0
+      ) {
+        feeBreakdown.push({
+          kind: "marketplace",
+          recipient: order.params.marketplace,
+          bps: Number(order.params.marketplaceFeeNumerator),
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
@@ -226,6 +284,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         .reduce((a, b) => a + b, 0);
       const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
+      const currencyPrice = bn(order.params.price).div(order.params.amount).toString();
+
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
       if (totalBuiltInBps < totalDefaultBps) {
@@ -234,7 +294,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000);
+          const amount = bn(currencyPrice).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
           // Split the missing royalties pro-rata across all royalty recipients
@@ -243,7 +303,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // TODO: Handle lost precision (by paying it to the last or first recipient)
             missingRoyalties.push({
               bps: Math.floor((bpsDiff * bps) / totalBps),
-              amount: amount.mul(bps).div(totalBps).toString(),
+              amount: amount.mul(Math.floor(bps)).div(totalBps).toString(),
               recipient,
             });
           }
@@ -253,22 +313,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
-      let value: string;
-      let normalizedValue: string | undefined;
+      let currencyValue: string;
+      let currencyNormalizedValue: string | undefined;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
         // to receive on offer acceptance.
-        value = bn(price)
-          .sub(bn(price).mul(bn(feeBps)).div(10000))
+        currencyValue = bn(currencyPrice)
+          .sub(bn(currencyPrice).mul(bn(feeBps)).div(10000))
           .toString();
         // The normalized value excludes the royalties from the value
-        normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
+        currencyNormalizedValue = bn(currencyValue).sub(missingRoyaltyAmount).toString();
       } else {
         // For sell orders, the value is the same as the price
-        value = price;
+        currencyValue = currencyPrice;
         // The normalized value includes the royalties on top of the price
-        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
+        currencyNormalizedValue = bn(currencyValue).add(missingRoyaltyAmount).toString();
       }
 
       // Handle: source
@@ -277,6 +337,56 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       }
+
+      // Price conversion
+      let price = currencyPrice;
+      let value = currencyValue;
+
+      let needsConversion = false;
+      if (
+        ![
+          Sdk.Common.Addresses.Native[config.chainId],
+          Sdk.Common.Addresses.WNative[config.chainId],
+        ].includes(currency)
+      ) {
+        needsConversion = true;
+
+        // If the currency is anything other than ETH/WETH, we convert
+        // `price` and `value` from that currency denominations to the
+        // ETH denomination
+        {
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          price = bn(prices.nativePrice).toString();
+        }
+        {
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          value = bn(prices.nativePrice).toString();
+        }
+      }
+
+      const prices = await getUSDAndNativePrices(currency, currencyNormalizedValue, currentTime);
+      if (!prices.nativePrice) {
+        // Getting the native price is a must
+        return results.push({
+          id,
+          status: "failed-to-convert-price",
+        });
+      }
+      const normalizedValue = bn(prices.nativePrice).toString();
 
       // Handle: native Reservoir orders
       const isReservoir = false;
@@ -300,9 +410,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         price,
         value,
         currency: toBuffer(currency),
-        currency_price: price,
-        currency_value: value,
-        needs_conversion: null,
+        currency_price: currencyPrice,
+        currency_value: currencyValue,
+        needs_conversion: needsConversion,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: orderNonce,
         source_id_int: source?.id,
@@ -316,7 +426,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         expiration: validTo,
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
-        currency_normalized_value: normalizedValue,
+        currency_normalized_value: currencyNormalizedValue,
       });
 
       const unfillable =
@@ -327,10 +437,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         status: "success",
         unfillable,
       });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       logger.error(
         "payment-processor",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
+        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (${
+          error.stack
+        })`
       );
     }
   };

@@ -125,6 +125,7 @@ export const getTransfersV4Options: RouteOptions = {
           tokens.name,
           tokens.image,
           tokens.collection_id,
+          tokens.image_version,
           collections.name as collection_name,
           nft_transfer_events."from",
           nft_transfer_events."to",
@@ -257,11 +258,11 @@ export const getTransfersV4Options: RouteOptions = {
 
           if (query.contract || query.token) {
             conditions.push(
-              `(nft_transfer_events.address, nft_transfer_events.token_id, extract(epoch from nft_transfer_events.updated_at), tx_hash, log_index, batch_index) ${sign} ($/address/, $/tokenId/, $/updatedAt/, $/txHash/, $/logIndex/, $/batchIndex/)`
+              `(nft_transfer_events.address, nft_transfer_events.token_id, extract(epoch from nft_transfer_events.updated_at), nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index) ${sign} ($/address/, $/tokenId/, $/updatedAt/, $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           } else {
             conditions.push(
-              `(extract(epoch from nft_transfer_events.updated_at), nft_transfer_events.address, nft_transfer_events.token_id, tx_hash, log_index, batch_index) ${sign} ($/updatedAt/, $/address/, $/tokenId/, $/txHash/, $/logIndex/, $/batchIndex/)`
+              `(extract(epoch from nft_transfer_events.updated_at), nft_transfer_events.address, nft_transfer_events.token_id, nft_transfer_events.tx_hash, nft_transfer_events.log_index, nft_transfer_events.batch_index) ${sign} ($/updatedAt/, $/address/, $/tokenId/, $/txHash/, $/logIndex/, $/batchIndex/)`
             );
           }
         }
@@ -340,7 +341,7 @@ export const getTransfersV4Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getLocalAssetsLink(r.image),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
           collection: {
             id: r.collection_id,
             name: r.collection_name,

@@ -229,6 +229,7 @@ export const isListingOffChainCancelled = async (
             AND nft_transfer_events.token_id = $/tokenId/
             AND nft_transfer_events.to != $/maker/
             AND nft_transfer_events.timestamp >= $/originatedAt/
+            AND nft_transfer_events.is_deleted = 0
         )
         OR EXISTS(
           SELECT
@@ -249,4 +250,28 @@ export const isListingOffChainCancelled = async (
     }
   );
   return Boolean(result);
+};
+
+export const getOrderIdFromNonce = async (
+  orderKind: OrderKind,
+  maker: string,
+  nonce: string
+): Promise<string | undefined> => {
+  const order = await idb.oneOrNone(
+    `
+      SELECT orders.id FROM orders
+      WHERE orders.kind = $/orderKind/
+        AND orders.maker = $/maker/
+        AND orders.nonce = $/nonce/
+        AND orders.contract IS NOT NULL
+      LIMIT 1
+    `,
+    {
+      orderKind,
+      maker: toBuffer(maker),
+      nonce,
+    }
+  );
+
+  return order?.id;
 };

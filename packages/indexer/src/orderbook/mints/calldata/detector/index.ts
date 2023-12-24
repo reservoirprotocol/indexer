@@ -1,5 +1,4 @@
 import { AddressZero } from "@ethersproject/constants";
-import { formatEther } from "@ethersproject/units";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
@@ -9,17 +8,37 @@ import { fetchTransaction } from "@/events-sync/utils";
 import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { Sources } from "@/models/sources";
+import { getCollectionMints } from "@/orderbook/mints";
 
+import * as artblocks from "@/orderbook/mints/calldata/detector/artblocks";
+import * as createdotfun from "@/orderbook/mints/calldata/detector/createdotfun";
 import * as decent from "@/orderbook/mints/calldata/detector/decent";
 import * as foundation from "@/orderbook/mints/calldata/detector/foundation";
 import * as generic from "@/orderbook/mints/calldata/detector/generic";
 import * as manifold from "@/orderbook/mints/calldata/detector/manifold";
+import * as mintdotfun from "@/orderbook/mints/calldata/detector/mintdotfun";
 import * as seadrop from "@/orderbook/mints/calldata/detector/seadrop";
+import * as soundxyz from "@/orderbook/mints/calldata/detector/soundxyz";
 import * as thirdweb from "@/orderbook/mints/calldata/detector/thirdweb";
 import * as zora from "@/orderbook/mints/calldata/detector/zora";
-import { getCollectionMints } from "@/orderbook/mints";
+import * as titlesxyz from "@/orderbook/mints/calldata/detector/titlesxyz";
+import * as highlightxyz from "@/orderbook/mints/calldata/detector/highlightxyz";
 
-export { decent, foundation, generic, manifold, seadrop, thirdweb, zora };
+export {
+  artblocks,
+  decent,
+  foundation,
+  generic,
+  manifold,
+  mintdotfun,
+  seadrop,
+  soundxyz,
+  thirdweb,
+  zora,
+  createdotfun,
+  titlesxyz,
+  highlightxyz,
+};
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
   // Fetch all transfers associated to the transaction
@@ -70,8 +89,11 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const collectionsResult = await idb.manyOrNone(
     `
       SELECT
+        contracts.kind,
         tokens.collection_id
       FROM tokens
+      JOIN contracts
+        ON tokens.contract = contracts.address
       WHERE tokens.contract = $/contract/
         AND tokens.token_id IN ($/tokenIds:list/)
     `,
@@ -91,26 +113,43 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   await mintsCheckJob.addToQueue({ collection }, 10 * 60);
 
   // If there are any open collection mints trigger a refresh with a delay
-  const hasOpenMints = await getCollectionMints(collection, { status: "open" }).then(
-    (mints) => mints.length > 0
-  );
+  const openMints = await getCollectionMints(collection, { status: "open" });
+
+  const hasOpenMints = openMints.length > 0;
+  const forceRefresh = openMints.some((c) => c.details.info?.hasDynamicPrice);
+
   if (hasOpenMints) {
-    await mintsRefreshJob.addToQueue({ collection }, 10 * 60);
+    await mintsRefreshJob.addToQueue({ collection, forceRefresh }, 10 * 60);
   }
 
   // For performance reasons, do at most one attempt per collection per 5 minutes
   if (!skipCache) {
-    const mintDetailsLockKey = `mint-details:${collection}`;
-    const mintDetailsLock = await redis.get(mintDetailsLockKey);
-    if (mintDetailsLock) {
-      return [];
+    const kind = collectionsResult[0].kind;
+    if (kind === "erc1155") {
+      // For ERC1155, we use a lock per collection + token (since mints are usually per token)
+      // For safety, restrict to first 10 tokens
+      for (const tokenId of tokenIds.slice(0, 10)) {
+        const mintDetailsLockKey = `mint-details:${collection}:${tokenId}`;
+        const mintDetailsLock = await redis.get(mintDetailsLockKey);
+        if (mintDetailsLock) {
+          return [];
+        }
+        await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
+      }
+    } else {
+      // For ERC721, we use a lock per collection only (since mints are per collection)
+      const mintDetailsLockKey = `mint-details:${collection}`;
+      const mintDetailsLock = await redis.get(mintDetailsLockKey);
+      if (mintDetailsLock) {
+        return [];
+      }
+      await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
     }
-    await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
   }
 
-  // Make sure every mint in the transaction goes to the transaction sender
+  // Make sure every transfer in the transaction is a mint
   const tx = await fetchTransaction(txHash);
-  if (!transfers.every((t) => t.from === AddressZero && t.to === tx.from)) {
+  if (!transfers.every((t) => t.from === AddressZero)) {
     return [];
   }
 
@@ -126,15 +165,6 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
-  // Allow at most a few decimals for the unit price
-  const splittedPrice = formatEther(pricePerAmountMinted).split(".");
-  if (splittedPrice.length > 1) {
-    const numDecimals = splittedPrice[1].length;
-    if (numDecimals > 7) {
-      return [];
-    }
-  }
-
   // There must be some calldata
   if (tx.data.length < 10) {
     return [];
@@ -147,6 +177,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     if (source) {
       tx.data = tx.data.slice(0, -8);
     }
+  }
+
+  // Artblocks
+  const artblocksResults = await artblocks.extractByTx(collection, tx);
+  if (artblocksResults.length) {
+    return artblocksResults;
   }
 
   // Decent
@@ -167,6 +203,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return manifoldResults;
   }
 
+  // Mintdotfun
+  const mintdotfunResults = await mintdotfun.extractByTx(collection, tx);
+  if (mintdotfunResults.length) {
+    return mintdotfunResults;
+  }
+
   // Zora
   const zoraResults = await zora.extractByTx(collection, tx);
   if (zoraResults.length) {
@@ -183,6 +225,30 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const thirdwebResults = await thirdweb.extractByTx(collection, tx);
   if (thirdwebResults.length) {
     return thirdwebResults;
+  }
+
+  // Soundxyz
+  const soundxyzResults = await soundxyz.extractByTx(collection, tx);
+  if (soundxyzResults.length) {
+    return soundxyzResults;
+  }
+
+  // Createdotfun
+  const createdotfunResults = await createdotfun.extractByTx(collection, tx);
+  if (createdotfunResults.length) {
+    return createdotfunResults;
+  }
+
+  // Titlesxyz
+  const titlesXyzResults = await titlesxyz.extractByTx(collection, tx);
+  if (titlesXyzResults.length) {
+    return titlesXyzResults;
+  }
+
+  // Highlightxyz
+  const highlightXyzResults = await highlightxyz.extractByTx(collection, tx);
+  if (highlightXyzResults.length) {
+    return highlightXyzResults;
   }
 
   // Generic

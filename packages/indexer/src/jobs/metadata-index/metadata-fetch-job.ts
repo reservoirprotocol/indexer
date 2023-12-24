@@ -5,10 +5,9 @@ import _ from "lodash";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
-import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 import { AddressZero } from "@ethersproject/constants";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
-import { metadataIndexProcessBySlugJob } from "@/jobs/metadata-index/metadata-process-by-slug-job";
+import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 
 export type MetadataIndexFetchJobPayload =
   | {
@@ -17,16 +16,6 @@ export type MetadataIndexFetchJobPayload =
         method: string;
         collection: string;
         continuation?: string;
-      };
-      context?: string;
-    }
-  | {
-      kind: "full-collection-by-slug";
-      data: {
-        method: string;
-        contract: string;
-        collection: string;
-        slug: string;
       };
       context?: string;
     }
@@ -41,12 +30,12 @@ export type MetadataIndexFetchJobPayload =
       context?: string;
     };
 
-export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-fetch-queue";
   maxRetries = 10;
   concurrency = 5;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,
@@ -58,38 +47,27 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    // if ([5, 137].includes(config.chainId)) {
-    //   logger.info(
-    //     this.queueName,
-    //     JSON.stringify({
-    //       message: `Start. payload=${JSON.stringify(payload)}`,
-    //       payload,
-    //     })
-    //   );
-    // }
-
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;
     let refreshTokens: RefreshTokens[] = [];
 
-    if (kind === "full-collection-by-slug") {
-      logger.info(this.queueName, `Full collection by slug. data=${JSON.stringify(data)}`);
+    if (config.chainId === 10) {
+      const simpleHashCollections = [
+        "0x88d6c36e7aca7a8b011a7ab1fd443d17262dc3a9",
+        "0x9366c837e396c789b385a8cd4deb2addd6d6fbc0",
+        "0xc4e594a3d68174d1e6f0cdd436f88ca00d753437",
+        "0xf2f194282b6f70619c243945617e99a463dd82ba",
+        "0xd4ac3f02071d5f865a8ff34a7961811d3c645dd7",
+        "0x4f61c8ea884597cff82e166be924b8b75bab5f6c",
+        "0xc8c0bd52d9f957657f17a9519066637040ebc49a",
+      ];
 
-      // Add the collections slugs to the list
-      const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
-      await pendingRefreshTokensBySlug.add(
-        {
-          slug: data.slug,
-          contract: data.contract,
-          collection: data.collection,
-        },
-        prioritized
-      );
-
-      await metadataIndexProcessBySlugJob.addToQueue();
-      return;
+      if (_.indexOf(simpleHashCollections, data.collection) !== -1) {
+        data.method = "simplehash";
+      }
     }
+
     if (kind === "full-collection") {
       logger.info(this.queueName, `Full collection. data=${JSON.stringify(data)}`);
 
@@ -137,7 +115,11 @@ export class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     const pendingRefreshTokens = new PendingRefreshTokens(data.method);
     await pendingRefreshTokens.add(refreshTokens, prioritized);
 
-    await metadataIndexProcessJob.addToQueue({ method: data.method });
+    if (data.method === "onchain") {
+      await onchainMetadataFetchTokenUriJob.addToQueue();
+    } else {
+      await metadataIndexProcessJob.addToQueue({ method: data.method });
+    }
   }
 
   public async getTokensForCollection(

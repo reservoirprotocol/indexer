@@ -7,8 +7,9 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { Sources } from "@/models/sources";
+import { getJoiCollectionObject } from "@/common/joi";
 
 const version = "v2";
 
@@ -180,6 +181,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.slug,
                 collections.name,
                 (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+                collections.image_version AS "image_version",
                 (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
                 (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
                 (collections.metadata ->> 'description')::TEXT AS "description",
@@ -189,6 +191,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
+                collections.metadata_disabled,
                 (
                   SELECT array(
                     SELECT tokens.image FROM tokens
@@ -305,48 +308,53 @@ export const getUserCollectionsV2Options: RouteOptions = {
 
       const collections = _.map(result, (r) => {
         const response = {
-          collection: {
-            id: r.id,
-            slug: r.slug,
-            createdAt: new Date(r.created_at).toISOString(),
-            name: r.name,
-            image:
-              Assets.getLocalAssetsLink(r.image) ||
-              (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
-            banner: r.banner,
-            discordUrl: r.discord_url,
-            externalUrl: r.external_url,
-            twitterUsername: r.twitter_username,
-            openseaVerificationStatus: r.opensea_verification_status,
-            description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
-            tokenCount: String(r.token_count),
-            primaryContract: fromBuffer(r.contract),
-            tokenSetId: r.token_set_id,
-            floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
-            rank: {
-              "1day": r.day1_rank,
-              "7day": r.day7_rank,
-              "30day": r.day30_rank,
-              allTime: r.all_time_rank,
+          collection: getJoiCollectionObject(
+            {
+              id: r.id,
+              slug: r.slug,
+              createdAt: new Date(r.created_at).toISOString(),
+              name: r.name,
+              image:
+                Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version) ||
+                (r.sample_images?.length
+                  ? Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small, r.image_version)
+                  : null),
+              banner: Assets.getResizedImageUrl(r.banner),
+              discordUrl: r.discord_url,
+              externalUrl: r.external_url,
+              twitterUsername: r.twitter_username,
+              openseaVerificationStatus: r.opensea_verification_status,
+              description: r.description,
+              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
+              tokenCount: String(r.token_count),
+              primaryContract: fromBuffer(r.contract),
+              tokenSetId: r.token_set_id,
+              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+              rank: {
+                "1day": r.day1_rank,
+                "7day": r.day7_rank,
+                "30day": r.day30_rank,
+                allTime: r.all_time_rank,
+              },
+              volume: {
+                "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+                "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+                "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+                allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+              },
+              volumeChange: {
+                "1day": r.day1_volume_change,
+                "7day": r.day7_volume_change,
+                "30day": r.day30_volume_change,
+              },
+              floorSale: {
+                "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+                "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+                "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+              },
             },
-            volume: {
-              "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-            },
-            volumeChange: {
-              "1day": r.day1_volume_change,
-              "7day": r.day7_volume_change,
-              "30day": r.day30_volume_change,
-            },
-            floorSale: {
-              "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-              "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-              "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-            },
-          },
+            r.metadata_disabled
+          ),
           ownership: {
             tokenCount: String(r.owner_token_count),
             onSaleCount: String(r.owner_on_sale_count),

@@ -1,21 +1,22 @@
+import cron from "node-cron";
+
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redlock } from "@/common/redis";
+import { fromBuffer, now } from "@/common/utils";
+import { config } from "@/config/index";
 import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { getUSDAndNativePrices, USDAndNativePrices } from "@/utils/prices";
-import { fromBuffer, now } from "@/common/utils";
-import cron from "node-cron";
-import { redlock } from "@/common/redis";
-import { config } from "@/config/index";
 
 export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;
 };
 
-export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
   queueName = "erc20-orders";
   maxRetries = 1;
   concurrency = 1;
@@ -73,12 +74,19 @@ export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
         const dataForPrice = await getUSDAndNativePrices(
           convertedCurrency,
           currency_price,
-          currentTime
+          currentTime,
+          {
+            nonZeroCommunityTokens: true,
+          }
         );
+
         const dataForValue = await getUSDAndNativePrices(
           convertedCurrency,
           currency_value,
-          currentTime
+          currentTime,
+          {
+            nonZeroCommunityTokens: true,
+          }
         );
 
         let dataForNormalizedValue: USDAndNativePrices | undefined;
@@ -86,7 +94,10 @@ export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
           dataForNormalizedValue = await getUSDAndNativePrices(
             convertedCurrency,
             currency_normalized_value,
-            currentTime
+            currentTime,
+            {
+              nonZeroCommunityTokens: true,
+            }
           );
         }
 
@@ -128,15 +139,18 @@ export class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandler {
       );
 
       if (erc20Orders.length >= limit) {
-        await this.addToQueue(erc20Orders[erc20Orders.length - 1].id);
+        await this.addToQueue(
+          erc20Orders[erc20Orders.length - 1].id,
+          config.chainId === 137 ? 30000 : 1000
+        );
       }
     } catch (error) {
       logger.error(`dynamic-orders-update`, `Failed to handle dynamic orders: ${error}`);
     }
   }
 
-  public async addToQueue(continuation?: string) {
-    await this.send({ payload: { continuation } });
+  public async addToQueue(continuation?: string, delay = 0) {
+    await this.send({ payload: { continuation } }, delay);
   }
 }
 

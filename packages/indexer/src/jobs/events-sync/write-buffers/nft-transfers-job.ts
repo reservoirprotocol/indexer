@@ -10,15 +10,15 @@ export type EventsSyncNftTransfersWriteBufferPayload = {
 export class EventsSyncNftTransfersWriteBufferJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-nft-transfers-write";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 1;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
 
   protected async process(payload: EventsSyncNftTransfersWriteBufferPayload) {
     const { query } = payload;
 
     try {
-      await idb.none(query);
+      await idb.manyOrNone(query);
     } catch (error) {
       logger.error(
         this.queueName,

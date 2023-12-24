@@ -1,9 +1,9 @@
 import { idb, ridb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
 import { acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
+import { Tokens } from "@/models/tokens";
 
 export type RecalcOwnerCountQueueJobPayload =
   | {
@@ -22,12 +22,12 @@ export type RecalcOwnerCountQueueJobPayload =
       };
     };
 
-export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
+export default class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-recalc-owner-count-queue";
   maxRetries = 10;
   concurrency = 10;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 5 * 60 * 1000;
   backoff = {
     type: "exponential",
     delay: 20000,
@@ -40,7 +40,7 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
     if (kind === "contactAndTokenId") {
       const { contract, tokenId } = data;
 
-      collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+      collection = await Tokens.getCollection(contract, tokenId);
     } else {
       collection = await Collections.getById(data.collectionId);
     }
@@ -94,6 +94,7 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
                   owner_count = $/ownerCount/, 
                   updated_at = now() 
                 WHERE id = $/collectionId/
+                AND (owner_count IS DISTINCT FROM $/ownerCount/);
               `,
             {
               collectionId: collection.id,
@@ -101,18 +102,6 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
             }
           );
         }
-
-        logger.debug(
-          this.queueName,
-          JSON.stringify({
-            topic: "Update owner count",
-            jobData: data,
-            collection: collection.id,
-            collectionOwnerCount: collection.ownerCount,
-            ownerCount,
-            updated: Number(ownerCount) !== collection.ownerCount,
-          })
-        );
       } else {
         const acquiredScheduleLock = await acquireLock(
           this.getScheduleLockName(collection.id),
@@ -148,15 +137,6 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   };
 
   public async addToQueue(infos: RecalcOwnerCountQueueJobPayload[], delayInSeconds = 0) {
-    logger.debug(
-      this.queueName,
-      JSON.stringify({
-        topic: "addToQueue",
-        infos: infos,
-        delayInSeconds,
-      })
-    );
-
     // Disable for bsc while its back filling
     if (config.chainId === 56) {
       return;

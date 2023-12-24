@@ -8,9 +8,8 @@ import Joi from "joi";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { fromBuffer, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v2";
 
@@ -105,12 +104,6 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
         `
       );
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-        results
-          .filter(({ last_flag_update }) => last_flag_update < now() - 3600)
-          .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
-      );
-
       // Set default values for any tokens which don't exist
       const availableTokens = new Set<string>();
       results.forEach(({ contract, token_id }) =>
@@ -157,9 +150,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             tokenId: result.token_id,
           });
 
-          const isFlagged = tokenToSuspicious.has(token)
-            ? tokenToSuspicious.get(token)
-            : result.is_flagged;
+          const isFlagged = result.is_flagged;
 
           const message: {
             id: string;

@@ -19,8 +19,8 @@ import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-exter
 const version = "v4";
 
 export const postOrderV4Options: RouteOptions = {
-  description: "Submit signed orders",
-  tags: ["api", "Create Orders (list & bid)"],
+  description: "Submit Signed Orders",
+  tags: ["api", "Manage Orders"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -47,7 +47,8 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport-v1.5",
                   "x2y2",
                   "alienswap",
-                  "payment-processor"
+                  "payment-processor",
+                  "payment-processor-v2"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -65,6 +66,8 @@ export const postOrderV4Options: RouteOptions = {
             collection: Joi.string(),
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
+            permitId: Joi.string(),
+            permitIndex: Joi.number(),
             bulkData: Joi.object({
               kind: Joi.string()
                 .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
@@ -118,7 +121,6 @@ export const postOrderV4Options: RouteOptions = {
         collection?: string;
         tokenSetId?: string;
         isNonFlagged?: boolean;
-        source?: string;
         bulkData?: {
           kind: "seaport-v1.4" | "seaport-v1.5" | "alienswap";
           data: {
@@ -168,6 +170,10 @@ export const postOrderV4Options: RouteOptions = {
           // - only relevant for non-flagged tokens bids
           const isNonFlagged = item.isNonFlagged;
 
+          // Permits
+          const permitId = payload.permitId;
+          const permitIndex = payload.permitIndex;
+
           const signature = query.signature ?? order.data.signature;
           if (signature) {
             try {
@@ -212,7 +218,11 @@ export const postOrderV4Options: RouteOptions = {
                 };
               }
             } catch {
-              // Skip errors
+              // To cover non-splittable signatures (eg. eip1271 or bulk signatures)
+              order.data = {
+                ...order.data,
+                signature,
+              };
             }
           }
 
@@ -330,11 +340,6 @@ export const postOrderV4Options: RouteOptions = {
               let crossPostingOrder;
 
               let orderId: string;
-              if (order.kind === "seaport") {
-                orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
-              } else if (order.kind === "seaport-v1.4") {
-                orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
-              }
               if (order.kind === "seaport-v1.5") {
                 orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
               } else {
@@ -360,35 +365,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (orderbook === "reservoir") {
-                if (order.kind === "seaport") {
-                  const [result] = await orders.seaport.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.4") {
-                  const [result] = await orders.seaportV14.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-                  if (!["success", "already-exists"].includes(result.status)) {
-                    return results.push({ message: result.status, orderIndex: i, orderId });
-                  }
-                } else if (order.kind == "seaport-v1.5") {
+                if (order.kind == "seaport-v1.5") {
                   const [result] = await orders.seaportV15.save([
                     {
                       orderParams: order.data,
@@ -396,13 +373,15 @@ export const postOrderV4Options: RouteOptions = {
                       metadata: {
                         schema,
                         source,
+                        permitId,
+                        permitIndex,
                       },
                     },
                   ]);
                   if (!["success", "already-exists"].includes(result.status)) {
                     return results.push({ message: result.status, orderIndex: i, orderId });
                   }
-                } else {
+                } else if (order.kind === "alienswap") {
                   const [result] = await orders.alienswap.save([
                     {
                       orderParams: order.data,
@@ -595,13 +574,42 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: result.status, orderIndex: i, orderId: result.id });
               }
             }
+
+            case "payment-processor-v2": {
+              if (orderbook !== "reservoir") {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderInfo: orders.paymentProcessorV2.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
+
+              const [result] = await orders.paymentProcessorV2.save([orderInfo]);
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
+            }
           }
         })
       );
 
+      if (results.every((r) => r.message !== "success")) {
+        const error = Boom.badRequest("Could not create any order");
+        error.output.payload.results = results;
+        throw error;
+      }
+
       return { results };
     } catch (error) {
-      logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`post-order-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },

@@ -147,7 +147,8 @@ export class Sources {
         )
         ON CONFLICT (id) DO UPDATE SET
           metadata = $/metadata:json/,
-          domain = $/domain/
+          domain = $/domain/,
+          updated_at = now()
       `,
         {
           id,
@@ -195,7 +196,7 @@ export class Sources {
           $/address/,
           $/metadata:json/
         )
-        ON CONFLICT (domain) DO UPDATE SET domain = EXCLUDED.domain
+        ON CONFLICT (domain) DO UPDATE SET domain = EXCLUDED.domain, updated_at = now()
         RETURNING *
       `,
       {
@@ -270,12 +271,13 @@ export class Sources {
     id: number,
     contract?: string,
     tokenId?: string,
-    optimizeCheckoutURL = false
+    optimizeCheckoutURL = false,
+    returnDefault = false
   ): SourcesEntity | undefined {
-    let sourceEntity: SourcesEntity;
+    let sourceEntity: SourcesEntity | undefined;
     if (id in this.sources) {
       sourceEntity = _.cloneDeep(this.sources[id]);
-    } else {
+    } else if (returnDefault) {
       sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
@@ -285,8 +287,10 @@ export class Sources {
         (!sourceEntity.metadata.tokenUrlMainnet?.includes("${contract}") &&
           !sourceEntity.metadata.tokenUrlMainnet?.includes("${tokenId}"))
       ) {
-        const defaultSource = Sources.getDefaultSource();
-        sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+        if (returnDefault) {
+          const defaultSource = Sources.getDefaultSource();
+          sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
+        }
       } else {
         sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
       }
@@ -295,7 +299,7 @@ export class Sources {
     return sourceEntity;
   }
 
-  public getByDomain(domain: string, returnDefault = true): SourcesEntity | undefined {
+  public getByDomain(domain: string, returnDefault = false): SourcesEntity | undefined {
     let sourceEntity: SourcesEntity | undefined;
 
     if (_.toLower(domain) in this.sourcesByDomain) {
@@ -313,7 +317,7 @@ export class Sources {
     }
   }
 
-  public getByName(name: string, returnDefault = true): SourcesEntity | undefined {
+  public getByName(name: string, returnDefault = false): SourcesEntity | undefined {
     let sourceEntity: SourcesEntity | undefined;
 
     if (_.toLower(name) in this.sourcesByName) {
@@ -419,6 +423,16 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
+    } else if (config.chainId == 324) {
+      if (sourceEntity.metadata.tokenUrlZksync && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlZksync,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
     } else if (config.chainId == 42161) {
       if (sourceEntity.metadata.tokenUrlArbitrum && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
@@ -513,6 +527,36 @@ export class Sources {
       if (sourceEntity.metadata.tokenUrlBase && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
           sourceEntity.metadata.tokenUrlBase,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 1101) {
+      if (sourceEntity.metadata.tokenUrlPolygonZkevm && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlPolygonZkevm,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 534352) {
+      if (sourceEntity.metadata.tokenUrlScroll && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlScroll,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 13472) {
+      if (sourceEntity.metadata.tokenUrlImmutableZkevmTestnet && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlImmutableZkevmTestnet,
           "${contract}",
           contract
         );

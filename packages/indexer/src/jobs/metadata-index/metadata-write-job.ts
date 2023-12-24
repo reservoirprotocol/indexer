@@ -2,26 +2,27 @@
 
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { idb, ridb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { refreshActivitiesTokenMetadataJob } from "@/jobs/activities/refresh-activities-token-metadata-job";
-import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
-import { replaceActivitiesCollectionJob } from "@/jobs/activities/replace-activities-collection-job";
-import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-import { getUnixTime } from "date-fns";
-import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
+import { add, getUnixTime, isAfter } from "date-fns";
 import PgPromise from "pg-promise";
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { TokenMetadata } from "@/metadata/types";
+import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
+import { config } from "@/config/index";
+import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
   contract: string;
   tokenId: string;
+  tokenURI: string;
   name?: string;
   description?: string;
   originalMetadata?: JSON;
@@ -37,33 +38,39 @@ export type MetadataIndexWriteJobPayload = {
   metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
-  isCopyrightInfringement?: boolean;
+  isFromWebhook?: boolean;
   attributes: {
     key: string;
     value: string;
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  metadataMethod?: string;
+  imageMimeType?: string;
+  mediaMimeType?: string;
 };
 
-export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
+export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-index-write-queue";
   maxRetries = 10;
-  concurrency = 30;
+  concurrency = config.chainId === 7777777 ? 10 : 40;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 20000,
   } as BackoffStrategy;
 
   protected async process(payload: MetadataIndexWriteJobPayload) {
+    // const startTime = Date.now();
+
     const tokenAttributeCounter = {};
 
     const {
       collection,
       contract,
       tokenId,
+      tokenURI,
       name,
       description,
       originalMetadata,
@@ -74,25 +81,68 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataOriginalUrl,
       mediaUrl,
       flagged,
-      isCopyrightInfringement,
+      isFromWebhook,
       attributes,
+      metadataMethod,
+      imageMimeType,
+      mediaMimeType,
     } = payload;
 
     // Update the token's metadata
     const result = await idb.oneOrNone(
       `
+        WITH updated_check AS (
+            SELECT
+                CASE WHEN (name IS DISTINCT FROM $/name/
+                    OR image IS DISTINCT FROM $/image/
+                    OR media IS DISTINCT FROM $/media/
+                    OR token_uri IS DISTINCT FROM $/tokenURI/
+                    OR description IS DISTINCT FROM $/description/
+                    OR metadata IS DISTINCT FROM $/metadata:json/) THEN true
+                ELSE false
+                END AS is_updated
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+        )
         UPDATE tokens SET
           name = $/name/,
+          token_uri = $/tokenURI/,
           description = $/description/,
           image = $/image/,
           metadata = $/metadata:json/,
           media = $/media/,
-          updated_at = now(),
+          updated_at = CASE 
+                WHEN (SELECT is_updated FROM updated_check) THEN now()
+                ELSE updated_at
+          END,
+          image_version = CASE 
+                WHEN (SELECT is_updated FROM updated_check) THEN now()
+                ELSE image_version
+          END,
           collection_id = collection_id,
-          created_at = created_at
+          created_at = created_at,
+          metadata_indexed_at = CASE 
+                                    WHEN metadata_indexed_at IS NULL AND image IS NOT NULL THEN metadata_indexed_at 
+                                    WHEN metadata_indexed_at IS NULL THEN now() 
+                                    ELSE metadata_indexed_at
+                                END,
+          metadata_initialized_at = CASE
+                                        WHEN metadata_initialized_at IS NULL AND image IS NOT NULL THEN metadata_initialized_at 
+                                        WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now() 
+                                        ELSE metadata_initialized_at
+                                    END,
+          metadata_changed_at = CASE WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now() ELSE metadata_changed_at END,
+          metadata_updated_at = CASE WHEN (name IS DISTINCT FROM $/name/
+                       OR image IS DISTINCT FROM $/image/
+                       OR media IS DISTINCT FROM $/media/
+                       OR description IS DISTINCT FROM $/description/
+                       OR metadata IS DISTINCT FROM $/metadata:json/) THEN now()
+                  ELSE metadata_updated_at
+             END
         WHERE tokens.contract = $/contract/
         AND tokens.token_id = $/tokenId/
-        RETURNING collection_id, created_at, (
+        RETURNING collection_id, created_at, image, name, (
           SELECT
           json_build_object(
             'name', tokens.name,
@@ -110,12 +160,15 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         name: name || null,
         description: description || null,
         image: imageUrl || null,
+        tokenURI: tokenURI || null,
         metadata:
           {
             original_metadata: originalMetadata || null,
             image_original_url: imageOriginalUrl || null,
+            image_mime_type: imageMimeType || null,
             image_properties: imageProperties || null,
             animation_original_url: animationOriginalUrl || null,
+            media_mime_type: mediaMimeType || null,
             metadata_original_url: metadataOriginalUrl || null,
           } || {},
         media: mediaUrl || null,
@@ -127,58 +180,59 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (
-      isCopyrightInfringement ||
-      result.old_metadata.name != name ||
-      result.old_metadata.image != imageUrl ||
-      result.old_metadata.media != mediaUrl
-    ) {
-      await refreshActivitiesTokenMetadataJob.addToQueue(contract, tokenId);
-    }
-
     // If the new collection ID is different from the collection ID currently stored
     if (
+      !isFromWebhook &&
       result.collection_id !=
         "0x495f947276749ce646f68ac8c248420045cb7b5e:opensea-os-shared-storefront-collection" &&
       result.collection_id != collection
     ) {
       logger.info(
         this.queueName,
-        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
+        `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id} isFromWebhook ${isFromWebhook}`
       );
 
-      if (this.updateActivities(contract)) {
-        // Trigger a delayed job to recalc the daily volumes
-        await updateCollectionDailyVolumeJob.addToQueue({
-          newCollectionId: collection,
-          contract,
-        });
-
-        // Update the activities to the new collection
-        await replaceActivitiesCollectionJob.addToQueue({
-          contract,
-          tokenId,
-          newCollectionId: collection,
-          oldCollectionId: result.collection_id,
-        });
-      }
-
       // Set the new collection and update the token association
-      await fetchCollectionMetadataJob.addToQueue(
+      await newCollectionForTokenJob.addToQueue(
         [
           {
             contract,
             tokenId,
             mintedTimestamp: getUnixTime(new Date(result.created_at)),
-            newCollection: true,
+            newCollectionId: collection,
             oldCollectionId: result.collection_id,
-            context: "write-queue",
           },
         ],
         `${contract}:${tokenId}`
       );
 
+      // Stop processing the token metadata
       return;
+    }
+
+    // If this is a new token and there's still no metadata (exclude mainnet)
+    if (
+      config.chainId !== 1 &&
+      _.isNull(result.image) &&
+      _.isNull(result.name) &&
+      isAfter(add(new Date(result.created_at), { minutes: 25 }), Date.now())
+    ) {
+      // Requeue the token for metadata fetching and stop processing
+      return metadataIndexFetchJob.addToQueue(
+        [
+          {
+            kind: "single-token",
+            data: {
+              method: metadataMethod || config.metadataIndexingMethod,
+              contract,
+              tokenId,
+              collection,
+            },
+          },
+        ],
+        false,
+        20 * 60
+      );
     }
 
     if (flagged != null) {
@@ -354,7 +408,11 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
       if (!attributeResult?.id) {
         // Otherwise, fail (and retry)
-        throw new Error(`Could not fetch/save attribute "${value}"`);
+        throw new Error(
+          `Could not fetch/save attribute keyId ${
+            attributeKeysIdsMap.get(key)?.id
+          } key ${key} value ${value} attributeResult ${JSON.stringify(attributeResult)}`
+        );
       }
 
       attributeIds.push(attributeResult.id);
@@ -453,6 +511,17 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     // If any attributes changed
     if (!_.isEmpty(attributesToRefresh)) {
       await rarityQueueJob.addToQueue({ collectionId: collection }); // Recalculate the collection rarity
+
+      await tokenWebsocketEventsTriggerJob.addToQueue([
+        {
+          kind: "ForcedChange",
+          data: {
+            contract,
+            tokenId,
+            changed: ["attributes"],
+          },
+        },
+      ]);
     }
 
     if (!_.isEmpty(tokenAttributeCounter)) {
@@ -465,10 +534,14 @@ export class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       return _.indexOf(["0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"], contract) === -1;
     }
 
+    if (config.chainId === 137) {
+      return _.indexOf(["0x2953399124f0cbb46d2cbacd8a89cf0599974963"], contract) === -1;
+    }
+
     return true;
   }
 
-  public async addToQueue(tokenMetadataInfos: MetadataIndexWriteJobPayload[]) {
+  public async addToQueue(tokenMetadataInfos: TokenMetadata[]) {
     await this.sendBatch(
       tokenMetadataInfos
         .map((tokenMetadataInfo) => ({

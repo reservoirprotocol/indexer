@@ -3,7 +3,18 @@ export enum TokenProtocols {
   ERC1155,
 }
 
-export type OrderKind = "sale-approval" | "offer-approval" | "collection-offer-approval";
+export type OrderKind =
+  | "sale-approval"
+  | "offer-approval"
+  | "collection-offer-approval"
+  | "bundled-offer-approval";
+
+export type Signature = {
+  v: number;
+  r: string;
+  s: string;
+};
+
 export type MatchedOrder = {
   sellerAcceptedOffer: boolean;
   collectionLevelOffer: boolean;
@@ -25,16 +36,39 @@ export type MatchedOrder = {
   offerExpiration: string;
   tokenId: string;
   amount: string;
-  listingSignature: {
-    v: number;
-    r: string;
-    s: string;
-  };
-  offerSignature: {
-    v: number;
-    r: string;
-    s: string;
-  };
+  listingSignature: Signature;
+  offerSignature: Signature;
+};
+
+export type MatchedOrderBundleBase = {
+  protocol: number;
+  paymentCoin: string;
+  tokenAddress: string;
+  privateBuyer: string;
+  buyer: string;
+  delegatedPurchaser: string;
+  marketplace: string;
+  marketplaceFeeNumerator: string;
+  offerNonce: string;
+  offerPrice: string;
+  offerExpiration: string;
+};
+
+export type BundledItem = {
+  tokenId: string;
+  amount: string;
+  maxRoyaltyFeeNumerator: string;
+  itemPrice: string;
+  listingNonce: string;
+  listingExpiration: string;
+  seller: string;
+};
+
+export type SweepMatchedOrder = {
+  bundleDetails: MatchedOrderBundleBase;
+  bundleItems: BundledItem[];
+  signedOffer: Signature;
+  signedListings: Signature[];
 };
 
 export type BaseOrder = {
@@ -55,6 +89,11 @@ export type BaseOrder = {
   sellerAcceptedOffer: boolean;
   maxRoyaltyFeeNumerator: string;
   collectionLevelOffer: boolean;
+
+  // For bundled offers only
+  tokenIds?: string[];
+  amounts?: string[];
+  itemSalePrices?: string[];
 
   v?: number;
   r?: string;
@@ -109,4 +148,21 @@ export type CollectionOfferApproval = {
   nonce: string;
   masterNonce: string;
   coin: string;
+};
+
+export type BundledOfferApproval = {
+  protocol: number;
+  marketplace: string;
+  marketplaceFeeNumerator: string;
+  delegatedPurchaser: string;
+  buyer: string;
+  tokenAddress: string;
+  price: string;
+  expiration: string;
+  nonce: string;
+  masterNonce: string;
+  coin: string;
+  tokenIds: string[];
+  amounts: string[];
+  itemSalePrices: string[];
 };

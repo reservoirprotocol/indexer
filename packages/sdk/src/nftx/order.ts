@@ -18,9 +18,9 @@ export class Order {
     }
   }
 
-  async getQuote(count: number, slippage: number, provider: Provider) {
+  async getQuote(count: number, slippage: number, provider: Provider, apiKey?: string) {
     const side = this.params.specificIds?.length ? "buy" : "sell";
-    return getPoolPriceFrom0x(this.params.pool, count, side, slippage, provider);
+    return getPoolPriceFrom0x(this.params.pool, count, side, slippage, provider, apiKey);
   }
 }
 

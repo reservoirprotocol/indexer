@@ -5,6 +5,7 @@ import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
@@ -12,9 +13,13 @@ import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
-import { Assets } from "@/utils/assets";
+import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
 import { Currency, getCurrency } from "@/utils/currencies";
-import { getUSDAndCurrencyPrices, getUSDAndNativePrices } from "@/utils/prices";
+import {
+  getUSDAndCurrencyPrices,
+  getUSDAndNativePrices,
+  isWhitelistedCurrency,
+} from "@/utils/prices";
 
 // --- Prices ---
 
@@ -30,6 +35,7 @@ const JoiPriceCurrency = Joi.object({
   name: Joi.string().allow(null),
   symbol: Joi.string().allow(null),
   decimals: Joi.number().allow(null),
+  chainId: Joi.number().optional(),
 });
 
 export const JoiPrice = Joi.object({
@@ -115,10 +121,11 @@ export const getJoiPriceObject = async (
   },
   currencyAddress: string,
   displayCurrency?: string,
-  totalFeeBps?: number
+  totalFeeBps?: number,
+  currencyChainId?: number
 ) => {
   let currency: Currency;
-  if (displayCurrency) {
+  if (displayCurrency && displayCurrency !== currencyAddress) {
     const currentTime = now();
     currency = await getCurrency(displayCurrency);
 
@@ -151,12 +158,22 @@ export const getJoiPriceObject = async (
     currency = await getCurrency(currencyAddress);
   }
 
+  // Set community tokens native/usd value to 0
+  if (
+    isWhitelistedCurrency(currency.contract) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currency.contract)
+  ) {
+    prices.gross.nativeAmount = "0";
+    prices.gross.usdAmount = "0";
+  }
+
   return {
     currency: {
       contract: currency.contract,
       name: currency.name,
       symbol: currency.symbol,
       decimals: currency.decimals,
+      chainId: currencyChainId,
     },
     amount: await getJoiAmountObject(
       currency,
@@ -224,6 +241,7 @@ export const JoiOrderCriteriaCollection = Joi.object({
   id: Joi.string().allow("", null),
   name: Joi.string().allow("", null),
   image: Joi.string().allow("", null),
+  isSpam: Joi.boolean().allow("", null),
 });
 
 export const JoiOrderCriteria = Joi.alternatives(
@@ -234,6 +252,7 @@ export const JoiOrderCriteria = Joi.alternatives(
         tokenId: Joi.string().pattern(regex.number),
         name: Joi.string().allow("", null),
         image: Joi.string().allow("", null),
+        isSpam: Joi.boolean().allow("", null),
       }),
       collection: JoiOrderCriteriaCollection,
     }),
@@ -254,7 +273,7 @@ export const JoiOrderCriteria = Joi.alternatives(
   Joi.object({
     kind: "custom",
     data: Joi.object({
-      collection: JoiOrderCriteriaCollection,
+      tokenSetId: Joi.string().allow("", null),
     }),
   })
 );
@@ -321,18 +340,18 @@ export const getJoiDynamicPricingObject = async (
   dynamic: boolean,
   kind: OrderKind,
   normalizeRoyalties: boolean,
-  raw_data:
+  rawData:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
     | Sdk.Nftx.Types.OrderParams,
   currency?: string,
-  missing_royalties?: []
+  missingRoyalties?: []
 ) => {
   const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Native[config.chainId];
 
   // Add missing royalties on top of the raw prices
-  const missingRoyalties = normalizeRoyalties
-    ? ((missing_royalties ?? []) as any[])
+  const totalMissingRoyalties = normalizeRoyalties
+    ? ((missingRoyalties ?? []) as any[])
         .map((mr: any) => bn(mr.amount))
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
@@ -340,7 +359,7 @@ export const getJoiDynamicPricingObject = async (
   if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
-      raw_data as Sdk.SeaportBase.Types.OrderComponents
+      rawData as Sdk.SeaportBase.Types.OrderComponents
     );
 
     // Dutch auction
@@ -352,7 +371,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.startTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -362,7 +381,7 @@ export const getJoiDynamicPricingObject = async (
             {
               gross: {
                 amount: bn(order.getMatchingPrice(order.params.endTime))
-                  .add(missingRoyalties)
+                  .add(totalMissingRoyalties)
                   .toString(),
               },
             },
@@ -380,13 +399,13 @@ export const getJoiDynamicPricingObject = async (
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.Sudoswap.OrderParams).pair,
+        pool: (rawData as Sdk.Sudoswap.OrderParams).pair,
         prices: await Promise.all(
-          ((raw_data as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
+          ((rawData as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
             getJoiPriceObject(
               {
                 gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
+                  amount: bn(price).add(totalMissingRoyalties).toString(),
                 },
               },
               floorAskCurrency
@@ -395,18 +414,18 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (kind === "collectionxyz" || kind === "nftx" || kind === "caviar-v1") {
+  } else if (kind === "nftx" || kind === "caviar-v1") {
     // Pool orders
     return {
       kind: "pool",
       data: {
-        pool: (raw_data as Sdk.Nftx.Types.OrderParams).pool,
+        pool: (rawData as Sdk.Nftx.Types.OrderParams).pool,
         prices: await Promise.all(
-          ((raw_data as Sdk.Nftx.Types.OrderParams).extra.prices as string[]).map((price) =>
+          (rawData as Sdk.Nftx.Types.OrderParams).extra.prices.map((price) =>
             getJoiPriceObject(
               {
                 gross: {
-                  amount: bn(price).add(missingRoyalties).toString(),
+                  amount: bn(price).add(totalMissingRoyalties).toString(),
                 },
               },
               floorAskCurrency
@@ -457,7 +476,6 @@ export const getJoiOrderDepthObject = async (
     }
 
     case "caviar-v1":
-    case "collectionxyz":
     case "nftx": {
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
@@ -639,8 +657,8 @@ export const getJoiOrderObject = async (order: {
       currency,
       order.displayCurrency
     ),
-    validFrom: Number(order.validFrom),
-    validUntil: Number(order.validUntil),
+    validFrom: Math.floor(Number(order.validFrom)),
+    validUntil: Math.floor(Number(order.validUntil)),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
     dynamicPricing: order.includeDynamicPricing
@@ -656,16 +674,10 @@ export const getJoiOrderObject = async (order: {
       ? null
       : undefined,
     criteria: order.criteria,
-    source: {
-      id: source?.address,
-      domain: source?.domain,
-      name: source?.getTitle(),
-      icon: source?.getIcon(),
-      url: source?.metadata.url,
-    },
+    source: getJoiSourceObject(source),
     feeBps: Number(feeBps.toString()),
     feeBreakdown: feeBreakdown,
-    expiration: Number(order.expiration),
+    expiration: Math.floor(Number(order.expiration)),
     isReservoir: order.isReservoir,
     isDynamic:
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
@@ -674,8 +686,7 @@ export const getJoiOrderObject = async (order: {
     originatedAt: order.originatedAt ? new Date(order.originatedAt).toISOString() : null,
     rawData: order.includeRawData ? order.rawData : undefined,
     isNativeOffChainCancellable: order.includeRawData
-      ? (order.rawData as any)?.zone ===
-        Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      ? isOrderNativeOffChainCancellable(order.rawData)
       : undefined,
     depth: order.includeDepth
       ? await getJoiOrderDepthObject(
@@ -703,13 +714,7 @@ export const getJoiActivityOrderObject = async (order: {
   return {
     id: order.id,
     side: order.side ? (order.side === "sell" ? "ask" : "bid") : undefined,
-    source: orderSource
-      ? {
-          domain: orderSource?.domain,
-          name: orderSource?.getTitle(),
-          icon: orderSource?.getIcon(),
-        }
-      : undefined,
+    source: getJoiSourceObject(orderSource, false),
     criteria: order.criteria,
   };
 };
@@ -842,7 +847,7 @@ export const getJoiSaleObject = async (sale: {
   contract?: Buffer;
   tokenId?: string;
   name?: string;
-  image?: string;
+  image?: string | string[] | null;
   collectionId?: string;
   collectionName?: string;
   washTradingScore?: number;
@@ -897,7 +902,7 @@ export const getJoiSaleObject = async (sale: {
             contract: fromBuffer(sale.contract),
             tokenId: sale.tokenId,
             name: sale.name ?? null,
-            image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+            image: sale.image,
             collection: {
               id: sale.collectionId ?? null,
               name: sale.collectionName ?? null,
@@ -978,3 +983,149 @@ export const JoiExecuteFee = Joi.object({
   amount: Joi.number().unsafe(),
   rawAmount: Joi.string().pattern(regex.number),
 });
+
+// --- Sources ---
+
+export const JoiSource = Joi.object({
+  id: Joi.string().allow(null),
+  domain: Joi.string().allow(null),
+  name: Joi.string().allow(null),
+  icon: Joi.string().allow(null),
+  url: Joi.string().allow(null),
+});
+
+export const getJoiSourceObject = (source: SourcesEntity | undefined, full = true) => {
+  return source
+    ? {
+        id: full ? source.address : undefined,
+        domain: source.domain,
+        name: source.getTitle(),
+        icon: source.getIcon(),
+        url: full ? source.metadata.url : undefined,
+      }
+    : null;
+};
+
+// --- Collections ---
+
+export const getJoiCollectionObject = (
+  collection: any,
+  metadataDisabled: boolean,
+  contract?: string
+) => {
+  if (metadataDisabled) {
+    const collectionContract = collection.primaryContract ?? collection.contract ?? contract;
+    const metadataDisabledCollection: any = {
+      id: collectionContract,
+      name: collectionContract,
+      slug: collectionContract,
+      description: null,
+      metadata: null,
+      image: null,
+      imageUrl: null,
+      sampleImages: [],
+      banner: null,
+      discordUrl: null,
+      externalUrl: null,
+      twitterUsername: null,
+      openseaVerificationStatus: null,
+      community: null,
+      tokenIdRange: null,
+      tokenSetId: `contract:${collectionContract}`,
+      royalties: null,
+      newRoyalties: null,
+    };
+
+    for (const key in metadataDisabledCollection) {
+      if (collection[key] !== undefined) {
+        collection[key] = metadataDisabledCollection[key];
+      }
+    }
+
+    if (collection.floorAsk?.token) {
+      collection.floorAsk.token = getJoiTokenObject(collection.floorAsk.token, true, true);
+    }
+
+    if (collection.recentSales) {
+      for (const sale of collection.recentSales) {
+        if (sale.token) {
+          sale.token = getJoiTokenObject(sale.token, true, true);
+        }
+        if (sale.collection) {
+          sale.collection = getJoiCollectionObject(sale.collection, true, contract);
+        }
+      }
+    }
+  }
+
+  return collection;
+};
+
+// -- Tokens --
+
+export const getJoiTokenObject = (
+  token: any,
+  tokenMetadataDisabled: boolean,
+  collectionMetadataDisabled: boolean
+) => {
+  if (tokenMetadataDisabled || collectionMetadataDisabled) {
+    const metadataDisabledToken: any = {
+      name: null,
+      isFlagged: false,
+      media: null,
+      description: null,
+      image: null,
+      imageSmall: null,
+      imageLarge: null,
+      metadata: null,
+      attributes: [],
+    };
+
+    for (const key in metadataDisabledToken) {
+      if (token[key] !== undefined) {
+        token[key] = metadataDisabledToken[key];
+      }
+    }
+
+    if (collectionMetadataDisabled && token.collection) {
+      token.collection = getJoiCollectionObject(
+        token.collection,
+        collectionMetadataDisabled,
+        token.contract
+      );
+    }
+  }
+
+  return token;
+};
+
+// -- Activities --
+
+export const getJoiActivityObject = (
+  activity: any,
+  tokenMetadataDisabled: boolean,
+  collectionMetadataDisabled: { [id: string]: boolean }
+) => {
+  if (tokenMetadataDisabled || collectionMetadataDisabled[activity.collection?.collectionId]) {
+    if (activity.token?.tokenName) {
+      activity.token.tokenName = null;
+    }
+    if (activity.token?.tokenImage) {
+      activity.token.tokenImage = null;
+    }
+    if (activity.token?.tokenMedia) {
+      activity.token.tokenMedia = null;
+    }
+  }
+
+  if (collectionMetadataDisabled[activity.collection?.collectionId]) {
+    if (activity.collection?.collectionName) {
+      activity.collection.collectionName = activity.contract;
+    }
+    if (activity.collection?.collectionImage) {
+      activity.collection.collectionImage = null;
+    }
+  }
+
+  return activity;
+};

@@ -7,18 +7,17 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import {
+  orderUpdatesByIdJob,
+  OrderUpdatesByIdJobPayload,
+} from "@/jobs/order-updates/order-updates-by-id-job";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/x2y2/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as royalties from "@/utils/royalties";
-import { Royalty } from "@/utils/royalties";
-import {
-  orderUpdatesByIdJob,
-  OrderUpdatesByIdJobPayload,
-} from "@/jobs/order-updates/order-updates-by-id-job";
-// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   orderParams: Sdk.X2Y2.Types.Order;
@@ -34,10 +33,6 @@ export type SaveResult = {
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-
-  // We don't relay X2Y2 orders to Arweave since there is no way to check
-  // the validity of those orders in a decentralized way (we fully depend
-  // on X2Y2's API for that).
 
   const successOrders: Sdk.X2Y2.Types.Order[] = [];
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
@@ -65,13 +60,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // const isFiltered = await checkMarketplaceIsFiltered(order.params.nft.token, "x2y2");
-      // if (isFiltered) {
-      //   return results.push({
-      //     id,
-      //     status: "filtered",
-      //   });
-      // }
+      const isFiltered = await checkMarketplaceIsFiltered(order.params.nft.token, [
+        Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId],
+        Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId],
+      ]);
+
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       const currentTime = now();
 
@@ -142,7 +141,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Check and save: associated token set
       let tokenSetId: string | undefined;
-      let schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
+      const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
       switch (order.params.kind) {
         case "single-token": {
@@ -159,14 +158,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
 
         case "collection-wide": {
-          // X2Y2 collection offers are always on non-flagged tokens
-          const ts = await tokenSet.dynamicCollectionNonFlagged.save({
-            collection: order.params.nft.token,
-          });
-          if (ts) {
-            tokenSetId = ts.id;
-            schemaHash = ts.schemaHash;
-          }
+          const collection = order.params.nft.token.toLowerCase();
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            {
+              id: `contract:${collection}`,
+              schemaHash,
+              contract: collection,
+            },
+          ]);
 
           break;
         }
@@ -196,7 +195,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         // Assume X2Y2 royalties match the OpenSea royalties (in reality X2Y2
         // have their own proprietary royalty system which we do not index at
         // the moment)
-        let openSeaRoyalties: Royalty[];
+        let openSeaRoyalties: royalties.Royalty[];
 
         if (order.params.kind === "single-token") {
           openSeaRoyalties = await royalties.getRoyalties(

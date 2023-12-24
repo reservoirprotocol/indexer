@@ -19,11 +19,15 @@ import { config } from "@/config/index";
 import {
   getJoiDynamicPricingObject,
   getJoiPriceObject,
+  getJoiSourceObject,
+  getJoiTokenObject,
   JoiDynamicPrice,
   JoiPrice,
+  JoiSource,
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v6";
 
@@ -143,7 +147,7 @@ export const getUserTokensV6Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
             topBid: Joi.object({
@@ -162,7 +166,7 @@ export const getUserTokensV6Options: RouteOptions = {
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               dynamicPricing: JoiDynamicPrice.allow(null),
-              source: Joi.object().allow(null),
+              source: JoiSource.allow(null),
             },
             acquiredAt: Joi.string().allow(null),
           }),
@@ -319,9 +323,11 @@ export const getUserTokensV6Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.image_version,
           t.media,
           t.rarity_rank,
           t.collection_id,
+          t.metadata_disabled AS "t_metadata_disabled",
           t.rarity_score,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -350,9 +356,11 @@ export const getUserTokensV6Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.image_version,
             t.media,
             t.rarity_rank,
             t.collection_id,
+            t.metadata_disabled AS "t_metadata_disabled",
             t.rarity_score,
             t.last_sell_value,
             t.last_buy_value,
@@ -400,11 +408,12 @@ export const getUserTokensV6Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
+               t.name, t.image, t.image_version, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
-               c.name as collection_name, con.kind, c.metadata, ${
+               c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled, c.name as collection_name, con.kind, c.metadata,
+               c.image_version AS "collection_image_version", ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -528,56 +537,64 @@ export const getUserTokensV6Options: RouteOptions = {
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
 
         return {
-          token: {
-            contract: contract,
-            tokenId: tokenId,
-            kind: r.kind,
-            name: r.name,
-            image: r.image,
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
-            rarityScore: r.rarity_score,
-            rarityRank: r.rarity_rank,
-            media: r.media,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              imageUrl: r.metadata?.imageUrl,
-              floorAskPrice: r.collection_floor_sell_value
-                ? formatEth(r.collection_floor_sell_value)
+          token: getJoiTokenObject(
+            {
+              contract: contract,
+              tokenId: tokenId,
+              kind: r.kind,
+              name: r.name,
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
+              },
+              lastSell: {
+                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+                timestamp: r.last_sell_timestamp,
+              },
+              rarityScore: r.rarity_score,
+              rarityRank: r.rarity_rank,
+              media: r.media,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
+              topBid: query.includeTopBid
+                ? {
+                    id: r.top_bid_id,
+                    price: r.top_bid_value
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: r.top_bid_currency_value ?? r.top_bid_value,
+                              nativeAmount: r.top_bid_value,
+                            },
+                            gross: {
+                              amount: r.top_bid_currency_price ?? r.top_bid_price,
+                              nativeAmount: r.top_bid_price,
+                            },
+                          },
+                          topBidCurrency,
+                          query.displayCurrency
+                        )
+                      : null,
+                  }
+                : undefined,
+              lastAppraisalValue: r.last_token_appraisal_value
+                ? formatEth(r.last_token_appraisal_value)
                 : null,
             },
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_bid_id,
-                  price: r.top_bid_value
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: r.top_bid_currency_value ?? r.top_bid_value,
-                            nativeAmount: r.top_bid_value,
-                          },
-                          gross: {
-                            amount: r.top_bid_currency_price ?? r.top_bid_price,
-                            nativeAmount: r.top_bid_price,
-                          },
-                        },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                }
-              : undefined,
-            lastAppraisalValue: r.last_token_appraisal_value
-              ? formatEth(r.last_token_appraisal_value)
-              : null,
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           ownership: {
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
@@ -608,13 +625,7 @@ export const getUserTokensV6Options: RouteOptions = {
                     r.floor_sell_missing_royalties ? r.floor_sell_missing_royalties : undefined
                   )
                 : null,
-              source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.metadata.title || floorSellSource?.name,
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
-              },
+              source: getJoiSourceObject(floorSellSource),
             },
             acquiredAt: acquiredTime,
           },

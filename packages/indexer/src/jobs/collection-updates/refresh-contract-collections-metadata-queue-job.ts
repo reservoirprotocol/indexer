@@ -12,7 +12,7 @@ export type RefreshContractCollectionsMetadataQueueJobPayload = {
   contract: string;
 };
 
-export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMqJobHandler {
+export default class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "refresh-contract-collections-metadata-queue";
   maxRetries = 10;
   concurrency = 1;
@@ -48,7 +48,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
         community: contractCollection.community,
       }));
 
-      await collectionMetadataQueueJob.addToQueueBulk(infos, 0, this.queueName);
+      await collectionMetadataQueueJob.addToQueueBulk(infos);
     } else {
       const contractToken = await redb.oneOrNone(
         `

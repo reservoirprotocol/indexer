@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "start": "turbo run start",
+    "start": "turbo run start --log-prefix=none",
     "commitlint": "commitlint --edit",
     "lint-check": "eslint --cache --max-warnings 0 \"packages/**/src/**/*.+(js|ts|json)\"",
     "format-check": "prettier --cache --check \"packages/**/src/**/*.+(js|ts|json)\"",
@@ -37,7 +37,8 @@
     "@/events-sync": "./packages/indexer/dist/sync/events",
     "@/pubsub": "./packages/indexer/dist/pubsub",
     "@/websockets": "./packages/indexer/dist/websockets",
-    "@/elasticsearch": "./packages/indexer/dist/elasticsearch"
+    "@/elasticsearch": "./packages/indexer/dist/elasticsearch",
+    "@/metadata": "./packages/indexer/dist/metadata"
   },
   "resolutions": {
     "**/flat": "^5.0.1",

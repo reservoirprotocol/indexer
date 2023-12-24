@@ -5,7 +5,12 @@ import { idb } from "@/common/db";
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { Orders } from "@/utils/orders";
-import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import {
+  BaseActivityEventHandler,
+  OrderEventInfo,
+} from "@/elasticsearch/indexes/activities/event-handlers/base";
+import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export class BidCreatedEventHandler extends BaseActivityEventHandler {
   public orderId: string;
@@ -50,7 +55,12 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
   }
 
   public static buildBaseQuery() {
-    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+      "orders",
+      "token_set_id",
+      false,
+      "token_set_schema_hash"
+    );
 
     return `
         SELECT
@@ -82,9 +92,12 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",   
                         tokens.media AS "token_media",
+                        tokens.is_spam AS "token_is_spam",
+                        collections.is_spam AS "collection_is_spam",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
+                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.image_version AS "collection_image_version"
                     FROM token_sets_tokens
                     JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id 
                     JOIN collections ON collections.id = tokens.collection_id
@@ -100,6 +113,53 @@ export class BidCreatedEventHandler extends BaseActivityEventHandler {
 
     data.timestamp = data.originated_ts
       ? Math.floor(data.originated_ts)
-      : data.valid_from || Math.floor(data.created_ts);
+      : Math.floor(data.created_ts);
+  }
+
+  static async generateActivities(events: OrderEventInfo[]): Promise<ActivityDocument[]> {
+    const activities: ActivityDocument[] = [];
+
+    const eventsFilter = [];
+
+    for (const event of events) {
+      eventsFilter.push(`('${event.orderId}')`);
+    }
+
+    const results = await idb.manyOrNone(
+      `
+                ${BidCreatedEventHandler.buildBaseQuery()}
+                WHERE (id) IN ($/eventsFilter:raw/);  
+                `,
+      { eventsFilter: _.join(eventsFilter, ",") }
+    );
+
+    for (const result of results) {
+      try {
+        const event = events.find((event) => event.orderId === result.order_id);
+
+        const eventHandler = new BidCreatedEventHandler(
+          result.order_id,
+          event?.txHash,
+          event?.logIndex,
+          event?.batchIndex
+        );
+
+        const activity = eventHandler.buildDocument(result);
+
+        activities.push(activity);
+      } catch (error) {
+        logger.error(
+          "bid-created-event-handler",
+          JSON.stringify({
+            topic: "generate-activities",
+            message: `Error build document. error=${error}`,
+            result,
+            error,
+          })
+        );
+      }
+    }
+
+    return activities;
   }
 }

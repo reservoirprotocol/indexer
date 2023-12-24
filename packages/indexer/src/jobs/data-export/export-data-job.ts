@@ -58,12 +58,12 @@ export enum DataSource {
   tokenAttributesV2 = "token-attributes-v2",
 }
 
-export class ExportDataJob extends AbstractRabbitMqJobHandler {
+export default class ExportDataJob extends AbstractRabbitMqJobHandler {
   queueName = "export-data-queue";
   maxRetries = 10;
   concurrency = 1;
   useSharedChannel = true;
-  consumerTimeout = 120000;
+  timeout = 120000;
 
   protected async process(payload: ExportDataJobPayload) {
     const { taskId } = payload;

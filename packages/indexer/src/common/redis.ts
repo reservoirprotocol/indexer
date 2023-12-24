@@ -1,5 +1,4 @@
 import { BulkJobOptions } from "bullmq";
-import { randomUUID } from "crypto";
 import Redis from "ioredis";
 import _ from "lodash";
 import Redlock from "redlock";
@@ -55,6 +54,8 @@ export const allChainsSyncRedisSubscriber = new Redis(config.allChainsSyncRedisU
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 
+export const redlockAllChains = new Redlock([allChainsSyncRedis.duplicate()], { retryCount: 0 });
+
 // Common types
 
 export type BullMQBulkJob = {
@@ -65,21 +66,31 @@ export type BullMQBulkJob = {
 };
 
 export const acquireLock = async (name: string, expirationInSeconds = 0) => {
-  const id = randomUUID();
   let acquired;
 
   if (expirationInSeconds) {
-    acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
+    acquired = await redis.set(name, "lock", "EX", expirationInSeconds, "NX");
   } else {
-    acquired = await redis.set(name, id, "NX");
+    acquired = await redis.set(name, "lock", "NX");
+  }
+
+  return acquired === "OK";
+};
+
+export const acquireLockCrossChain = async (name: string, expirationInSeconds = 0) => {
+  let acquired;
+
+  if (expirationInSeconds) {
+    acquired = await allChainsSyncRedis.set(name, "lock", "EX", expirationInSeconds, "NX");
+  } else {
+    acquired = await allChainsSyncRedis.set(name, "lock", "NX");
   }
 
   return acquired === "OK";
 };
 
 export const extendLock = async (name: string, expirationInSeconds: number) => {
-  const id = randomUUID();
-  const extended = await redis.set(name, id, "EX", expirationInSeconds, "XX");
+  const extended = await redis.set(name, "lock", "EX", expirationInSeconds, "XX");
   return extended === "OK";
 };
 
@@ -89,6 +100,10 @@ export const releaseLock = async (name: string) => {
 
 export const getLockExpiration = async (name: string) => {
   return await redis.ttl(name);
+};
+
+export const doesLockExist = async (name: string) => {
+  return Boolean(await redis.exists(name));
 };
 
 export const getMemUsage = async () => {

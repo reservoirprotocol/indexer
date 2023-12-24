@@ -14,7 +14,7 @@ export type TokenRefreshCacheJobPayload = {
   checkTopBid?: boolean;
 };
 
-export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
+export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
   queueName = "token-refresh-cache";
   maxRetries = 10;
   concurrency = 10;

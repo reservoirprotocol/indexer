@@ -7,7 +7,13 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject, JoiAttributeKeyValueObject } from "@/common/joi";
+import {
+  JoiPrice,
+  getJoiPriceObject,
+  JoiAttributeKeyValueObject,
+  getJoiSourceObject,
+  JoiSource,
+} from "@/common/joi";
 import {
   buildContinuation,
   fromBuffer,
@@ -165,7 +171,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             .allow(null)
             .optional(),
           status: Joi.string(),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
             .items(
@@ -560,15 +566,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
           metadata: query.includeMetadata ? r.metadata : undefined,
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: getJoiSourceObject(source),
           feeBps: Number(feeBps.toString()),
-          feeBreakdown: feeBreakdown,
+          feeBreakdown: Number(feeBps.toString()) === 0 ? [] : feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
           isDynamic: Boolean(r.dynamic),

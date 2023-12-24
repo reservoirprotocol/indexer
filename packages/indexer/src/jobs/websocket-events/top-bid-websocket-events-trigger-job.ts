@@ -4,7 +4,7 @@ import { idb, ridb } from "@/common/db";
 import { Orders } from "@/utils/orders";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject } from "@/common/joi";
+import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { config } from "@/config/index";
@@ -29,7 +29,12 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
     const { data } = payload;
 
     try {
-      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        false,
+        "token_set_schema_hash"
+      );
 
       const order = await idb.oneOrNone(
         `
@@ -61,7 +66,9 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
                 c.floor_sell_value AS floor_sell_value,
                 c.non_flagged_floor_sell_value AS non_flagged_floor_sell_value,
                 c.top_buy_value AS top_buy_value,
-                COALESCE(((orders.value / (c.floor_sell_value * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) ) - 1) * 100, 0) AS floor_difference_percentage
+                CASE WHEN c.floor_sell_value = 0 THEN 0 ELSE
+                COALESCE(((orders.value / (c.floor_sell_value * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) ) - 1) * 100, 0) 
+                END AS floor_sell_value_percentage
               FROM orders
               JOIN LATERAL (
                 SELECT c.id,
@@ -101,7 +108,8 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
       const payloads = [];
       const owners = await this.getOwners(order.token_set_id);
       const ownersChunks = _.chunk(owners, 25 * 20);
-      const source = (await Sources.getInstance()).get(Number(order.source_id_int));
+      const sources = await Sources.getInstance();
+      const source = sources.get(Number(order.source_id_int));
 
       for (const ownersChunk of ownersChunks) {
         const [price, priceNormalized] = await Promise.all([
@@ -141,13 +149,7 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
             createdAt: new Date(order.created_at).toISOString(),
             validFrom: order.valid_from,
             validUntil: order.valid_until,
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.getTitle(),
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
-            },
+            source: getJoiSourceObject(source),
             price: {
               currency: price.currency,
               amount: price.amount,
@@ -181,7 +183,7 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
               event: "top-bid.changed",
               tags: {
                 contract: fromBuffer(order.contract),
-                source: payload?.order?.source.domain || "unknown",
+                source: payload?.order?.source?.domain || "unknown",
               },
               data: payload,
             })

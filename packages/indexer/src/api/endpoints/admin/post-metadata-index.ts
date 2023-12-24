@@ -34,6 +34,7 @@ export const postMetadataIndexOptions: RouteOptions = {
       const token = payload.token;
 
       const [contract, tokenId] = token.split(":");
+
       await mintQueueJob.addToQueue([{ contract, tokenId, mintedTimestamp: now() }]);
 
       return { message: "Success" };

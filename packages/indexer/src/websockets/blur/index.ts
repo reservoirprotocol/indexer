@@ -9,7 +9,7 @@ import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
 
 const COMPONENT = "blur-websocket";
 
-if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
+if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
   const client = io(config.blurWsUrl, {
     transports: ["websocket"],
     auth: {
@@ -18,28 +18,14 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
   });
 
   client.on("connect", () => {
-    logger.info(COMPONENT, "Connected to Blur via websocket");
+    logger.info(COMPONENT, `Connected to Blur via websocket (${config.blurWsUrl})`);
   });
 
   client.on("connect_error", (error) => {
     logger.error(COMPONENT, `Error from Blur websocket: ${error}`);
   });
 
-  client.on("CollectionBidsPrice", async (message: string) => {
-    try {
-      const parsedMessage: {
-        contractAddress: string;
-        updates: Sdk.Blur.Types.BlurBidPricePoint[];
-      } = JSON.parse(message);
-
-      const collection = parsedMessage.contractAddress.toLowerCase();
-      const pricePoints = parsedMessage.updates;
-      await blurBidsBufferJob.addToQueue(collection, pricePoints);
-    } catch (error) {
-      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
-    }
-  });
-
+  // Listings
   client.on("newTopsOfBooks", async (message: string) => {
     try {
       const parsedMessage: {
@@ -64,6 +50,7 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
             tokenId: t.tokenId,
             price: t.topAsk?.marketplace === "BLUR" ? t.topAsk.amount : undefined,
             createdAt: t.topAsk?.marketplace === "BLUR" ? t.topAsk.createdAt : undefined,
+            fromWebsocket: true,
           },
           metadata: {},
         },
@@ -72,10 +59,25 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await orderbookOrdersJob.addToQueue(orderInfos as any);
-
       await blurListingsRefreshJob.addToQueue(collection);
     } catch (error) {
       logger.error(COMPONENT, `Error handling listing: ${error} (message = ${message})`);
+    }
+  });
+
+  // Collection bids
+  client.on("CollectionBidsPrice", async (message: string) => {
+    try {
+      const parsedMessage: {
+        contractAddress: string;
+        updates: Sdk.Blur.Types.BlurBidPricePoint[];
+      } = JSON.parse(message);
+
+      const collection = parsedMessage.contractAddress.toLowerCase();
+      const pricePoints = parsedMessage.updates;
+      await blurBidsBufferJob.addToQueue(collection, pricePoints);
+    } catch (error) {
+      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
     }
   });
 }

@@ -4,6 +4,9 @@ import "@/config/polyfills";
 import "@/pubsub/index";
 import "@/websockets/index";
 
+import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
+
 import { start } from "@/api/index";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
@@ -23,18 +26,22 @@ process.on("unhandledRejection", (error: any) => {
 });
 
 const setup = async () => {
-  if (process.env.LOCAL_TESTING) {
+  // Configure the SDK
+  Sdk.Global.Config.aggregatorSource = "reservoir.tools";
+
+  if (Number(process.env.LOCAL_TESTING)) {
     return;
   }
 
   if (config.doBackgroundWork || config.forceEnableRabbitJobsConsumer) {
+    const start = _.now();
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    logger.info("rabbit-timing", `rabbit consuming started in ${_.now() - start}ms`);
   }
 
   if (config.doBackgroundWork) {
     await Sources.syncSources();
     await FeeRecipients.syncFeeRecipients();
-
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
       await networkSettings.onStartup();

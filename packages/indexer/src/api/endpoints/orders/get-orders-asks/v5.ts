@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { redb } from "@/common/db";
+import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import {
@@ -20,13 +20,14 @@ import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { TokenSets } from "@/models/token-sets";
 import { Orders } from "@/utils/orders";
+import { config } from "@/config/index";
 
 const version = "v5";
 
 export const getOrdersAsksV5Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
-    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n Please mark `excludeEOA` as `true` to exclude Blur orders.",
+    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n To get all orders unflitered, select `sortBy` to `updatedAt`. No need to pass any other param. This will return any orders for any collections, token, attribute, etc.\n\n Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -59,7 +60,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+          "Filter to a particular collection set. Requires `maker` to be passed. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       contracts: Joi.alternatives()
@@ -94,7 +95,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, cancelledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       sources: Joi.alternatives()
         .try(
@@ -145,14 +146,18 @@ export const getOrdersAsksV5Options: RouteOptions = {
         .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
         .description(
-          "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
+          "Order the items are returned in the response. Sorting by `price` is ascending order only."
         ),
       sortDirection: Joi.string()
         .lowercase()
         .when("sortBy", {
           is: Joi.valid("updatedAt"),
           then: Joi.valid("asc", "desc").default("desc"),
-          otherwise: Joi.valid("desc").default("desc"),
+          otherwise: Joi.when("sortBy", {
+            is: Joi.valid("price"),
+            then: Joi.valid("asc", "desc").default("asc"),
+            otherwise: Joi.valid("desc").default("desc"),
+          }),
         }),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -162,7 +167,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(50)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -312,13 +317,6 @@ export const getOrdersAsksV5Options: RouteOptions = {
       ) {
         throw Boom.badRequest(
           `You must provide one of the following: [ids, maker, contracts] in order to filter querys with sortBy = updatedAt and status != 'active.`
-        );
-      }
-
-      // TODO Remove this restriction once an index is created for updatedAt and contracts
-      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
-        throw Boom.badRequest(
-          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
         );
       }
 
@@ -530,9 +528,9 @@ export const getOrdersAsksV5Options: RouteOptions = {
       // Sorting
       if (query.sortBy === "price") {
         if (query.normalizeRoyalties) {
-          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+          baseQuery += ` ORDER BY orders.normalized_value, orders.fee_bps, orders.id`;
         } else {
-          baseQuery += ` ORDER BY orders.price, orders.id`;
+          baseQuery += ` ORDER BY orders.price, orders.fee_bps, orders.id`;
         }
       } else if (query.sortBy === "updatedAt") {
         if (query.sortDirection === "asc") {
@@ -547,7 +545,10 @@ export const getOrdersAsksV5Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redb.manyOrNone(baseQuery, query);
 
       let continuation = null;
       if (rawResult.length === query.limit) {
@@ -605,7 +606,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,

@@ -11,6 +11,7 @@ import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-j
 import _ from "lodash";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { collectionMetadataQueueJob } from "../collection-updates/collection-metadata-queue-job";
 
 export type MintQueueJobPayload = {
   contract: string;
@@ -18,7 +19,7 @@ export type MintQueueJobPayload = {
   mintedTimestamp: number;
 };
 
-export class MintQueueJob extends AbstractRabbitMqJobHandler {
+export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-updates-mint-queue";
   maxRetries = 10;
   concurrency = 30;
@@ -56,31 +57,67 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         }
       );
 
-      if (collection) {
-        const queries: PgPromiseQuery[] = [];
+      let isFirstToken = false;
 
-        // If the collection is readily available in the database then
-        // all we needed to do is to associate it with the token
-        queries.push({
-          query: `
+      // check if there are any tokens that exist already for the collection
+      // if there are not, we need to fetch the collection metadata from upstream
+      if (collection) {
+        // If the collection is readily available in the database then check if the token already exists / or the first token in the colleciton
+        const existingToken = await idb.oneOrNone(
+          `
+              SELECT token_id
+              FROM tokens
+              WHERE tokens.contract = $/contract/
+                AND tokens.collection_id = $/collection/
+                AND tokens.token_id = $/tokenId/
+              UNION ALL
+              SELECT token_id
+              FROM tokens
+              WHERE tokens.contract = $/contract/
+                AND tokens.collection_id = $/collection/
+                AND NOT EXISTS
+                  (SELECT 1
+                   FROM tokens
+                   WHERE tokens.contract = $/contract/
+                     AND tokens.collection_id = $/collection/
+                     AND tokens.token_id = $/tokenId/)
+              LIMIT 1
+          `,
+          {
+            contract: toBuffer(contract),
+            collection: collection.id,
+            tokenId: tokenId,
+          }
+        );
+
+        if (!existingToken) {
+          isFirstToken = true;
+        }
+
+        if (existingToken?.token_id !== tokenId) {
+          // If it's the first time we see this token id (for erc1155, its possible we would already have the token)
+          const queries: PgPromiseQuery[] = [];
+
+          // associate collection with the token
+          queries.push({
+            query: `
               UPDATE tokens SET
                 collection_id = $/collection/,
                 updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
-                AND tokens.collection_id IS NULL
             `,
-          values: {
-            contract: toBuffer(contract),
-            tokenId,
-            collection: collection.id,
-          },
-        });
+            values: {
+              contract: toBuffer(contract),
+              tokenId,
+              collection: collection.id,
+            },
+          });
 
-        // Include the new token to any collection-wide token set
-        if (collection.token_set_id) {
-          queries.push({
-            query: `
+          // Include the new token to any collection-wide token set
+          if (collection.token_set_id) {
+            queries.push({
+              query: `
                 WITH x AS (
                   SELECT DISTINCT
                     token_sets.id
@@ -99,16 +136,68 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
                   FROM x
                 ) ON CONFLICT DO NOTHING
               `,
-            values: {
-              contract: toBuffer(contract),
-              tokenId,
-              tokenSetId: collection.token_set_id,
-            },
-          });
-        }
+              values: {
+                contract: toBuffer(contract),
+                tokenId,
+                tokenSetId: collection.token_set_id,
+              },
+            });
+          }
 
-        // Trigger the queries
-        await idb.none(pgp.helpers.concat(queries));
+          // Trigger the queries
+          await idb.none(pgp.helpers.concat(queries));
+
+          // Refresh any dynamic token set
+          const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
+
+          if (!(await redis.get(cacheKey))) {
+            const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
+              collection: collection.id,
+            });
+            const tokenSetResult = await idb.oneOrNone(
+              `
+              SELECT 1 FROM token_sets
+              WHERE token_sets.id = $/id/
+            `,
+              {
+                id: tokenSet.id,
+              }
+            );
+
+            if (tokenSetResult) {
+              await tokenSets.dynamicCollectionNonFlagged.save(
+                { collection: collection.id },
+                undefined,
+                true
+              );
+            }
+
+            await redis.set(cacheKey, "locked", "EX", 10 * 60);
+          }
+
+          // Refresh the metadata for the new token
+          if (!config.disableRealtimeMetadataRefresh) {
+            const delay = getNetworkSettings().metadataMintDelay;
+            const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method,
+                    contract,
+                    tokenId,
+                    collection: collection.id,
+                  },
+                  context: this.queueName,
+                },
+              ],
+              true,
+              delay
+            );
+          }
+        }
 
         // Schedule a job to re-count tokens in the collection with different delays based on the amount of tokens
         let delay = 5 * 60 * 1000;
@@ -119,55 +208,6 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
         }
 
         await recalcTokenCountQueueJob.addToQueue({ collection: collection.id }, delay);
-
-        // Refresh any dynamic token set
-        const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
-        if (!(await redis.get(cacheKey))) {
-          const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
-            collection: collection.id,
-          });
-          const tokenSetResult = await idb.oneOrNone(
-            `
-              SELECT 1 FROM token_sets
-              WHERE token_sets.id = $/id/
-            `,
-            {
-              id: tokenSet.id,
-            }
-          );
-          if (tokenSetResult) {
-            await tokenSets.dynamicCollectionNonFlagged.save(
-              { collection: collection.id },
-              undefined,
-              true
-            );
-          }
-
-          await redis.set(cacheKey, "locked", "EX", 10 * 60);
-        }
-
-        // Refresh the metadata for the new token
-        if (!config.disableRealtimeMetadataRefresh) {
-          const delay = getNetworkSettings().metadataMintDelay;
-          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-
-          await metadataIndexFetchJob.addToQueue(
-            [
-              {
-                kind: "single-token",
-                data: {
-                  method,
-                  contract,
-                  tokenId,
-                  collection: collection.id,
-                },
-                context: this.queueName,
-              },
-            ],
-            true,
-            delay
-          );
-        }
       } else {
         // We fetch the collection metadata from upstream
         await fetchCollectionMetadataJob.addToQueue([
@@ -175,13 +215,37 @@ export class MintQueueJob extends AbstractRabbitMqJobHandler {
             contract,
             tokenId,
             mintedTimestamp,
-            context: "mint-queue",
           },
         ]);
       }
 
+      if (isFirstToken) {
+        await collectionMetadataQueueJob.addToQueue({
+          contract,
+          tokenId,
+          community: collection?.community ?? null,
+        });
+
+        // update the minted timestamp on the collection
+        await idb.none(
+          `
+            UPDATE collections SET
+              minted_timestamp = $/mintedTimestamp/,
+              updated_at = NOW()
+            WHERE collections.id = $/collection/
+            AND collections.minted_timestamp IS NULL
+          `,
+          {
+            collection: collection?.id,
+            mintedTimestamp,
+          }
+        );
+      }
+
       // Set any cached information (eg. floor sell)
-      await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
+      if (config.chainId !== 999) {
+        await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
+      }
     } catch (error) {
       logger.error(
         this.queueName,

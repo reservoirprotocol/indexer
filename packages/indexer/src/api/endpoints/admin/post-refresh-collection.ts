@@ -21,6 +21,8 @@ import {
 } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -35,9 +37,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      refreshKind: Joi.string()
-        .valid("full-collection", "full-collection-by-slug")
-        .default("full-collection"),
+      refreshKind: Joi.string().valid("full-collection").default("full-collection"),
       cacheOnly: Joi.boolean()
         .default(false)
         .description("If true, will only refresh the collection cache."),
@@ -71,7 +71,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
               contract: fromBuffer(tokenResult.contract),
               tokenId: tokenResult.token_id,
               allowFallbackCollectionMetadata: false,
-              context: "post-refresh-collection",
             },
           ]);
 
@@ -93,39 +92,48 @@ export const postRefreshCollectionOptions: RouteOptions = {
         await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
         // Update the collection id of any missing tokens
-        await edb.none(
-          `
-          WITH x AS (
-            SELECT
-              collections.contract,
-              collections.token_id_range
-            FROM collections
-            WHERE collections.id = $/collection/
-          )
-          UPDATE tokens SET
-            collection_id = $/collection/,
-            updated_at = now()
-          FROM x
-          WHERE tokens.contract = x.contract
-            AND tokens.token_id <@ x.token_id_range
-            AND tokens.collection_id IS NULL
-        `,
-          { collection: payload.collection }
-        );
+        if (collection.tokenIdRange !== null) {
+          await edb.none(
+            `
+            WITH x AS (
+              SELECT
+                collections.contract,
+                collections.token_id_range
+              FROM collections
+              WHERE collections.id = $/collection/
+            )
+            UPDATE tokens SET
+              collection_id = $/collection/,
+              updated_at = now()
+            FROM x
+            WHERE tokens.contract = x.contract
+              AND tokens.token_id <@ x.token_id_range
+              AND tokens.collection_id IS NULL
+          `,
+            { collection: payload.collection }
+          );
+        }
 
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
-          {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: false,
-          },
-          0,
-          "post-refresh-collection-admin"
-        );
+        if (collection.contract === "0x495f947276749ce646f68ac8c248420045cb7b5e") {
+          logger.info(
+            "post-refresh-collection",
+            JSON.stringify({
+              topic: "debugCollectionRefresh",
+              message: `collectionMetadataQueueJob.addToQueue. contract=${collection.contract}, tokenId=${tokenId}`,
+              collection,
+            })
+          );
+        }
+
+        await collectionMetadataQueueJob.addToQueue({
+          contract: collection.contract,
+          tokenId,
+          community: collection.community,
+          forceRefresh: true,
+        });
 
         if (collection.slug) {
           // Refresh opensea collection offers
@@ -150,7 +158,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
         ]);
 
         const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-        let metadataIndexInfo: MetadataIndexFetchJobPayload = {
+        const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {
             method,
@@ -161,23 +169,30 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         if (method === "opensea") {
           // Refresh contract orders from OpenSea
-          await OpenseaIndexerApi.fastContractSync(collection.contract);
-          if (collection.slug && payload.refreshKind === "full-collection-by-slug") {
-            metadataIndexInfo = {
-              kind: "full-collection-by-slug",
-              data: {
-                method,
-                contract: collection.contract,
-                slug: collection.slug,
-                collection: collection.id,
-              },
-              context: "post-refresh-collection",
-            };
-          }
+          await OpenseaIndexerApi.fastContractSync(collection.id);
         }
 
         // Refresh the collection tokens metadata
         await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+
+        if (collection.slug) {
+          await PendingFlagStatusSyncCollectionSlugs.add([
+            {
+              slug: collection.slug,
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        } else {
+          await PendingFlagStatusSyncContracts.add([
+            {
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        }
       }
 
       return { message: "Request accepted" };

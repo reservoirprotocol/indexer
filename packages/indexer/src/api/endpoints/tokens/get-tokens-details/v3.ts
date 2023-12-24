@@ -16,8 +16,9 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
-import { JoiAttributeKeyValueObject } from "@/common/joi";
+import { Assets, ImageSize } from "@/utils/assets";
+import { JoiAttributeKeyValueObject, getJoiTokenObject } from "@/common/joi";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -148,14 +149,18 @@ export const getTokensDetailsV3Options: RouteOptions = {
           "t"."description",
           "t"."image",
           "t"."collection_id",
+          "t"."metadata_disabled" as "t_metadata_disabled",
+          "c"."metadata_disabled" as "c_metadata_disabled",
           "c"."name" as "collection_name",
           "con"."kind",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
+          "c"."image_version" as "collection_image_version",
           "c"."slug",
           "t"."last_buy_value",
           "t"."last_buy_timestamp",
           "t"."last_sell_value",
           "t"."last_sell_timestamp",
+          "t"."image_version",
           (
             SELECT "nb"."owner" FROM "nft_balances" "nb"
             WHERE "nb"."contract" = "t"."contract"
@@ -290,7 +295,7 @@ export const getTokensDetailsV3Options: RouteOptions = {
               })
             );
 
-            throw new Error("Invalid continuation string used");
+            throw Boom.badRequest("Invalid continuation string used");
           }
           switch (query.sortBy) {
             case "topBidValue":
@@ -398,30 +403,38 @@ export const getTokensDetailsV3Options: RouteOptions = {
             ? sources.get(r.floor_sell_source_id_int, contract, tokenId)
             : undefined;
         return {
-          token: {
-            contract,
-            tokenId,
-            name: r.name,
-            description: r.description,
-            image: Assets.getLocalAssetsLink(r.image),
-            kind: r.kind,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              image: Assets.getLocalAssetsLink(r.collection_image),
-              slug: r.slug,
+          token: getJoiTokenObject(
+            {
+              contract,
+              tokenId,
+              name: r.name,
+              description: r.description,
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              kind: r.kind,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                image: Assets.getResizedImageUrl(
+                  r.collection_image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
+                slug: r.slug,
+              },
+              lastBuy: {
+                value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+                timestamp: r.last_buy_timestamp,
+              },
+              lastSell: {
+                value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+                timestamp: r.last_sell_timestamp,
+              },
+              owner: r.owner ? fromBuffer(r.owner) : null,
+              attributes: r.attributes || [],
             },
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
-            owner: r.owner ? fromBuffer(r.owner) : null,
-            attributes: r.attributes || [],
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           market: {
             floorAsk: {
               id: r.floor_sell_id,
@@ -429,12 +442,14 @@ export const getTokensDetailsV3Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_valid_from,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
-              source: {
-                id: source?.address,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
-              },
+              source: source
+                ? {
+                    id: source.address,
+                    name: source.getTitle(),
+                    icon: source.getIcon(),
+                    url: source.metadata.url,
+                  }
+                : null,
             },
             topBid: {
               id: r.top_buy_id,

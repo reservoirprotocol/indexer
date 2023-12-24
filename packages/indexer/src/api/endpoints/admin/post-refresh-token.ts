@@ -15,6 +15,7 @@ import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribut
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -77,6 +78,16 @@ export const postRefreshTokenOptions: RouteOptions = {
         true
       );
 
+      await PendingFlagStatusSyncTokens.add(
+        [
+          {
+            contract,
+            tokenId,
+          },
+        ],
+        true
+      );
+
       // Revalidate the token orders
       await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
 
@@ -87,7 +98,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
 
       // Recalc supply
-      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }]);
+      await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }], 0);
 
       return { message: "Request accepted" };
     } catch (error) {

@@ -5,11 +5,11 @@ import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { Tokens } from "@/models/tokens";
+import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 import { getBuildInfo } from "@/orderbook/orders/seaport-v1.1/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
-import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
-import { Tokens } from "@/models/tokens";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {
   collection: string;
@@ -23,8 +23,7 @@ export const build = async (options: BuildOrderOptions) => {
         collections.token_set_id,
         collections.token_count,
         collections.contract,
-        collections.slug,
-        collections.non_flagged_token_set_id
+        collections.slug
       FROM collections
       WHERE collections.id = $/collection/
     `,
@@ -98,11 +97,6 @@ export const build = async (options: BuildOrderOptions) => {
       // we go through two levels of caches before performing the computation.
       let cachedMerkleRoot: string | null = null;
 
-      if (options.excludeFlaggedTokens && collectionResult.non_flagged_token_set_id) {
-        // Attempt 1: fetch the token set id for non-flagged tokens directly from the collection
-        cachedMerkleRoot = collectionResult.non_flagged_token_set_id.split(":")[2];
-      }
-
       // Build the resulting token set's schema
       const schema = {
         kind: options.excludeFlaggedTokens ? "collection-non-flagged" : "collection",
@@ -113,12 +107,12 @@ export const build = async (options: BuildOrderOptions) => {
       const schemaHash = generateSchemaHash(schema);
 
       if (!cachedMerkleRoot) {
-        // Attempt 2: use a cached version of the token set
+        // Attempt 1: use a cached version of the token set
         cachedMerkleRoot = await redis.get(schemaHash);
       }
 
       if (!cachedMerkleRoot) {
-        // Attempt 3 (final - will definitely work): compute the token set id (can be computationally-expensive)
+        // Attempt 2 (final - will definitely work): compute the token set id (can be computationally-expensive)
 
         // Fetch all relevant tokens from the collection
         const tokenIds = await Tokens.getTokenIdsInCollection(

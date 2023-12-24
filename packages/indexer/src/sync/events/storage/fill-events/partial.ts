@@ -38,6 +38,7 @@ export const addEventsPartial = async (events: Event[]) => {
       royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
       marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
       paid_full_royalty: event.paidFullRoyalty ?? undefined,
+      comment: event.comment ?? undefined,
     });
   }
 
@@ -74,6 +75,7 @@ export const addEventsPartial = async (events: Event[]) => {
         "paid_full_royalty",
         { name: "royalty_fee_breakdown", mod: ":json" },
         { name: "marketplace_fee_breakdown", mod: ":json" },
+        "comment",
       ],
       { table: "fill_events_2" }
     );
@@ -111,7 +113,8 @@ export const addEventsPartial = async (events: Event[]) => {
           marketplace_fee_bps,
           paid_full_royalty,
           royalty_fee_breakdown,
-          marketplace_fee_breakdown
+          marketplace_fee_breakdown,
+          comment
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
         RETURNING

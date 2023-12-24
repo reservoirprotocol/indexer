@@ -2,7 +2,9 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
+import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
+import { mintsRefreshJob, triggerDelayedRefresh } from "@/jobs/mints/mints-refresh-job";
+import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import {
   CollectionMint,
   CollectionMintStandard,
@@ -10,9 +12,6 @@ import {
 } from "@/orderbook/mints";
 import * as detector from "@/orderbook/mints/calldata/detector";
 import { getContractKind } from "@/orderbook/mints/calldata/helpers";
-import MetadataApi from "@/utils/metadata-api";
-
-import { manifold } from "@/orderbook/mints/calldata/detector";
 
 export type MintsProcessJobPayload =
   | {
@@ -32,7 +31,7 @@ export type MintsProcessJobPayload =
       };
     };
 
-export class MintsProcessJob extends AbstractRabbitMqJobHandler {
+export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
   queueName = "mints-process";
   maxRetries = 3;
   concurrency = 30;
@@ -59,18 +58,23 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
           }
         );
         if (!collectionExists) {
-          const collection = await MetadataApi.getCollectionMetadata(data.collection, "0", "", {
-            indexingMethod:
-              data.standard === "manifold"
-                ? "manifold"
-                : data.standard === "seadrop-v1.0"
-                ? "opensea"
-                : "onchain",
-            additionalQueryParams:
-              data.standard === "manifold"
-                ? { instanceId: data.additionalInfo.instanceId }
-                : undefined,
-          });
+          const collection = await MetadataProviderRouter.getCollectionMetadata(
+            data.collection,
+            "0",
+            "",
+            {
+              indexingMethod:
+                data.standard === "manifold"
+                  ? "manifold"
+                  : data.standard === "seadrop-v1.0"
+                  ? "opensea"
+                  : "onchain",
+              additionalQueryParams:
+                data.standard === "manifold"
+                  ? { instanceId: data.additionalInfo.instanceId }
+                  : undefined,
+            }
+          );
 
           let tokenIdRange: string | null = null;
           if (collection.tokenIdRange) {
@@ -132,47 +136,24 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             collection: data.collection,
           }
         );
-        if (!contractResult.kind) {
-          const kind = await getContractKind(fromBuffer(contractResult.contract));
+        let kind = contractResult.kind;
+        if (!kind) {
+          kind = await getContractKind(fromBuffer(contractResult.contract));
           if (!kind) {
             throw new Error("Could not detect contract kind");
           }
 
-          await idb.none(
-            `
-              INSERT INTO contracts (
-                address,
-                kind
-              ) VALUES (
-                $/contract/,
-                $/kind/
-              ) ON CONFLICT DO NOTHING
-            `,
-            {
-              contract: contractResult.contract,
-              kind,
-            }
-          );
+          await collectionNewContractDeployedJob.addToQueue({
+            contract: contractResult.contract,
+          });
         }
 
-        const kind = await idb
-          .one(
-            `
-              SELECT
-                contracts.kind
-              FROM collections
-              JOIN contracts
-                ON collections.contract = contracts.address
-              WHERE collections.id = $/collection/
-            `,
-            {
-              collection: data.collection,
-            }
-          )
-          .then((r) => r.kind);
-
         switch (data.standard) {
-          // TODO: Add support for `decent`
+          case "decent": {
+            collectionMints = await detector.decent.extractByCollectionERC721(data.collection);
+
+            break;
+          }
 
           case "foundation": {
             collectionMints = await detector.foundation.extractByCollectionERC721(data.collection);
@@ -190,12 +171,10 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
             } else if (kind === "erc1155") {
               collectionMints = await detector.manifold.extractByCollectionERC1155(
                 data.collection,
-                await manifold.getTokenIdForERC1155Mint(
-                  data.collection,
-                  data.additionalInfo.instanceId,
-                  data.additionalInfo.extension
-                ),
-                data.additionalInfo.extension
+                {
+                  instanceId: data.additionalInfo.instanceId,
+                  extension: data.additionalInfo.extension,
+                }
               );
             }
 
@@ -233,6 +212,38 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
 
             break;
           }
+
+          case "soundxyz": {
+            collectionMints = await detector.soundxyz.extractByCollection(
+              data.collection,
+              data.additionalInfo.minter,
+              data.additionalInfo.mintId
+            );
+            break;
+          }
+
+          case "createdotfun": {
+            collectionMints = await detector.createdotfun.extractByCollectionERC721(
+              data.collection
+            );
+            break;
+          }
+
+          case "titlesxyz": {
+            collectionMints = await detector.titlesxyz.extractByCollectionERC721(data.collection);
+            break;
+          }
+
+          case "highlightxyz": {
+            collectionMints = await detector.highlightxyz.extractByCollectionERC721(
+              data.collection,
+              {
+                vectorId: data.additionalInfo.vectorId,
+              }
+            );
+
+            break;
+          }
         }
 
         // Also refresh (to clean up any old stages)
@@ -242,6 +253,11 @@ export class MintsProcessJob extends AbstractRabbitMqJobHandler {
       for (const collectionMint of collectionMints) {
         const result = await simulateAndUpsertCollectionMint(collectionMint);
         logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
+
+        // Refresh the collection with a delay
+        if (result) {
+          await triggerDelayedRefresh(collectionMint.collection);
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

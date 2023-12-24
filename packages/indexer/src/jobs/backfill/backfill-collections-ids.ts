@@ -62,7 +62,6 @@ if (config.doBackgroundWork) {
             contract: fromBuffer(contract),
             tokenId: token_id,
             allowFallbackCollectionMetadata: false,
-            context: "post-refresh-collection",
           },
         ]);
       }

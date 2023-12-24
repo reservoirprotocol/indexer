@@ -2,6 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -39,6 +40,7 @@ const getUpstreamUSDPrice = async (
       const year = date.getFullYear();
 
       const url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+
       logger.info("prices", `Fetching price from Coingecko: ${url}`);
 
       const result: {
@@ -49,7 +51,30 @@ const getUpstreamUSDPrice = async (
         .get(url, {
           timeout: 10 * 1000,
         })
-        .then((response) => response.data);
+        .then((response) => response.data)
+        .catch((error) => {
+          if (config.coinGeckoWsApiKey && error.response?.status === 429) {
+            logger.warn(
+              "prices",
+              JSON.stringify({
+                message: `Rate limited during fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
+                error,
+              })
+            );
+
+            const url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}&x_cg_pro_api_key=${config.coinGeckoWsApiKey}`;
+
+            logger.info("prices", `Fetching price from Coingecko fallbck: ${url}`);
+
+            return axios
+              .get(url, {
+                timeout: 10 * 1000,
+              })
+              .then((response) => response.data);
+          }
+
+          throw error;
+        });
 
       const usdPrice = result?.market_data?.current_price?.["usd"];
       if (usdPrice) {
@@ -80,20 +105,10 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (
-      getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
-      isTestnetCurrency(currencyAddress)
-    ) {
-      // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
-      let value = "1";
-      if (
-        [
-          Sdk.Common.Addresses.Usdc[config.chainId],
-          // Only needed for Goerli
-          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-          "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
-        ].includes(currencyAddress)
-      ) {
+    } else if (isWhitelistedCurrency(currencyAddress) || isTestnetCurrency(currencyAddress)) {
+      // Whitelisted currencies don't have a price, so we just hardcode a very high number
+      let value = "1000000000000000"; // 1,000,000,000:1 to USD
+      if (Sdk.Common.Addresses.Usdc[config.chainId]?.includes(currencyAddress)) {
         // 1:1 to USD
         value = "1000000";
       } else if (
@@ -101,6 +116,8 @@ const getUpstreamUSDPrice = async (
         [
           Sdk.Common.Addresses.Native[config.chainId],
           Sdk.Common.Addresses.WNative[config.chainId],
+          // Only needed for Mumbai
+          "0xa6fa4fb5f76172d178d61b04b0ecd319c5d1c0aa",
         ].includes(currencyAddress)
       ) {
         // 2000:1 to USD
@@ -135,7 +152,10 @@ const getUpstreamUSDPrice = async (
   } catch (error) {
     logger.error(
       "prices",
-      `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`
+      JSON.stringify({
+        message: `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`,
+        error,
+      })
     );
   }
 
@@ -222,13 +242,14 @@ const isTestnetCurrency = (currencyAddress: string) => {
     return [
       Sdk.Common.Addresses.Native[config.chainId],
       Sdk.Common.Addresses.WNative[config.chainId],
-      Sdk.Common.Addresses.Usdc[config.chainId],
-      // Only needed for Goerli
-      "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-      "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
+      ...(Sdk.Common.Addresses.Usdc[config.chainId] ?? []),
+      ...Object.keys(getNetworkSettings().supportedBidCurrencies),
     ].includes(currencyAddress);
   }
 };
+
+export const isWhitelistedCurrency = (currencyAddress: string) =>
+  getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase());
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
   const equivalentCurrencySets = [
@@ -263,12 +284,17 @@ export const getUSDAndNativePrices = async (
   options?: {
     onlyUSD?: boolean;
     acceptStalePrice?: boolean;
+    nonZeroCommunityTokens?: boolean;
   }
 ): Promise<USDAndNativePrices> => {
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    isTestnetCurrency(currencyAddress) ||
+    isWhitelistedCurrency(currencyAddress)
+  ) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -304,6 +330,16 @@ export const getUSDAndNativePrices = async (
     nativePrice = price;
   }
 
+  // If zeroCommunityTokens and community tokens set native/usd value to 0
+  if (
+    !options?.nonZeroCommunityTokens &&
+    isWhitelistedCurrency(currencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], currencyAddress)
+  ) {
+    usdPrice = "0";
+    nativePrice = "0";
+  }
+
   return { usdPrice, nativePrice };
 };
 
@@ -328,7 +364,12 @@ export const getUSDAndCurrencyPrices = async (
   // Only try to get pricing data if the network supports it
   if (
     getNetworkSettings().coingecko?.networkId ||
-    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress))
+    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress)) ||
+    (isWhitelistedCurrency(fromCurrencyAddress) && isWhitelistedCurrency(toCurrencyAddress)) ||
+    // Allow price conversion on Zora which is not supported by Coingecko
+    (config.chainId === 7777777 &&
+      fromCurrencyAddress === AddressZero &&
+      toCurrencyAddress === AddressZero)
   ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(
@@ -368,6 +409,15 @@ export const getUSDAndCurrencyPrices = async (
   // Make sure to handle equivalent currencies
   if (areEquivalentCurrencies(fromCurrencyAddress, toCurrencyAddress)) {
     currencyPrice = price;
+  }
+
+  // Set community tokens native/usd value to 0
+  if (
+    isWhitelistedCurrency(fromCurrencyAddress) &&
+    !_.includes(Sdk.Common.Addresses.Usdc[config.chainId], fromCurrencyAddress)
+  ) {
+    usdPrice = "0";
+    currencyPrice = "0";
   }
 
   return { usdPrice, currencyPrice };

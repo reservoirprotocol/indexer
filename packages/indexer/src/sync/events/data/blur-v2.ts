@@ -8,7 +8,7 @@ export const execution: EventData = {
   kind: "blur-v2",
   subKind: "blur-v2-execution",
   addresses: { [BlurV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0xcc059ef0eaf5066aaabfe1db113c5108154eb2e5d9a1c6a245968d5b312df313",
+  topic: "0xf2f66294df6fae7ac681cbe2f6d91c6904485929679dce263e8f6539b7d5c559",
   numTopics: 1,
   abi: new Interface([
     `event Execution(

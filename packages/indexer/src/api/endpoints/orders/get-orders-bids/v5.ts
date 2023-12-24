@@ -303,7 +303,8 @@ export const getOrdersBidsV5Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       let baseQuery = `
@@ -686,7 +687,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,

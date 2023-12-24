@@ -20,10 +20,13 @@ import {
   metadataIndexFetchJob,
   MetadataIndexFetchJobPayload,
 } from "@/jobs/metadata-index/metadata-fetch-job";
+import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { blurBidsRefreshJob } from "@/jobs/order-updates/misc/blur-bids-refresh-job";
 import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-refresh-job";
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
+import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
+import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
 
 const version = "v1";
 
@@ -73,94 +76,92 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
     // How many minutes between each refresh
     const refreshCoolDownMin = 60 * 4;
+    const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    const refreshTokens = Number(apiKey?.tier) >= 2;
 
-    try {
-      let overrideCoolDown = false;
-      let isLargeCollection = false;
+    let overrideCoolDown = false;
+    let isLargeCollection = false;
 
-      if (payload.overrideCoolDown) {
-        const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-
-        if (_.isNull(apiKey)) {
-          throw Boom.unauthorized("Invalid API key");
-        }
-
-        if (!apiKey.permissions?.override_collection_refresh_cool_down) {
-          throw Boom.unauthorized("Not allowed");
-        }
-
-        overrideCoolDown = true;
+    if (payload.overrideCoolDown) {
+      if (_.isNull(apiKey)) {
+        throw Boom.unauthorized("Invalid API key");
       }
 
-      const collection = await Collections.getById(payload.collection);
-
-      // If no collection found
-      if (_.isNull(collection)) {
-        throw Boom.badRequest(`Collection ${payload.collection} not found`);
+      if (!apiKey.permissions?.override_collection_refresh_cool_down) {
+        throw Boom.unauthorized("Not allowed");
       }
 
-      const currentUtcTime = new Date().toISOString();
+      overrideCoolDown = true;
+    }
 
-      if (payload.metadataOnly) {
-        // Refresh the collection metadata
-        const tokenId = await Tokens.getSingleToken(payload.collection);
+    const collection = await Collections.getById(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
+    // If no collection found
+    if (_.isNull(collection)) {
+      throw Boom.badRequest(`Collection ${payload.collection} not found`);
+    }
+
+    const currentUtcTime = new Date().toISOString();
+
+    // Refresh collection mints
+    await mintsRefreshJob.addToQueue({ collection: collection.id });
+
+    if (payload.metadataOnly) {
+      // Refresh the collection metadata
+      const tokenId = await Tokens.getSingleToken(payload.collection);
+
+      await collectionMetadataQueueJob.addToQueue({
+        contract: collection.contract,
+        tokenId,
+        community: collection.community,
+        forceRefresh: true,
+      });
+
+      if (collection.slug) {
+        // Refresh opensea collection offers
+        await openseaOrdersProcessJob.addToQueue([
           {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: true,
-          },
-          0,
-          "post-refresh-collection-v1"
-        );
-
-        if (collection.slug) {
-          // Refresh opensea collection offers
-          await openseaOrdersProcessJob.addToQueue([
-            {
-              kind: "collection-offers",
-              data: {
-                contract: collection.contract,
-                collectionId: collection.id,
-                collectionSlug: collection.slug,
-              },
+            kind: "collection-offers",
+            data: {
+              contract: collection.contract,
+              collectionId: collection.id,
+              collectionSlug: collection.slug,
             },
-          ]);
+          },
+        ]);
+      }
+
+      // Refresh Blur bids
+      await blurBidsRefreshJob.addToQueue(collection.id, true);
+      await blurListingsRefreshJob.addToQueue(collection.id, true);
+
+      // Refresh listings
+      await OpenseaIndexerApi.fastContractSync(collection.id);
+    } else {
+      isLargeCollection = collection.tokenCount > 30000;
+
+      // Disable large collections refresh
+      if (isLargeCollection) {
+        throw Boom.badRequest("Refreshing large collections is currently disabled");
+      }
+
+      if (!overrideCoolDown) {
+        // Check when the last sync was performed
+        const nextAvailableSync = add(new Date(collection.lastMetadataSync), {
+          minutes: refreshCoolDownMin,
+        });
+
+        if (!_.isNull(collection.lastMetadataSync) && isAfter(nextAvailableSync, Date.now())) {
+          throw Boom.tooEarly(`Next available sync ${formatISO9075(nextAvailableSync)} UTC`);
         }
+      }
 
-        // Refresh Blur bids
-        await blurBidsRefreshJob.addToQueue(collection.id, true);
-        await blurListingsRefreshJob.addToQueue(collection.id, true);
+      // Update the last sync date
+      await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
 
-        // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
-      } else {
-        isLargeCollection = collection.tokenCount > 30000;
-
-        // Disable large collections refresh
-        if (isLargeCollection) {
-          throw Boom.badRequest("Refreshing large collections is currently disabled");
-        }
-
-        if (!overrideCoolDown) {
-          // Check when the last sync was performed
-          const nextAvailableSync = add(new Date(collection.lastMetadataSync), {
-            minutes: refreshCoolDownMin,
-          });
-
-          if (!_.isNull(collection.lastMetadataSync) && isAfter(nextAvailableSync, Date.now())) {
-            throw Boom.tooEarly(`Next available sync ${formatISO9075(nextAvailableSync)} UTC`);
-          }
-        }
-
-        // Update the last sync date
-        await Collections.update(payload.collection, { lastMetadataSync: currentUtcTime });
-
-        // Update the collection id of any missing tokens
-        await edb.none(
-          `
+      // Update the collection id of any missing tokens
+      await edb.none(
+        `
             WITH x AS (
               SELECT
                 collections.contract,
@@ -176,91 +177,94 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
               AND tokens.token_id <@ x.token_id_range
               AND tokens.collection_id IS NULL
           `,
-          { collection: payload.collection }
-        );
+        { collection: payload.collection }
+      );
 
-        // Refresh the collection metadata
-        const tokenId = await Tokens.getSingleToken(payload.collection);
+      // Refresh the collection metadata
+      const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionMetadataQueueJob.addToQueue(
+      await collectionMetadataQueueJob.addToQueue({
+        contract: collection.contract,
+        tokenId,
+        community: collection.community,
+        forceRefresh: payload.overrideCoolDown,
+      });
+
+      if (collection.slug) {
+        // Refresh opensea collection offers
+        await openseaOrdersProcessJob.addToQueue([
           {
-            contract: collection.contract,
-            tokenId,
-            community: collection.community,
-            forceRefresh: payload.overrideCoolDown,
+            kind: "collection-offers",
+            data: {
+              contract: collection.contract,
+              collectionId: collection.id,
+              collectionSlug: collection.slug,
+            },
           },
-          0,
-          "post-refresh-collection-v1"
-        );
+        ]);
+      }
+
+      // Refresh the contract floor sell and top bid
+      await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
+
+      // Revalidate the contract orders
+      await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
+
+      // Refresh Blur bids
+      if (collection.id.match(regex.address)) {
+        await blurBidsRefreshJob.addToQueue(collection.id, true);
+      }
+
+      // Refresh listings
+      await OpenseaIndexerApi.fastContractSync(collection.id);
+
+      if (refreshTokens) {
+        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const metadataIndexInfo: MetadataIndexFetchJobPayload = {
+          kind: "full-collection",
+          data: {
+            method,
+            collection: collection.id,
+          },
+          context: "post-refresh-collection-v1",
+        };
+
+        // Refresh the collection tokens metadata
+        await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
 
         if (collection.slug) {
-          // Refresh opensea collection offers
-          await openseaOrdersProcessJob.addToQueue([
+          await PendingFlagStatusSyncCollectionSlugs.add([
             {
-              kind: "collection-offers",
-              data: {
-                contract: collection.contract,
-                collectionId: collection.id,
-                collectionSlug: collection.slug,
-              },
+              slug: collection.slug,
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
+            },
+          ]);
+        } else {
+          await PendingFlagStatusSyncContracts.add([
+            {
+              contract: collection.contract,
+              collectionId: collection.id,
+              continuation: null,
             },
           ]);
         }
-
-        // Refresh the contract floor sell and top bid
-        await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
-
-        // Revalidate the contract orders
-        await orderFixesJob.addToQueue([
-          { by: "contract", data: { contract: collection.contract } },
-        ]);
-
-        // Refresh Blur bids
-        if (collection.id.match(regex.address)) {
-          await blurBidsRefreshJob.addToQueue(collection.id, true);
-        }
-
-        // Refresh listings
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
-
-        // Do these refresh operation only for small collections
-        if (!isLargeCollection) {
-          const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
-          let metadataIndexInfo: MetadataIndexFetchJobPayload = {
-            kind: "full-collection",
-            data: {
-              method,
-              collection: collection.id,
-            },
-            context: "post-refresh-collection-v1",
-          };
-          if (method === "opensea" && collection.slug) {
-            metadataIndexInfo = {
-              kind: "full-collection-by-slug",
-              data: {
-                method,
-                contract: collection.contract,
-                slug: collection.slug,
-                collection: collection.id,
-              },
-              context: "post-refresh-collection-v1",
-            };
-          }
-
-          // Refresh the collection tokens metadata
-          await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
-        }
       }
-
-      logger.info(
-        `post-collections-refresh-${version}-handler`,
-        `Request accepted. collection=${payload.collection}, overrideCoolDown=${overrideCoolDown}, refreshTokens=${payload.refreshTokens}, isLargeCollection=${isLargeCollection}, currentUtcTime=${currentUtcTime}`
-      );
-
-      return { message: "Request accepted" };
-    } catch (error) {
-      logger.error(`post-collections-refresh-${version}-handler`, `Handler failure: ${error}`);
-      throw error;
     }
+
+    logger.info(
+      `post-collections-refresh-${version}-handler`,
+      JSON.stringify({
+        message: `Request accepted. collection=${payload.collection}`,
+        payload,
+        overrideCoolDown,
+        refreshTokens,
+        isLargeCollection,
+        apiKey,
+      })
+    );
+
+    return { message: "Request accepted" };
   },
 };

@@ -9,7 +9,8 @@ import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, getJoiTokenObject, JoiPrice } from "@/common/joi";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v4";
 
@@ -96,7 +97,7 @@ export const getUserTokensV4Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
             topBid: Joi.object({
@@ -194,7 +195,9 @@ export const getUserTokensV4Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.image_version,
           t.collection_id,
+          t.metadata_disabled AS "t_metadata_disabled",
           t.floor_sell_id,
           t.floor_sell_value,
           t.floor_sell_currency,
@@ -218,7 +221,9 @@ export const getUserTokensV4Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.image_version,
             t.collection_id,
+            t.metadata_disabled AS "t_metadata_disabled",
             t.floor_sell_id,
             t.floor_sell_value,
             t.floor_sell_currency,
@@ -258,9 +263,11 @@ export const getUserTokensV4Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, b.acquired_at,
-               t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value, 
+               t.name, t.image,t.image_version, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value, 
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
+               c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
+               c.image_version AS "collection_image_version",
                (
                     CASE WHEN t.floor_sell_value IS NOT NULL
                     THEN 1
@@ -282,7 +289,6 @@ export const getUserTokensV4Options: RouteOptions = {
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
-
       const result = userTokens.map(async (r) => {
         // Use default currencies for backwards compatibility with entries
         // that don't have the currencies cached in the tokens table
@@ -294,41 +300,49 @@ export const getUserTokensV4Options: RouteOptions = {
           : Sdk.Common.Addresses.WNative[config.chainId];
 
         return {
-          token: {
-            contract: fromBuffer(r.contract),
-            tokenId: r.token_id,
-            name: r.name,
-            image: r.image,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              imageUrl: r.metadata?.imageUrl,
-              floorAskPrice: r.collection_floor_sell_value
-                ? formatEth(r.collection_floor_sell_value)
-                : null,
+          token: getJoiTokenObject(
+            {
+              contract: fromBuffer(r.contract),
+              tokenId: r.token_id,
+              name: r.name,
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: Assets.getResizedImageUrl(
+                  r.image,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
+              topBid: query.includeTopBid
+                ? {
+                    id: r.top_bid_id,
+                    price: r.top_bid_value
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: r.top_bid_currency_value ?? r.top_bid_value,
+                              nativeAmount: r.top_bid_value,
+                            },
+                            gross: {
+                              amount: r.top_bid_currency_price ?? r.top_bid_price,
+                              nativeAmount: r.top_bid_price,
+                            },
+                          },
+                          topBidCurrency,
+                          query.displayCurrency
+                        )
+                      : null,
+                  }
+                : undefined,
             },
-            topBid: query.includeTopBid
-              ? {
-                  id: r.top_bid_id,
-                  price: r.top_bid_value
-                    ? await getJoiPriceObject(
-                        {
-                          net: {
-                            amount: r.top_bid_currency_value ?? r.top_bid_value,
-                            nativeAmount: r.top_bid_value,
-                          },
-                          gross: {
-                            amount: r.top_bid_currency_price ?? r.top_bid_price,
-                            nativeAmount: r.top_bid_price,
-                          },
-                        },
-                        topBidCurrency,
-                        query.displayCurrency
-                      )
-                    : null,
-                }
-              : undefined,
-          },
+            r.t_metadata_disabled,
+            r.c_metadata_disabled
+          ),
           ownership: {
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),

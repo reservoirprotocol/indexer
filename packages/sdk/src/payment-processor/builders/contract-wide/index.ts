@@ -66,12 +66,14 @@ export class ContractWideBuilder extends BaseBuilder {
   ): Order {
     const orderParams = order.params;
     return new Order(order.chainId, {
+      kind: "sale-approval",
       protocol: orderParams.protocol,
-      collectionLevelOffer: true,
+      collectionLevelOffer: false,
       sellerAcceptedOffer: true,
       marketplace: orderParams.marketplace,
       marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
-      maxRoyaltyFeeNumerator: options?.maxRoyaltyFeeNumerator?.toString() ?? "0",
+      maxRoyaltyFeeNumerator:
+        options?.maxRoyaltyFeeNumerator?.toString() ?? order.params.maxRoyaltyFeeNumerator,
       privateBuyerOrDelegatedPurchaser: AddressZero,
       sellerOrBuyer: options.taker,
       tokenAddress: orderParams.tokenAddress,

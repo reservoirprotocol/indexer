@@ -7,9 +7,15 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { redbAlt } from "@/common/db";
+import { edb, redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSourceObject,
+  JoiOrderCriteria,
+  JoiPrice,
+  JoiSource,
+} from "@/common/joi";
 import {
   buildContinuation,
   formatEth,
@@ -22,7 +28,7 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { Orders } from "@/utils/orders";
 
 const version = "v4";
@@ -130,7 +136,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
           floorDifferencePercentage: Joi.number()
             .unsafe()
             .description("Percentage difference between this bid and the current floor price."),
-          source: Joi.object().allow(null),
+          source: JoiSource.allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
@@ -146,6 +152,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
+            kind: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
             floorAskPrice: JoiPrice.allow(null),
@@ -153,7 +160,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
-              imageUrl: Joi.string().allow(null),
+              imageUrl: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description(
                 "Native currency to chain unless displayCurrency is passed."
               ),
@@ -235,7 +242,8 @@ export const getUserTopBidsV4Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "y",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
@@ -252,7 +260,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
          ORDER BY last_token_appraisal_value DESC NULLS LAST
          LIMIT ${query.sampleSize}
         )
-        SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
+        SELECT nb.contract, y.*, t.*, z.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
                (CASE net_listing
                  WHEN 0 THEN NULL
@@ -284,12 +292,18 @@ export const getUserTopBidsV4Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
+            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
             FROM tokens t
             LEFT JOIN orders o ON o.id = t.floor_sell_id
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT 
+              kind AS contract_kind
+          FROM contracts 
+          WHERE contracts.address = nb.contract
+        ) z ON TRUE
         ${
           query.collection || query.community || query.collectionsSetId ? "" : "LEFT"
         } JOIN LATERAL (
@@ -297,6 +311,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
                 c.id AS "collection_id",
                 c.name AS "collection_name",
                 c.metadata AS "collection_metadata",
+                c.image_version AS "collection_image_version",
                 ${collectionFloorSellValueColumnName} AS "collection_floor_sell_value",
                 (${collectionFloorSellValueColumnName} * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing",
                 o.currency AS "collection_floor_sell_currency",
@@ -313,7 +328,10 @@ export const getUserTopBidsV4Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const bids = await redbAlt.manyOrNone(baseQuery, query);
+      const bids =
+        config.chainId === 137
+          ? await edb.manyOrNone(baseQuery, query)
+          : await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
       let totalAmount = BigNumber.from(0);
 
@@ -376,20 +394,15 @@ export const getUserTopBidsV4Options: RouteOptions = {
             validFrom: r.top_bid_valid_from,
             validUntil: r.top_bid_valid_until,
             floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.getTitle(),
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
-            },
+            source: getJoiSourceObject(source),
             feeBreakdown,
             criteria: r.bid_criteria,
             token: {
               contract: contract,
               tokenId: tokenId,
               name: r.name,
-              image: Assets.getLocalAssetsLink(r.image),
+              kind: r.contract_kind,
+              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
               floorAskPrice: r.token_floor_sell_value
                 ? await getJoiPriceObject(
                     {
@@ -419,7 +432,11 @@ export const getUserTopBidsV4Options: RouteOptions = {
               collection: {
                 id: r.collection_id,
                 name: r.collection_name,
-                imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+                imageUrl: Assets.getResizedImageUrl(
+                  r.collection_metadata?.imageUrl,
+                  ImageSize.small,
+                  r.collection_image_version
+                ),
                 floorAskPrice: r.collection_floor_sell_value
                   ? await getJoiPriceObject(
                       {

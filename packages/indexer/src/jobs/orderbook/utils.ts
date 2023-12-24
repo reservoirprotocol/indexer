@@ -1,6 +1,8 @@
+import _ from "lodash";
+
 import { logger } from "@/common/logger";
-import * as orders from "@/orderbook/orders";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import * as orders from "@/orderbook/orders";
 
 export type GenericOrderInfo =
   | {
@@ -123,14 +125,6 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     }
   | {
-      kind: "collectionxyz";
-      info: orders.collectionxyz.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
       kind: "sudoswap-v2";
       info: orders.sudoswapV2.OrderInfo;
       relayToArweave?: boolean;
@@ -243,11 +237,6 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
         break;
       }
 
-      case "collectionxyz": {
-        result = await orders.collectionxyz.save([info]);
-        break;
-      }
-
       case "caviar-v1": {
         result = await orders.caviarV1.save([info]);
         break;
@@ -258,5 +247,7 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
     throw error;
   }
 
-  logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+  if (_.random(100) <= 75) {
+    logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+  }
 };

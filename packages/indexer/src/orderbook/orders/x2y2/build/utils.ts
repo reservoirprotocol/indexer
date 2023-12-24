@@ -8,6 +8,7 @@ import { config } from "@/config/index";
 export interface BaseOrderBuildOptions {
   maker: string;
   contract?: string;
+  taker?: string;
   weiPrice: string;
   quantity?: number;
   orderbook: "x2y2";
@@ -48,6 +49,7 @@ export const getBuildInfo = async (
     contract: fromBuffer(collectionResult.address),
     price: options.weiPrice,
     amount: options.quantity,
+    taker: options.taker,
     delegateType:
       collectionResult.kind === "erc721"
         ? Sdk.X2Y2.Types.DelegationType.ERC721

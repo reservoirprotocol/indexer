@@ -19,6 +19,7 @@ export abstract class SeaportBaseExchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
+
     this.conduitController = new ConduitController(this.chainId);
   }
 

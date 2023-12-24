@@ -32,7 +32,7 @@ const version = "v6";
 export const getOrdersBidsV6Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
-    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids./n/n Please mark `excludeEOA` as `true` to exclude Blur orders.",
+    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- To get all orders unfiltered, select `sortBy` to `updatedAt`. No need to pass any other param. This will return any orders for any collections, token, attribute, etc. \n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids.\n\n- Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -65,7 +65,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+          "Filter to a particular collection set. Requires `maker` to be passed. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       collection: Joi.string()
@@ -116,7 +116,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, cancelledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       sources: Joi.alternatives()
         .try(
@@ -168,7 +168,9 @@ export const getOrdersBidsV6Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response. Sorting by `price` defaults sorting direction to descending. "
+        ),
       sortDirection: Joi.string()
         .lowercase()
         .when("sortBy", {
@@ -184,7 +186,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(50)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -320,7 +322,8 @@ export const getOrdersBidsV6Options: RouteOptions = {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
         "orders",
         "token_set_id",
-        query.includeCriteriaMetadata
+        query.includeCriteriaMetadata,
+        "token_set_schema_hash"
       );
 
       let baseQuery = `
@@ -441,13 +444,6 @@ export const getOrdersBidsV6Options: RouteOptions = {
       ) {
         throw Boom.badRequest(
           `Cannot filter with additional query params when sortBy = updatedAt and status != 'active.`
-        );
-      }
-
-      // TODO Remove this restriction once an index is created for updatedAt and contracts
-      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
-        throw Boom.badRequest(
-          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
         );
       }
 
@@ -736,7 +732,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           criteria: r.criteria,
           sourceIdInt: r.source_id_int,
           feeBps: r.fee_bps,
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown: r.fee_bps === 0 ? [] : r.fee_breakdown,
           expiration: r.expiration,
           isReservoir: r.is_reservoir,
           createdAt: r.created_at,

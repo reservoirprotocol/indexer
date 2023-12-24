@@ -18,6 +18,7 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const version = "v1";
 
@@ -149,6 +150,16 @@ export const postTokensRefreshV1Options: RouteOptions = {
               collection: collection?.id || contract,
             },
             context: "post-tokens-refresh-v1",
+          },
+        ],
+        true
+      );
+
+      await PendingFlagStatusSyncTokens.add(
+        [
+          {
+            contract,
+            tokenId,
           },
         ],
         true

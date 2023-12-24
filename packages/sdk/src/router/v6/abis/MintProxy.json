@@ -6,6 +6,16 @@
   },
   {
     "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnsuccessfulCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "UnsuccessfulMint",
     "type": "error"
   },
@@ -13,6 +23,31 @@
     "inputs": [],
     "name": "UnsuccessfulPayment",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "comment",
+        "type": "string"
+      }
+    ],
+    "name": "MintComment",
+    "type": "event"
   },
   {
     "inputs": [
@@ -25,6 +60,29 @@
     "name": "initialize",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "targets",
+        "type": "address[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "data",
+        "type": "bytes[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "makeCalls",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -62,6 +120,21 @@
             "internalType": "struct MintProxy.Fee[]",
             "name": "fees",
             "type": "tuple[]"
+          },
+          {
+            "internalType": "address",
+            "name": "token",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "quantity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "comment",
+            "type": "string"
           }
         ],
         "internalType": "struct MintProxy.MintDetail[]",

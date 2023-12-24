@@ -3,26 +3,36 @@
 import _ from "lodash";
 import { Request } from "@hapi/hapi";
 
-import { idb, redb } from "@/common/db";
+import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { allChainsSyncRedis, redis } from "@/common/redis";
-import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
+import {
+  ApiKeyEntity,
+  ApiKeyPermission,
+  ApiKeyUpdateParams,
+} from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
-import { getNetworkName, getNetworkSettings } from "@/config/network";
+import { getNetworkName, getSubDomain } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
 import flat from "flat";
 import { regex } from "@/common/utils";
+import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 
 export type ApiKeyRecord = {
-  app_name: string;
+  appName: string;
   website: string;
   email: string;
   tier: number;
   key?: string;
+  active?: boolean;
+  permissions?: Partial<Record<ApiKeyPermission, unknown>>;
+  ips?: string[];
+  origins?: string[];
+  revShareBps?: number | null;
 };
 
 export type NewApiKeyResponse = {
@@ -30,6 +40,8 @@ export type NewApiKeyResponse = {
 };
 
 export class ApiKeyManager {
+  public static defaultRevShareBps = 3000;
+
   private static apiKeys: Map<string, ApiKeyEntity> = new Map();
 
   /**
@@ -43,33 +55,40 @@ export class ApiKeyManager {
       values.key = getUuidByString(`${values.key}${values.email}${values.website}`);
     }
 
+    values.active = true;
+
     let created;
+
+    const columns = new pgp.helpers.ColumnSet(
+      Object.entries(values).map(([key, value]) =>
+        _.isObject(value) ? { name: _.snakeCase(key), mod: ":json" } : _.snakeCase(key)
+      ),
+      {
+        table: "api_keys",
+      }
+    );
 
     // Create the record in the database
     try {
       created = await idb.oneOrNone(
-        "INSERT INTO api_keys (${this:name}) VALUES (${this:csv}) ON CONFLICT DO NOTHING RETURNING 1",
-        values
+        `${pgp.helpers.insert(
+          _.mapKeys(values, (value, key) => _.snakeCase(key)),
+          columns
+        )} ON CONFLICT DO NOTHING RETURNING 1`
       );
     } catch (e) {
       logger.error("api-key", `Unable to create a new apikeys record: ${e}`);
       return false;
     }
 
-    // Cache the key on redis for faster lookup
-    try {
-      const redisKey = `apikey:${values.key}`;
-      await redis.hset(redisKey, new Map(Object.entries(values)));
-    } catch (e) {
-      logger.error("api-key", `Unable to set the redis hash: ${e}`);
-      // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
-    }
-
     // Sync to other chains only if created on mainnet
     if (created && config.chainId === 1) {
       await ApiKeyManager.notifyApiKeyCreated(values);
-
       await allChainsSyncRedis.publish(AllChainsChannel.ApiKeyCreated, JSON.stringify({ values }));
+
+      // Trigger delayed jobs to make sure all chains have the new api key
+      await syncApiKeysJob.addToQueue({ apiKey: values.key }, 30 * 1000);
+      await syncApiKeysJob.addToQueue({ apiKey: values.key }, 60 * 1000);
     }
 
     return {
@@ -109,9 +128,12 @@ export class ApiKeyManager {
         created_at: "1970-01-01T00:00:00.000Z",
         active: true,
         tier: 5,
-        permissions: {},
+        permissions: {
+          update_metadata_disabled: true,
+        },
         ips: [],
         origins: [],
+        rev_share_bps: ApiKeyManager.defaultRevShareBps,
       });
     }
 
@@ -156,7 +178,12 @@ export class ApiKeyManager {
         );
 
         if (fromDb) {
-          Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          try {
+            Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
+
           const apiKeyEntity = new ApiKeyEntity(fromDb);
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
           if (!validateOriginAndIp) {
@@ -168,7 +195,12 @@ export class ApiKeyManager {
           const pipeline = redis.pipeline();
           pipeline.set(redisKey, "empty");
           pipeline.expire(redisKey, 3600 * 24);
-          Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+
+          try {
+            Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
+          } catch {
+            // Ignore errors
+          }
         }
       }
     } catch (error) {
@@ -218,12 +250,20 @@ export class ApiKeyManager {
       log.query = request.query;
     }
 
+    if (request.headers["user-agent"]) {
+      log.userAgent = request.headers["user-agent"];
+    }
+
     if (request.headers["x-forwarded-for"]) {
       log.remoteAddress = request.headers["x-forwarded-for"];
     }
 
     if (request.headers["origin"]) {
       log.origin = request.headers["origin"];
+    }
+
+    if (request.headers["x-syncnode-version"]) {
+      log.syncnodeVersion = request.headers["x-syncnode-version"];
     }
 
     if (request.headers["x-rkui-version"]) {
@@ -243,7 +283,7 @@ export class ApiKeyManager {
     }
 
     if (log.route) {
-      log.fullUrl = `https://${getNetworkSettings().subDomain}.reservoir.tools${log.route}${
+      log.fullUrl = `https://${getSubDomain()}.reservoir.tools${log.route}${
         request.pre.queryString ? `?${request.pre.queryString}` : ""
       }`;
     }
@@ -298,7 +338,7 @@ export class ApiKeyManager {
   }
 
   public static async update(key: string, fields: ApiKeyUpdateParams) {
-    let updateString = "";
+    let updateString = "updated_at = now(),";
     const replacementValues = {
       key,
     };
@@ -316,6 +356,11 @@ export class ApiKeyManager {
           });
 
           updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
+          (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
+        } else if (_.isObject(value)) {
+          updateString += `${_.snakeCase(
+            fieldName
+          )} = COALESCE(${fieldName}, '{}') || '$/${fieldName}:raw/'::jsonb,`;
           (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
         } else {
           updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
@@ -378,7 +423,7 @@ export class ApiKeyManager {
               type: "section",
               text: {
                 type: "plain_text",
-                text: `AppName: ${values.app_name}`,
+                text: `AppName: ${values.appName}`,
               },
             },
             {

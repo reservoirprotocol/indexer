@@ -8,9 +8,8 @@ import Joi from "joi";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { fromBuffer, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v3";
 
@@ -44,6 +43,7 @@ export const getTokenStatusOracleV3Options: RouteOptions = {
             id: Joi.string().required(),
             payload: Joi.string().required(),
             timestamp: Joi.number().required(),
+            chainId: Joi.string().required(),
             signature: Joi.string().required(),
           }),
         })
@@ -89,6 +89,7 @@ export const getTokenStatusOracleV3Options: RouteOptions = {
                 FROM nft_transfer_events
                 WHERE nft_transfer_events.address = tokens.contract
                   AND nft_transfer_events.token_id = tokens.token_id
+                  AND nft_transfer_events.is_deleted = 0
                 ORDER BY nft_transfer_events.timestamp DESC
                 LIMIT 1
               ),
@@ -103,12 +104,6 @@ export const getTokenStatusOracleV3Options: RouteOptions = {
             ["contract", "token_id"]
           )})
         `
-      );
-
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-        results
-          .filter(({ last_flag_update }) => last_flag_update < now() - 3600)
-          .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
       );
 
       // Set default values for any tokens which don't exist
@@ -158,9 +153,7 @@ export const getTokenStatusOracleV3Options: RouteOptions = {
             tokenId: result.token_id,
           });
 
-          const isFlagged = tokenToSuspicious.has(token)
-            ? tokenToSuspicious.get(token)
-            : result.is_flagged;
+          const isFlagged = result.is_flagged;
 
           const message: {
             id: string;

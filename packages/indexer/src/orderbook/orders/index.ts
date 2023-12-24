@@ -19,15 +19,16 @@ export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
-export * as collectionxyz from "@/orderbook/orders/collectionxyz";
 export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
+export * as paymentProcessorV2 from "@/orderbook/orders/payment-processor-v2";
 
 // Imports
 
 import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { Permit } from "@reservoir0x/sdk/dist/router/v6/permit";
 import { BidDetails, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 
 import { inject } from "@/api/index";
@@ -36,7 +37,9 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
-import { getRoyalties } from "@/utils/royalties";
+import * as offchainCancel from "@/utils/offchain-cancel";
+import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
+import * as registry from "@/utils/royalties/registry";
 
 // Whenever a new order kind is added, make sure to also include an
 // entry/implementation in the below types/methods in order to have
@@ -79,9 +82,12 @@ export type OrderKind =
   | "blend"
   | "collectionxyz"
   | "sudoswap-v2"
+  | "midaswap"
   | "caviar-v1"
   | "payment-processor"
-  | "blur-v2";
+  | "blur-v2"
+  | "joepeg"
+  | "payment-processor-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -184,8 +190,6 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
-      case "collectionxyz":
-        return sources.getOrInsert("collection.xyz");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -200,7 +204,7 @@ export const getOrderSourceByOrderKind = async (
 };
 
 // Support for filling listings
-export const generateListingDetailsV6 = (
+export const generateListingDetailsV6 = async (
   order: {
     id: string;
     kind: OrderKind;
@@ -216,8 +220,12 @@ export const generateListingDetailsV6 = (
     tokenId: string;
     amount?: number;
     isFlagged?: boolean;
+  },
+  taker: string,
+  options?: {
+    ppV2TrustedChannel?: string;
   }
-): ListingDetails => {
+): Promise<ListingDetails> => {
   const common = {
     orderId: order.id,
     contractKind: token.kind,
@@ -299,10 +307,20 @@ export const generateListingDetailsV6 = (
     }
 
     case "seaport-v1.4": {
+      const sdkOrder = new Sdk.SeaportV14.Order(config.chainId, order.rawData);
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "seaport-v1.4",
         ...common,
-        order: new Sdk.SeaportV14.Order(config.chainId, order.rawData),
+        order: sdkOrder,
       };
     }
 
@@ -311,30 +329,60 @@ export const generateListingDetailsV6 = (
         // Make sure on-chain orders have a "defined" signature
         order.rawData.signature = order.rawData.signature ?? "0x";
 
+        const sdkOrder = new Sdk.SeaportV15.Order(config.chainId, order.rawData);
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+          })
+        );
+
         return {
           kind: "seaport-v1.5",
           ...common,
-          order: new Sdk.SeaportV15.Order(config.chainId, order.rawData),
+          order: sdkOrder,
         };
       } else {
-        // Sorry for all the below `any` types
-        return {
-          kind: "seaport-v1.5-partial" as any,
-          ...common,
-          order: {
-            contract: token.contract,
-            tokenId: token.tokenId,
-            id: order.id,
-          } as any,
-        };
+        if (order.rawData.okxOrderId) {
+          return {
+            kind: "seaport-v1.5-partial-okx",
+            ...common,
+            order: {
+              okxId: order.rawData.okxOrderId,
+              id: order.id,
+            } as Sdk.SeaportBase.Types.OkxPartialOrder,
+          };
+        } else {
+          return {
+            kind: "seaport-v1.5-partial",
+            ...common,
+            order: {
+              contract: token.contract,
+              tokenId: token.tokenId,
+              id: order.id,
+            } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
+          };
+        }
       }
     }
 
     case "alienswap": {
+      const sdkOrder = new Sdk.Alienswap.Order(config.chainId, order.rawData);
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "alienswap",
         ...common,
-        order: new Sdk.Alienswap.Order(config.chainId, order.rawData),
+        order: sdkOrder,
       };
     }
 
@@ -394,14 +442,6 @@ export const generateListingDetailsV6 = (
       };
     }
 
-    case "collectionxyz": {
-      return {
-        kind: "collectionxyz",
-        ...common,
-        order: new Sdk.CollectionXyz.Order(config.chainId, order.rawData),
-      };
-    }
-
     case "sudoswap-v2": {
       return {
         kind: "sudoswap-v2",
@@ -423,6 +463,35 @@ export const generateListingDetailsV6 = (
         kind: "payment-processor",
         ...common,
         order: new Sdk.PaymentProcessor.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "payment-processor-v2": {
+      const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
+
+      const extraArgs: any = {};
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options.ppV2TrustedChannel;
+      }
+
+      return {
+        kind: "payment-processor-v2",
+        ...common,
+        extraArgs,
+        order: sdkOrder,
       };
     }
 
@@ -450,6 +519,11 @@ export const generateBidDetailsV6 = async (
     tokenId: string;
     amount?: number;
     owner?: string;
+  },
+  taker: string,
+  options?: {
+    permit?: Permit;
+    ppV2TrustedChannel?: string;
   }
 ): Promise<BidDetails> => {
   const common = {
@@ -463,6 +537,7 @@ export const generateBidDetailsV6 = async (
     owner: token.owner,
     isProtected: order.isProtected,
     fees: order.fees ?? [],
+    permit: options?.permit,
   };
 
   switch (order.kind) {
@@ -524,6 +599,15 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "seaport-v1.4",
         ...common,
@@ -562,6 +646,15 @@ export const generateBidDetailsV6 = async (
           extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
         }
 
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+          })
+        );
+
         return {
           kind: "seaport-v1.5",
           ...common,
@@ -569,16 +662,15 @@ export const generateBidDetailsV6 = async (
           order: sdkOrder,
         };
       } else {
-        // Sorry for all the below `any` types
         return {
-          kind: "seaport-v1.5-partial" as any,
+          kind: "seaport-v1.5-partial",
           ...common,
           order: {
             contract: token.contract,
             tokenId: token.tokenId,
             id: order.id,
             unitPrice: order.unitPrice,
-          } as any,
+          } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
         };
       }
     }
@@ -607,6 +699,16 @@ export const generateBidDetailsV6 = async (
         );
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
+
+      await offchainCancel.seaport.doSignOrder(
+        sdkOrder,
+        taker,
+        sdkOrder.buildMatching({
+          tokenId: common.tokenId,
+          amount: common.amount ?? 1,
+        })
+      );
+
       return {
         kind: "alienswap",
         ...common,
@@ -696,38 +798,6 @@ export const generateBidDetailsV6 = async (
       };
     }
 
-    case "collectionxyz": {
-      const extraArgs: any = {};
-      const sdkOrder = new Sdk.CollectionXyz.Order(config.chainId, order.rawData);
-
-      if (order.rawData.tokenSetId !== undefined) {
-        // When selling to a filtered pool, we also need to pass in the full
-        // list of tokens accepted by the pool (in order to be able to generate
-        // a valid merkle proof)
-        const tokens = await idb.manyOrNone(
-          `
-            SELECT
-              token_sets_tokens.token_id
-            FROM token_sets_tokens
-            WHERE token_sets_tokens.token_set_id = $/id/
-          `,
-          { id: sdkOrder.params.tokenSetId }
-        );
-        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
-      }
-
-      if (order.builtInFeeBps) {
-        extraArgs.totalFeeBps = order.builtInFeeBps;
-      }
-
-      return {
-        kind: "collectionxyz",
-        ...common,
-        extraArgs,
-        order: sdkOrder,
-      };
-    }
-
     case "sudoswap-v2": {
       const sdkOrder = new Sdk.SudoswapV2.Order(config.chainId, order.rawData);
       return {
@@ -767,9 +837,65 @@ export const generateBidDetailsV6 = async (
         ...common,
         order: sdkOrder,
         extraArgs: {
-          maxRoyaltyFeeNumerator: await getRoyalties(token.contract, undefined, "onchain").then(
-            (royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
-          ),
+          maxRoyaltyFeeNumerator: await registry
+            .getRegistryRoyalties(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
+        },
+      };
+    }
+
+    case "payment-processor-v2": {
+      const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
+
+      const extraArgs: any = {};
+
+      if (sdkOrder.params.kind?.includes("token-set-offer-approval")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options?.ppV2TrustedChannel;
+      }
+
+      return {
+        kind: "payment-processor-v2",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          ...extraArgs,
+          maxRoyaltyFeeNumerator: await registry
+            .getRegistryRoyalties(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
         },
       };
     }
@@ -803,8 +929,7 @@ export const checkBlacklistAndFallback = async (
   if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
     const blocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-      new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-        // Default to cover chains where there's no OpenSea conduit
+      new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
         Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
       ),
     ]);

@@ -1,14 +1,15 @@
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import * as orders from "@/orderbook/orders";
+import _ from "lodash";
 
-export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
+export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "orderbook-opensea-bids-queue";
   maxRetries = 10;
-  concurrency = 75;
+  concurrency = 100;
   lazyMode = true;
-  consumerTimeout = 90000;
+  timeout = 120000;
 
   protected async process(payload: GenericOrderInfo) {
     const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;
@@ -115,18 +116,15 @@ export class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
           result = await orders.looksRareV2.save([info]);
           break;
         }
-
-        case "collectionxyz": {
-          result = await orders.collectionxyz.save([info]);
-          break;
-        }
       }
     } catch (error) {
       logger.error(this.queueName, `Failed to process order ${JSON.stringify(payload)}: ${error}`);
       throw error;
     }
 
-    logger.debug(this.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+    if (_.random(100) <= 75) {
+      logger.debug(this.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+    }
   }
 
   public async addToQueue(orderInfos: GenericOrderInfo[]) {

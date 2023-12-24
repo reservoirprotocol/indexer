@@ -1,28 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { HashZero } from "@ethersproject/constants";
+
 import { idb } from "@/common/db";
-import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
-import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
-import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
-import { BidEventsList } from "@/models/bid-events-list";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
   EventKind as ProcessActivityEventKind,
   processActivityEventJob,
   ProcessActivityEventJobPayload,
-} from "@/jobs/activities/process-activity-event-job";
-import { config } from "@/config/index";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
-import { Sources } from "@/models/sources";
-import { logger } from "@/common/logger";
+} from "@/jobs/elasticsearch/activities/process-activity-event-job";
+import { nftBalanceUpdateFloorAskJob } from "@/jobs/nft-balance-updates/update-floor-ask-price-job";
 import { TriggerKind } from "@/jobs/order-updates/types";
-import { HashZero } from "@ethersproject/constants";
+import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
 import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { tokenFloorQueueJob } from "@/jobs/token-updates/token-floor-queue-job";
+import { BidEventsList } from "@/models/bid-events-list";
+import { Sources } from "@/models/sources";
+import { isWhitelistedCurrency } from "@/utils/prices";
 
 export type OrderUpdatesByIdJobPayload = {
   // The context represents a deterministic id for what triggered
@@ -57,12 +54,12 @@ export type OrderUpdatesByIdJobPayload = {
   ingestDelay?: number;
 };
 
-export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
+export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
   queueName = "order-updates-by-id";
   maxRetries = 10;
   concurrency = 80;
   lazyMode = true;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 10000,
@@ -78,36 +75,36 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
         // Fetch the order's associated data
         order = await idb.oneOrNone(
           `
-              SELECT
-                orders.id,
-                orders.side,
-                orders.token_set_id AS "tokenSetId",
-                orders.source_id_int AS "sourceIdInt",
-                orders.valid_between AS "validBetween",
-                COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
-                orders.nonce,
-                orders.maker,
-                orders.price,
-                orders.value,
-                orders.fillability_status AS "fillabilityStatus",
-                orders.approval_status AS "approvalStatus",
-                orders.kind,
-                orders.dynamic,
-                orders.currency,
-                orders.currency_price,
-                orders.normalized_value,
-                orders.currency_normalized_value,
-                orders.raw_data,
-                orders.originated_at AS "originatedAt",
-                orders.created_at AS "createdAt",
-                token_sets_tokens.contract,
-                token_sets_tokens.token_id AS "tokenId"
-              FROM orders
-              JOIN token_sets_tokens
-                ON orders.token_set_id = token_sets_tokens.token_set_id
-              WHERE orders.id = $/id/
-              LIMIT 1
-            `,
+            SELECT
+              orders.id,
+              orders.side,
+              orders.token_set_id AS "tokenSetId",
+              orders.source_id_int AS "sourceIdInt",
+              orders.valid_between AS "validBetween",
+              COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
+              orders.nonce,
+              orders.maker,
+              orders.price,
+              orders.value,
+              orders.fillability_status AS "fillabilityStatus",
+              orders.approval_status AS "approvalStatus",
+              orders.kind,
+              orders.dynamic,
+              orders.currency,
+              orders.currency_price,
+              orders.normalized_value,
+              orders.currency_normalized_value,
+              orders.raw_data,
+              orders.originated_at AS "originatedAt",
+              orders.created_at AS "createdAt",
+              token_sets_tokens.contract,
+              token_sets_tokens.token_id AS "tokenId"
+            FROM orders
+            JOIN token_sets_tokens
+              ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE orders.id = $/id/
+            LIMIT 1
+          `,
           { id }
         );
 
@@ -151,63 +148,63 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
             // Insert a corresponding order event
             await idb.none(
               `
-                  INSERT INTO order_events (
-                    kind,
-                    status,
-                    contract,
-                    token_id,
-                    order_id,
-                    order_source_id_int,
-                    order_valid_between,
-                    order_quantity_remaining,
-                    order_nonce,
-                    maker,
-                    price,
-                    tx_hash,
-                    tx_timestamp,
-                    order_kind,
-                    order_token_set_id,
-                    order_dynamic,
-                    order_currency,
-                    order_currency_price,
-                    order_normalized_value,
-                    order_currency_normalized_value,
-                    order_raw_data
-                  )
-                  VALUES (
-                    $/kind/,
-                    (
-                      CASE
-                        WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
-                        WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
-                        WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
-                        WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
-                        ELSE 'active'
-                      END
-                    )::order_event_status_t,
-                    $/contract/,
-                    $/tokenId/,
-                    $/id/,
-                    $/sourceIdInt/,
-                    $/validBetween/,
-                    $/quantityRemaining/,
-                    $/nonce/,
-                    $/maker/,
-                    $/value/,
-                    $/txHash/,
-                    $/txTimestamp/,
-                    $/orderKind/,
-                    $/orderTokenSetId/,
-                    $/orderDynamic/,
-                    $/orderCurrency/,
-                    $/orderCurrencyPrice/,
-                    $/orderNormalizedValue/,
-                    $/orderCurrencyNormalizedValue/,
-                    $/orderRawData/
-                  )
-                `,
+                INSERT INTO order_events (
+                  kind,
+                  status,
+                  contract,
+                  token_id,
+                  order_id,
+                  order_source_id_int,
+                  order_valid_between,
+                  order_quantity_remaining,
+                  order_nonce,
+                  maker,
+                  price,
+                  tx_hash,
+                  tx_timestamp,
+                  order_kind,
+                  order_token_set_id,
+                  order_dynamic,
+                  order_currency,
+                  order_currency_price,
+                  order_normalized_value,
+                  order_currency_normalized_value,
+                  order_raw_data
+                )
+                VALUES (
+                  $/kind/,
+                  (
+                    CASE
+                      WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
+                      WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
+                      WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
+                      WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
+                      WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                      WHEN $/approvalStatus/ = 'disabled' THEN 'inactive'
+                      ELSE 'active'
+                    END
+                  )::order_event_status_t,
+                  $/contract/,
+                  $/tokenId/,
+                  $/id/,
+                  $/sourceIdInt/,
+                  $/validBetween/,
+                  $/quantityRemaining/,
+                  $/nonce/,
+                  $/maker/,
+                  $/value/,
+                  $/txHash/,
+                  $/txTimestamp/,
+                  $/orderKind/,
+                  $/orderTokenSetId/,
+                  $/orderDynamic/,
+                  $/orderCurrency/,
+                  $/orderCurrencyPrice/,
+                  $/orderNormalizedValue/,
+                  $/orderCurrencyNormalizedValue/,
+                  $/orderRawData/
+                )
+              `,
               {
                 fillabilityStatus: order.fillabilityStatus,
                 approvalStatus: order.approvalStatus,
@@ -219,7 +216,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
                 quantityRemaining: order.quantityRemaining,
                 nonce: order.nonce,
                 maker: order.maker,
-                value: order.value,
+                value: isWhitelistedCurrency(fromBuffer(order.currency)) ? 0 : order.value,
                 kind: trigger.kind,
                 txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
                 txTimestamp: trigger.txTimestamp || null,
@@ -260,7 +257,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           if (trigger.kind == "cancel") {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };
@@ -283,7 +280,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
           ) {
             const eventData = {
               orderId: order.id,
-              transactionHash: trigger.txHash,
+              txHash: trigger.txHash,
               logIndex: trigger.logIndex,
               batchIndex: trigger.batchIndex,
             };
@@ -307,17 +304,6 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
 
           if (eventInfo) {
             await processActivityEventJob.addToQueue([eventInfo as ProcessActivityEventJobPayload]);
-          }
-
-          if (config.doOldOrderWebsocketWork) {
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
           }
         }
       }
@@ -345,7 +331,7 @@ export class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
               "order-latency",
               JSON.stringify({
                 latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
-                source: source?.getTitle(),
+                source: source?.getTitle() ?? null,
                 orderId: order.id,
                 orderKind: order.kind,
                 orderType,

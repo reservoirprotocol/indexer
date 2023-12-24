@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 
 import { ethers } from "hardhat";
@@ -12,9 +13,6 @@ const main = async () => {
   if (deployer.address.toLowerCase() !== DEPLOYER.toLowerCase()) {
     throw new Error("Wrong deployer");
   }
-
-  chainId;
-  trigger;
 };
 
 main()

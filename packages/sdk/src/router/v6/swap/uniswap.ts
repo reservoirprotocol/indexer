@@ -4,9 +4,8 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { Protocol } from "@uniswap/router-sdk";
 import { Currency, CurrencyAmount, Ether, Percent, Token, TradeType } from "@uniswap/sdk-core";
-import { AlphaRouter, SwapType } from "@uniswap/smart-order-router";
+import { AlphaRouter, SwapRoute, SwapType } from "@uniswap/smart-order-router";
 
-import { ExecutionInfo } from "../types";
 import { isETH } from "../utils";
 import { WNative } from "../../../common/addresses";
 import { Network } from "../../../utils";
@@ -38,6 +37,7 @@ export const generateSwapExecutions = async (
     module: Contract;
     transfers: TransferDetail[];
     refundTo: string;
+    revertIfIncomplete: boolean;
   }
 ): Promise<SwapInfo> => {
   const router = new AlphaRouter({
@@ -46,31 +46,42 @@ export const generateSwapExecutions = async (
     provider: provider as any,
   });
 
-  // Uniswap's core SDK doesn't support MATIC -> WMATIC conversion
+  // Uniswap's core SDK doesn't support Native -> WNative conversions on some chains
+  // TODO: Updating to the latest version of the core SDK could fix it
   // https://github.com/Uniswap/sdk-core/issues/39
+
   let fromToken = await getToken(chainId, provider, fromTokenAddress);
-  if (chainId === Network.Polygon && isETH(chainId, fromTokenAddress)) {
-    fromToken = await getToken(chainId, provider, WNative[chainId]);
+  let toToken = await getToken(chainId, provider, toTokenAddress);
+  if ([Network.Polygon, Network.Mumbai, Network.EthereumSepolia].includes(chainId)) {
+    if (isETH(chainId, fromTokenAddress)) {
+      fromToken = await getToken(chainId, provider, WNative[chainId]);
+    }
+    if (isETH(chainId, toTokenAddress)) {
+      toToken = await getToken(chainId, provider, WNative[chainId]);
+    }
   }
 
-  const toToken = await getToken(chainId, provider, toTokenAddress);
-
-  const route = await router.route(
-    CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
-    fromToken,
-    TradeType.EXACT_OUTPUT,
-    {
-      type: SwapType.SWAP_ROUTER_02,
-      recipient: options.module.address,
-      slippageTolerance: new Percent(5, 100),
-      deadline: Math.floor(Date.now() / 1000 + 1800),
-    },
-    {
-      protocols: [Protocol.V3],
-      maxSwapsPerPath: 1,
-      maxSplits: 1,
-    }
-  );
+  let route: SwapRoute | null = null;
+  try {
+    route = await router.route(
+      CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
+      fromToken,
+      TradeType.EXACT_OUTPUT,
+      {
+        type: SwapType.SWAP_ROUTER_02,
+        recipient: options.module.address,
+        slippageTolerance: new Percent(5, 100),
+        deadline: Math.floor(Date.now() / 1000 + 1800),
+      },
+      {
+        protocols: [Protocol.V3],
+        maxSwapsPerPath: 1,
+        maxSplits: 1,
+      }
+    );
+  } catch {
+    // Skip errors
+  }
 
   if (!route) {
     throw new Error("Could not generate route");
@@ -80,18 +91,18 @@ export const generateSwapExecutions = async (
   const iface = new Interface([
     `function multicall(uint256 deadline, bytes[] calldata data)`,
     `
-        function exactOutputSingle(
-          tuple(
-            address tokenIn,
-            address tokenOut,
-            uint24 fee,
-            address recipient,
-            uint256 amountOut,
-            uint256 amountInMaximum,
-            uint160 sqrtPriceLimitX96
-          ) params
-        )
-      `,
+      function exactOutputSingle(
+        tuple(
+          address tokenIn,
+          address tokenOut,
+          uint24 fee,
+          address recipient,
+          uint256 amountOut,
+          uint256 amountInMaximum,
+          uint160 sqrtPriceLimitX96
+        ) params
+      )
+    `,
   ]);
 
   let params: Result;
@@ -114,33 +125,37 @@ export const generateSwapExecutions = async (
   }
 
   const fromETH = isETH(chainId, fromTokenAddress);
-
-  const executions: ExecutionInfo[] = [];
-  executions.push({
+  const execution = {
     module: options.module.address,
     data: options.module.interface.encodeFunctionData(
       fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
       [
-        {
-          params: {
-            tokenIn: params.params.tokenIn,
-            tokenOut: params.params.tokenOut,
-            fee: params.params.fee,
-            recipient: options.module.address,
-            amountOut: params.params.amountOut,
-            amountInMaximum: params.params.amountInMaximum,
-            sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
+        [
+          {
+            params: {
+              tokenIn: params.params.tokenIn,
+              tokenOut: params.params.tokenOut,
+              fee: params.params.fee,
+              recipient: options.module.address,
+              amountOut: params.params.amountOut,
+              amountInMaximum: params.params.amountInMaximum,
+              sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
+            },
+            transfers: options.transfers,
           },
-          transfers: options.transfers,
-        },
+        ],
         options.refundTo,
+        options.revertIfIncomplete,
       ]
     ),
     value: fromETH ? params.params.amountInMaximum : 0,
-  });
+  };
 
   return {
+    tokenIn: fromTokenAddress,
     amountIn: params.params.amountInMaximum.toString(),
-    executions,
+    module: options.module,
+    execution,
+    kind: "swap",
   };
 };

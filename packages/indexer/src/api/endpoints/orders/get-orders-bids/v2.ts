@@ -393,12 +393,14 @@ export const getOrdersBidsV2Options: RouteOptions = {
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
           metadata: r.metadata,
-          source: {
-            id: source?.address,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
+          source: source
+            ? {
+                id: source.address,
+                name: source.getTitle(),
+                icon: source.getIcon(),
+                url: source.metadata.url,
+              }
+            : null,
           feeBps: Number(r.fee_bps),
           feeBreakdown: r.fee_breakdown,
           expiration: Number(r.expiration),

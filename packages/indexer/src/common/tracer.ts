@@ -1,4 +1,5 @@
 import tracer from "dd-trace";
+
 import { getServiceName } from "@/config/network";
 import { config } from "@/config/index";
 
@@ -17,6 +18,26 @@ if (process.env.DATADOG_AGENT_URL) {
 
   tracer.use("hapi", {
     headers: ["x-api-key", "referer"],
+  });
+
+  tracer.use("ioredis", {
+    enabled: false,
+  });
+
+  tracer.use("amqplib", {
+    enabled: false,
+  });
+
+  tracer.use("pg", {
+    enabled: false,
+  });
+
+  tracer.use("elasticsearch", {
+    enabled: true,
+  });
+
+  tracer.use("fetch", {
+    enabled: false,
   });
 }
 

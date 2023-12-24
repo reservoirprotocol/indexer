@@ -15,20 +15,20 @@ export const config = {
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
-  traceNetworkHttpUrl: String(
-    process.env.TRACE_NETWORK_HTTP_URL ?? process.env.BASE_NETWORK_HTTP_URL
-  ),
+
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
   // When running in liquidity-only mode, all metadata processes are disabled
-  liquidityOnly: !process.env.METADATA_API_BASE_URL,
-  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
+  liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
+  metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "onchain"),
+  metadataMaxFieldSizeMB: Number(process.env.METADATA_MAX_FIELD_SIZE_MB || 1),
+  fallbackMetadataIndexingMethod: process.env.FALLBACK_METADATA_INDEXING_METHOD || undefined,
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
       process.env.METADATA_INDEXING_METHOD ||
       "opensea"
   ),
-  metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
+  disableFlagStatusRefreshJob: Boolean(Number(process.env.DISABLE_FLAG_STATUS_REFRESH_JOB)),
 
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
@@ -61,9 +61,6 @@ export const config = {
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
-  // for testing order websocket triggers
-  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
-
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),
@@ -85,20 +82,64 @@ export const config = {
     ? (JSON.parse(process.env.FORWARD_RESERVOIR_API_KEYS) as string[])
     : [],
 
+  alchemyApiKey: String(process.env.ALCHEMY_API_KEY),
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaNftApiKey: String(process.env.OPENSEA_NFT_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+
+  // Cosigner
+  cosignerPrivateKey: String(process.env.COSIGNER_PRIVATE_KEY),
+
+  // Solvers
+  crossChainSolverBaseUrl: process.env.CROSS_CHAIN_SOLVER_BASE_URL,
+  seaportSolverBaseUrl: process.env.SEAPORT_SOLVER_BASE_URL,
+
+  // Custom taker (used for simulation)
+  customTakerPrivateKey: process.env.CUSTOM_TAKER_PRIVATE_KEY,
+
+  openSeaTokenMetadataApiKey: String(
+    process.env.OPENSEA_TOKENS_API_KEY || process.env.OPENSEA_API_KEY
+  ),
+  openSeaTokenMetadataBySlugApiKey: String(
+    process.env.OPENSEA_SLUG_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaCollectionMetadataApiKey: String(
+    process.env.OPENSEA_COLLECTION_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
+  openSeaTokenFlagStatusApiKey: String(
+    process.env.OPENSEA_TOKEN_FLAG_STATUS_API_KEY ||
+      process.env.OPENSEA_TOKENS_API_KEY ||
+      process.env.OPENSEA_API_KEY
+  ),
 
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
   ),
 
+  simplehashApiKey: String(process.env.SIMPLEHASH_API_KEY),
+
+  soundxyzApiKey: String(process.env.SOUNDXYZ_API_KEY),
+  soundxyzUserAgent: String(process.env.SOUNDXYZ_USER_AGENT),
+
+  ordinalsApiKey: String(process.env.ORDINALS_API_KEY),
+
+  enableImageResizing: Boolean(Number(process.env.ENABLE_IMAGE_RESIZING)),
+  privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
+  imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
+
+  zeroExApiKey: process.env.ZEROEX_API_KEY,
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   blurWsApiKey: process.env.BLUR_WS_API_KEY,
   blurWsUrl: process.env.BLUR_WS_URL,
+  blurWsListingsUrl: process.env.BLUR_LISTINGS_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
 
@@ -112,21 +153,27 @@ export const config = {
     process.env.MAX_PARALLEL_TOKEN_COLLECTION_SLUG_REFRESH_JOBS || 1
   ),
 
-  // Backfilling
-  doFtTransfersWrite: Boolean(Number(process.env.DO_FT_TRANSFERS_WRITE)),
-  doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
-  doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
-  doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
-
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+  enableElasticsearchAsks: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_ASKS)),
 
   // RabbitMq
-  rabbitMqUrl: `amqp://${String(process.env.RABBIT_URL)}:5672`,
-  rabbitHttpUrl: `http://${String(process.env.RABBIT_URL)}:15672`,
+  rabbitHttpUrl: `http://${String(process.env.RABBIT_USERNAME)}:${String(
+    process.env.RABBIT_PASSWORD
+  )}@${String(process.env.RABBIT_HOSTNAME)}:15672`,
+  rabbitHostname: String(process.env.RABBIT_HOSTNAME),
+  rabbitUsername: String(process.env.RABBIT_USERNAME),
+  rabbitPassword: String(process.env.RABBIT_PASSWORD),
+  assertRabbitVhost: Boolean(Number(process.env.ASSERT_RABBIT_VHOST)),
   rabbitDisableQueuesConsuming: Boolean(Number(process.env.RABBIT_DISABLE_QUEUES_CONSUMING)),
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
+
+  debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
+
+  coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
+
+  spamNames: process.env.SPAM_NAMES ? String(process.env.SPAM_NAMES).split(",") : [],
 };

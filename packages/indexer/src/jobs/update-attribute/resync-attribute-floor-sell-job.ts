@@ -8,7 +8,7 @@ export type ResyncAttributeFloorSellJobPayload = {
   continuation?: string;
 };
 
-export class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
+export default class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHandler {
   queueName = "resync-attribute-floor-value-queue";
   maxRetries = 10;
   concurrency = 4;

@@ -23,8 +23,8 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
+import { FeeRecipients } from "@/models/fee-recipients";
 
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 import {
   orderUpdatesByIdJob,
@@ -436,6 +436,8 @@ export const save = async (
         openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
+      const feeRecipients = await FeeRecipients.getInstance();
+
       let feeBps = 0;
       let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
@@ -450,8 +452,9 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
-          recipient.toLowerCase()
+        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+          recipient.toLowerCase(),
+          "marketplace"
         )
           ? "marketplace"
           : "royalty";

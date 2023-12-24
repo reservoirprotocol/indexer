@@ -201,7 +201,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
         });
 
         listingDetails.push(
-          generateListingDetailsV6(
+          await generateListingDetailsV6(
             {
               id: order.id,
               kind: order.kind,
@@ -216,7 +216,8 @@ export const getExecuteBuyV5Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
-            }
+            },
+            payload.taker
           )
         );
       };
@@ -526,6 +527,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
@@ -537,7 +539,6 @@ export const getExecuteBuyV5Options: RouteOptions = {
         payload.currency,
         {
           source: payload.source,
-          globalFees: feesOnTop,
           partial: payload.partial,
           forceRouter: payload.forceRouter,
         }

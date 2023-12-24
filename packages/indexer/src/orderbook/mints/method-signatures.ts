@@ -1,4 +1,4 @@
-import { Interface, Result, defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, JsonFragmentType, Result, defaultAbiCoder } from "@ethersproject/abi";
 import { guessAbiEncodedData } from "@openchainxyz/abi-guesser";
 import axios from "axios";
 
@@ -11,7 +11,11 @@ export type MethodSignature = {
   name?: string;
   params: string;
   decodedCalldata: Result;
+  inputs: JsonFragmentType[];
 };
+
+const getInputsFromInterface = (iface: Interface): JsonFragmentType[] =>
+  JSON.parse(iface.format("json") as string)[0].inputs;
 
 export const getMethodSignature = async (
   calldata: string
@@ -77,6 +81,7 @@ export const getMethodSignature = async (
         name,
         params,
         decodedCalldata,
+        inputs: getInputsFromInterface(iface),
       };
     } catch {
       // Skip errors
@@ -104,6 +109,7 @@ export const getMethodSignature = async (
         signature: bytes4,
         params: paramTypes.join(","),
         decodedCalldata: defaultAbiCoder.decode(paramTypes, "0x" + calldata.slice(10)),
+        inputs: getInputsFromInterface(new Interface([`function guess(${paramTypes})`])),
       };
     }
   } catch {

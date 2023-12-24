@@ -62,6 +62,8 @@ export const postOrderV3Options: RouteOptions = {
       collection: Joi.string(),
       tokenSetId: Joi.string(),
       isNonFlagged: Joi.boolean(),
+      permitId: Joi.string(),
+      permitIndex: Joi.number(),
     }).oxor("tokenSetId", "collection", "attribute"),
   },
   response: {
@@ -103,6 +105,10 @@ export const postOrderV3Options: RouteOptions = {
       // Only relevant for non-flagged tokens bids
       const isNonFlagged = payload.isNonFlagged;
 
+      // Permits
+      const permitId = payload.permitId;
+      const permitIndex = payload.permitIndex;
+
       const signature = query.signature ?? order.data.signature;
       if (signature) {
         try {
@@ -120,7 +126,11 @@ export const postOrderV3Options: RouteOptions = {
             s,
           };
         } catch {
-          // Skip errors
+          // To cover non-splittable signatures (eg. eip1271 or bulk signatures)
+          order.data = {
+            ...order.data,
+            signature,
+          };
         }
       }
 
@@ -287,6 +297,8 @@ export const postOrderV3Options: RouteOptions = {
                   metadata: {
                     schema,
                     source,
+                    permitId,
+                    permitIndex,
                   },
                 },
               ]);

@@ -9,7 +9,7 @@ export type CollectionRefreshCacheJobPayload = {
   collection: string;
 };
 
-export class CollectionRefreshCacheJob extends AbstractRabbitMqJobHandler {
+export default class CollectionRefreshCacheJob extends AbstractRabbitMqJobHandler {
   queueName = "collections-refresh-cache";
   maxRetries = 10;
   concurrency = 10;

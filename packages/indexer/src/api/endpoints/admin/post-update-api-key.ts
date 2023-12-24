@@ -22,6 +22,15 @@ export const postUpdateApiKeyOptions: RouteOptions = {
       active: Joi.boolean().optional(),
       ips: Joi.array().items(Joi.string().lowercase().pattern(regex.ipv4)).optional(),
       origins: Joi.array().items(Joi.string().lowercase().pattern(regex.origin)).optional(),
+      permissions: Joi.object({
+        override_collection_refresh_cool_down: Joi.boolean().optional(),
+        assign_collection_to_community: Joi.boolean().optional(),
+        update_metadata_disabled: Joi.boolean().optional(),
+        update_spam_status: Joi.boolean().optional(),
+        entity_data_override: Joi.boolean().optional(),
+        invalidate_orders: Joi.boolean().optional(),
+      }).optional(),
+      revShareBps: Joi.number().allow(null).optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -37,6 +46,8 @@ export const postUpdateApiKeyOptions: RouteOptions = {
         active: payload.active,
         ips: payload.ips,
         origins: payload.origins,
+        revShareBps: payload.revShareBps,
+        permissions: payload.permissions,
       });
 
       return {

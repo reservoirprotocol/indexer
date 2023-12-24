@@ -101,6 +101,12 @@ export class Exchange {
       orderIds: orderId ? [orderId] : [],
       changePrice: Boolean(orderId),
       isCollection: order.dataMask !== "0x",
+      ...(order.taker
+        ? {
+            isPrivate: true,
+            taker: order.taker,
+          }
+        : {}),
     };
 
     return axios.post(

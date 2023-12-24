@@ -18,6 +18,7 @@ export const buildOrder = (params: BuildParams): Types.LocalOrder => {
     delegateType: params.delegateType ?? Types.DelegationType.ERC721,
     deadline: params.deadline,
     currency: params.currency,
+    taker: params.taker,
     amount: Number(params.amount ?? 1),
     dataMask: "0x",
     items: [

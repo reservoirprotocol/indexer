@@ -11,10 +11,13 @@ import { getRoyalties } from "@/utils/royalties";
 export interface BaseOrderBuildOptions {
   maker: string;
   contract?: string;
+  currency?: string;
   weiPrice: string;
   listingTime?: number;
   expirationTime?: number;
   quantity?: number;
+  fee?: number[];
+  feeRecipient?: string[];
 }
 
 type OrderBuildInfo = {
@@ -44,15 +47,22 @@ export const getBuildInfo = async (
     throw new Error("Could not fetch token collection");
   }
 
+  let marketplace = AddressZero;
+  let marketplaceFeeNumerator = 0;
+  if (options.fee?.length && options.feeRecipient?.length) {
+    marketplace = options.feeRecipient[0];
+    marketplaceFeeNumerator = options.fee[0];
+  }
+
   const contract = fromBuffer(collectionResult.address);
   const buildParams: BaseBuildParams = {
     protocol:
       collectionResult.kind === "erc721"
         ? Sdk.PaymentProcessor.Types.TokenProtocols.ERC721
         : Sdk.PaymentProcessor.Types.TokenProtocols.ERC1155,
-    marketplace: AddressZero,
+    marketplace,
     amount: options.quantity ?? "1",
-    marketplaceFeeNumerator: "0",
+    marketplaceFeeNumerator,
     maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "onchain").then((royalties) =>
       royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
     ),
@@ -61,9 +71,10 @@ export const getBuildInfo = async (
     price: options.weiPrice,
     expiration: options.expirationTime!,
     coin:
-      side === "sell"
+      options.currency ??
+      (side === "sell"
         ? Sdk.Common.Addresses.Native[config.chainId]
-        : Sdk.Common.Addresses.WNative[config.chainId],
+        : Sdk.Common.Addresses.WNative[config.chainId]),
     masterNonce: await commonHelpers.getMinNonce("payment-processor", options.maker),
   };
 

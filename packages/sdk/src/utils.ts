@@ -5,6 +5,8 @@ import { toUtf8Bytes, toUtf8String } from "@ethersproject/strings";
 import { verifyTypedData } from "@ethersproject/wallet";
 import { TypedDataDomain, TypedDataField } from "ethers";
 
+import * as Global from "./global";
+
 // Constants
 
 export const BytesEmpty = "0x";
@@ -77,13 +79,12 @@ export function checkEIP721Signature(
 
 // Misc
 
-export const getSourceHash = (source?: string) =>
-  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
+export const getSourceHash = (source?: string, defaultValue = "") =>
+  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : defaultValue;
 
-export const generateSourceBytes = (source?: string) =>
-  source === "reservoir.tools"
-    ? getSourceHash(source)
-    : getSourceHash("reservoir.tools") + getSourceHash(source);
+export const generateSourceBytes = (source?: string) => {
+  return getSourceHash(Global.Config.aggregatorSource) + getSourceHash(source, "00000000");
+};
 
 export const getSourceV1 = (calldata: string) => {
   // Use the ASCII US (unit separator) character (code = 31) as a delimiter
@@ -134,6 +135,8 @@ export enum Network {
   Avalanche = 43114,
   Linea = 59144,
   Zora = 7777777,
+  PolygonZkevm = 1101,
+  Scroll = 534352,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,
@@ -143,6 +146,9 @@ export enum Network {
   BaseGoerli = 84531,
   ScrollAlpha = 534353,
   EthereumSepolia = 11155111,
+  Zksync = 324,
+  Ancient8Testnet = 2863311531,
+  ImmutableZkevmTestnet = 13472,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

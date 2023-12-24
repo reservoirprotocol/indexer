@@ -26,7 +26,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
   queueName = "sale-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  consumerTimeout = 60000;
+  timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -101,7 +101,9 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
       result.id = crypto
         .createHash("sha256")
         .update(
-          `${data.after.tx_hash}${data.after.maker}${data.after.taker}${data.after.contract}${data.after.token_id}${data.after.price}`
+          `${data.after.tx_hash}${toBuffer(data.after.maker)}${toBuffer(
+            data.after.taker
+          )}${toBuffer(data.after.contract)}${data.after.token_id}${data.after.price}`
         )
         .digest("hex");
 
@@ -123,25 +125,63 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
             }
 
             if (!changed.length) {
-              logger.info(
-                this.queueName,
-                `No changes detected for event. before=${JSON.stringify(
-                  data.before
-                )}, after=${JSON.stringify(data.after)}`
-              );
+              try {
+                for (const key in data.after) {
+                  const beforeValue = data.before[key as keyof SaleInfo];
+                  const afterValue = data.after[key as keyof SaleInfo];
+
+                  if (beforeValue !== afterValue) {
+                    changed.push(key as keyof SaleInfo);
+                  }
+                }
+
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for sale. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for sale error. contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                    data,
+                    changed,
+                    error,
+                  })
+                );
+              }
+
               return;
             }
           }
         }
       }
 
+      const tags: { [key: string]: string } = {
+        contract: data.after.contract,
+        maker: data.after.maker,
+        taker: data.after.taker,
+      };
+
+      if (result.fillSource) {
+        tags.fillSource = result.fillSource;
+      }
+
+      if (result.orderSource) {
+        tags.orderSource = result.orderSource;
+      }
+
       await publishWebsocketEvent({
         event: eventType,
-        tags: {
-          contract: data.after.contract,
-          maker: data.after.maker,
-          taker: data.after.taker,
-        },
+        tags,
         changed,
         data: result,
         offset: data.offset,
@@ -186,6 +226,7 @@ interface SaleInfo {
   amount: number;
   fill_source_id: number;
   block: number;
+  block_hash: string;
   tx_hash: string;
   timestamp: number;
   price: string;

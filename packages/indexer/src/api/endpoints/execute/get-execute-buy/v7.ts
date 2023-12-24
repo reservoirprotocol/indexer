@@ -1,48 +1,61 @@
 import { BigNumber } from "@ethersproject/bignumber";
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { TxData } from "@reservoir0x/sdk/dist/utils";
-import { PermitHandler, PermitWithTransfers } from "@reservoir0x/sdk/dist/router/v6/permit";
-import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import { PermitHandler } from "@reservoir0x/sdk/dist/router/v6/permit";
+import {
+  FillListingsResult,
+  ListingDetails,
+  MintDetails,
+} from "@reservoir0x/sdk/dist/router/v6/types";
+import { estimateGasFromTxTags, initializeTxTags } from "@reservoir0x/sdk/dist/router/v6/utils";
+import { getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 import axios from "axios";
+import { randomUUID } from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiExecuteFee, JoiOrderDepth } from "@/common/joi";
-import { baseProvider } from "@/common/provider";
+import { JoiExecuteFee, JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { baseProvider, getGasFee } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
+import * as mints from "@/orderbook/mints";
+import {
+  PartialCollectionMint,
+  generateCollectionMintTxData,
+  normalizePartialCollectionMint,
+} from "@/orderbook/mints/calldata";
+import { getNFTTransferEvents } from "@/orderbook/mints/simulation";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import { fillErrorCallback, getExecuteError } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
+import * as e from "@/utils/auth/erc721c";
 import { getCurrency } from "@/utils/currencies";
+import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
-import * as mints from "@/orderbook/mints";
-import { generateCollectionMintTxData } from "@/orderbook/mints/calldata";
-import { getNFTTransferEvents } from "@/orderbook/mints/simulation";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits";
+import { getEphemeralPermitId, getEphemeralPermit, saveEphemeralPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
-  description: "Buy tokens (fill listings)",
+  description: "Buy Tokens",
   notes:
     "Use this API to fill listings. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
@@ -75,7 +88,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "rarible",
                   "sudoswap",
                   "nftx",
-                  "alienswap"
+                  "alienswap",
+                  "mint"
                 ),
               data: Joi.object(),
             }).description("Optional raw order to fill."),
@@ -117,18 +131,26 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .required()
-        .description("Address of wallet filling."),
+        .description("Address of wallet filling (receiver of the NFT)."),
       relayer: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Address of wallet relaying the fill transaction."),
+        .description("Address of wallet relaying the fill transaction (paying for the NFT)."),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
+      forwarderChannel: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
+        )
+        .optional(),
       currency: Joi.string().lowercase().description("Currency to be used for purchases."),
+      currencyChainId: Joi.number().description("The chain id of the purchase currency"),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
@@ -170,6 +192,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Choose a specific swapping provider when buying in a different currency (defaults to `uniswap`)"
         ),
+      executionMethod: Joi.string().valid("seaport-intent", "intent"),
+      referrer: Joi.string()
+        .pattern(regex.address)
+        .optional()
+        .description("Referrer address (where supported)"),
+      comment: Joi.string().optional().description("Mint comment (where suported)"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -199,6 +227,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
+                check: Joi.object({
+                  endpoint: Joi.string().required(),
+                  method: Joi.string().valid("POST").required(),
+                  body: Joi.any(),
+                }).description("The details of the endpoint for checking the status of the step"),
+                // TODO: To remove, only kept for backwards-compatibility
+                gasEstimate: Joi.number().description(
+                  "Approximation of gas used (only applies to `transaction` items)"
+                ),
               })
             )
             .required(),
@@ -222,6 +259,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           currencyDecimals: Joi.number().optional().allow(null),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          buyInCurrency: Joi.string().lowercase().pattern(regex.address),
+          // buyInCurrencyChainId: Joi.number().optional().allow(null),
+          buyInCurrencySymbol: Joi.string().optional().allow(null),
+          buyInCurrencyDecimals: Joi.number().optional().allow(null),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
@@ -230,6 +271,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             .items(JoiExecuteFee)
             .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
+          // TODO: Remove, only kept for backwards-compatibility reasons
+          fromChainId: Joi.number().description("Chain id buying from"),
+          gasCost: Joi.string().pattern(regex.number),
         })
       ),
       maxQuantities: Joi.array().items(
@@ -238,13 +282,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
           maxQuantity: Joi.string().pattern(regex.number).allow(null),
         })
       ),
-      // TODO: Remove
-      preview: Joi.array().items(
-        Joi.object({
-          itemIndex: Joi.number().required(),
-          depth: JoiOrderDepth,
-        })
-      ),
+      fees: Joi.object({
+        gas: JoiPrice,
+        relayer: JoiPrice,
+      }),
+      // TODO: To remove, only kept for backwards-compatibility reasons
+      gasEstimate: Joi.number(),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-execute-buy-${version}-handler`, `Wrong response schema: ${error}`);
@@ -255,13 +298,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
+    // Needed for cross-chain solving which works off the original request
+    const originalPayload = _.cloneDeep(payload);
+
     const perfTime1 = performance.now();
 
     try {
       type ExecuteFee = {
         kind?: string;
         recipient: string;
-        bps: number;
+        bps?: number;
         amount: number;
         rawAmount: string;
       };
@@ -280,6 +326,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Gross price (without fees on top) = price
         quote: number;
         rawQuote: string;
+        buyInCurrency?: string;
+        // buyInCurrencyChainId?: number;
+        buyInCurrencySymbol?: string;
+        buyInCurrencyDecimals?: number;
         buyInQuote?: number;
         buyInRawQuote?: string;
         // Total price (with fees on top) = price + feesOnTop
@@ -287,6 +337,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
+        // TODO: To remove, only kept for backwards-compatibility reasons
+        gasCost?: string;
+        fromChainId?: number;
       }[] = [];
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
@@ -306,6 +359,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       if (payload.source) {
         await sources.getOrInsert(payload.source);
       }
+
+      // First pass at estimating the gas costs
+      const txTags = initializeTxTags();
 
       const addToPath = async (
         order: {
@@ -328,9 +384,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (
-          ["sudoswap", "sudoswap-v2", "collectionxyz", "nftx", "caviar-v1"].includes(order.kind)
-        ) {
+        if (["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
           let poolId: string;
           let priceList: string[];
 
@@ -436,7 +490,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
 
           listingDetails.push(
-            generateListingDetailsV6(
+            await generateListingDetailsV6(
               {
                 id: order.id,
                 kind: order.kind,
@@ -452,9 +506,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 tokenId: token.tokenId!,
                 amount: token.quantity,
                 isFlagged: Boolean(flaggedResult.is_flagged),
+              },
+              payload.taker,
+              {
+                ppV2TrustedChannel: payload.forwarderChannel,
               }
             )
           );
+        }
+
+        txTags.feesOnTop! += additionalFees.length;
+        if (order.kind === "mint") {
+          txTags.mints! += 1;
+        } else {
+          if (!txTags.listings![order.kind]) {
+            txTags.listings![order.kind] = 0;
+          }
+          txTags.listings![order.kind] += 1;
         }
       };
 
@@ -478,10 +546,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = payload.items;
 
       // Keep track of any mint transactions that need to be aggregated
-      const mintTxs: {
-        orderId: string;
-        txData: TxData;
-      }[] = [];
+      const mintDetails: MintDetails[] = [];
 
       // Keep track of the maximum quantity available per item
       // (only relevant when the below `preview` field is true)
@@ -491,6 +556,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = [];
       const preview = payload.onlyPath && payload.partial && items.every((i) => !i.quantity);
 
+      const useSeaportIntent = payload.executionMethod === "seaport-intent";
+      const useCrossChainIntent =
+        payload.executionMethod === "intent" ||
+        (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId);
+
+      let allMintsHaveExplicitRecipient = true;
+
+      let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const itemIndex =
@@ -513,7 +586,75 @@ export const getExecuteBuyV7Options: RouteOptions = {
           // of this same API rather than doing anything custom for it.
 
           // TODO: Handle any other on-chain orderbooks that cannot be "posted"
-          if (order.kind === "sudoswap") {
+          if (order.kind === "mint") {
+            const rawMint = order.data as PartialCollectionMint;
+
+            const collectionData = await idb.oneOrNone(
+              `
+                SELECT
+                  contracts.kind AS token_kind
+                FROM collections
+                JOIN contracts
+                  ON collections.contract = contracts.address
+                WHERE collections.id = $/id/
+              `,
+              {
+                id: rawMint.collection,
+              }
+            );
+            if (collectionData) {
+              const collectionMint = normalizePartialCollectionMint(rawMint);
+
+              const { txData, price, hasExplicitRecipient } = await generateCollectionMintTxData(
+                collectionMint,
+                payload.taker,
+                item.quantity,
+                {
+                  comment: payload.comment,
+                  referrer: payload.referrer,
+                }
+              );
+              allMintsHaveExplicitRecipient = allMintsHaveExplicitRecipient && hasExplicitRecipient;
+
+              const orderId = `mint:${collectionMint.collection}`;
+              mintDetails.push({
+                orderId,
+                txData,
+                fees: [],
+                token: collectionMint.contract,
+                quantity: item.quantity,
+                comment: payload.comment,
+              });
+
+              await addToPath(
+                {
+                  id: orderId,
+                  kind: "mint",
+                  maker: collectionMint.contract,
+                  nativePrice: price,
+                  price: price,
+                  sourceId: null,
+                  currency: collectionMint.currency,
+                  rawData: {},
+                  builtInFees: [],
+                  additionalFees: [],
+                },
+                {
+                  kind: collectionData.token_kind,
+                  contract: collectionMint.contract,
+                  quantity: item.quantity,
+                }
+              );
+
+              if (preview) {
+                // The max quantity is the amount mintable on the collection
+                maxQuantities.push({
+                  itemIndex,
+                  maxQuantity: null,
+                });
+              }
+            }
+          } else if (order.kind === "sudoswap") {
             item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
             item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
@@ -560,10 +701,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (response.orderId) {
               item.orderId = response.orderId;
             } else {
+              lastError = "Raw order failed to get processed";
               if (payload.partial) {
                 continue;
               } else {
-                throw getExecuteError("Raw order failed to get processed");
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -657,10 +799,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
 
           if (error) {
+            lastError = error;
             if (payload.partial) {
               continue;
             } else {
-              throw getExecuteError(error);
+              throw getExecuteError(lastError);
             }
           }
 
@@ -697,6 +840,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Scenario 3: fill via `collection`
         if (item.collection) {
           let mintAvailable = false;
+          let hasActiveMints = false;
           if (item.fillType === "mint" || item.fillType === "preferMint") {
             const collectionData = await idb.oneOrNone(
               `
@@ -716,10 +860,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
               const openMints = await mints.getCollectionMints(item.collection, {
                 status: "open",
               });
+
               for (const mint of openMints) {
                 if (!payload.currency || mint.currency === payload.currency) {
                   const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
-
                   let quantityToMint = bn(
                     amountMintable
                       ? amountMintable.lt(item.quantity)
@@ -728,62 +872,94 @@ export const getExecuteBuyV7Options: RouteOptions = {
                       : item.quantity
                   ).toNumber();
 
-                  // If minting by collection was request but the current mint is tied to a token,
-                  // only mint a single quantity of the current token in order to mimick the logic
-                  // of buying by collection (where we choose as many token ids as the quantity)
+                  // If minting by collection was requested but the current mint is tied to a token,
+                  // only mint a single quantity of the current token in order to match the logic of
+                  // buying by collection (where we choose as many token ids as the quantity)
                   if (mint.tokenId) {
                     quantityToMint = Math.min(quantityToMint, 1);
                   }
 
                   if (quantityToMint > 0) {
-                    const { txData, price } = await generateCollectionMintTxData(
-                      mint,
-                      payload.taker,
-                      quantityToMint
-                    );
+                    try {
+                      const { txData, price, hasExplicitRecipient } =
+                        await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
+                          comment: payload.comment,
+                          referrer: payload.referrer,
+                        });
+                      allMintsHaveExplicitRecipient =
+                        allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
-                    const orderId = `mint:${item.collection}`;
-                    mintTxs.push({
-                      orderId,
-                      txData,
-                    });
-
-                    await addToPath(
-                      {
-                        id: orderId,
-                        kind: "mint",
-                        maker: mint.contract,
-                        nativePrice: price,
-                        price: price,
-                        sourceId: null,
-                        currency: mint.currency,
-                        rawData: {},
-                        builtInFees: [],
-                        additionalFees: [],
-                      },
-                      {
-                        kind: collectionData.token_kind,
-                        contract: mint.contract,
+                      const orderId = `mint:${item.collection}`;
+                      mintDetails.push({
+                        orderId,
+                        txData,
+                        fees: [],
+                        token: mint.contract,
                         quantity: quantityToMint,
-                      }
-                    );
-
-                    if (preview) {
-                      // The max quantity is the amount mintable on the collection
-                      maxQuantities.push({
-                        itemIndex,
-                        maxQuantity: mint.tokenId
-                          ? quantityToMint.toString()
-                          : amountMintable
-                          ? amountMintable.toString()
-                          : null,
+                        comment: payload.comment,
                       });
-                    }
 
-                    item.quantity -= quantityToMint;
-                    mintAvailable = true;
+                      await addToPath(
+                        {
+                          id: orderId,
+                          kind: "mint",
+                          maker: mint.contract,
+                          nativePrice: price,
+                          price: price,
+                          sourceId: null,
+                          currency: mint.currency,
+                          rawData: {},
+                          builtInFees: [],
+                          additionalFees: [],
+                        },
+                        {
+                          kind: collectionData.token_kind,
+                          contract: mint.contract,
+                          quantity: quantityToMint,
+                        }
+                      );
+
+                      if (preview) {
+                        // The max quantity is the amount mintable on the collection
+                        maxQuantities.push({
+                          itemIndex,
+                          maxQuantity: mint.tokenId
+                            ? quantityToMint.toString()
+                            : amountMintable
+                            ? amountMintable.toString()
+                            : null,
+                        });
+
+                        // Solver filling is restricted to a single path item for now
+                        if ((useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                          break;
+                        }
+                      }
+
+                      item.quantity -= quantityToMint;
+                      mintAvailable = true;
+                    } catch {
+                      // Skip errors
+                      // Mostly coming from allowlist mints for which the user is not authorized
+                      // TODO: Have an allowlist check instead of handling it via `try` / `catch`
+                    }
                   }
+
+                  hasActiveMints = true;
                 }
+              }
+            }
+
+            if (item.quantity > 0) {
+              if (!hasActiveMints) {
+                lastError = "Collection has no eligible mints";
+              } else {
+                lastError =
+                  "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
+              }
+
+              if (!payload.partial && mintAvailable) {
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -795,7 +971,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // than we need, so we can filter out the ones that aren't fillable and not
             // end up with too few tokens.
 
-            const redundancyFactor = 5;
+            const redundancyFactor = 10;
             const tokenResults = await idb.manyOrNone(
               `
                 WITH x AS (
@@ -824,11 +1000,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   ON x.order_id = orders.id
                 WHERE orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
+                  AND orders.maker != $/taker/
                 LIMIT $/quantity/
               `,
               {
                 collection: item.collection,
                 quantity: item.quantity,
+                taker: toBuffer(payload.taker),
               }
             );
 
@@ -836,24 +1014,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
               // The max quantity is the total number of tokens which can be bought from the collection
               maxQuantities.push({
                 itemIndex: itemIndex,
-                maxQuantity: await idb
-                  .one(
-                    `
-                      SELECT
-                        count(*) AS on_sale_count
-                      FROM tokens
-                      WHERE tokens.collection_id = $/collection/
-                        AND ${
-                          payload.normalizeRoyalties
-                            ? "tokens.normalized_floor_sell_id"
-                            : "tokens.floor_sell_id"
-                        } IS NOT NULL
-                    `,
-                    {
-                      collection: item.collection,
-                    }
-                  )
-                  .then((r) => String(r.on_sale_count)),
+                maxQuantity:
+                  useSeaportIntent || useCrossChainIntent
+                    ? "1"
+                    : await idb
+                        .one(
+                          `
+                            SELECT
+                              count(*) AS on_sale_count
+                            FROM tokens
+                            WHERE tokens.collection_id = $/collection/
+                              AND ${
+                                payload.normalizeRoyalties
+                                  ? "tokens.normalized_floor_sell_value"
+                                  : "tokens.floor_sell_value"
+                              } IS NOT NULL
+                          `,
+                          {
+                            collection: item.collection,
+                          }
+                        )
+                        .then((r) => String(r.on_sale_count)),
               });
             }
 
@@ -861,7 +1042,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // processed by the next pipeline of the same API rather than
             // building something custom for it.
 
-            for (const t of tokenResults) {
+            for (let i = 0; i < tokenResults.length; i++) {
+              const t = tokenResults[i];
               items.push({
                 token: `${fromBuffer(t.contract)}:${t.token_id}`,
                 fillType: item.fillType,
@@ -871,8 +1053,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
 
             if (tokenResults.length < item.quantity) {
+              lastError = "Unable to fill requested quantity";
               if (!payload.partial) {
-                throw getExecuteError("Unable to fill requested quantity");
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -883,6 +1066,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const [contract, tokenId] = item.token.split(":");
 
           let mintAvailable = false;
+          let hasActiveMints = false;
           if (item.fillType === "mint" || item.fillType === "preferMint") {
             const collectionData = await idb.oneOrNone(
               `
@@ -908,6 +1092,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 status: "open",
                 tokenId,
               });
+
               for (const mint of openMints) {
                 if (!payload.currency || mint.currency === payload.currency) {
                   const amountMintable = await mints.getAmountMintableByWallet(mint, payload.taker);
@@ -921,51 +1106,83 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   ).toNumber();
 
                   if (quantityToMint > 0) {
-                    const { txData, price } = await generateCollectionMintTxData(
-                      mint,
-                      payload.taker,
-                      quantityToMint
-                    );
+                    try {
+                      const { txData, price, hasExplicitRecipient } =
+                        await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
+                          comment: payload.comment,
+                          referrer: payload.referrer,
+                        });
+                      allMintsHaveExplicitRecipient =
+                        allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
-                    const orderId = `mint:${collectionData.id}`;
-                    mintTxs.push({
-                      orderId,
-                      txData,
-                    });
-
-                    await addToPath(
-                      {
-                        id: orderId,
-                        kind: "mint",
-                        maker: mint.contract,
-                        nativePrice: price,
-                        price: price,
-                        sourceId: null,
-                        currency: mint.currency,
-                        rawData: {},
-                        builtInFees: [],
-                        additionalFees: [],
-                      },
-                      {
-                        kind: collectionData.token_kind,
-                        contract: mint.contract,
-                        tokenId,
+                      const orderId = `mint:${collectionData.id}`;
+                      mintDetails.push({
+                        orderId,
+                        txData,
+                        fees: [],
+                        token: mint.contract,
                         quantity: quantityToMint,
-                      }
-                    );
-
-                    if (preview) {
-                      // The max quantity is the amount mintable on the collection
-                      maxQuantities.push({
-                        itemIndex,
-                        maxQuantity: amountMintable ? amountMintable.toString() : null,
+                        comment: payload.comment,
                       });
-                    }
 
-                    item.quantity -= quantityToMint;
-                    mintAvailable = true;
+                      await addToPath(
+                        {
+                          id: orderId,
+                          kind: "mint",
+                          maker: mint.contract,
+                          nativePrice: price,
+                          price: price,
+                          sourceId: null,
+                          currency: mint.currency,
+                          rawData: {},
+                          builtInFees: [],
+                          additionalFees: [],
+                        },
+                        {
+                          kind: collectionData.token_kind,
+                          contract: mint.contract,
+                          tokenId,
+                          quantity: quantityToMint,
+                        }
+                      );
+
+                      if (preview) {
+                        // The max quantity is the amount mintable on the collection
+                        maxQuantities.push({
+                          itemIndex,
+                          maxQuantity: amountMintable ? amountMintable.toString() : null,
+                        });
+
+                        // Solver filling is restricted to a single path item for now
+                        if ((useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                          break;
+                        }
+                      }
+
+                      item.quantity -= quantityToMint;
+                      mintAvailable = true;
+                    } catch {
+                      // Skip errors
+                      // Mostly coming from allowlist mints for which the user is not authorized
+                      // TODO: Have an allowlist check instead of handling it via `try` / `catch`
+                    }
                   }
+
+                  hasActiveMints = true;
                 }
+              }
+            }
+
+            if (item.quantity > 0) {
+              if (!hasActiveMints) {
+                lastError = "Token has no eligible mints";
+              } else {
+                lastError =
+                  "Unable to mint requested quantity (max mints per wallet possibly exceeded)";
+              }
+
+              if (!payload.partial && mintAvailable) {
+                throw getExecuteError(lastError);
               }
             }
           }
@@ -1055,6 +1272,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 continue;
               }
 
+              // Solver filling is restricted to a single path item for now
+              if (preview && (useCrossChainIntent || useSeaportIntent) && path.length >= 1) {
+                break;
+              }
+
               // Stop if we filled the total quantity
               if (quantityToFill <= 0 && !preview) {
                 break;
@@ -1098,7 +1320,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   kind: result.token_kind,
                   contract,
                   tokenId,
-                  quantity: Math.min(quantityToFill, availableQuantity),
+                  quantity: preview
+                    ? availableQuantity
+                    : Math.min(quantityToFill, availableQuantity),
                 }
               );
               maxQuantity = maxQuantity.add(availableQuantity);
@@ -1108,12 +1332,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
 
             if (quantityToFill > 0) {
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                lastError = "No fillable orders (taker cannot fill own orders)";
+              } else {
+                lastError = "Unable to fill requested quantity";
+              }
+
               if (!payload.partial) {
-                if (makerEqualsTakerQuantity >= quantityToFill) {
-                  throw getExecuteError("No fillable orders (taker cannot fill own orders)");
-                } else {
-                  throw getExecuteError("Unable to fill requested quantity");
-                }
+                throw getExecuteError(lastError);
               }
             }
 
@@ -1130,7 +1356,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       if (!path.length) {
-        throw getExecuteError("No fillable orders");
+        throw getExecuteError(lastError ?? "No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -1148,29 +1374,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      // Add the quotes in the "buy-in" currency to the path items
-      for (const item of path) {
-        if (item.currency !== buyInCurrency) {
-          const buyInPrices = await getUSDAndCurrencyPrices(
-            item.currency,
-            buyInCurrency,
-            item.rawQuote,
-            now(),
-            {
-              acceptStalePrice: true,
-            }
-          );
-
-          if (buyInPrices.currencyPrice) {
-            item.buyInQuote = formatPrice(
-              buyInPrices.currencyPrice,
-              (await getCurrency(buyInCurrency)).decimals,
-              true
-            );
-            item.buyInRawQuote = buyInPrices.currencyPrice;
-          }
-        }
-      }
+      txTags.swaps! += new Set(
+        path.filter((p) => p.currency !== buyInCurrency).map((p) => p.currency)
+      ).size;
 
       // Include the global fees in the path
 
@@ -1189,16 +1395,41 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const ordersEligibleForGlobalFees = listingDetails
         .filter(
           (b) =>
-            b.source !== "blur.io" && (hasBlurListings ? !["opensea.io"].includes(b.source!) : true)
+            // Any non-Blur orders
+            b.source !== "blur.io" &&
+            // Or if there are Blur orders we need to fill, any non-OpenSea or non-ERC721 orders
+            (hasBlurListings
+              ? !(["opensea.io"].includes(b.source!) && b.contractKind === "erc721")
+              : true)
         )
         .map((b) => b.orderId);
 
-      const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
+      const addGlobalFee = async (
+        detail: ListingDetails,
+        item: (typeof path)[0],
+        fee: Sdk.RouterV6.Types.Fee
+      ) => {
         // The fees should be relative to a single quantity
-        fee.amount = bn(fee.amount).div(item.quantity).toString();
+        let feeAmount = bn(fee.amount).div(item.quantity).toString();
 
         // Global fees get split across all eligible orders
-        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        let adjustedFeeAmount = bn(feeAmount).div(ordersEligibleForGlobalFees.length).toString();
+
+        // If the item's currency is not the same with the buy-in currency,
+        if (item.currency !== buyInCurrency) {
+          feeAmount = await getUSDAndCurrencyPrices(
+            buyInCurrency,
+            item.currency,
+            feeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+          adjustedFeeAmount = await getUSDAndCurrencyPrices(
+            buyInCurrency,
+            item.currency,
+            adjustedFeeAmount,
+            now()
+          ).then((p) => p.currencyPrice!);
+        }
 
         const amount = formatPrice(
           adjustedFeeAmount,
@@ -1207,9 +1438,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
         );
         const rawAmount = bn(adjustedFeeAmount).toString();
 
+        // To avoid numeric overflow and division by zero
+        const maxBps = bn(10000);
+        const bps = bn(item.rawQuote).gt(0) ? bn(feeAmount).mul(10000).div(item.rawQuote) : maxBps;
+
         item.feesOnTop.push({
           recipient: fee.recipient,
-          bps: bn(fee.amount).mul(10000).div(item.rawQuote).toNumber(),
+          bps: bps.gt(maxBps) ? undefined : bps.toNumber(),
           amount,
           rawAmount,
         });
@@ -1219,14 +1454,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
           .add(rawAmount)
           .toString();
 
-        // item.quote += amount;
-        // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
+        if (!detail.fees) {
+          detail.fees = [];
+        }
+        detail.fees.push({
+          recipient: fee.recipient,
+          amount: rawAmount,
+        });
       };
 
       for (const item of path) {
         if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
-            await addGlobalFee(item, f);
+            const detail = listingDetails.find((d) => d.orderId === item.orderId);
+            if (detail) {
+              await addGlobalFee(detail, item, f);
+            }
           }
         } else {
           item.totalPrice = item.quote;
@@ -1234,15 +1477,98 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      if (payload.onlyPath) {
-        return {
-          path,
-          maxQuantities: preview ? maxQuantities : undefined,
+      const getCrossChainQuote = async () => {
+        const originChainId = originalPayload.currencyChainId ?? config.chainId;
+        const destinationChainId = config.chainId;
+
+        const ccConfig: {
+          enabled: boolean;
+          user?: {
+            balance: string;
+          };
+          solver?: {
+            address: string;
+            capacityPerRequest: string;
+          };
+        } = await axios
+          .get(
+            `${config.crossChainSolverBaseUrl}/config?originChainId=${originChainId}&destinationChainId=${destinationChainId}&user=${originalPayload.taker}&currency=${Sdk.Common.Addresses.Native[originChainId]}`
+          )
+          .then((response) => response.data);
+
+        if (!ccConfig.enabled) {
+          throw Boom.badRequest("Cross-chain request not supported between requested chains");
+        }
+
+        const data = {
+          request: {
+            originChainId,
+            destinationChainId,
+            data: originalPayload,
+            endpoint: "/execute/buy/v7",
+            salt: Math.floor(Math.random() * 1000000),
+          },
         };
+
+        const { requestId, price, relayerFee, depositGasFee } = await axios
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+          .then((response) => ({
+            requestId: response.data.requestId,
+            price: response.data.price,
+            relayerFee: response.data.relayerFee,
+            depositGasFee: response.data.depositGasFee,
+          }))
+          .catch((error) => {
+            throw Boom.badRequest(
+              error.response?.data ? JSON.stringify(error.response.data) : "Error getting quote"
+            );
+          });
+
+        if (
+          ccConfig.solver?.capacityPerRequest &&
+          bn(price).gt(ccConfig.solver.capacityPerRequest) &&
+          !preview
+        ) {
+          throw Boom.badRequest("Insufficient capacity");
+        }
+
+        return {
+          requestId,
+          request: data.request,
+          price,
+          relayerFee,
+          depositGasFee,
+          user: ccConfig.user!,
+          solver: ccConfig.solver!,
+        };
+      };
+
+      // Add the quotes in the "buy-in" currency to the path items
+      for (const item of path) {
+        if (item.currency !== buyInCurrency) {
+          const buyInPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            buyInCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (buyInPrices.currencyPrice) {
+            const c = await getCurrency(buyInCurrency);
+            item.buyInCurrency = c.contract;
+            // item.buyInCurrencyChainId = payload.currencyChainId ?? config.chainId;
+            item.buyInCurrencyDecimals = c.decimals;
+            item.buyInCurrencySymbol = c.symbol;
+            item.buyInQuote = formatPrice(buyInPrices.currencyPrice, c.decimals, true);
+            item.buyInRawQuote = buyInPrices.currencyPrice;
+          }
+        }
       }
 
-      // Set up generic filling steps
-      let steps: {
+      type StepType = {
         id: string;
         action: string;
         description: string;
@@ -1252,11 +1578,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
           tip?: string;
           orderIds?: string[];
           data?: object;
+          check?: {
+            endpoint: string;
+            method: "POST";
+            body: object;
+          };
+          // TODO: To remove, only kept for backwards-compatibility reasons
+          gasEstimate?: number;
         }[];
-      }[] = [
+      };
+
+      // Set up generic filling steps
+      let steps: StepType[] = [
         {
           id: "auth",
-          action: "Sign in to Blur",
+          action: "Sign in",
           description: "Some marketplaces require signing an auth message before filling",
           kind: "signature",
           items: [],
@@ -1276,10 +1612,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
-          id: "pre-signatures",
-          action: "Sign orders",
-          description: "Some marketplaces require signing additional orders before filling",
+          id: "pre-signature",
+          action: "Sign data",
+          description: "Some exchanges require signing additional data before filling",
           kind: "signature",
+          items: [],
+        },
+        {
+          id: "auth-transaction",
+          action: "On-chain verification",
+          description: "Some marketplaces require triggering an auth transaction before filling",
+          kind: "transaction",
           items: [],
         },
         {
@@ -1290,6 +1633,394 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
       ];
+
+      const fees = {
+        gas: await getJoiPriceObject(
+          {
+            gross: {
+              amount: (await getGasFee()).mul(estimateGasFromTxTags(txTags)).toString(),
+            },
+          },
+          // Gas fees are always paid in the native currency of the chain
+          Sdk.Common.Addresses.Native[config.chainId]
+        ),
+      };
+      if (payload.onlyPath && !useSeaportIntent && !useCrossChainIntent) {
+        return {
+          path,
+          maxQuantities: preview ? maxQuantities : undefined,
+          fees,
+          // TODO: To remove, only kept for backwards-compatibility
+          gasEstimate: estimateGasFromTxTags(txTags),
+        };
+      }
+
+      const txSender = payload.relayer ?? payload.taker;
+
+      // Seaport intent purchasing MVP
+      if (useSeaportIntent) {
+        if (!config.seaportSolverBaseUrl) {
+          throw Boom.badRequest("Intent purchasing not supported");
+        }
+
+        if (listingDetails.length > 1) {
+          throw Boom.badRequest("Only single token intent purchases are supported");
+        }
+
+        const details = listingDetails[0];
+        if (details.currency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          throw Boom.badRequest("Only native token intent purchases are supported");
+        }
+        if (details.contractKind !== "erc721") {
+          throw Boom.badRequest("Only erc721 token intent purchases are supported");
+        }
+
+        const item = path[0];
+
+        const { quote, gasCost } = await axios
+          .post(`${config.seaportSolverBaseUrl}/intents/quote`, {
+            chainId: config.chainId,
+            token: `${details.contract}:${details.tokenId}`,
+            amount: details.amount ?? "1",
+          })
+          .then((response) => ({ quote: response.data.price, gasCost: response.data.gasCost }));
+
+        // TODO: To remove, only kept for backwards-compatibility reasons
+        item.quote = formatPrice(quote);
+        item.rawQuote = quote;
+        item.totalPrice = formatPrice(quote);
+        item.totalRawPrice = quote;
+        item.gasCost = gasCost;
+
+        // Better approach
+        // const c = await getCurrency(Sdk.Common.Addresses.WNative[config.chainId]);
+        // item.buyInCurrency = c.contract;
+        // item.buyInCurrencyChainId = config.chainId;
+        // item.buyInCurrencyDecimals = c.decimals;
+        // item.buyInCurrencySymbol = c.symbol;
+        // item.buyInQuote = formatPrice(quote);
+        // item.buyInRawQuote = quote;
+
+        const fees = {
+          relayer: await getJoiPriceObject(
+            { gross: { amount: gasCost } },
+            Sdk.Common.Addresses.Native[config.chainId],
+            undefined,
+            undefined,
+            config.chainId
+          ),
+        };
+        if (payload.onlyPath) {
+          return {
+            path,
+            maxQuantities: preview ? maxQuantities : undefined,
+            fees,
+          };
+        }
+
+        const order = new Sdk.SeaportV15.Order(config.chainId, {
+          offerer: txSender,
+          zone: AddressZero,
+          offer: [
+            {
+              itemType: Sdk.SeaportBase.Types.ItemType.ERC20,
+              token: Sdk.Common.Addresses.WNative[config.chainId],
+              identifierOrCriteria: "0",
+              startAmount: quote.toString(),
+              endAmount: quote.toString(),
+            },
+          ],
+          consideration: [
+            {
+              itemType: Sdk.SeaportBase.Types.ItemType.ERC721,
+              token: path[0].contract,
+              identifierOrCriteria: path[0].tokenId!,
+              startAmount: "1",
+              endAmount: "1",
+              recipient: payload.taker,
+            },
+            ...((payload.feesOnTop ?? []) as string[])
+              .map((f) => {
+                const [recipient, amount] = f.split(":");
+                return { amount, recipient };
+              })
+              .map(({ amount, recipient }) => ({
+                itemType: Sdk.SeaportBase.Types.ItemType.ERC20,
+                token: Sdk.Common.Addresses.WNative[config.chainId],
+                identifierOrCriteria: "0",
+                startAmount: amount.toString(),
+                endAmount: amount.toString(),
+                recipient,
+              })),
+          ],
+          orderType: Sdk.SeaportBase.Types.OrderType.FULL_OPEN,
+          startTime: Math.floor(Date.now() / 1000),
+          endTime: Math.floor(Date.now() / 1000) + 5 * 60,
+          zoneHash: HashZero,
+          salt: getRandomBytes(20).toString(),
+          conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
+          counter: (
+            await new Sdk.SeaportV15.Exchange(config.chainId).getCounter(
+              baseProvider,
+              payload.taker
+            )
+          ).toString(),
+          totalOriginalConsiderationItems: 1 + (details.fees?.length ?? 0),
+        });
+
+        const customSteps: StepType[] = [
+          {
+            id: "currency-wrapping",
+            action: "Wrapping currency",
+            description:
+              "We'll ask your approval to wrap the currency for making the request. Gas fee required.",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "currency-approval",
+            action: "Approve exchange contract",
+            description: "A one-time setup transaction to enable trading",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "order-signature",
+            action: "Authorize request",
+            description: "A free off-chain signature to create the request",
+            kind: "signature",
+            items: [],
+          },
+        ];
+
+        // Check balance
+        const currency = new Sdk.Common.Helpers.Erc20(
+          baseProvider,
+          Sdk.Common.Addresses.WNative[config.chainId]
+        );
+        const wBalance = await currency.getBalance(order.params.offerer);
+        if (wBalance.lt(quote)) {
+          const balance = await baseProvider.getBalance(order.params.offerer);
+          const needed = bn(quote).sub(wBalance);
+          if (balance.gt(needed)) {
+            customSteps[0].items.push({
+              status: "incomplete",
+              data: new Sdk.Common.Helpers.WNative(baseProvider, config.chainId).depositTransaction(
+                order.params.offerer,
+                needed
+              ),
+            });
+          } else if (!payload.skipBalanceCheck) {
+            throw Boom.badRequest("Insufficient balance");
+          }
+        }
+
+        // Check allowance
+        const operator = new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        );
+        const approvedAmount = await onChainData
+          .fetchAndUpdateFtApproval(currency.contract.address, order.params.offerer, operator)
+          .then((a) => a.value);
+        if (bn(approvedAmount).lt(quote)) {
+          customSteps[1].items.push({
+            status: "incomplete",
+            data: new Sdk.Common.Helpers.Erc20(
+              baseProvider,
+              currency.contract.address
+            ).approveTransaction(order.params.offerer, operator),
+          });
+        }
+
+        customSteps[2].items.push({
+          status: "incomplete",
+          data: {
+            sign: order.getSignatureData(),
+            post: {
+              endpoint: "/execute/solve/v1",
+              method: "POST",
+              body: {
+                kind: "seaport-intent",
+                order: order.params,
+              },
+            },
+          },
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "seaport-intent",
+              id: order.hash(),
+            },
+          },
+        });
+
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
+
+        return {
+          steps: customSteps,
+          path,
+          fees,
+        };
+      }
+
+      // Cross-chain intent purchasing MVP
+      if (useCrossChainIntent) {
+        if (!config.crossChainSolverBaseUrl) {
+          throw Boom.badRequest("Cross-chain purchasing not supported");
+        }
+
+        if (buyInCurrency !== Sdk.Common.Addresses.Native[config.chainId]) {
+          throw Boom.badRequest("Only native currency is supported for cross-chain purchasing");
+        }
+
+        if (path.length > 1) {
+          throw Boom.badRequest("Only single item cross-chain purchases are supported");
+        }
+
+        const item = path[0];
+
+        const data = await getCrossChainQuote();
+        const cost = bn(data.price).add(data.relayerFee);
+
+        // TODO: To remove, only kept for backwards-compatibility reasons
+        item.totalPrice = formatPrice(cost);
+        item.totalRawPrice = cost.toString();
+        item.quote = formatPrice(cost);
+        item.rawQuote = cost.toString();
+        item.gasCost = data.relayerFee.toString();
+
+        // Better approach
+        // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
+        // item.buyInCurrency = c.contract;
+        // item.buyInCurrencyChainId = payload.currencyChainId;
+        // item.buyInCurrencyDecimals = c.decimals;
+        // item.buyInCurrencySymbol = c.symbol;
+        // item.buyInQuote = formatPrice(quote);
+        // item.buyInRawQuote = quote;
+
+        const needsDeposit = bn(data.user.balance).lt(cost);
+        const fees = {
+          gas: needsDeposit
+            ? await getJoiPriceObject(
+                { gross: { amount: data.depositGasFee } },
+                Sdk.Common.Addresses.Native[config.chainId]
+              )
+            : undefined,
+          relayer: await getJoiPriceObject(
+            { gross: { amount: data.relayerFee } },
+            Sdk.Common.Addresses.Native[config.chainId],
+            undefined,
+            undefined,
+            payload.currencyChainId
+          ),
+        };
+
+        if (payload.onlyPath) {
+          return {
+            path,
+            maxQuantities: preview ? maxQuantities : undefined,
+            fees,
+            // TODO: To remove, only kept for backwards-compatibility reasons
+            gasEstimate: needsDeposit ? 21000 : 0,
+          };
+        }
+
+        const customSteps: StepType[] = [
+          {
+            id: "sale",
+            action: "Confirm transaction in your wallet",
+            description: "Deposit funds for purchasing cross-chain",
+            kind: "transaction",
+            items: [],
+          },
+          {
+            id: "order-signature",
+            action: "Authorize cross-chain request",
+            description: "A free off-chain signature to create the request",
+            kind: "signature",
+            items: [],
+          },
+        ];
+
+        if (needsDeposit) {
+          customSteps[0].items.push({
+            status: "incomplete",
+            data: {
+              from: payload.taker,
+              to: data.solver.address,
+              data: data.requestId,
+              value: bn(cost).sub(data.user.balance).toString(),
+              gasLimit: 22000,
+              // `0x1234` or `4660` denotes cross-chain balance spending
+              chainId: payload.currencyChainId === 4660 ? 1 : payload.currencyChainId,
+            },
+            check: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: "cross-chain-intent",
+                id: data.requestId,
+              },
+            },
+          });
+
+          // Trigger to force the solver to start listening to incoming transactions
+          await axios.post(`${config.crossChainSolverBaseUrl}/intents/trigger`, {
+            request: data.request,
+          });
+        } else {
+          customSteps[1].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: data.requestId,
+              },
+              post: {
+                endpoint: "/execute/solve/v1",
+                method: "POST",
+                body: {
+                  kind: "cross-chain-intent",
+                  request: data.request,
+                },
+              },
+            },
+            check: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: "cross-chain-intent",
+                id: data.requestId,
+              },
+            },
+          });
+        }
+
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+        logger.info(
+          `get-execute-buy-${version}-handler`,
+          JSON.stringify({
+            request: payload,
+            apiKey,
+          })
+        );
+
+        return {
+          steps: customSteps.filter((s) => s.items.length),
+          path,
+          fees,
+        };
+      }
 
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
@@ -1352,12 +2083,101 @@ export const getExecuteBuyV7Options: RouteOptions = {
         steps[0].items.push({
           status: "complete",
         });
+
+        // No need to have the hacky fix here since for Blur the next step will always be "sale"
+      }
+
+      // Handle ERC721C authentication
+      const unverifiedERC721CTransferValidators: string[] = [];
+      await Promise.all(
+        listingDetails.map(async (d) => {
+          try {
+            const configV1 = await erc721c.v1.getConfig(d.contract);
+            const configV2 = await erc721c.v2.getConfig(d.contract);
+            if (
+              (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
+              (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
+            ) {
+              const transferValidator = (configV1 ?? configV2)!.transferValidator;
+
+              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
+              if (!isVerified) {
+                unverifiedERC721CTransferValidators.push(transferValidator);
+              }
+            }
+          } catch {
+            // Skip errors
+          }
+        })
+      );
+      if (unverifiedERC721CTransferValidators.length) {
+        const erc721cAuthId = e.getAuthId(payload.taker);
+
+        const erc721cAuth = await e.getAuth(erc721cAuthId);
+        if (!erc721cAuth) {
+          const erc721cAuthChallengeId = e.getAuthChallengeId(payload.taker);
+
+          let erc721cAuthChallenge = await e.getAuthChallenge(erc721cAuthChallengeId);
+          if (!erc721cAuthChallenge) {
+            erc721cAuthChallenge = {
+              message: "EOA",
+              walletAddress: payload.taker,
+            };
+
+            await e.saveAuthChallenge(
+              erc721cAuthChallengeId,
+              erc721cAuthChallenge,
+              // Give a 10 minute buffer for the auth challenge to expire
+              10 * 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: erc721cAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "erc721c",
+                  id: erc721cAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+          });
+
+          // Return early since any next steps are dependent on the ERC721C auth
+          return {
+            steps,
+            path,
+          };
+        }
+
+        steps[0].items.push({
+          status: "complete",
+        });
+        steps[1].items.push({
+          status: "complete",
+          // Hacky fix for: https://github.com/reservoirprotocol/reservoir-kit/pull/391
+          data: {},
+        });
       }
 
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
+        zeroExApiKey: config.zeroExApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
@@ -1375,7 +2195,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           relayer: payload.relayer,
           usePermit: payload.usePermit,
           swapProvider: payload.swapProvider,
-          globalFees,
           blurAuth,
           onError: async (kind, error, data) => {
             errors.push({
@@ -1393,12 +2212,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const { txs, success } = result;
 
       // Add any mint transactions
-      if (mintTxs.length) {
-        let mintsResult = await router.fillMintsTx(mintTxs, payload.taker, {
+      if (mintDetails.length) {
+        if (!result.txs.length) {
+          for (const md of mintDetails) {
+            for (const fee of globalFees) {
+              md.fees.push({
+                recipient: fee.recipient,
+                amount: bn(fee.amount).div(mintDetails.length).toString(),
+              });
+            }
+          }
+        }
+
+        let mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          // The global fees will only be applied to the fills or the mints (but not both)
-          globalFees: result.txs.length ? [] : globalFees,
+          relayer: payload.relayer,
         });
 
         // Minting via a smart contract proxy is complicated.
@@ -1436,7 +2265,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         if (!safeToUse) {
-          mintsResult = await router.fillMintsTx(mintTxs, payload.taker, {
+          if (payload.relayer) {
+            throw Boom.badRequest("Relayer not supported for requested mints");
+          }
+
+          mintsResult = await router.fillMintsTx(mintDetails, payload.taker, {
             source: payload.source,
             forceDirectFilling: true,
           });
@@ -1462,6 +2295,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         throw getExecuteError("No fillable orders");
       }
 
+      // Cannot skip balance checking when filling Blur orders
+      if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
+        payload.skipBalanceCheck = false;
+      }
+
       // Custom gas settings
       const maxFeePerGas = payload.maxFeePerGas
         ? bn(payload.maxFeePerGas).toHexString()
@@ -1470,7 +2308,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, permits, orderIds, preSignatures } of txs) {
+      const permitHandler = new PermitHandler(config.chainId, baseProvider);
+      for (const { txData, approvals, permits, preSignatures } of txs) {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -1483,6 +2322,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
               status: "incomplete",
               data: {
                 ...approval.txData,
+                check: {
+                  endpoint: "/execute/status/v1",
+                  method: "POST",
+                  body: {
+                    kind: "transaction",
+                  },
+                },
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
@@ -1491,24 +2337,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
 
         // Handle permits
-        const permitHandler = new PermitHandler(config.chainId, baseProvider);
         for (const permit of permits) {
-          const id = getPermitId(request.payload as object, {
+          const id = getEphemeralPermitId(request.payload as object, {
             token: permit.data.token,
             amount: permit.data.amount,
           });
 
-          const cachedPermit = await getPermit(id);
+          const cachedPermit = await getEphemeralPermit(id);
           if (cachedPermit) {
             // Override with the cached permit data
             permit.data = cachedPermit.data;
           } else {
             // Cache the permit if it's the first time we encounter it
-            await savePermit(id, permit);
+            await saveEphemeralPermit(id, permit);
           }
 
           // If the permit has a signature attached to it, we can skip it
-          const hasSignature = (permit.data as PermitWithTransfers).signature;
+          const hasSignature = permit.data.signature;
           if (hasSignature) {
             continue;
           }
@@ -1516,7 +2361,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           steps[2].items.push({
             status: "incomplete",
             data: {
-              sign: await permitHandler.getSignatureData(permit.data),
+              sign: await permitHandler.getSignatureData(permit),
               post: {
                 endpoint: "/execute/permit-signature/v1",
                 method: "POST",
@@ -1569,11 +2414,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        // Cannot skip balance checking when filling Blur orders
-        if (payload.skipBalanceCheck && path.some((p) => p.source === "blur.io")) {
-          payload.skipBalanceCheck = false;
-        }
-
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
         if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
@@ -1582,7 +2422,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw getExecuteError("Balance too low to proceed with transaction");
+            throw getExecuteError(
+              "Balance too low to proceed with transaction (use skipBalanceCheck=true to skip balance checking)"
+            );
           }
         } else {
           // Get the price in the buy-in currency via the approval amounts
@@ -1593,25 +2435,61 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
           const balance = await erc20.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-            throw getExecuteError("Balance too low to proceed with transaction");
+            throw getExecuteError(
+              "Balance too low to proceed with transaction (use skipBalanceCheck=true to skip balance checking)"
+            );
           }
         }
+      }
+
+      // Handle on-chain authentication
+      for (const tv of _.uniq(unverifiedERC721CTransferValidators)) {
+        const erc721cAuthId = e.getAuthId(payload.taker);
+        const erc721cAuth = await e.getAuth(erc721cAuthId);
 
         steps[4].items.push({
           status: "incomplete",
+          // Do not return unless all previous steps are completed
+          data:
+            !steps[2].items.length && !steps[3].items.length
+              ? new Sdk.Common.Helpers.Erc721C().generateVerificationTxData(
+                  tv,
+                  payload.taker,
+                  erc721cAuth!.signature
+                )
+              : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
+        });
+      }
+
+      for (const { txData, txTags, orderIds, permits } of txs) {
+        steps[5].items.push({
+          status: "incomplete",
           orderIds,
-          // Do not return the final step unless all previous steps are completed
+          // Do not return unless all previous steps are completed
           data:
             !steps[2].items.length && !steps[3].items.length
               ? {
-                  ...permitHandler.attachToRouterExecution(
-                    txData,
-                    permits.map((p) => p.data)
-                  ),
+                  ...permitHandler.attachToRouterExecution(txData, permits),
                   maxFeePerGas,
                   maxPriorityFeePerGas,
                 }
               : undefined,
+          check: {
+            endpoint: "/execute/status/v1",
+            method: "POST",
+            body: {
+              kind: "transaction",
+            },
+          },
+          // TODO: To remove, only kept for backwards-compatibility
+          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
         });
       }
 
@@ -1619,18 +2497,38 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (buyInCurrency === Sdk.Common.Addresses.Native[config.chainId]) {
+
+      // We only filter the "currency-approval" step when there are no
+      // auth transactions to be made otherwise due to how clients are
+      // setup they might run into errors
+      if (
+        buyInCurrency === Sdk.Common.Addresses.Native[config.chainId] &&
+        !unverifiedERC721CTransferValidators.length
+      ) {
         // Buying in ETH will never require an approval
-        steps = [steps[0], ...steps.slice(2)];
+        steps = steps.filter((s) => s.id !== "currency-approval");
       }
-      if (!blurAuth) {
+      if (!payload.usePermit) {
+        // Permits are only used when explicitly requested
+        steps = steps.filter((s) => s.id !== "currency-permit");
+      }
+      if (!blurAuth && !unverifiedERC721CTransferValidators.length) {
         // If we reached this point and the Blur auth is missing then we
         // can be sure that no Blur orders were requested and it is safe
-        // to remove the auth step
-        steps = steps.slice(1);
+        // to remove the auth step - we also handle other authentication
+        // methods (eg. ERC721C)
+        steps = steps.filter((s) => s.id !== "auth");
+      }
+      if (!unverifiedERC721CTransferValidators.length) {
+        // For now only ERC721C uses the auth transaction step
+        steps = steps.filter((s) => s.id !== "auth-transaction");
+      }
+      if (!listingDetails.some((d) => d.kind === "payment-processor")) {
+        // For now, pre-signatures are only needed for `payment-processor` orders
+        steps = steps.filter((s) => s.id !== "pre-signatures");
       }
 
-      if (steps.find((s) => s.id === "currency-permit")!.items.length) {
+      if (steps.find((s) => s.id === "currency-permit")?.items.length) {
         // Return early since any next steps are dependent on the permits
         return {
           steps,
@@ -1663,21 +2561,40 @@ export const getExecuteBuyV7Options: RouteOptions = {
         })
       );
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.info(
+        `get-execute-buy-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          apiKey,
+        })
+      );
+
       return {
         requestId,
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         path,
+        fees,
       };
     } catch (error) {
-      if (!(error instanceof Boom.Boom)) {
-        logger.error(
-          `get-execute-buy-${version}-handler`,
-          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-            payload
-          )})`
-        );
-      }
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+      logger.error(
+        `get-execute-buy-${version}-handler`,
+        JSON.stringify({
+          request: payload,
+          uuid: randomUUID(),
+          httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
+          error:
+            error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          stack: (error as any).stack,
+          apiKey,
+        })
+      );
+
       throw error;
     }
   },

@@ -1,7 +1,8 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
+import { BigNumberish } from "@ethersproject/bignumber";
 import { splitSignature } from "@ethersproject/bytes";
-import { HashZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { verifyTypedData } from "@ethersproject/wallet";
@@ -126,6 +127,45 @@ export class Order {
     };
   }
 
+  public getSweepMatchedOrder(orders: Order[]): Types.SweepMatchedOrder {
+    const matchedOrderBundleBase: Types.MatchedOrderBundleBase = {
+      protocol: this.params.protocol,
+      paymentCoin: this.params.coin,
+      tokenAddress: this.params.tokenAddress,
+      privateBuyer: AddressZero,
+      buyer: this.params.sellerOrBuyer,
+      delegatedPurchaser: AddressZero,
+      marketplace: this.params.marketplace,
+      marketplaceFeeNumerator: this.params.marketplaceFeeNumerator,
+      offerNonce: this.params.nonce,
+      offerPrice: this.params.price,
+      offerExpiration: this.params.expiration,
+    };
+
+    return {
+      bundleDetails: matchedOrderBundleBase,
+      signedOffer: {
+        r: this.params.r!,
+        s: this.params.s!,
+        v: this.params.v!,
+      },
+      signedListings: orders.map((c) => ({
+        r: c.params.r!,
+        s: c.params.s!,
+        v: c.params.v!,
+      })),
+      bundleItems: orders.map((c) => ({
+        tokenId: c.params.tokenId!,
+        amount: c.params.amount,
+        maxRoyaltyFeeNumerator: c.params.maxRoyaltyFeeNumerator,
+        itemPrice: c.params.price,
+        listingNonce: c.params.nonce,
+        listingExpiration: c.params.expiration,
+        seller: c.params.sellerOrBuyer,
+      })),
+    };
+  }
+
   public checkSignature() {
     const signature = {
       r: this.params.r!,
@@ -134,9 +174,9 @@ export class Order {
     };
 
     const [types, value] = this.getEip712TypesAndValue();
-    const recoverSinger = verifyTypedData(EIP712_DOMAIN(this.chainId), types, value, signature);
+    const recoveredSigner = verifyTypedData(EIP712_DOMAIN(this.chainId), types, value, signature);
 
-    if (lc(this.params.sellerOrBuyer) !== lc(recoverSinger)) {
+    if (lc(this.params.sellerOrBuyer) !== lc(recoveredSigner)) {
       throw new Error("Invalid listing signature");
     }
   }
@@ -261,7 +301,59 @@ export class Order {
         coin: this.params.coin,
       };
       return [EIP712_COLLECTION_OFFER_APPROVAL_TYPES, collectionOffer, "CollectionOfferApproval"];
+    } else if (this.params.kind === "bundled-offer-approval") {
+      const bundleOffer: Types.BundledOfferApproval = {
+        protocol: this.params.protocol,
+        marketplace: this.params.marketplace,
+        marketplaceFeeNumerator: this.params.marketplaceFeeNumerator,
+        delegatedPurchaser: AddressZero,
+        buyer: this.params.sellerOrBuyer,
+        tokenAddress: this.params.tokenAddress,
+        price: this.params.price,
+        expiration: this.params.expiration,
+        nonce: this.params.nonce,
+        masterNonce: this.params.masterNonce,
+        coin: this.params.coin,
+        tokenIds: this.params.tokenIds!,
+        amounts: this.params.amounts!,
+        itemSalePrices: this.params.itemSalePrices!,
+      };
+      return [EIP712_BUNDLED_OFFER_APPROVAL_TYPES, bundleOffer, "BundledOfferApproval"];
     }
+  }
+
+  static createBundledOfferOrder(
+    orders: Order[],
+    options: {
+      taker: string;
+      takerMasterNonce: BigNumberish;
+      maxRoyaltyFeeNumerator?: BigNumberish;
+    }
+  ) {
+    const order = orders[0];
+    const orderParams = order.params;
+    return new Order(order.chainId, {
+      kind: "bundled-offer-approval",
+      protocol: orderParams.protocol,
+      collectionLevelOffer: false,
+      sellerAcceptedOffer: false,
+      marketplace: orderParams.marketplace,
+      marketplaceFeeNumerator: orderParams.marketplaceFeeNumerator,
+      maxRoyaltyFeeNumerator: options?.maxRoyaltyFeeNumerator?.toString() ?? "0",
+      privateBuyerOrDelegatedPurchaser: AddressZero,
+      sellerOrBuyer: options.taker,
+      tokenAddress: orderParams.tokenAddress,
+      amount: orderParams.amount,
+      price: orders.reduce((all, order) => all.add(order.params.price), bn(0)).toString(),
+      expiration: orderParams.expiration,
+      nonce: orderParams.nonce,
+      coin: orderParams.coin,
+      masterNonce: s(options.takerMasterNonce),
+
+      tokenIds: orders.map((c) => c.params.tokenId!),
+      amounts: orders.map((c) => c.params.amount),
+      itemSalePrices: orders.map((c) => c.params.price),
+    });
   }
 
   private getBuilder(): BaseBuilder {
@@ -342,6 +434,25 @@ export const EIP712_COLLECTION_OFFER_APPROVAL_TYPES = {
   ],
 };
 
+export const EIP712_BUNDLED_OFFER_APPROVAL_TYPES = {
+  BundledOfferApproval: [
+    { name: "protocol", type: "uint8" },
+    { name: "marketplace", type: "address" },
+    { name: "marketplaceFeeNumerator", type: "uint256" },
+    { name: "delegatedPurchaser", type: "address" },
+    { name: "buyer", type: "address" },
+    { name: "tokenAddress", type: "address" },
+    { name: "price", type: "uint256" },
+    { name: "expiration", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "masterNonce", type: "uint256" },
+    { name: "coin", type: "address" },
+    { name: "tokenIds", type: "uint256[]" },
+    { name: "amounts", type: "uint256[]" },
+    { name: "itemSalePrices", type: "uint256[]" },
+  ],
+};
+
 export const EIP712_DOMAIN = (chainId: number) => ({
   name: "PaymentProcessor",
   version: "1",
@@ -377,6 +488,10 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
       order.maxRoyaltyFeeNumerator !== undefined ? s(order.maxRoyaltyFeeNumerator) : undefined,
 
     collectionLevelOffer: order.collectionLevelOffer ?? undefined,
+
+    tokenIds: order.tokenIds ? order.tokenIds.map((c) => s(c)) : undefined,
+    amounts: order.amounts ? order.amounts.map((c) => s(c)) : undefined,
+    itemSalePrices: order.itemSalePrices ? order.itemSalePrices.map((c) => s(c)) : undefined,
 
     v: order.v ?? 0,
     r: order.r ?? HashZero,

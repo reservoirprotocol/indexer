@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 
 export const postTriggerJobOptions: RouteOptions = {
-  description: "Trigger re-syncing of specific source domain",
+  description: "Trigger bullmq job",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({

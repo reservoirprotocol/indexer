@@ -48,6 +48,7 @@ if (config.doBackgroundWork) {
           FROM nft_transfer_events
           WHERE nft_transfer_events.block < $/endBlock/
             AND nft_transfer_events.block >= $/startBlock/
+            AND nft_transfer_events.is_deleted = 0
           ORDER BY nft_transfer_events.block DESC
         `,
         {

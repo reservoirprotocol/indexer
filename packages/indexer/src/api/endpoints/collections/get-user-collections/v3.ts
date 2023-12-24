@@ -7,9 +7,9 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
@@ -55,6 +55,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
       includeLiquidCount: Joi.boolean()
         .default(false)
         .description("If true, number of tokens with bids will be returned in the response."),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -70,7 +73,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Input any ERC20 address to return result in given currency."),
+        .description(
+          "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
+        ),
     }),
   },
   response: {
@@ -82,12 +87,15 @@ export const getUserCollectionsV3Options: RouteOptions = {
             slug: Joi.string().allow("", null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            isSpam: Joi.boolean().default(false),
             banner: Joi.string().allow("", null),
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
             twitterUsername: Joi.string().allow("", null),
+            twitterUrl: Joi.string().allow("", null),
             openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
+            metadataDisabled: Joi.boolean().default(false),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string().description("Total token count"),
             tokenSetId: Joi.string().allow(null),
@@ -120,7 +128,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
             }).description(
-              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14]). A value over 1 is a positive gain, under 1 is a negative loss. e.g. 1 means no change; 1.1 means 10% increase; 0.9 means 10% decrease."
             ),
             floorSale: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
@@ -181,7 +189,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 15000
+            LIMIT 50000
         ),
         token_images AS (
             SELECT tokens.collection_id, tokens.image,
@@ -200,15 +208,19 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 collections.slug,
                 collections.name,
                 (collections.metadata ->> 'imageUrl')::TEXT AS "image",
+                collections.image_version AS "image_version",
                 (collections.metadata ->> 'bannerImageUrl')::TEXT AS "banner",
                 (collections.metadata ->> 'discordUrl')::TEXT AS "discord_url",
                 (collections.metadata ->> 'description')::TEXT AS "description",
                 (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
                 (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+                (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
                 (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
+                collections.is_spam, 
                 collections.token_count,
+                collections.metadata_disabled,
                 filtered_token_images.images AS sample_images,
                 collections.day1_volume,
                 collections.day7_volume,
@@ -259,6 +271,10 @@ export const getUserCollectionsV3Options: RouteOptions = {
 
       if (query.collection) {
         conditions.push(`collections.id = $/collection/`);
+      }
+
+      if (query.excludeSpam) {
+        conditions.push(`(collections.is_spam IS NULL OR collections.is_spam <= 0)`);
       }
 
       if (conditions.length) {
@@ -313,59 +329,67 @@ export const getUserCollectionsV3Options: RouteOptions = {
 
       const collections = _.map(result, async (r) => {
         const response = {
-          collection: {
-            id: r.id,
-            slug: r.slug,
-            name: r.name,
-            image:
-              Assets.getLocalAssetsLink(r.image) ||
-              (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
-            banner: r.banner,
-            discordUrl: r.discord_url,
-            externalUrl: r.external_url,
-            twitterUsername: r.twitter_username,
-            openseaVerificationStatus: r.opensea_verification_status,
-            description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
-            tokenCount: String(r.token_count),
-            primaryContract: fromBuffer(r.contract),
-            tokenSetId: r.token_set_id,
-            floorAskPrice: r.floor_sell_value
-              ? await getJoiPriceObject(
-                  {
-                    gross: {
-                      amount: String(r.floor_sell_currency_price ?? r.floor_sell_value),
-                      nativeAmount: String(r.floor_sell_value),
+          collection: getJoiCollectionObject(
+            {
+              id: r.id,
+              slug: r.slug,
+              name: r.name,
+              image:
+                Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version) ||
+                (r.sample_images?.length
+                  ? Assets.getResizedImageUrl(r.sample_images[0], ImageSize.small, r.image_version)
+                  : null),
+              isSpam: Number(r.is_spam) > 0,
+              banner: Assets.getResizedImageUrl(r.banner),
+              twitterUrl: r.twitter_url,
+              discordUrl: r.discord_url,
+              externalUrl: r.external_url,
+              twitterUsername: r.twitter_username,
+              openseaVerificationStatus: r.opensea_verification_status,
+              description: r.description,
+              metadataDisabled: Boolean(Number(r.metadata_disabled)),
+              sampleImages: Assets.getResizedImageURLs(r.sample_images) || [],
+              tokenCount: String(r.token_count),
+              primaryContract: fromBuffer(r.contract),
+              tokenSetId: r.token_set_id,
+              floorAskPrice: r.floor_sell_value
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount: String(r.floor_sell_currency_price ?? r.floor_sell_value),
+                        nativeAmount: String(r.floor_sell_value),
+                      },
                     },
-                  },
-                  fromBuffer(r.floor_sell_currency),
-                  query.displayCurrency
-                )
-              : undefined,
-            rank: {
-              "1day": r.day1_rank,
-              "7day": r.day7_rank,
-              "30day": r.day30_rank,
-              allTime: r.all_time_rank,
+                    fromBuffer(r.floor_sell_currency),
+                    query.displayCurrency
+                  )
+                : undefined,
+              rank: {
+                "1day": r.day1_rank,
+                "7day": r.day7_rank,
+                "30day": r.day30_rank,
+                allTime: r.all_time_rank,
+              },
+              volume: {
+                "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
+                "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
+                "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
+                allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
+              },
+              volumeChange: {
+                "1day": r.day1_volume_change,
+                "7day": r.day7_volume_change,
+                "30day": r.day30_volume_change,
+              },
+              floorSale: {
+                "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
+                "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
+                "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
+              },
+              contractKind: r.contract_kind,
             },
-            volume: {
-              "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-            },
-            volumeChange: {
-              "1day": r.day1_volume_change,
-              "7day": r.day7_volume_change,
-              "30day": r.day30_volume_change,
-            },
-            floorSale: {
-              "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-              "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-              "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-            },
-            contractKind: r.contract_kind,
-          },
+            r.metadata_disabled
+          ),
           ownership: {
             tokenCount: String(r.owner_token_count),
             onSaleCount: String(r.owner_on_sale_count),

@@ -6,7 +6,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -22,7 +22,7 @@ type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "cancel" | "reprice";
+  triggerKind?: "new-order" | "reprice" | "revalidation";
 };
 
 // Listings (partial)
@@ -34,6 +34,8 @@ type PartialListingOrderParams = {
   // If empty then no Blur listing is available anymore
   price?: string;
   createdAt?: string;
+  // Additional metadata
+  fromWebsocket?: boolean;
 };
 
 export type PartialListingOrderInfo = {
@@ -63,6 +65,10 @@ export const savePartialListings = async (
 
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
     try {
+      if (!orderParams.collection.match(regex.address)) {
+        return;
+      }
+
       // Fetch current owner
       const owner = await idb
         .oneOrNone(
@@ -98,12 +104,45 @@ export const savePartialListings = async (
       const sources = await Sources.getInstance();
       const source = await sources.getOrInsert("blur.io");
 
+      const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+        Sdk.BlurV2.Addresses.Delegate[config.chainId],
+      ]);
+      if (isFiltered) {
+        // Force remove any orders
+        orderParams.price = undefined;
+      }
+
+      // Check if there is any transfer after the order's `createdAt`.
+      // If yes, then we treat the order as an `invalidation` message.
+      if (orderParams.createdAt) {
+        const existsNewerTransfer = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM nft_transfer_events
+            WHERE address = $/contract/
+              AND token_id = $/tokenId/
+              AND timestamp > $/createdAt/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(orderParams.collection),
+            tokenId: orderParams.tokenId,
+            createdAt: Math.floor(new Date(orderParams.createdAt).getTime() / 1000),
+          }
+        );
+        if (existsNewerTransfer) {
+          // Force remove any older orders
+          orderParams.price = undefined;
+        }
+      }
+
       // Invalidate any old orders
       const anyActiveOrders = orderParams.price;
       const invalidatedOrderIds = await idb.manyOrNone(
         `
           UPDATE orders SET
-            fillability_status = 'cancelled',
+            approval_status = 'disabled',
             expiration = now(),
             updated_at = now()
           WHERE orders.token_set_id = $/tokenSetId/
@@ -129,7 +168,7 @@ export const savePartialListings = async (
         results.push({
           id,
           status: "success",
-          triggerKind: "cancel",
+          triggerKind: "revalidation",
         });
       }
 
@@ -142,6 +181,12 @@ export const savePartialListings = async (
       }
 
       const id = getBlurListingId(orderParams, owner);
+      if (isFiltered) {
+        return results.push({
+          id,
+          status: "filtered",
+        });
+      }
 
       // Handle: royalties
       let feeBps = 0;
@@ -205,7 +250,7 @@ export const savePartialListings = async (
           approval_status: "approved",
           token_set_id: tokenSetId,
           token_set_schema_hash: toBuffer(schemaHash),
-          maker: toBuffer(owner),
+          maker: toBuffer((orderParams.owner ?? owner).toLowerCase()),
           taker: toBuffer(AddressZero),
           price: price.toString(),
           value: price.toString(),
@@ -236,12 +281,17 @@ export const savePartialListings = async (
           status: "success",
           triggerKind: "new-order",
         });
+
+        if (!orderParams.fromWebsocket) {
+          logger.info("blur-debug", JSON.stringify(orderParams));
+        }
       } else {
         // Order already exists
         const wasUpdated = await idb.oneOrNone(
           `
             UPDATE orders SET
               fillability_status = 'fillable',
+              approval_status = 'approved',
               price = $/price/,
               currency_price = $/price/,
               value = $/price/,
@@ -252,8 +302,8 @@ export const savePartialListings = async (
               updated_at = now(),
               raw_data = $/rawData:json/
             WHERE orders.id = $/id/
-              AND orders.fillability_status != 'fillable'
-              AND orders.approval_status = 'approved'
+              AND (orders.fillability_status != 'fillable' OR orders.approval_status != 'approved')
+              AND (orders.fillability_status != 'cancelled' OR orders.approval_status != 'disabled')
             RETURNING orders.id
           `,
           {
@@ -266,7 +316,7 @@ export const savePartialListings = async (
           results.push({
             id,
             status: "success",
-            triggerKind: "reprice",
+            triggerKind: "revalidation",
           });
         }
       }
@@ -360,13 +410,17 @@ export const savePartialBids = async (
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams, fullUpdate }: PartialBidOrderInfo) => {
+    if (!orderParams.collection.match(regex.address)) {
+      return;
+    }
+
     if (!fullUpdate && !orderParams.pricePoints.length) {
       return;
     }
 
     const id = getBlurBidId(orderParams.collection);
     const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
-      Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
+      Sdk.BlurV2.Addresses.Delegate[config.chainId],
     ]);
 
     try {
@@ -485,6 +539,7 @@ export const savePartialBids = async (
       } else {
         const currentBid = orderResult.raw_data as Sdk.Blur.Types.BlurBidPool;
         const bidUpdates = orderParams;
+        let skipSaveResult = false;
 
         if (currentBid.collection !== bidUpdates.collection) {
           return results.push({
@@ -587,12 +642,15 @@ export const savePartialBids = async (
             .map((p) => p.executableSize)
             .reduce((a, b) => a + b, 0);
 
-          await idb.none(
+          const { rowCount } = await idb.result(
             `
               UPDATE orders SET
                 fillability_status = 'fillable',
                 price = $/price/,
                 currency_price = $/price/,
+                normalized_value = null,
+                currency_normalized_value = null,
+                missing_royalties = null,
                 value = $/value/,
                 currency_value = $/value/,
                 quantity_remaining = $/totalQuantity/,
@@ -601,6 +659,15 @@ export const savePartialBids = async (
                 updated_at = now(),
                 raw_data = $/rawData:json/
               WHERE orders.id = $/id/
+              AND (
+                fillability_status != 'fillable'
+                OR price IS DISTINCT FROM $/price/ 
+                OR currency_price IS DISTINCT FROM $/price/
+                OR value IS DISTINCT FROM $/value/
+                OR currency_value IS DISTINCT FROM $/value/
+                OR quantity_remaining IS DISTINCT FROM $/totalQuantity/
+                OR raw_data IS DISTINCT FROM $/rawData:json/
+              )
             `,
             {
               id,
@@ -610,13 +677,19 @@ export const savePartialBids = async (
               rawData: currentBid,
             }
           );
+
+          skipSaveResult = rowCount === 0;
         }
 
-        results.push({
-          id,
-          status: "success",
-          triggerKind: "reprice",
-        });
+        if (skipSaveResult) {
+          // logger.info("orders-blur-save", `Skip reprice event. ${JSON.stringify(orderParams)}`);
+        } else {
+          results.push({
+            id,
+            status: "success",
+            triggerKind: "reprice",
+          });
+        }
       }
     } catch (error) {
       logger.error(

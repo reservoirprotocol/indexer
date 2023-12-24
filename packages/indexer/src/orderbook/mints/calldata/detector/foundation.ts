@@ -1,6 +1,6 @@
 import { Interface, Result } from "@ethersproject/abi";
 import { hexZeroPad } from "@ethersproject/bytes";
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/keccak256";
 import { keccak256 as solidityKeccak256 } from "@ethersproject/solidity";
@@ -22,7 +22,12 @@ import {
   allowlistExists,
   createAllowlist,
 } from "@/orderbook/mints/allowlists";
-import { fetchMetadata, getStatus, toSafeTimestamp } from "@/orderbook/mints/calldata/helpers";
+import {
+  fetchMetadata,
+  getStatus,
+  toSafeNumber,
+  toSafeTimestamp,
+} from "@/orderbook/mints/calldata/helpers";
 
 const STANDARD = "foundation";
 
@@ -74,7 +79,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       contract: collection,
       stage: "public-sale",
       kind: "public",
-      status: "open",
+      status: result.marketCanMint ? "open" : "closed",
       standard: STANDARD,
       details: {
         tx: {
@@ -92,9 +97,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                 abiType: "uint256",
               },
               {
-                kind: "unknown",
+                kind: "referrer",
                 abiType: "address",
-                abiValue: AddressZero,
               },
             ],
           },
@@ -102,12 +106,9 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
       },
       currency: Sdk.Common.Addresses.Native[config.chainId],
       price: editionConfig.price,
-      maxMintsPerWallet: editionConfig.limitPerAccount,
-      maxSupply: editionConfig.numberOfTokensAvailableToMint,
-      startTime:
-        editionConfig.generalAvailabilityStartTime != "0"
-          ? toSafeTimestamp(editionConfig.generalAvailabilityStartTime)
-          : undefined,
+      maxMintsPerWallet: toSafeNumber(editionConfig.limitPerAccount),
+      maxSupply: toSafeNumber(editionConfig.numberOfTokensAvailableToMint),
+      startTime: toSafeTimestamp(editionConfig.generalAvailabilityStartTime),
     });
 
     // Allowlist mint
@@ -157,9 +158,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
                       abiType: "uint256",
                     },
                     {
-                      kind: "unknown",
+                      kind: "referrer",
                       abiType: "address",
-                      abiValue: AddressZero,
                     },
                     {
                       kind: "allowlist",
@@ -171,12 +171,9 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
             },
             currency: Sdk.Common.Addresses.Native[config.chainId],
             price: editionConfig.price,
-            maxMintsPerWallet: editionConfig.limitPerAccount,
-            maxSupply: editionConfig.numberOfTokensAvailableToMint,
-            startTime:
-              editionConfig.earlyAccessStartTime != "0"
-                ? toSafeTimestamp(editionConfig.earlyAccessStartTime)
-                : undefined,
+            maxMintsPerWallet: toSafeNumber(editionConfig.limitPerAccount),
+            maxSupply: toSafeNumber(editionConfig.numberOfTokensAvailableToMint),
+            startTime: toSafeTimestamp(editionConfig.earlyAccessStartTime),
             allowlistId: merkleRoot,
           });
         }

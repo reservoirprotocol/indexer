@@ -1,0 +1,392 @@
+[
+  {
+    "inputs": [
+      { "internalType": "contract LpNft", "name": "lpNft_", "type": "address" },
+      { "internalType": "address", "name": "feeProtocolRecipient_", "type": "address" },
+      { "internalType": "uint96", "name": "feeProtocol_", "type": "uint96" },
+      { "internalType": "address[]", "name": "poolTemplates_", "type": "address[]" },
+      {
+        "internalType": "contract IPoolManager[]",
+        "name": "poolManagerTemplates_",
+        "type": "address[]"
+      },
+      {
+        "internalType": "contract IPermitter[]",
+        "name": "permitterTemplates_",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  { "inputs": [], "name": "DittoPoolFactoryInvalidProtocolFee", "type": "error" },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "templateIndex", "type": "uint256" }],
+    "name": "DittoPoolFactoryInvalidTemplateIndex",
+    "type": "error"
+  },
+  { "inputs": [], "name": "ERC1167FailedCreateClone", "type": "error" },
+  { "inputs": [], "name": "OwnerTwoStepNotOwner", "type": "error" },
+  { "inputs": [], "name": "OwnerTwoStepNotPendingOwner", "type": "error" },
+  { "inputs": [], "name": "ReentrancyGuardReentrantCall", "type": "error" },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "permitterTemplate",
+        "type": "address"
+      }
+    ],
+    "name": "DittoPoolFactoryAdminAddedPermitterTemplate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "poolManagerTemplate",
+        "type": "address"
+      }
+    ],
+    "name": "DittoPoolFactoryAdminAddedPoolManagerTemplate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "poolTemplate", "type": "address" }
+    ],
+    "name": "DittoPoolFactoryAdminAddedPoolTemplate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "router", "type": "address" }
+    ],
+    "name": "DittoPoolFactoryAdminAddedRouter",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "protocolFeeMultiplier",
+        "type": "uint96"
+      }
+    ],
+    "name": "DittoPoolFactoryAdminSetProtocolFeeMultiplier",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "protocolFeeRecipient",
+        "type": "address"
+      }
+    ],
+    "name": "DittoPoolFactoryAdminSetProtocolFeeRecipient",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{ "indexed": false, "internalType": "address", "name": "lpNft", "type": "address" }],
+    "name": "DittoPoolFactoryAdminUpdatedLpNft",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "components": [
+          { "internalType": "bool", "name": "isPrivatePool", "type": "bool" },
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "address", "name": "token", "type": "address" },
+          { "internalType": "address", "name": "nft", "type": "address" },
+          { "internalType": "uint96", "name": "feeLp", "type": "uint96" },
+          { "internalType": "address", "name": "owner", "type": "address" },
+          { "internalType": "uint96", "name": "feeAdmin", "type": "uint96" },
+          { "internalType": "uint128", "name": "delta", "type": "uint128" },
+          { "internalType": "uint128", "name": "basePrice", "type": "uint128" },
+          { "internalType": "uint256[]", "name": "nftIdList", "type": "uint256[]" },
+          { "internalType": "uint256", "name": "initialTokenBalance", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" },
+          { "internalType": "bytes", "name": "referrer", "type": "bytes" }
+        ],
+        "indexed": false,
+        "internalType": "struct PoolTemplate",
+        "name": "poolTemplate",
+        "type": "tuple"
+      },
+      { "indexed": false, "internalType": "address", "name": "dittoPool", "type": "address" },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" }
+        ],
+        "indexed": false,
+        "internalType": "struct PoolManagerTemplate",
+        "name": "poolManagerTemplate",
+        "type": "tuple"
+      },
+      { "indexed": false, "internalType": "address", "name": "poolManager", "type": "address" },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" },
+          { "internalType": "bytes", "name": "liquidityDepositPermissionData", "type": "bytes" }
+        ],
+        "indexed": false,
+        "internalType": "struct PermitterTemplate",
+        "name": "permitterTemplate",
+        "type": "tuple"
+      },
+      { "indexed": false, "internalType": "address", "name": "permitter", "type": "address" },
+      { "indexed": false, "internalType": "bytes", "name": "permitterInitData", "type": "bytes" }
+    ],
+    "name": "DittoPoolFactoryDittoPoolCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "previousOwner", "type": "address" }
+    ],
+    "name": "OwnerTwoStepOwnerRenouncedOwnership",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "currentOwner", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "newPendingOwner", "type": "address" }
+    ],
+    "name": "OwnerTwoStepOwnerStartedTransfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "previousOwner", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "newOwner", "type": "address" }
+    ],
+    "name": "OwnerTwoStepOwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "newOwner", "type": "address" }
+    ],
+    "name": "OwnerTwoStepPendingOwnerAcceptedTransfer",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "acceptOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IPermitter[]",
+        "name": "permitterTemplates_",
+        "type": "address[]"
+      }
+    ],
+    "name": "addPermitterTemplates",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IPoolManager[]",
+        "name": "poolManagerTemplates_",
+        "type": "address[]"
+      }
+    ],
+    "name": "addPoolManagerTemplates",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address[]", "name": "poolTemplates_", "type": "address[]" }],
+    "name": "addPoolTemplates",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "contract IDittoRouter[]", "name": "routers_", "type": "address[]" }
+    ],
+    "name": "addRouters",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          { "internalType": "bool", "name": "isPrivatePool", "type": "bool" },
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "address", "name": "token", "type": "address" },
+          { "internalType": "address", "name": "nft", "type": "address" },
+          { "internalType": "uint96", "name": "feeLp", "type": "uint96" },
+          { "internalType": "address", "name": "owner", "type": "address" },
+          { "internalType": "uint96", "name": "feeAdmin", "type": "uint96" },
+          { "internalType": "uint128", "name": "delta", "type": "uint128" },
+          { "internalType": "uint128", "name": "basePrice", "type": "uint128" },
+          { "internalType": "uint256[]", "name": "nftIdList", "type": "uint256[]" },
+          { "internalType": "uint256", "name": "initialTokenBalance", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" },
+          { "internalType": "bytes", "name": "referrer", "type": "bytes" }
+        ],
+        "internalType": "struct PoolTemplate",
+        "name": "poolTemplate_",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" }
+        ],
+        "internalType": "struct PoolManagerTemplate",
+        "name": "poolManagerTemplate_",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "templateIndex", "type": "uint256" },
+          { "internalType": "bytes", "name": "templateInitData", "type": "bytes" },
+          { "internalType": "bytes", "name": "liquidityDepositPermissionData", "type": "bytes" }
+        ],
+        "internalType": "struct PermitterTemplate",
+        "name": "permitterTemplate_",
+        "type": "tuple"
+      }
+    ],
+    "name": "createDittoPool",
+    "outputs": [
+      { "internalType": "contract IDittoPool", "name": "dittoPool", "type": "address" },
+      { "internalType": "uint256", "name": "lpId", "type": "uint256" },
+      { "internalType": "contract IPoolManager", "name": "poolManager", "type": "address" },
+      { "internalType": "contract IPermitter", "name": "permitter", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getProtocolFee",
+    "outputs": [{ "internalType": "uint96", "name": "", "type": "uint96" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "router_", "type": "address" }],
+    "name": "isWhitelistedRouter",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lpNft",
+    "outputs": [{ "internalType": "contract LpNft", "name": "lpNft_", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pendingOwner",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "permitterTemplates",
+    "outputs": [{ "internalType": "contract IPermitter[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "poolManagerTemplates",
+    "outputs": [{ "internalType": "contract IPoolManager[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "poolTemplates",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "protocolFeeRecipient",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "contract LpNft", "name": "lpNft_", "type": "address" }],
+    "name": "setLpNft",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint96", "name": "feeProtocol_", "type": "uint96" }],
+    "name": "setProtocolFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "feeProtocolRecipient_", "type": "address" }],
+    "name": "setProtocolFeeRecipient",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "newPendingOwner_", "type": "address" }],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
