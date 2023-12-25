@@ -52,6 +52,7 @@ import * as titlesxyz from "@/events-sync/data/titlesxyz";
 import * as artblocks from "@/events-sync/data/artblocks";
 import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
+import * as mooar from "@/events-sync/data/mooar";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -105,6 +106,8 @@ export type EventKind =
   | "titlesxyz"
   | "artblocks"
   | "erc721c-v2"
+  | "ditto"
+  | "mooar"
   | "titlesxyz"
   | "ditto"
   | "highlightxyz";
@@ -330,6 +333,7 @@ export type EventSubKind =
   | "erc721c-v2-removed-code-hash-from-list"
   | "erc721c-v2-applied-list-to-collection"
   | "ditto-pool-initialized"
+  | "mooar-order-filled"
   | "highlightxyz-edition-vector-created"
   | "highlightxyz-series-vector-created"
   | "highlightxyz-vector-updated"
@@ -572,6 +576,7 @@ const allEventData = [
   highlightxyz.mechanicVectorRegistered,
   highlightxyz.mechanicVectorUpdated,
   ditto.dittoPoolInitialized,
+  mooar.orderFulfilled,
 ];
 
 export const getEventData = (events?: string[]) => {

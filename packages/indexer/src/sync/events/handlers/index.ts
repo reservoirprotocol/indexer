@@ -54,6 +54,7 @@ import * as titlesxyz from "@/events-sync/handlers/titlesxyz";
 import * as artblocks from "@/events-sync/handlers/artblocks";
 import * as highlightxyz from "@/events-sync/handlers/highlightxyz";
 import * as ditto from "@/events-sync/handlers/ditto";
+import * as mooar from "@/events-sync/handlers/mooar";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -119,6 +120,7 @@ export const eventKindToHandler = new Map<
   ["erc721c-v2", (e) => erc721cV2.handleEvents(e)],
   ["titlesxyz", (e, d) => titlesxyz.handleEvents(e, d)],
   ["artblocks", (e, d) => artblocks.handleEvents(e, d)],
+  ["mooar", (e, d) => mooar.handleEvents(e, d)],
   ["highlightxyz", (e, d) => highlightxyz.handleEvents(e, d)],
 ]);
 

@@ -281,6 +281,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("ditto") ?? [],
       },
       {
+        kind: "mooar",
+        data: kindToEvents.get("mooar") ?? [],
+      },
+      {
         kind: "highlightxyz",
         data: kindToEvents.get("highlightxyz") ?? [],
       },
