@@ -191,6 +191,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "mooar":
+        return sources.getOrInsert("mooar.com");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
