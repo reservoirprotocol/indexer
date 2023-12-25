@@ -30,7 +30,6 @@ const main = async () => {
     Sdk.RouterV6.Addresses.ApprovalProxy[chainId] = approvalProxy;
   }
 
-  // use ours
   // 3. Deploy the conduit and grant access for the approval proxy
   await trigger.Router.SeaportConduit(chainId);
 

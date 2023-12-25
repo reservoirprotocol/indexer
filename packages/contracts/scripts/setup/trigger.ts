@@ -10,6 +10,7 @@ import { ethers } from "hardhat";
 
 import { DeploymentHelper } from "./deployment-helper";
 
+// x1-testnet xuxiangqian
 // export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
 // deployer address for zkfair-testnet
 export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
