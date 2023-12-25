@@ -33,8 +33,10 @@ export class DeploymentHelper {
 
     // Default: https://github.com/lifinance/create3-factory
     // let create3FactoryAddress = "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
-    // 自己部署的create3 on chain: zkfair-testnet
-    let create3FactoryAddress = "0x2bfcE1e2bfc5C68603b75DA48fCec834Ed00Da6D";
+    // 自己部署的create3 on chain: zkfair-testnet	    
+    // let create3FactoryAddress = "0x2bfcE1e2bfc5C68603b75DA48fCec834Ed00Da6D";
+    // 自己部署的create3 on chain: zkfair-mainnet
+    let create3FactoryAddress = "0xa2032a04ddf3841cefb384158eacc5a03abc74ae";
     const code = await ethers.provider.getCode(create3FactoryAddress);
     if (!code || code === "0x") {
       create3FactoryAddress = Sdk.Common.Addresses.Create3Factory[chainId];

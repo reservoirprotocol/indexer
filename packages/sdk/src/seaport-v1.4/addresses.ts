@@ -11,4 +11,5 @@ export const Exchange: ChainIdToAddress = {
   [Network.MantleTestnet]: "0x7374fe94e34c209616cec0610212de13151d222f",
   [Network.LineaTestnet]: "0x7374fe94e34c209616cec0610212de13151d222f",
   [Network.ZkFairTestnet]: "0x8c7be07991311e509b55db91a37f9817bc758996",
+  [Network.ZkFair]: "0x9ea919393024b92f7e8856864580ad61c8af9821",
 };
