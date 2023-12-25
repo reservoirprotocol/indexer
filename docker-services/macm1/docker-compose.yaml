@@ -1,0 +1,69 @@
+version: "3"
+
+# how to config service group name???
+services:
+  postgres:
+    image: postgres:13.2
+    container_name: 'pg13'
+    restart: always
+    command: postgres -N 2000
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    networks:
+      - local
+    volumes:
+      - ./indexer-data/pg/:/var/lib/postgresql/data/
+    ports:
+      - 15432:5432
+
+  redis:
+    image: redis:6.2.2
+    container_name: 'indexer-redis'
+    restart: always
+    # command: sh -c "redis-server --requirepass password"
+    command: sh -c "redis-server"
+    networks:
+      - local
+    volumes:
+      - ./indexer-data/redis:/data
+    ports:
+      - 16379:6379
+
+  rabbitmq:
+    # 依赖延迟消息插件（https://www.cnblogs.com/zengdingding/p/16641869.html）
+    # indexer官方库配的这个 可在mac-m1架构上运行
+    image: ipelegi/rabbitmq:latest
+    # ubuntu定制版本（保持和现有生产版本保持一致，可在ubuntu服务器上运行） https://hub.docker.com/repository/docker/cao7113/rabbitmq/general
+    # image: cao7113/rabbitmq:management
+    # rabbitmq 官方镜像，不含延迟消息插件，需要手工安装
+    # image: rabbitmq:3.12.10
+    # image: rabbitmq:3.12.10-management
+    container_name: 'rabbitmq'
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ./indexer-data/rabbit:/var/lib/rabbitmq
+    networks:
+      - local
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
+    container_name: 'elasticsearch'
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - 'discovery.type=single-node'
+    networks:
+      - local
+    ports:
+      - 19200:9200
+
+networks:
+  local:
+    driver: bridge

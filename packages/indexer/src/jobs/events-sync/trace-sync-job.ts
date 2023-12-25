@@ -1,5 +1,6 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 import { syncTraces } from "@/events-sync/syncEventsV2";
 
 export type TraceSyncJobPayload = {
@@ -8,13 +9,22 @@ export type TraceSyncJobPayload = {
 
 export class TraceSyncJob extends AbstractRabbitMqJobHandler {
   queueName = "trace-sync";
-  maxRetries = 30;
-  concurrency = 1;
+  // maxRetries = 30;
+  // concurrency = 1;
+  maxRetries = [43851].includes(config.chainId) ? 2 : 30;
+  concurrency = [43851].includes(config.chainId) ? 2 : 1;
+
   consumerTimeout = 10 * 60 * 1000;
-  backoff = {
-    type: "fixed",
-    delay: 1000,
-  } as BackoffStrategy;
+  // zkfair
+  backoff = [43851].includes(config.chainId)
+    ? ({
+        type: "exponential",
+        delay: 2000,
+      } as BackoffStrategy)
+    : ({
+        type: "fixed",
+        delay: 1000,
+      } as BackoffStrategy);
 
   protected async process(payload: TraceSyncJobPayload) {
     const { block } = payload;

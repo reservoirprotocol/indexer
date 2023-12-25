@@ -1,12 +1,14 @@
 # https://taskfile.dev
 version: "3"
 tasks:
+  dev: yarn dev
   build: yarn build
   start: yarn start
+  fmt: yarn format
+  mig: yarn migrate up
 
   # brew install redis
   brewredislog: tail -f /opt/homebrew/var/log/redis.log
-  pg-x1: docker-compose exec -it postgres psql -U postgres x1testnet
 
   # guest/guest
   open-rabbit: open http://localhost:15672/#/

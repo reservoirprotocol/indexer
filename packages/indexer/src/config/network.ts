@@ -36,6 +36,13 @@ export const getNetworkName = () => {
     case 42161:
       return "arbitrum";
 
+
+    case 42766:
+      return "zkfair";
+
+    case 43851:
+      return "zkfair-testnet";
+
     case 534353:
       return "scroll-alpha";
 
@@ -145,9 +152,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -809,6 +815,84 @@ export const getNetworkSettings = (): NetworkSettings => {
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
+            ),
+          ]);
+        },
+      };
+    }
+    // zkfair
+    case 42766: {
+      return {
+        ...defaultNetworkSettings,
+        // 暂未找到websocket连接
+        // enableWebSocket: true,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        // coingecko: {
+        //   networkId: "xxx",
+        // },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            //
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'USDC',
+                      'USDC',
+                      18,
+                      '{"coingeckoCurrencyId": "usd-coin", "image": "https://assets.coingecko.com/coins/images/6319/standard/usdc.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
+            ),
+          ]);
+        },
+      };
+    }
+    case 43851: {
+      return {
+        ...defaultNetworkSettings,
+        isTestnet: true,
+        // 暂未找到websocket连接
+        // enableWebSocket: true,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        // coingecko: {
+        //   networkId: "xxx",
+        // },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            //
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'USDC',
+                      'USDC',
+                      18,
+                      '{"coingeckoCurrencyId": "usd-coin", "image": "https://assets.coingecko.com/coins/images/6319/standard/usdc.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
             ),
           ]);
         },

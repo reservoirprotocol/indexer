@@ -9,12 +9,16 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import _ from "lodash";
 
+logger.info("trace", `using current chain-id: ${config.chainId}`);
+
 if (process.env.LOCAL_TESTING == "1") {
+  logger.warn("trace", `running in TESTING mode with chain-id: ${config.chainId}`);
   import("./setup");
 } else {
   RabbitMq.createVhost()
     .then(() => RabbitMq.connect())
     .then(async () => {
+      logger.info("trace", `after rabbit connection with chain-id: ${config.chainId}`);
       // Sync the pods so rabbit queues assertion will run only once per deployment by a single pod
       if (await acquireLock(config.imageTag, 75)) {
         const start = _.now();
@@ -24,6 +28,10 @@ if (process.env.LOCAL_TESTING == "1") {
         await redis.set(config.imageTag, "DONE", "EX", 60 * 60 * 24); // Update the lock ttl
         import("./setup");
       } else {
+        logger.info(
+          "trace",
+          `polling rabbit-queues-ready without race-lock with chain-id: ${config.chainId}`
+        );
         // Check every 1s if the rabbit queues assertion completed
         const intervalId = setInterval(async () => {
           if ((await redis.get(config.imageTag)) === "DONE") {

@@ -42,6 +42,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 42170:
         url = "https://arbitrum-nova.publicnode.com";
         break;
+      case 42766:
+        url = "https://rpc.zkfair.io";
+        break;
       case 43114:
         url = "https://avalanche-c-chain.publicnode.com";
         break;
@@ -60,6 +63,9 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
+        break;
+      case 43851:
+        url = "https://testnet-rpc.zkfair.io";
         break;
       case 59140:
         url = "https://rpc.goerli.linea.build/";
@@ -129,6 +135,7 @@ const config: HardhatUserConfig = {
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
     arbitrumNova: getNetworkConfig(42170),
+    zkfair: getNetworkConfig(42766),
     avalanche: getNetworkConfig(43114),
     linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
@@ -137,6 +144,7 @@ const config: HardhatUserConfig = {
     x1Testnet: getNetworkConfig(195),
     zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
+    zkfairTestnet: getNetworkConfig(43851),
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
     baseGoerli: getNetworkConfig(84531),
@@ -160,6 +168,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://explorer.testnet.mantle.xyz/api",
           browserURL: "https://explorer.testnet.mantle.xyz",
+        },
+      },
+      {
+        network: "zkfair",
+        chainId: 42766,
+        urls: {
+          apiURL: "https://scan.zkfair.io/api",
+          browserURL: "https://scan.zkfair.io",
+        },
+      },
+      {
+        network: "zkfairTestnet",
+        chainId: 43851,
+        urls: {
+          apiURL: "https://testnet-scan.zkfair.io/api",
+          browserURL: "https://testnet-scan.zkfair.io",
         },
       },
       {
