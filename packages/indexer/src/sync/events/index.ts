@@ -446,14 +446,14 @@ export const syncEvents = async (
 
   // filter out transactions that we have no log for (we dont want to save these transactions)
   if (config.chainId === 137) {
+    // also filter out logs/transactions where the contract addrress is 0x7b36dfd5304562952e2b4de9c8048ed155c6115d
+    logs = logs.filter((log) => log.address !== "0x7b36dfd5304562952e2b4de9c8048ed155c6115d");
+
     blockData.forEach((block) => {
       block.transactions = block.transactions.filter((tx) =>
         logs.find((log) => log.transactionHash === tx.hash)
       );
     });
-
-    // also filter out logs/transactions where the contract addrress is 0x7b36dfd5304562952e2b4de9c8048ed155c6115d
-    logs = logs.filter((log) => log.address !== "0x7b36dfd5304562952e2b4de9c8048ed155c6115d");
   }
 
   const saveDataTimes = await Promise.all([
