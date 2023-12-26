@@ -452,6 +452,15 @@ export const syncEvents = async (
     throw new Error(`No logs found for blocks ${blocks.fromBlock} to ${blocks.toBlock}`);
   }
 
+  // filter out transactions that we have no log for (we dont want to save these transactions)
+  if (config.chainId === 137) {
+    blockData.forEach((block) => {
+      block.transactions = block.transactions.filter((tx) =>
+        logs.find((log) => log.transactionHash === tx.hash)
+      );
+    });
+  }
+
   const saveDataTimes = await Promise.all([
     ...blockData.map(async (block) => {
       return await Promise.all([
