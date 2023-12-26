@@ -87,7 +87,8 @@ export type OrderKind =
   | "payment-processor"
   | "blur-v2"
   | "joepeg"
-  | "payment-processor-v2";
+  | "payment-processor-v2"
+  | "mooar";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -190,6 +191,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "mooar":
+        return sources.getOrInsert("mooar.com");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
