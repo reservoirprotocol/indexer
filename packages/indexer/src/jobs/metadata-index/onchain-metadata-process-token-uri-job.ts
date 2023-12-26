@@ -69,7 +69,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
               this.queueName,
-              `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                contract,
+                reason: "GIF",
+              })
             );
 
             await metadataIndexFetchJob.addToQueue(
@@ -132,7 +137,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
     logger.info(
       this.queueName,
-      `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+      JSON.stringify({
+        topic: "simpleHashFallbackDebug",
+        message: `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+        contract,
+        reason: "Get Metadata Error",
+      })
     );
 
     // for whatever reason, we didn't find the metadata, we fall back to simplehash
