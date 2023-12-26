@@ -430,7 +430,8 @@ export const syncEvents = async (
   const availableEventData = getEventData();
 
   // Get the logs from the RPC
-  const { logs, getLogsTime } = await _getLogs(eventFilter);
+  const { logs: tempLogs, getLogsTime } = await _getLogs(eventFilter);
+  let logs = tempLogs;
 
   // Check if there are transactions but no longs
   if (
@@ -450,6 +451,9 @@ export const syncEvents = async (
         logs.find((log) => log.transactionHash === tx.hash)
       );
     });
+
+    // also filter out logs/transactions where the contract addrress is 0x7b36dfd5304562952e2b4de9c8048ed155c6115d
+    logs = logs.filter((log) => log.address !== "0x7b36dfd5304562952e2b4de9c8048ed155c6115d");
   }
 
   const saveDataTimes = await Promise.all([
