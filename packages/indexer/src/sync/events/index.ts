@@ -18,7 +18,6 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 import { redis } from "@/common/redis";
-import { saveRedisTransactionsJob } from "@/jobs/events-sync/save-redis-transactions-job";
 
 export interface SyncBlockOptions {
   skipLogsCheck?: boolean;
@@ -319,16 +318,9 @@ const _saveBlock = async (blockData: blocksModel.Block) => {
   };
 };
 
-export const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
+const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
   const timerStart = Date.now();
   await syncEventsUtils.saveBlockTransactions(blockData);
-  const timerEnd = Date.now();
-  return timerEnd - timerStart;
-};
-
-const _saveBlockTransactionsToRedis = async (blockData: BlockWithTransactions) => {
-  const timerStart = Date.now();
-  await syncEventsUtils.saveBlockTransactionsRedis(blockData);
   const timerEnd = Date.now();
   return timerEnd - timerStart;
 };
@@ -336,17 +328,7 @@ const _saveBlockTransactionsToRedis = async (blockData: BlockWithTransactions) =
 export const syncTraces = async (block: number) => {
   const startSyncTime = Date.now();
   const startGetBlockTime = Date.now();
-
-  // try to get from redis first
-  const blockDataRedis = await redis.get(`block:${block}`);
-  let blockData;
-  if (blockDataRedis) {
-    blockData = JSON.parse(blockDataRedis);
-  } else {
-    // if not found in redis, get from RPC
-    blockData = await syncEventsUtils.fetchBlock(block);
-  }
-
+  const blockData = await syncEventsUtils.fetchBlock(block);
   if (!blockData) {
     throw new Error(`Block ${block} not found with RPC provider`);
   }
@@ -468,12 +450,7 @@ export const syncEvents = async (
           hash: block.hash,
           timestamp: block.timestamp,
         }),
-        // If the fromBlock/toBlock are the same, that means this
-        // is from realtime syncing, so we save the transactions to redis for faster processing
-        // Otherwise, we save the transactions to the database as this is a backfill
-        blocks.fromBlock - blocks.toBlock === 0
-          ? _saveBlockTransactionsToRedis(block)
-          : _saveBlockTransactions(block),
+        _saveBlockTransactions(block),
       ]);
     }),
   ]);
@@ -560,10 +537,6 @@ export const syncEvents = async (
       processEventsLatencies: processEventsLatencies,
     })
   );
-
-  if (blocks.fromBlock - blocks.toBlock === 0) {
-    await saveRedisTransactionsJob.addToQueue({ block: blocks.fromBlock }, 60 * 5);
-  }
 
   blockData.forEach(async (block) => {
     await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 });
