@@ -22,7 +22,6 @@ import { saveRedisTransactionsJob } from "@/jobs/events-sync/save-redis-transact
 
 export interface SyncBlockOptions {
   skipLogsCheck?: boolean;
-  backfill?: boolean;
   syncDetails?:
     | {
         method: "events";
@@ -32,6 +31,8 @@ export interface SyncBlockOptions {
         method: "address";
         address: string;
       };
+  backfill?: boolean;
+  blocksPerBatch?: number;
 }
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -509,7 +510,7 @@ export const syncEvents = async (
 
   const startProcessLogs = Date.now();
 
-  const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+  const processEventsLatencies = await processEventsBatchV2(eventsBatches, syncOptions?.backfill);
 
   const endProcessLogs = Date.now();
 
@@ -562,10 +563,12 @@ export const syncEvents = async (
     await saveRedisTransactionsJob.addToQueue({ block: blocks.fromBlock }, 60 * 5);
   }
 
-  blockData.forEach(async (block) => {
-    await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 });
-    await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 * 5 });
-  });
+  if (!syncOptions?.backfill) {
+    blockData.forEach(async (block) => {
+      await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 });
+      await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 * 5 });
+    });
+  }
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {

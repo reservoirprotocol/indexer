@@ -154,7 +154,7 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
   return onChainData;
 };
 
-export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
+export const processEventsBatchV2 = async (batches: EventsBatch[], backfill?: boolean) => {
   const startTime = Date.now();
   const onChainData = initOnChainData();
 
@@ -182,7 +182,7 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
       }
       const handler = eventKindToHandler.get(events.kind);
       if (handler) {
-        await handler(events.data, onChainData, false);
+        await handler(events.data, onChainData, backfill);
       } else {
         logger.error(
           "process-events-batch",
@@ -205,7 +205,7 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
   const endProcessLogsTime = Date.now();
 
   const startSaveOnChainDataTime = Date.now();
-  const processOnChainLatencies = await processOnChainData(onChainData, false);
+  const processOnChainLatencies = await processOnChainData(onChainData, backfill);
   const endSaveOnChainDataTime = Date.now();
 
   const endTime = Date.now();

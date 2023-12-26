@@ -26,7 +26,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
     // if the syncDetails are null, split the job into smaller jobs of 5 blocks
     // otherwise, split the job into smaller jobs of 50 blocks
     const diff = toBlock - fromBlock;
-    const splitSize = syncOptions?.syncDetails ? 50 : 5;
+    const splitSize = syncOptions?.syncDetails ? syncOptions.blocksPerBatch ?? 50 : 5;
     if (diff > splitSize) {
       const splitJobs = [];
       for (let i = fromBlock; i < toBlock; i += splitSize) {
