@@ -7,6 +7,7 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import sharp from "sharp";
 
+import crypto from "crypto";
 export type MetadataImageUploadKind =
   | "token-image"
   | "token-media"
@@ -160,6 +161,16 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
   }
 
   private async uploadToCloudflare(imageBuffer: Buffer) {
+    // take a hash of the image to use as the filename, so we can check if the image already exists
+    const hash = crypto.createHash("sha256").update(imageBuffer).digest("hex");
+
+    if (await this.checkIfImageExistsInCloudflare(hash)) {
+      return {
+        success: true,
+        result: { variants: [`https://${config.cloudflareDomain}/${hash}`] },
+      };
+    }
+
     const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1`;
     const response = await fetch(url, {
       method: "POST",
@@ -167,7 +178,10 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
         Authorization: `Bearer ${config.cloudflareAPIKey}`,
         "Content-Type": "application/octet-stream",
       },
-      body: imageBuffer,
+      body: JSON.stringify({
+        file: imageBuffer.toString("base64"),
+        id: hash,
+      }),
     });
 
     if (!response.ok) {
@@ -175,6 +189,22 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
     }
 
     return response.json();
+  }
+
+  private async checkIfImageExistsInCloudflare(hash: string) {
+    const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1/${hash}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${config.cloudflareAPIKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    return true;
   }
 
   public async addToQueue(params: MetadataImageUploadJobPayload, delay = 0) {
