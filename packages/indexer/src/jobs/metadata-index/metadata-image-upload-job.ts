@@ -7,12 +7,19 @@ import { Tokens } from "@/models/tokens";
 import { Collections } from "@/models/collections";
 import sharp from "sharp";
 
+export type MetadataImageUploadKind =
+  | "token-image"
+  | "token-media"
+  | "token-uri"
+  | "collection-image"
+  | "collection-banner";
+
 export type MetadataImageUploadJobPayload = {
   tokenId: string;
   contract: string;
   imageURI: string;
   mimeType: string | null;
-  kind: "token-image" | "token-media" | "token-uri" | "collection-image" | "collection-banner";
+  kind: MetadataImageUploadKind;
 };
 
 export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
