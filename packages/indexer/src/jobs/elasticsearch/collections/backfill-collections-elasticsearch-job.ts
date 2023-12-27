@@ -94,10 +94,12 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
       );
 
       if (rawResults.length) {
+        const builder = new CollectionDocumentBuilder();
+
         for (const rawResult of rawResults) {
           const documentId = `${config.chainId}:${rawResult.id}`;
 
-          const document = new CollectionDocumentBuilder().buildDocument({
+          const document = await builder.buildDocument({
             id: rawResult.id,
             created_at: new Date(rawResult.created_at),
             contract: rawResult.contract,

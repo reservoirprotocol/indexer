@@ -137,7 +137,12 @@ export async function extractRoyalties(
     txTrace.calls,
     {
       // Reservoir Router
-      sigHashes: ["0x760f2a0b"],
+      sigHashes: [
+        // execute
+        "0x760f2a0b",
+        // bulkTransferWithExecute
+        "0x74afcbe6",
+      ],
     },
     0
   );
@@ -201,6 +206,15 @@ export async function extractRoyalties(
 
   // Extract the payments from the (sub)call we just found
   const paymentsToAnalyze = getPayments(subcallToAnalyze);
+
+  // Get the total number of sales in the current (sub)call
+  const nftTransfers = paymentsToAnalyze.reduce((total, item) => {
+    const isNFT = item.token.includes("erc1155") || item.token.includes("erc721");
+    return total + (isNFT ? 1 : 0);
+  }, 0);
+
+  // Sale was executed via the router, but it only has 1 sale in the (sub)call
+  const isSingleSaleViaRouter = routerCall && nftTransfers === 1;
 
   // Extract the orders from calldata when there have multiple fill events
   const parsedOrders =
@@ -473,6 +487,11 @@ export async function extractRoyalties(
           .mul(PRECISION_BASE)
           .div(sameContractTotalPrice)
           .toNumber();
+
+        // Simple case where there is a single sale via the router
+        if (isSingleSaleViaRouter) {
+          bps = royalty.bps;
+        }
 
         if (shareSameRecipient) {
           const configBPS = sameRecipientDetails[0].bps;

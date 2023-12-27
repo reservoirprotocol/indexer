@@ -29,6 +29,8 @@ export interface TokenMetadata {
     rank?: number;
   }[];
   metadataMethod?: string;
+  imageMimeType?: string;
+  mediaMimeType?: string;
 }
 
 export interface CollectionMetadata {

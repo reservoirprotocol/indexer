@@ -393,7 +393,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0xaef06250d07cb6389d730d0eec7d90a1549be812",
               name: "RugLabz",
               symbol: "RLBZ",
-              decimals: 18,
+              decimals: 9,
               metadata: {
                 image: "https://i.ibb.co/XYVTLZf/Untitled.png",
               },

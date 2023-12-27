@@ -176,7 +176,8 @@ export const postExecuteCallV1Options: RouteOptions = {
             data: requestId,
             value: bn(cost).sub(ccConfig.user!.balance).toString(),
             gasLimit: 22000,
-            chainId: originChainId,
+            // `0x1234` or `4660` denotes cross-chain balance spending
+            chainId: originChainId === 4660 ? 1 : originChainId,
           },
           check: {
             endpoint: "/execute/status/v1",

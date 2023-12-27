@@ -7,14 +7,14 @@ import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import axios from "axios";
 import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
+import { bn, formatPrice, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 const version = "v1";
 
@@ -351,15 +351,18 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
         // WETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Usdc).flat().includes(query.currency)) {
         // USDC: convert price to USDC
-        const usdPrice = await axios
-          .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
-          .then((response) => (response.data as any).ethereum.usd);
+        const convertedPrices = await getUSDAndNativePrices(
+          Sdk.Common.Addresses.Native[config.chainId],
+          price,
+          now(),
+          {
+            onlyUSD: true,
+            acceptStalePrice: true,
+          }
+        );
 
         // USDC has 6 decimals
-        price = bn(Math.floor(usdPrice * 1000000))
-          .mul(price)
-          .div(bn("1000000000000000000"))
-          .toString();
+        price = convertedPrices.usdPrice!;
         decimals = 6;
       } else {
         throw Boom.badRequest("Unsupported currency");

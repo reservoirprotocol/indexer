@@ -14,7 +14,7 @@ const version = "v1";
 export const getCurrencyConversionV1Options: RouteOptions = {
   cache: {
     privacy: "public",
-    expiresIn: 5000,
+    expiresIn: 60 * 60 * 1000,
   },
   description: "Currency Conversions",
   notes: "Convert an amount in one currency to another",

@@ -31,17 +31,6 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
 
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
 
-    if (config.chainId === 11155111) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugCollectionsIndex",
-          message: `process event. kind=${kind}, id=${data.id}`,
-          data,
-        })
-      );
-    }
-
     const documentId = `${config.chainId}:${data.id}`;
 
     let document;

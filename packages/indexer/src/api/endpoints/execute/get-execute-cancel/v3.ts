@@ -21,7 +21,7 @@ const version = "v3";
 export const getExecuteCancelV3Options: RouteOptions = {
   description: "Cancel Orders",
   notes: "Cancel existing orders on any marketplace",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   plugins: {
     "hapi-swagger": {
       order: 11,

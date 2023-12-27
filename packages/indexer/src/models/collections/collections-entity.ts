@@ -37,7 +37,7 @@ export type CollectionsMetadata = {
   externalUrl?: string | undefined;
   bannerImageUrl?: string | undefined;
   twitterUsername?: string | undefined;
-  openseaVerificationStatus?: string | undefined;
+  safelistRequestStatus?: string | undefined;
 };
 
 export type CollectionsRoyalties = {

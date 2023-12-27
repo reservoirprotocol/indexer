@@ -87,7 +87,8 @@ export type OrderKind =
   | "payment-processor"
   | "blur-v2"
   | "joepeg"
-  | "payment-processor-v2";
+  | "payment-processor-v2"
+  | "mooar";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -190,6 +191,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "mooar":
+        return sources.getOrInsert("mooar.com");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -471,11 +474,11 @@ export const generateListingDetailsV6 = async (
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
       const extraArgs: any = {};
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -871,11 +874,11 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {

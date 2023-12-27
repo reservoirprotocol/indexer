@@ -247,7 +247,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // parsers
   _parseToken(metadata: any): TokenMetadata {
     // add handling for metadata.properties, convert to attributes
-    if (metadata?.properties) {
+    if (metadata?.properties && !metadata?.attributes) {
       metadata.attributes = Object.keys(metadata.properties).map((key) => {
         if (typeof metadata.properties[key] === "object") {
           return {

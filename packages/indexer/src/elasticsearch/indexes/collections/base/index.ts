@@ -7,7 +7,7 @@ import { getNetworkName } from "@/config/network";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 import { BuildDocumentData, BaseDocument } from "@/elasticsearch/indexes/base";
-import { logger } from "@/common/logger";
+// import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -68,17 +68,17 @@ export class CollectionDocumentBuilder {
       );
 
       allTimeVolumeUsd = formatUsd(prices.usdPrice!);
-    } catch (error) {
-      logger.error(
-        "cdc-indexer-collections",
-        JSON.stringify({
-          topic: "debugActivitiesErrors",
-          message: `No usd value. collectionId=${data.id}, allTimeVolume=${
-            data.all_time_volume
-          }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
-          error,
-        })
-      );
+    } catch {
+      // logger.warn(
+      //   "cdc-indexer-collections",
+      //   JSON.stringify({
+      //     topic: "debugActivitiesErrors",
+      //     message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+      //       data.all_time_volume
+      //     }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+      //     error,
+      //   })
+      // );
     }
 
     const document = {

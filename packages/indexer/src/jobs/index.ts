@@ -148,6 +148,7 @@ import { bidWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/bid-w
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { blockGapCheckJob } from "@/jobs/events-sync/block-gap-check";
 import { traceSyncJob } from "@/jobs/events-sync/trace-sync-job";
+import { saveRedisTransactionsJob } from "@/jobs/events-sync/save-redis-transactions-job";
 import { permitUpdatesJob } from "@/jobs/permit-updates/permit-updates-job";
 import { expiredPermitsJob } from "@/jobs/permit-updates/cron/expired-permits-job";
 import { topSellingCollectionsJob } from "@/jobs/top-selling-collections-cache/save-top-selling-collections-job";
@@ -178,6 +179,8 @@ import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillActiveUserCollectionsJob } from "@/jobs/backfill/backfill-active-user-collections";
 import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attributes-floor-ask";
 import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
+import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
+import { backfillCollectionsSpamJob } from "@/jobs/backfill/backfill-collections-spam";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -295,6 +298,7 @@ export class RabbitMqJobsConsumer {
       orderbookPostOrderExternalOpenseaJob,
       eventsSyncRealtimeJob,
       traceSyncJob,
+      saveRedisTransactionsJob,
       openseaOrdersProcessJob,
       openseaOrdersFetchJob,
       saveBidEventsJob,
@@ -340,6 +344,8 @@ export class RabbitMqJobsConsumer {
       backfillActiveUserCollectionsJob,
       backfillAttributesFloorAskJob,
       syncApiKeysJob,
+      collectionCheckSpamJob,
+      backfillCollectionsSpamJob,
     ];
   }
 

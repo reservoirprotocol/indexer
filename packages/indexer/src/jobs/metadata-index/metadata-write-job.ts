@@ -46,6 +46,8 @@ export type MetadataIndexWriteJobPayload = {
     rank?: number;
   }[];
   metadataMethod?: string;
+  imageMimeType?: string;
+  mediaMimeType?: string;
 };
 
 export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
@@ -82,6 +84,8 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       isFromWebhook,
       attributes,
       metadataMethod,
+      imageMimeType,
+      mediaMimeType,
     } = payload;
 
     // Update the token's metadata
@@ -161,8 +165,10 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           {
             original_metadata: originalMetadata || null,
             image_original_url: imageOriginalUrl || null,
+            image_mime_type: imageMimeType || null,
             image_properties: imageProperties || null,
             animation_original_url: animationOriginalUrl || null,
+            media_mime_type: mediaMimeType || null,
             metadata_original_url: metadataOriginalUrl || null,
           } || {},
         media: mediaUrl || null,

@@ -18,10 +18,10 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { eventsSyncRealtimeJob } from "@/jobs/events-sync/events-sync-realtime-job";
 import { redis } from "@/common/redis";
+import { saveRedisTransactionsJob } from "@/jobs/events-sync/save-redis-transactions-job";
 
 export interface SyncBlockOptions {
   skipLogsCheck?: boolean;
-  backfill?: boolean;
   syncDetails?:
     | {
         method: "events";
@@ -31,6 +31,8 @@ export interface SyncBlockOptions {
         method: "address";
         address: string;
       };
+  backfill?: boolean;
+  blocksPerBatch?: number;
 }
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -279,6 +281,14 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "ditto",
         data: kindToEvents.get("ditto") ?? [],
       },
+      {
+        kind: "mooar",
+        data: kindToEvents.get("mooar") ?? [],
+      },
+      {
+        kind: "highlightxyz",
+        data: kindToEvents.get("highlightxyz") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
@@ -310,9 +320,16 @@ const _saveBlock = async (blockData: blocksModel.Block) => {
   };
 };
 
-const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
+export const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
   const timerStart = Date.now();
   await syncEventsUtils.saveBlockTransactions(blockData);
+  const timerEnd = Date.now();
+  return timerEnd - timerStart;
+};
+
+const _saveBlockTransactionsToRedis = async (blockData: BlockWithTransactions) => {
+  const timerStart = Date.now();
+  await syncEventsUtils.saveBlockTransactionsRedis(blockData);
   const timerEnd = Date.now();
   return timerEnd - timerStart;
 };
@@ -320,7 +337,17 @@ const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
 export const syncTraces = async (block: number) => {
   const startSyncTime = Date.now();
   const startGetBlockTime = Date.now();
-  const blockData = await syncEventsUtils.fetchBlock(block);
+
+  // try to get from redis first
+  const blockDataRedis = await redis.get(`block:${block}`);
+  let blockData;
+  if (blockDataRedis) {
+    blockData = JSON.parse(blockDataRedis);
+  } else {
+    // if not found in redis, get from RPC
+    blockData = await syncEventsUtils.fetchBlock(block);
+  }
+
   if (!blockData) {
     throw new Error(`Block ${block} not found with RPC provider`);
   }
@@ -425,6 +452,15 @@ export const syncEvents = async (
     throw new Error(`No logs found for blocks ${blocks.fromBlock} to ${blocks.toBlock}`);
   }
 
+  // filter out transactions that we have no log for (we dont want to save these transactions)
+  if (config.chainId === 137) {
+    blockData.forEach((block) => {
+      block.transactions = block.transactions.filter((tx) =>
+        logs.find((log) => log.transactionHash === tx.hash)
+      );
+    });
+  }
+
   const saveDataTimes = await Promise.all([
     ...blockData.map(async (block) => {
       return await Promise.all([
@@ -433,7 +469,12 @@ export const syncEvents = async (
           hash: block.hash,
           timestamp: block.timestamp,
         }),
-        _saveBlockTransactions(block),
+        // If the fromBlock/toBlock are the same, that means this
+        // is from realtime syncing, so we save the transactions to redis for faster processing
+        // Otherwise, we save the transactions to the database as this is a backfill
+        blocks.fromBlock - blocks.toBlock === 0
+          ? _saveBlockTransactionsToRedis(block)
+          : _saveBlockTransactions(block),
       ]);
     }),
   ]);
@@ -474,7 +515,7 @@ export const syncEvents = async (
 
   const startProcessLogs = Date.now();
 
-  const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+  const processEventsLatencies = await processEventsBatchV2(eventsBatches, syncOptions?.backfill);
 
   const endProcessLogs = Date.now();
 
@@ -521,10 +562,16 @@ export const syncEvents = async (
     })
   );
 
-  blockData.forEach(async (block) => {
-    await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 });
-    await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 * 5 });
-  });
+  if (blocks.fromBlock - blocks.toBlock === 0) {
+    await saveRedisTransactionsJob.addToQueue({ block: blocks.fromBlock }, 60 * 5);
+  }
+
+  if (!syncOptions?.backfill) {
+    blockData.forEach(async (block) => {
+      await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 });
+      await blockCheckJob.addToQueue({ block: block.number, blockHash: block.hash, delay: 60 * 5 });
+    });
+  }
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {

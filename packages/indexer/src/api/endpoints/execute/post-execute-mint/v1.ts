@@ -34,7 +34,7 @@ export const postExecuteMintV1Options: RouteOptions = {
   description: "Mint Tokens",
   notes:
     "Use this API to mint tokens. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks.",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
@@ -954,7 +954,8 @@ export const postExecuteMintV1Options: RouteOptions = {
               data: data.requestId,
               value: bn(cost).sub(data.user.balance).toString(),
               gasLimit: 22000,
-              chainId: payload.currencyChainId,
+              // `0x1234` or `4660` denotes cross-chain balance spending
+              chainId: payload.currencyChainId === 4660 ? 1 : payload.currencyChainId,
             },
             check: {
               endpoint: "/execute/status/v1",

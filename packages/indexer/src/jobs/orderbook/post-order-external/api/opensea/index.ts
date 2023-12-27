@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as Sdk from "@reservoir0x/sdk";
 import axios, { AxiosRequestConfig } from "axios";
 
@@ -34,19 +36,24 @@ export const postOrder = async (order: Sdk.SeaportV15.Order, apiKey: string) => 
   const url = `${getOpenseaBaseUrl()}/v2/orders/${getOpenseaNetworkName()}/seaport/${
     order.getInfo()?.side === "sell" ? "listings" : "offers"
   }`;
+  const headers: any = !getNetworkSettings().isTestnet
+    ? {
+        url,
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey || config.openSeaApiKey,
+      }
+    : {
+        "Content-Type": "application/json",
+      };
+
+  if (!getNetworkSettings().isTestnet && config.openSeaApiUrl && config.openSeaNftApiKey) {
+    headers["x-nft-api-key"] = config.openSeaNftApiKey;
+  }
 
   const options: AxiosRequestConfig = {
     method: "POST",
     url: config.openSeaApiUrl || url,
-    headers: !getNetworkSettings().isTestnet
-      ? {
-          url,
-          "Content-Type": "application/json",
-          "X-Api-Key": apiKey || config.openSeaApiKey,
-        }
-      : {
-          "Content-Type": "application/json",
-        },
+    headers,
     data: {
       parameters: {
         ...order.params,
@@ -94,19 +101,24 @@ export const buildCollectionOffer = async (
   apiKey = ""
 ) => {
   const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+  const headers: any = !getNetworkSettings().isTestnet
+    ? {
+        url,
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey || config.openSeaApiKey,
+      }
+    : {
+        "Content-Type": "application/json",
+      };
+
+  if (!getNetworkSettings().isTestnet && config.openSeaApiUrl && config.openSeaNftApiKey) {
+    headers["x-nft-api-key"] = config.openSeaNftApiKey;
+  }
 
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers: !getNetworkSettings().isTestnet
-      ? {
-          url,
-          "Content-Type": "application/json",
-          "X-Api-Key": apiKey || config.openSeaApiKey,
-        }
-      : {
-          "Content-Type": "application/json",
-        },
+    headers,
     data: {
       offerer,
       quantity,
@@ -152,19 +164,24 @@ export const buildTraitOffer = async (
   apiKey = ""
 ) => {
   const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+  const headers: any = !getNetworkSettings().isTestnet
+    ? {
+        url,
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey || config.openSeaApiKey,
+      }
+    : {
+        "Content-Type": "application/json",
+      };
+
+  if (!getNetworkSettings().isTestnet && config.openSeaApiUrl && config.openSeaNftApiKey) {
+    headers["x-nft-api-key"] = config.openSeaNftApiKey;
+  }
 
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers: !getNetworkSettings().isTestnet
-      ? {
-          url,
-          "Content-Type": "application/json",
-          "X-Api-Key": apiKey || config.openSeaApiKey,
-        }
-      : {
-          "Content-Type": "application/json",
-        },
+    headers,
     data: {
       offerer,
       quantity,
@@ -216,19 +233,24 @@ export const postCollectionOffer = async (
   }
 
   const url = `${getOpenseaBaseUrl()}/v2/offers`;
+  const headers: any = !getNetworkSettings().isTestnet
+    ? {
+        url,
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey || config.openSeaApiKey,
+      }
+    : {
+        "Content-Type": "application/json",
+      };
+
+  if (!getNetworkSettings().isTestnet && config.openSeaApiUrl && config.openSeaNftApiKey) {
+    headers["x-nft-api-key"] = config.openSeaNftApiKey;
+  }
 
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers: !getNetworkSettings().isTestnet
-      ? {
-          url,
-          "Content-Type": "application/json",
-          "X-Api-Key": apiKey || config.openSeaApiKey,
-        }
-      : {
-          "Content-Type": "application/json",
-        },
+    headers,
     data: {
       criteria: {
         collection: {
@@ -276,19 +298,24 @@ export const postTraitOffer = async (
   }
 
   const url = `${getOpenseaBaseUrl()}/v2/offers`;
+  const headers: any = !getNetworkSettings().isTestnet
+    ? {
+        url,
+        "Content-Type": "application/json",
+        "X-Api-Key": apiKey || config.openSeaApiKey,
+      }
+    : {
+        "Content-Type": "application/json",
+      };
+
+  if (!getNetworkSettings().isTestnet && config.openSeaApiUrl && config.openSeaNftApiKey) {
+    headers["x-nft-api-key"] = config.openSeaNftApiKey;
+  }
 
   const options: AxiosRequestConfig = {
     method: "post",
     url: config.openSeaApiUrl || url,
-    headers: !getNetworkSettings().isTestnet
-      ? {
-          url,
-          "Content-Type": "application/json",
-          "X-Api-Key": apiKey || config.openSeaApiKey,
-        }
-      : {
-          "Content-Type": "application/json",
-        },
+    headers,
     data: {
       criteria: {
         collection: {

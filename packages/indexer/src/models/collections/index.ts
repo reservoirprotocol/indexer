@@ -307,7 +307,7 @@ export class Collections {
     // Refresh Payment Processor
     await Promise.all([
       paymentProcessor.getConfigByContract(collection.contract, true),
-      paymentProcessorV2.getCollectionPaymentSettings(collection.contract, true),
+      paymentProcessorV2.getConfigByContract(collection.contract, true),
     ]);
   }
 

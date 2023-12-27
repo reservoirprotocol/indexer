@@ -20,6 +20,8 @@ export const postSyncEventsOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
+      fromBlock: Joi.number().integer().positive().required(),
+      toBlock: Joi.number().integer().positive().required(),
       // WARNING: Some events should always be fetched together!
       syncDetails: Joi.alternatives(
         Joi.object({
@@ -31,8 +33,8 @@ export const postSyncEventsOptions: RouteOptions = {
           address: Joi.string().pattern(regex.address),
         })
       ),
-      fromBlock: Joi.number().integer().positive().required(),
-      toBlock: Joi.number().integer().positive().required(),
+      blocksPerBatch: Joi.number().integer().positive(),
+      backfill: Joi.boolean().default(true),
     }),
   },
   handler: async (request: Request) => {
@@ -43,11 +45,17 @@ export const postSyncEventsOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const syncDetails = payload.syncDetails;
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
+      const syncDetails = payload.syncDetails;
+      const backfill = payload.backfill;
+      const blocksPerBatch = payload.blocksPerBatch;
 
-      await eventsSyncBackfillJob.addToQueue(fromBlock, toBlock, syncDetails);
+      await eventsSyncBackfillJob.addToQueue(fromBlock, toBlock, {
+        syncDetails,
+        backfill,
+        blocksPerBatch,
+      });
 
       return { message: "Request accepted" };
     } catch (error) {
