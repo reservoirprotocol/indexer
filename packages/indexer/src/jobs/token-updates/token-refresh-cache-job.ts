@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
-import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
@@ -47,17 +44,7 @@ export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
         tokenId,
       }
     );
-    if (config.chainId === 137) {
-      logger.info(
-        "debug",
-        JSON.stringify({
-          contract,
-          tokenId,
-          floorAsk,
-        })
-      );
-    }
-    if (floorAsk) {
+    if (floorAsk?.id) {
       // Revalidate
       await orderFixesJob.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
 
@@ -104,7 +91,7 @@ export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
           tokenId,
         }
       );
-      if (topBid) {
+      if (topBid?.id) {
         // Revalidate
         await orderFixesJob.addToQueue([{ by: "id", data: { id: topBid.id } }]);
 

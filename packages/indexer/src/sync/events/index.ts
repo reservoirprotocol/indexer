@@ -432,8 +432,9 @@ export const syncEvents = async (
       [...new Set(getEventData(syncOptions.syncDetails.events).map(({ topic }) => topic))],
     ];
   } else if (syncOptions?.syncDetails?.method === "address") {
-    // Filter to all events of a particular address
+    // Filter to all events of a particular address (regardless of the topics)
     eventFilter.address = syncOptions.syncDetails.address;
+    eventFilter.topics = undefined;
   }
 
   const availableEventData = getEventData();

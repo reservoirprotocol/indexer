@@ -26,7 +26,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://eth.llamarpc.com";
         break;
       case 10:
-        url = "https://optimism.llamarpc.com";
+        url = "https://mainnet.optimism.io/";
         break;
       case 56:
         url = "https://bsc.drpc.org";
@@ -44,7 +44,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://developer-access-mainnet.base.org";
         break;
       case 42161:
-        url = "https://arbitrum.llamarpc.com";
+        url = "https://arb1.arbitrum.io/rpc";
         break;
       case 42170:
         url = "https://arbitrum-nova.publicnode.com";
@@ -56,7 +56,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.linea.build";
         break;
       case 534352:
-        url = "https://rpc.ankr.com/scroll";
+        url = "https://rpc.scroll.io";
         break;
       case 7777777:
         url = "https://rpc.zora.co";
@@ -79,9 +79,6 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 84531:
         url = "https://goerli.base.org";
-        break;
-      case 534353:
-        url = "https://alpha-rpc.scroll.io/l2";
         break;
       case 11155111:
         url = "https://1rpc.io/sepolia";
@@ -167,7 +164,6 @@ const config: HardhatUserConfig = {
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
     baseGoerli: getNetworkConfig(84531),
-    scrollAlpha: getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
     ancient8Testnet: getNetworkConfig(2863311531),
   },
@@ -194,7 +190,6 @@ const config: HardhatUserConfig = {
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
       polygonMumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
       baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
-      scrollAlpha: process.env.ETHERSCAN_API_KEY_SCROLL_ALPHA ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       ancient8Testnet: "0x",
     },
@@ -303,14 +298,6 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-goerli.basescan.org/api",
           browserURL: "https://goerli.basescan.org",
-        },
-      },
-      {
-        network: "scrollAlpha",
-        chainId: 534353,
-        urls: {
-          apiURL: "https://api-sepolia.scrollscan.com/api",
-          browserURL: "https://sepolia.scrollscan.com",
         },
       },
       {
