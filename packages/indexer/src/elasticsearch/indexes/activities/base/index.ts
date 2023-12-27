@@ -204,7 +204,9 @@ export class ActivityBuilder extends DocumentBuilder {
             name: data.collection_name,
             image: data.collection_image,
             isSpam: Number(data.collection_is_spam) > 0,
-            imageVersion: data.collection_image_version,
+            imageVersion: data.collection_image_version
+              ? Math.floor(new Date(data.collection_image_version).getTime() / 1000)
+              : undefined,
           }
         : undefined,
       order: data.order_id
