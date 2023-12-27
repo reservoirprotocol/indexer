@@ -11,7 +11,7 @@ export interface TokenMetadata {
   name?: string;
   description?: string;
   originalMetadata?: JSON;
-  imageUrl?: string | null;
+  imageUrl: string | null;
   imageOriginalUrl?: string;
   imageProperties?: {
     width?: number;
@@ -29,8 +29,8 @@ export interface TokenMetadata {
     rank?: number;
   }[];
   metadataMethod?: string;
-  imageMimeType?: string;
-  mediaMimeType?: string;
+  imageMimeType: string | null;
+  mediaMimeType: string | null;
 }
 
 export interface CollectionMetadata {

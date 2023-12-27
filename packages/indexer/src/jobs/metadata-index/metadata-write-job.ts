@@ -109,7 +109,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           name = $/name/,
           token_uri = $/tokenURI/,
           description = $/description/,
-          image = CASE WHEN $/image/ IS NOT NULL THEN $/image/ ELSE image END,
+          image = coalesce($/image/, image),
           metadata = $/metadata:json/,
           media = CASE WHEN $/media/ IS NOT NULL THEN $/media/ ELSE media END,
           updated_at = CASE 

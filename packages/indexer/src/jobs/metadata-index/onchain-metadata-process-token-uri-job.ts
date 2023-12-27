@@ -35,58 +35,34 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ]);
 
       if (metadata.length) {
-        if (metadata[0].imageUrl?.startsWith("data:")) {
+        if (
+          (metadata[0].imageUrl?.startsWith("data:") ||
+            metadata[0].imageMimeType === "image/gif") &&
+          metadata[0].imageUrl
+        ) {
           await metadataImageUploadJob.addToQueue({
             contract,
             tokenId,
             imageURI: metadata[0].imageUrl,
+            mimeType: metadata[0].imageMimeType,
             kind: "token-image",
           });
           metadata[0].imageUrl = null;
         }
-        if (metadata[0].mediaUrl?.startsWith("data:")) {
+
+        if (
+          (metadata[0].mediaUrl?.startsWith("data:") ||
+            metadata[0].mediaMimeType === "image/gif") &&
+          metadata[0].mediaUrl
+        ) {
           await metadataImageUploadJob.addToQueue({
             contract,
             tokenId,
             imageURI: metadata[0].mediaUrl,
+            mimeType: metadata[0].mediaMimeType,
             kind: "token-media",
           });
           metadata[0].mediaUrl = null;
-        }
-
-        // if the imageMimeType/mediaMimeType is gif, we fallback to simplehash
-        if (
-          metadata[0].imageMimeType === "image/gif" ||
-          metadata[0].mediaMimeType === "image/gif"
-        ) {
-          if (config.fallbackMetadataIndexingMethod) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "simpleHashFallbackDebug",
-                message: `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-                contract,
-                reason: "GIF",
-              })
-            );
-
-            await metadataIndexFetchJob.addToQueue(
-              [
-                {
-                  kind: "single-token",
-                  data: {
-                    method: config.fallbackMetadataIndexingMethod,
-                    contract,
-                    tokenId,
-                    collection: contract,
-                  },
-                },
-              ],
-              true,
-              5
-            );
-            return;
-          }
         }
 
         await metadataIndexWriteJob.addToQueue(metadata);

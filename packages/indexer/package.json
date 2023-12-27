@@ -88,6 +88,7 @@
     "qs": "^6.10.1",
     "rate-limiter-flexible": "^2.3.11",
     "redlock": "^5.0.0-beta.1",
+    "sharp": "^0.33.1",
     "slugify": "^1.6.6",
     "socket.io-client": "^4.6.1",
     "standard-version": "^9.3.2",
