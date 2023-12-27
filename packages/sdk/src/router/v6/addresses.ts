@@ -50,6 +50,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Avalanche]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.ZkFairTestnet]: "0x513e28f4098480c4656534d01e0a95934dc60a4d",
   [Network.ZkFair]: "0x20b1b734db11726acf4cba328063c2e7e6f57509",
+  [Network.X1Testnet]: "0xb568c76bc62a930835b487f5826a8b372f338972",
 };
 
 // Permit proxy
@@ -170,6 +171,7 @@ export const AlienswapModule: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x54e9b4580f8c180e8020cec7a330f189658e1329",
   [Network.ZkFairTestnet]: "0xca13fe9a66a084c005f9b03755b0db1392bcc332",
   [Network.ZkFair]: "0xf06f0fa36d051fd36c5ca26b295f2da9be70f85d",
+  [Network.X1Testnet]: "0x353b14d0fa90bd2ca01062d09318fafb329e552f",
 };
 
 export const SudoswapModule: ChainIdToAddress = {

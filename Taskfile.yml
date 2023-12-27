@@ -19,6 +19,11 @@ tasks:
       - |
         pm2 start asdf --name "indexer-zkfair-mainnet" --interpreter bash -- exec yarn start
 
+  pm2-start-x1-test:
+    cmds:
+      - |
+        pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
+
   ## STUPID TIPS
   # quick commit informal contents
   # npx husky uninstall

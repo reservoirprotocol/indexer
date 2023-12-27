@@ -24,9 +24,9 @@ export const Native: ChainIdToAddress = {
   [Network.Linea]: AddressZero,
   [Network.Zksync]: AddressZero,
   [Network.PolygonZkevm]: AddressZero,
-  [Network.X1Testnet]: AddressZero,
   [Network.ZkFairTestnet]: AddressZero,
   [Network.ZkFair]: AddressZero,
+  [Network.X1Testnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -51,11 +51,11 @@ export const WNative: ChainIdToAddress = {
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
-  [Network.X1Testnet]: "0xf8e8506fe73b0a8efb929f6edfb7059d6d2f95f2",
   // usdc-native-wrapped currency，下面这个是自己找脚本部署的
   [Network.ZkFairTestnet]: "0x9e1f1ab94bc3f2a4d1966f8f7c36c69db651d45f",
   // ZkFair官方 https://docs.zkfair.io/users/user-guide/zkfair-contracts#additional-useful-contracts
   [Network.ZkFair]: "0xd33db7ec50a98164cc865dfaa64666906d79319c",
+  [Network.X1Testnet]: "0x991e01f3900c1a9539f6acadcefbe4213e5805cc",
 };
 
 export const Usdc: ChainIdToAddress = {
