@@ -13,9 +13,6 @@ const main = async () => {
     throw new Error("Wrong deployer");
   }
 
-  // const router = await trigger.Router.V6_0_1();
-  // Version v3 of contract ReservoirV6_0_1 deployed on chain 43851 at address 0x0041b69cfbcf70cb4faa81c00abb0a3c5d93e008
-
   // 部署 AlienswapModule
   const alienModuleAddress = await trigger.Modules.AlienswapModule(chainId);
   console.log(`output AlienswapModule: ${alienModuleAddress}`);

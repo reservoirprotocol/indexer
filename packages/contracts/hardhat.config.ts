@@ -30,9 +30,6 @@ const getNetworkConfig = (chainId?: number) => {
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
-      case 195:
-        url = "https://testrpc.x1.tech";
-        break;
       case 8453:
         url = "https://developer-access-mainnet.base.org";
         break;
@@ -57,6 +54,9 @@ const getNetworkConfig = (chainId?: number) => {
       // Testnets
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        break;
+      case 195:
+        url = "https://testrpc.x1.tech";
         break;
       case 999:
         url = "https://testnet.rpc.zora.co";
@@ -158,7 +158,7 @@ const config: HardhatUserConfig = {
         network: "x1Testnet",
         chainId: 195,
         urls: {
-          apiURL: "",
+          apiURL: "https://www.oklink.com/",
           browserURL: "https://www.oklink.com/cn/x1-test",
         },
       },

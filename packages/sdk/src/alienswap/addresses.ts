@@ -11,9 +11,9 @@ export const Exchange: ChainIdToAddress = {
   [Network.BaseGoerli]: "0x9c390efb05e09982e23993ebfa3b32c190e25f4b",
   [Network.Base]: "0x878dd5e0c3dedfebff67046bb218fb03c26e3e47",
   [Network.EthereumSepolia]: "0x33c551effdf1dbde4ffeaa133b2757819bd1353d",
-  [Network.X1Testnet]: "0x5119384015e153a299f381f773832dd63a88f411",
   [Network.ZkFairTestnet]: "0x8c7be07991311e509b55db91a37f9817bc758996",
   [Network.ZkFair]: "0x9ea919393024b92f7e8856864580ad61c8af9821",
+  [Network.X1Testnet]: "0x459c161dd1eb14c0d260457197b74065220eead2",
 };
 
 // conduit key, 创建conduit时指定

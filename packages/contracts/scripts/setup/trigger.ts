@@ -12,7 +12,7 @@ import { DeploymentHelper } from "./deployment-helper";
 
 // x1-testnet xuxiangqian
 // export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
-// deployer address for zkfair-testnet
+// deployer address from caoruijian
 export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
 const DEPLOYMENTS_FILE = "deployments.json";
 
@@ -81,10 +81,16 @@ const verify = async (contractName: string, version: string, args: any[]) => {
 const dv = async (contractName: string, version: string, args: any[]) => {
   try {
     await deploy(contractName, version, args);
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+  } catch (error) {
+    console.log(`Failed to deploy ${contractName}: ${error}`);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 30000));
+
+  try {
     await verify(contractName, version, args);
   } catch (error) {
-    console.log(`Failed to deploy/verify ${contractName}: ${error}`);
+    console.log(`Failed to verify ${contractName}: ${error}`);
   }
 };
 

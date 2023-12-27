@@ -54,9 +54,9 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Linea]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.X1Testnet]: "0xe786999b98504adbda6fa1a787b7a18e2c06b7fe",
   [Network.ZkFairTestnet]: "0x7a2457be35277e4703a18a4481b409db1ecf8357",
   [Network.ZkFair]: "0x9087854026001ce5907e54d67e33ba750a633c2c",
+  [Network.X1Testnet]: "0x66275f453da73b9d6db967dec5e1e01a3f383841",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
