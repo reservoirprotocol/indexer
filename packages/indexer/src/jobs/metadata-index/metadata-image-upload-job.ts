@@ -22,6 +22,8 @@ export type MetadataImageUploadJobPayload = {
   kind: MetadataImageUploadKind;
 };
 
+const MAX_GIF_SIZE = 50 * 1000000; // 50 megapixels
+
 export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
   queueName = "metadata-image-upload-job";
   maxRetries = 3;
@@ -36,7 +38,7 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
     const { imageURI, contract, tokenId } = payload;
 
     try {
-      let imageBuffer;
+      let imageBuffer, uploadUrl;
 
       if (this.isDataURI(imageURI)) {
         // Handle data URI
@@ -47,45 +49,52 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
             imageBuffer = await this.fetchImageBuffer(imageURI);
             // resize gif to have a max total of 50 megapixels (sum of all frames)
             // this is to prevent OOM errors when processing large gifs
-            imageBuffer = await this.resizeGif(imageBuffer, 50 * 1000000);
+            if (await this.isGifAboveMaxSize(imageBuffer)) {
+              imageBuffer = await this.resizeGif(imageBuffer);
+            } else {
+              // Skip upload to Cloudflare if image is small enough
+              uploadUrl = imageURI;
+            }
             break;
           default:
             throw new Error(`Unsupported image MIME type: ${payload.mimeType}`);
         }
       }
 
-      // Upload to Cloudflare
-      const uploadResult = await this.uploadToCloudflare(imageBuffer);
-      if (!uploadResult.success) {
-        throw new Error(`Failed to upload to Cloudflare: ${uploadResult.errors}`);
-      }
+      // Upload to Cloudflare if uploadUrl is not set
+      if (!uploadUrl) {
+        const uploadResult = await this.uploadToCloudflare(imageBuffer);
+        if (!uploadResult.success) {
+          throw new Error(`Failed to upload to Cloudflare: ${uploadResult.errors}`);
+        }
 
-      const originalUrl = uploadResult.result.variants[2];
+        uploadUrl = uploadResult.result.variants[2];
+      }
 
       switch (payload.kind) {
         case "token-image":
           await Tokens.update(contract, tokenId, {
-            image: originalUrl,
+            image: uploadUrl,
           });
           break;
         case "token-media":
           await Tokens.update(contract, tokenId, {
-            media: originalUrl,
+            media: uploadUrl,
           });
           break;
         case "token-uri":
           await Tokens.update(contract, tokenId, {
-            token_uri: originalUrl,
+            token_uri: uploadUrl,
           });
           break;
         case "collection-image":
           await Collections.updateCollectionMetadata(contract, {
-            imageUrl: originalUrl,
+            imageUrl: uploadUrl,
           });
           break;
         case "collection-banner":
           await Collections.updateCollectionMetadata(contract, {
-            bannerImageUrl: originalUrl,
+            bannerImageUrl: uploadUrl,
           });
           break;
       }
@@ -113,7 +122,7 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
     return Buffer.from(await response.arrayBuffer());
   }
 
-  private async resizeGif(imageBuffer: Buffer, maxTotalPixels: number) {
+  private async isGifAboveMaxSize(imageBuffer: Buffer) {
     const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
     const { width, height, pages } = await sharp(gif).metadata();
 
@@ -122,12 +131,24 @@ export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
     }
 
     const totalPixels = width * height * pages;
-    if (totalPixels <= maxTotalPixels) {
+    return totalPixels > MAX_GIF_SIZE;
+  }
+
+  private async resizeGif(imageBuffer: Buffer) {
+    const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
+    const { width, height, pages } = await sharp(gif).metadata();
+
+    if (!width || !height || !pages) {
+      throw new Error(`Failed to get metadata for image`);
+    }
+
+    const totalPixels = width * height * pages;
+    if (totalPixels <= MAX_GIF_SIZE) {
       return imageBuffer;
     }
 
-    const newWidth = Math.floor(Math.sqrt((maxTotalPixels * width) / height));
-    const newHeight = Math.floor(Math.sqrt((maxTotalPixels * height) / width));
+    const newWidth = Math.floor(Math.sqrt((MAX_GIF_SIZE * width) / height));
+    const newHeight = Math.floor(Math.sqrt((MAX_GIF_SIZE * height) / width));
 
     const resizedGif = await sharp(gif)
       .resize(newWidth, newHeight, {
