@@ -111,7 +111,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           description = $/description/,
           image = coalesce($/image/, image),
           metadata = $/metadata:json/,
-          media = CASE WHEN $/media/ IS NOT NULL THEN $/media/ ELSE media END,
+          media = coalesce($/media/, media),
           updated_at = CASE 
                 WHEN (SELECT is_updated FROM updated_check) THEN now()
                 ELSE updated_at
