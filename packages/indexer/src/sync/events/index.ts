@@ -32,6 +32,7 @@ export interface SyncBlockOptions {
         address: string;
       };
   backfill?: boolean;
+  syncEventsOnly?: boolean;
   blocksPerBatch?: number;
 }
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
@@ -399,6 +400,103 @@ export const getBlocks = async (fromBlock: number, toBlock: number) => {
   );
 
   return blocks;
+};
+
+export const syncEventsOnly = async (
+  blocks: {
+    fromBlock: number;
+    toBlock: number;
+  },
+  syncOptions?: SyncBlockOptions
+) => {
+  const startSyncTime = Date.now();
+  const eventFilter: Filter = {
+    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
+    fromBlock: blocks?.fromBlock,
+    toBlock: blocks?.toBlock,
+  };
+
+  if (syncOptions?.syncDetails?.method === "events") {
+    // Filter to a subset of events, remove any duplicates
+    eventFilter.topics = [
+      [...new Set(getEventData(syncOptions.syncDetails.events).map(({ topic }) => topic))],
+    ];
+  } else if (syncOptions?.syncDetails?.method === "address") {
+    // Filter to all events of a particular address (regardless of the topics)
+    eventFilter.address = syncOptions.syncDetails.address;
+    eventFilter.topics = undefined;
+  }
+
+  const availableEventData = getEventData();
+  const { logs, getLogsTime } = await _getLogs(eventFilter);
+
+  const blockNumbersFromLogs = [...new Set(logs.map((log) => log.blockNumber))];
+  const blockTimestamps: { [blockNumber: number]: number } = {};
+
+  await Promise.all(
+    blockNumbersFromLogs.map(async (blockNumber) => {
+      const blockData = await syncEventsUtils.fetchBlock(blockNumber);
+      if (!blockData) {
+        throw new Error(`Block ${blockNumber} not found with RPC provider`);
+      }
+      blockTimestamps[blockNumber] = blockData.timestamp;
+    })
+  );
+
+  let enhancedEvents = logs
+    .map((log) => {
+      try {
+        const baseEventParams = parseEvent(log, blockTimestamps[log.blockNumber]);
+        return availableEventData
+          .filter(
+            ({ addresses, numTopics, topic }) =>
+              log.topics[0] === topic &&
+              log.topics.length === numTopics &&
+              (addresses ? addresses[log.address.toLowerCase()] : true)
+          )
+          .map((eventData) => ({
+            kind: eventData.kind,
+            subKind: eventData.subKind,
+            baseEventParams,
+            log,
+          }));
+      } catch (error) {
+        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+        throw error;
+      }
+    })
+    .flat();
+
+  enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
+
+  // Process the retrieved events
+  const eventsBatches = extractEventsBatches(enhancedEvents as EnhancedEvent[]);
+
+  const startProcessLogs = Date.now();
+
+  const processEventsLatencies = await processEventsBatchV2(eventsBatches, syncOptions?.backfill);
+
+  const endProcessLogs = Date.now();
+
+  const endSyncTime = Date.now();
+
+  logger.info(
+    "sync-events-batch-timing-v2",
+    JSON.stringify({
+      message: `Events realtime syncing blocks ${blocks.fromBlock} to ${blocks.toBlock}`,
+      blockRange: [blocks.fromBlock, blocks.toBlock],
+      syncTime: endSyncTime - startSyncTime,
+
+      logs: {
+        count: logs.length,
+        eventCount: enhancedEvents.length,
+        getLogsTime,
+        processLogs: endProcessLogs - startProcessLogs,
+      },
+
+      processEventsLatencies: processEventsLatencies,
+    })
+  );
 };
 
 export const syncEvents = async (
