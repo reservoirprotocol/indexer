@@ -24,9 +24,10 @@ tasks:
       - |
         pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
 
-  ## STUPID TIPS
-  # quick commit informal contents
-  # npx husky uninstall
+  no-check:
+    desc: tmp disable husky commit check, stupid tip
+    cmds:
+    - npx husky uninstall
 
   list-collection:
     cmds:
