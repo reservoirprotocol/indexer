@@ -26,6 +26,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
   protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
     const { contract, tokenId, uri } = payload;
     let fallbackAllowed = true;
+    let fallbackError;
 
     try {
       const metadata = await onchainMetadataProvider.getTokensMetadata([
@@ -61,7 +62,43 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           }
         }
 
+        // if the imageMimeType/mediaMimeType is gif, we fallback to simplehash
+        if (
+          metadata[0].imageMimeType === "image/gif" ||
+          metadata[0].mediaMimeType === "image/gif"
+        ) {
+          if (config.fallbackMetadataIndexingMethod) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                contract,
+                reason: "GIF",
+              })
+            );
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.fallbackMetadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: contract,
+                  },
+                },
+              ],
+              true,
+              5
+            );
+            return;
+          }
+        }
+
         await metadataIndexWriteJob.addToQueue(metadata);
+        return;
       } else {
         logger.warn(
           this.queueName,
@@ -82,6 +119,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       }
 
       fallbackAllowed = !["404"].includes(`${e}`);
+      fallbackError = `${e}`;
 
       logger.warn(
         this.queueName,
@@ -89,6 +127,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
+          fallbackAllowed,
           error: `${e}`,
         })
       );
@@ -100,7 +139,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
     logger.info(
       this.queueName,
-      `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+      JSON.stringify({
+        topic: "simpleHashFallbackDebug",
+        message: `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+        contract,
+        reason: "Get Metadata Error",
+        error: fallbackError,
+      })
     );
 
     // for whatever reason, we didn't find the metadata, we fall back to simplehash

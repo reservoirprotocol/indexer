@@ -6,6 +6,9 @@ export enum ActionsLogOrigin {
   DailyProcess = "daily-process",
   CollectionRefresh = "collection-refresh",
   API = "api",
+  NameSpamCheck = "name-spam-check",
+  UrlSpamCheck = "url-spam-check",
+  MarkedAsVerified = "marked-as-verified",
 }
 
 export enum ActionsLogContext {

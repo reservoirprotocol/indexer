@@ -718,22 +718,8 @@ export const extractByTx = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  // Dedupe by collection, tokenId and instanceId
-  const dedupedExistingMints = existingCollectionMints.filter((existing, index) => {
-    return (
-      index ===
-      latestCollectionMints.findIndex((found) => {
-        return (
-          existing.collection === found.collection &&
-          existing.tokenId === found.tokenId &&
-          (existing.details.info! as Info).instanceId === (found.details.info! as Info).instanceId
-        );
-      })
-    );
-  });
-
   let latestCollectionMints: CollectionMint[] = [];
-  for (const { tokenId, details } of dedupedExistingMints) {
+  for (const { tokenId, details } of existingCollectionMints) {
     // Fetch and save/update the currently available mints
     const collectionMints = tokenId
       ? await extractByCollectionERC1155(collection, {

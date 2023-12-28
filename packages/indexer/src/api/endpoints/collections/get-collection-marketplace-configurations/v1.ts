@@ -499,9 +499,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   }
                 }
               } else if (exchange.enabled && exchange.orderKind === "payment-processor-v2") {
-                const settings = await paymentProcessorV2.getCollectionPaymentSettings(
-                  params.collection
-                );
+                const settings = await paymentProcessorV2.getConfigByContract(params.collection);
 
                 let paymentTokens = [Sdk.Common.Addresses.Native[config.chainId]];
                 if (
@@ -517,6 +515,8 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   paymentProcessorV2.PaymentSettings.PricingConstraints
                 ) {
                   paymentTokens = [settings.constrainedPricingPaymentMethod];
+                  exchange.maxPriceRaw = settings?.pricingBounds?.ceilingPrice;
+                  exchange.minPriceRaw = settings?.pricingBounds?.floorPrice;
                 }
 
                 exchange.supportedBidCurrencies = paymentTokens.filter(

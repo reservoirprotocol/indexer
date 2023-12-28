@@ -87,7 +87,8 @@ export type OrderKind =
   | "payment-processor"
   | "blur-v2"
   | "joepeg"
-  | "payment-processor-v2";
+  | "payment-processor-v2"
+  | "mooar";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -190,6 +191,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "mooar":
+        return sources.getOrInsert("mooar.com");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -471,11 +474,11 @@ export const generateListingDetailsV6 = async (
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
       const extraArgs: any = {};
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -871,11 +874,11 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -906,35 +909,61 @@ export const generateBidDetailsV6 = async (
   }
 };
 
-// Check collection's blacklist, override the `orderKind` and `orderbook` in params
+// Check the collection's blacklist and override the `orderKind` and `orderbook` in the `params`
 export const checkBlacklistAndFallback = async (
   collection: string,
   params: {
-    orderKind: string;
+    orderKind: OrderKind;
     orderbook: string;
   }
 ) => {
   // Fallback to Seaport when LooksRare is blocked
   if (["looks-rare-v2"].includes(params.orderKind) && ["looks-rare"].includes(params.orderbook)) {
-    const blocked = await checkMarketplaceIsFiltered(collection, [
+    const isBlocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
       Sdk.LooksRareV2.Addresses.TransferManager[config.chainId],
     ]);
-    if (blocked) {
+    if (isBlocked) {
       params.orderKind = "seaport-v1.5";
     }
   }
 
+  const seaportIsBlocked = await checkMarketplaceIsFiltered(collection, [
+    Sdk.SeaportV15.Addresses.Exchange[config.chainId],
+    new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
+      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
+    ),
+  ]);
+
   // Fallback to PaymentProcessor when Seaport is blocked
-  if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
-    const blocked = await checkMarketplaceIsFiltered(collection, [
-      Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-      new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
-      ),
+  if (
+    ["seaport-v1.5"].includes(params.orderKind) &&
+    ["reservoir"].includes(params.orderbook) &&
+    seaportIsBlocked
+  ) {
+    params.orderKind = "payment-processor";
+  }
+
+  // Fallback to Seaport if when PaymentProcessor is blocked
+  if (
+    ["payment-processor", "payment-processor-v2"].includes(params.orderKind) &&
+    ["reservoir"].includes(params.orderbook)
+  ) {
+    const isBlocked = await checkMarketplaceIsFiltered(collection, [
+      Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
     ]);
-    if (blocked) {
-      params.orderKind = "payment-processor";
+
+    // https://linear.app/reservoir/issue/PRO-1163/failing-ppv1-purchase
+    const isBlockedCustom =
+      config.chainId === 137 && collection === "0xdbc52cd5b8eda1a7bcbabb838ca927d23e3673e5";
+
+    if (isBlocked || isBlockedCustom) {
+      if (!seaportIsBlocked) {
+        params.orderKind = "seaport-v1.5";
+      } else {
+        throw new Error("Collection is blocking all supported exchanges");
+      }
     }
   }
 };

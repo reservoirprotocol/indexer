@@ -84,7 +84,13 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         } else {
           logger.info(
             this.queueName,
-            `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              contract: result.contract,
+              error: result.error,
+              reason: "No uri found",
+            })
           );
 
           fallbackTokens.push({
@@ -99,13 +105,8 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
-      for (const fallbackToken of fallbackTokens) {
-        logger.info(
-          this.queueName,
-          `Fallback. contract=${fallbackToken.contract}, tokenId=${fallbackToken.tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
-        );
-
-        if (config.fallbackMetadataIndexingMethod) {
+      if (config.fallbackMetadataIndexingMethod) {
+        for (const fallbackToken of fallbackTokens) {
           await metadataIndexFetchJob.addToQueue(
             [
               {

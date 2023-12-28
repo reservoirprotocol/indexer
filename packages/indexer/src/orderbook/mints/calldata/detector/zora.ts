@@ -21,6 +21,10 @@ import { getContractKind } from "@/orderbook/orders/common/helpers";
 
 const STANDARD = "zora";
 
+export type Info = {
+  minter?: string;
+};
+
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
@@ -237,7 +241,8 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
 
 export const extractByCollectionERC1155 = async (
   collection: string,
-  tokenId: string
+  tokenId: string,
+  minter?: string
 ): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
@@ -267,7 +272,7 @@ export const extractByCollectionERC1155 = async (
       // Skip error for old version
     }
 
-    const defaultMinters: string[] = [];
+    const defaultMinters: string[] = minter ? [minter] : [];
     for (const factory of [
       Sdk.Zora.Addresses.ERC1155Factory[config.chainId],
       Sdk.Zora.Addresses.ERC1155FactoryV2[config.chainId],
@@ -388,6 +393,7 @@ export const extractByCollectionERC1155 = async (
                         ],
                       },
               },
+              info: minter ? { minter } : undefined,
             },
             tokenId,
             currency: Sdk.Common.Addresses.Native[config.chainId],
@@ -566,26 +572,30 @@ export const extractByTx = async (
   ) {
     const iface = new Interface([
       "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
-      "function mintWithRewards(address minter,uint256 tokenId,uint256 quantity,bytes minterArguments,address mintReferral)",
+      "function mintWithRewards(address minter, uint256 tokenId, uint256 quantity, bytes minterArguments, address mintReferral)",
       "function premint((address, string, string) contractConfig, ((string, uint256, uint64, uint96, uint64, uint64, uint32, uint32, address, address), uint32 tokenId, uint32, bool) premintConfig, bytes signature, uint256 quantityToMint, string mintComment)",
     ]);
 
     let tokenId: string;
+    let minter: string | undefined;
     switch (tx.data.slice(0, 10)) {
       case "0x731133e9":
         tokenId = iface.decodeFunctionData("mint", tx.data).tokenId.toString();
         break;
 
-      case "0x9dbb844d":
-        tokenId = iface.decodeFunctionData("mintWithRewards", tx.data).tokenId.toString();
+      case "0x9dbb844d": {
+        const parseArgs = iface.decodeFunctionData("mintWithRewards", tx.data);
+        tokenId = parseArgs.tokenId.toString();
+        minter = parseArgs.minter.toLowerCase();
         break;
+      }
 
       case "0xc9a05470":
         tokenId = String(iface.decodeFunctionData("premint", tx.data).premintConfig.tokenId);
         break;
     }
 
-    return extractByCollectionERC1155(collection, tokenId!);
+    return extractByCollectionERC1155(collection, tokenId!, minter);
   }
 
   return [];
@@ -596,10 +606,10 @@ export const refreshByCollection = async (collection: string) => {
     standard: STANDARD,
   });
 
-  const refresh = async (tokenId?: string) => {
+  const refresh = async (tokenId?: string, minter?: string) => {
     // Fetch and save/update the currently available mints
     const latestCollectionMints = tokenId
-      ? await extractByCollectionERC1155(collection, tokenId)
+      ? await extractByCollectionERC1155(collection, tokenId, minter)
       : await extractByCollectionERC721(collection);
     for (const collectionMint of latestCollectionMints) {
       await simulateAndUpsertCollectionMint(collectionMint);
@@ -640,7 +650,11 @@ export const refreshByCollection = async (collection: string) => {
     );
     await Promise.all(tokenIds.map(async ({ token_id }) => refresh(token_id)));
   } else {
-    await Promise.all(existingCollectionMints.map(async ({ tokenId }) => refresh(tokenId)));
+    await Promise.all(
+      existingCollectionMints.map(async ({ tokenId, details }) =>
+        refresh(tokenId, (details.info as Info | undefined)?.minter)
+      )
+    );
   }
 };
 

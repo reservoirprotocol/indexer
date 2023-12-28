@@ -14,3 +14,11 @@ supportedExchanges.set("x2y2", Sdk.X2Y2.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("looks-rare", Sdk.LooksRare.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("wyvern-v2", Sdk.WyvernV2.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("wyvern-v2.3", Sdk.WyvernV23.Addresses.Exchange[config.chainId]);
+supportedExchanges.set(
+  "payment-processor",
+  Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]
+);
+supportedExchanges.set(
+  "payment-processor-v2",
+  Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
+);

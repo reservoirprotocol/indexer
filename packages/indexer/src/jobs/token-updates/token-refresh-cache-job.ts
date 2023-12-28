@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { Tokens } from "@/models/tokens";
+import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { inject } from "@/api/index";
 import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import { Tokens } from "@/models/tokens";
 
 export type TokenRefreshCacheJobPayload = {
   contract: string;
@@ -35,25 +33,25 @@ export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
     // Simulate and revalidate the floor ask on the token
     const floorAsk = await idb.oneOrNone(
       `
-          SELECT
-            tokens.floor_sell_id AS id
-          FROM tokens
-          WHERE tokens.contract = $/contract/
-            AND tokens.token_id = $/tokenId/
-        `,
+        SELECT
+          tokens.floor_sell_id AS id
+        FROM tokens
+        WHERE tokens.contract = $/contract/
+          AND tokens.token_id = $/tokenId/
+      `,
       {
         contract: toBuffer(contract),
         tokenId,
       }
     );
-    if (floorAsk) {
+    if (floorAsk?.id) {
       // Revalidate
       await orderFixesJob.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
 
       // Simulate
       await inject({
         method: "POST",
-        url: `/management/orders/simulate/v1`,
+        url: "/management/orders/simulate/v1",
         headers: {
           "Content-Type": "application/json",
         },
@@ -68,32 +66,32 @@ export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
       // Simulate and revalidate the top bid on the token
       const topBid = await idb.oneOrNone(
         `
-            SELECT
-              o.id
-            FROM orders o
-            JOIN token_sets_tokens tst
-              ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = $/contract/
-              AND tst.token_id = $/tokenId/
-              AND o.side = 'buy'
-              AND o.fillability_status = 'fillable'
-              AND o.approval_status = 'approved'
-              AND EXISTS(
-                SELECT FROM nft_balances nb
-                  WHERE nb.contract = $/contract/
-                  AND nb.token_id = $/tokenId/
-                  AND nb.amount > 0
-                  AND nb.owner != o.maker
-              )
-            ORDER BY o.value DESC
-            LIMIT 1
-          `,
+          SELECT
+            o.id
+          FROM orders o
+          JOIN token_sets_tokens tst
+            ON o.token_set_id = tst.token_set_id
+          WHERE tst.contract = $/contract/
+            AND tst.token_id = $/tokenId/
+            AND o.side = 'buy'
+            AND o.fillability_status = 'fillable'
+            AND o.approval_status = 'approved'
+            AND EXISTS(
+              SELECT FROM nft_balances nb
+                WHERE nb.contract = $/contract/
+                AND nb.token_id = $/tokenId/
+                AND nb.amount > 0
+                AND nb.owner != o.maker
+            )
+          ORDER BY o.value DESC
+          LIMIT 1
+        `,
         {
           contract: toBuffer(contract),
           tokenId,
         }
       );
-      if (topBid) {
+      if (topBid?.id) {
         // Revalidate
         await orderFixesJob.addToQueue([{ by: "id", data: { id: topBid.id } }]);
 
@@ -101,7 +99,7 @@ export default class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
         if (config.chainId === 1) {
           await inject({
             method: "POST",
-            url: `/management/orders/simulate/v1`,
+            url: "/management/orders/simulate/v1",
             headers: {
               "Content-Type": "application/json",
             },

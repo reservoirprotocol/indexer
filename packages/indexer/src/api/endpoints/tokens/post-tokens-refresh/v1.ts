@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import { isAfter, add, formatISO9075 } from "date-fns";
@@ -14,11 +12,11 @@ import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-j
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
+import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { Tokens } from "@/models/tokens";
-import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
-import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
+import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
 const version = "v1";
 
@@ -61,6 +59,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
     // How many minutes to enforce between each refresh
@@ -78,7 +77,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       // Liquidity checks (cheap)
 
-      const lockKey = `post-tokens-refresh-${version}-liquidity-lock`;
+      const lockKey = `post-tokens-refresh-${version}-liquidity-lock:${payload.token}`;
       if (!(await redis.get(lockKey))) {
         // Revalidate the token orders
         await orderFixesJob.addToQueue([{ by: "token", data: { token: payload.token } }]);
