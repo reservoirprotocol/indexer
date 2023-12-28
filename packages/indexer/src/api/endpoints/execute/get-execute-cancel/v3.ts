@@ -438,7 +438,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
       // Handle on-chain cancellations
 
-      let cancelTx: TxData;
+      let cancelTx: TxData | undefined;
 
       // Set up generic filling steps
       let steps: {
@@ -609,7 +609,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
             status: "complete",
           });
 
-          cancelTx = await axios
+          const cancelTxData = await axios
             .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
               maker,
               contract: orderResult.raw_data.collection,
@@ -617,6 +617,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
               authToken: blurAuth.accessToken,
             })
             .then((response) => response.data);
+
+          if (cancelTxData.data) {
+            cancelTx = cancelTxData;
+          }
 
           break;
         }
@@ -627,11 +631,13 @@ export const getExecuteCancelV3Options: RouteOptions = {
       }
 
       steps[1].items.push({
-        status: "incomplete",
-        data: {
-          ...cancelTx,
-          ...gasSettings,
-        },
+        status: cancelTx ? "incomplete" : "complete",
+        data: cancelTx
+          ? {
+              ...cancelTx,
+              ...gasSettings,
+            }
+          : {},
       });
 
       if (!steps[0].items.length || steps[0].items[0].status === "complete") {
