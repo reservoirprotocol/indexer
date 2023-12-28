@@ -114,10 +114,11 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       };
 
-      const { requestId, price, relayerFee, depositGasFee } = await axios
+      const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
         .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
         .then((response) => ({
           requestId: response.data.requestId,
+          shortRequestId: response.data.shortRequestId,
           price: response.data.price,
           relayerFee: response.data.relayerFee,
           depositGasFee: response.data.depositGasFee,
@@ -173,7 +174,7 @@ export const postExecuteCallV1Options: RouteOptions = {
           data: {
             from: user,
             to: ccConfig.solver!.address,
-            data: requestId,
+            data: shortRequestId,
             value: bn(cost).sub(ccConfig.user!.balance).toString(),
             gasLimit: 22000,
             // `0x1234` or `4660` denotes cross-chain balance spending

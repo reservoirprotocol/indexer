@@ -208,6 +208,22 @@ export class Collections {
       }
     }
 
+    // If no image use one of the tokens images
+    if (_.isEmpty(collection.metadata?.imageUrl)) {
+      const tokenImageQuery = `
+        SELECT image
+        FROM tokens
+        WHERE collection_id = $/collection/
+        ORDER BY rarity_rank DESC NULLS LAST
+        LIMIT 1`;
+
+      const tokenImage = await redb.oneOrNone(tokenImageQuery, { collection: collection.id });
+      if (tokenImage?.image) {
+        collection.metadata = collection.metadata ?? {};
+        collection.metadata.imageUrl = tokenImage.image;
+      }
+    }
+
     const query = `
       UPDATE collections SET
         metadata = $/metadata:json/,

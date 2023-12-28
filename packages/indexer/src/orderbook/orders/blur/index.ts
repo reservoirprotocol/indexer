@@ -104,9 +104,18 @@ export const savePartialListings = async (
       const sources = await Sources.getInstance();
       const source = await sources.getOrInsert("blur.io");
 
-      const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+      // Handle: filtering
+      const isFilteredBlur = await checkMarketplaceIsFiltered(orderParams.collection, [
         Sdk.BlurV2.Addresses.Delegate[config.chainId],
       ]);
+      const isFilteredSeaport = await checkMarketplaceIsFiltered(orderParams.collection, [
+        new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        ),
+      ]);
+      // Blur uses Seaport if a collection is blocked on Blur
+      const isFiltered = isFilteredBlur && isFilteredSeaport;
+
       if (isFiltered) {
         // Force remove any orders
         orderParams.price = undefined;

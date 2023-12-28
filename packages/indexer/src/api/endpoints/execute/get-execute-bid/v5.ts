@@ -20,7 +20,7 @@ import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { getExecuteError } from "@/orderbook/orders/errors";
-import { checkBlacklistAndFallback } from "@/orderbook/orders";
+import { OrderKind, checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import * as e from "@/utils/auth/erc721c";
 import * as erc721c from "@/utils/erc721c";
@@ -288,7 +288,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         quantity?: number;
         weiPrice: string;
         options?: any;
-        orderKind: string;
+        orderKind: OrderKind;
         orderbook: string;
         orderbookApiKey?: string;
         automatedRoyalties: boolean;
@@ -1054,7 +1054,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "zeroex-v4": {
+              case "zeroex-v4" as any: {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
