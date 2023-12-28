@@ -712,6 +712,22 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "okb",
         },
+        // config wrapped token here
+        whitelistedCurrencies: new Map([
+          [
+            "0x991e01f3900c1a9539f6acadcefbe4213e5805cc",
+            {
+              contract: "0x991e01f3900c1a9539f6acadcefbe4213e5805cc",
+              name: "WOKB",
+              symbol: "WOKB",
+              decimals: 18,
+              metadata: {
+                coingeckoCurrencyId: "okb",
+                image: "https://assets.coingecko.com/coins/images/4463/standard/WeChat_Image_20220118095654.png",
+              },
+            },
+          ],
+        ]),
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
