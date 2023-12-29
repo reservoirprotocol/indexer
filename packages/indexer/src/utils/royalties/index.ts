@@ -219,17 +219,14 @@ export const clearRoyalties = async (collection: string) => {
   await idb.none(
     `
       UPDATE collections SET
-        royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/,
-        new_royalties = $/newRoyalties:json/,
+        royalties = NULL,
+        royalties_bps = NULL,
+        new_royalties = NULL,
         updated_at = now()
       WHERE collections.id = $/id/
     `,
     {
       id: collection,
-      royalties: [],
-      royaltiesBps: 0,
-      newRoyalties: {},
     }
   );
 };
