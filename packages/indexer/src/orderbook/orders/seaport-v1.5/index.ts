@@ -22,7 +22,6 @@ import { topBidsCache } from "@/models/top-bids-caching";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import { getUSDAndNativePrices } from "@/utils/prices";
@@ -428,7 +427,7 @@ export const save = async (
                     contract: info.contract,
                     tokenIds: tokensIds,
                   },
-                } as TokenSet,
+                } as tokenSet.tokenList.TokenSet,
               ]);
             }
 
