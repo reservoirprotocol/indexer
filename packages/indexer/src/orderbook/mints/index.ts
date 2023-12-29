@@ -134,6 +134,7 @@ export const updateCollectionMintingStatus = async (collection: string) => {
         SELECT 1 FROM collection_mints
         WHERE collection_mints.collection_id = $/collection/
           AND collection_mints.status = 'open'
+          AND collection_mints.kind = 'public'
       `,
       { collection }
     )
