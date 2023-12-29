@@ -10,7 +10,7 @@ const main = async () => {
     throw new Error("Wrong deployer");
   }
 
-  await trigger.TestNFTs.Erc721();
+  await trigger.TestNFTs.Erc721("v2");
 };
 
 main()

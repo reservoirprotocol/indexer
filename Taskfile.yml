@@ -22,12 +22,15 @@ tasks:
   pm2-start-x1-test:
     cmds:
       - |
+        # master
         pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
+        # non-master
+        MASTER=0 PORT=30202 pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
 
   no-check:
     desc: tmp disable husky commit check, stupid tip
     cmds:
-    - npx husky uninstall
+      - npx husky uninstall
 
   list-collection:
     cmds:

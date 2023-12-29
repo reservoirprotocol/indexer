@@ -368,8 +368,8 @@ export const trigger = {
   },
   // Test NFTs
   TestNFTs: {
-    Erc721: async () =>
-      dv("ReservoirErc721", "v1", [
+    Erc721: async (version: string) =>
+      dv("ReservoirErc721", version, [
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc721/",
         "https://test-tokens-metadata.vercel.app/api/erc721/contract",

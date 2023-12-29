@@ -11,14 +11,15 @@ const main = async () => {
   }
 
   // x1-testnet test-nft
-  const contractAddr = "0xf1b4f863c5982b6e6def8a80e07649c4f643f37a";
-  const nft = await ethers.getContractAt("ReservoirErc721", contractAddr);
+  // const nftAddr = "0xf1b4f863c5982b6e6def8a80e07649c4f643f37a";
+  const nftAddr = "0xc872f3b2c56a234ca90e44a55c8fd270dc0d2ea2";
+  const nft = await ethers.getContractAt("ReservoirErc721", nftAddr);
 
   const tokenId = 1;
   const price = 10000;
 
 
-  console.log(`==deployer ${deployer.address}`);
+  console.log(`==deployer ${deployer.address} updateRoyalty nft: ${nftAddr}`);
 
   let result;
 
