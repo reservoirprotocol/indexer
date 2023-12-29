@@ -144,7 +144,7 @@ const config: HardhatUserConfig = {
     // x1Testnet: getNetworkConfig(195),
     x1Testnet: {
       ...getNetworkConfig(195),
-      gasPrice: 300000000000,
+      // gasPrice: 300000000000,
     },
     zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),

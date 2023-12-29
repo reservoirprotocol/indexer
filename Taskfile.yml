@@ -22,13 +22,13 @@ tasks:
   pm2-start-x1-test:
     cmds:
       - |
-        # master
+        # run in MASTER mode, only one instance!!!
         pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
-        # non-master
+        # run in non-master mode, can have multiple instance to run jobs. TODO: disable port and api service
         MASTER=0 PORT=30202 pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
 
   no-check:
-    desc: tmp disable husky commit check, stupid tip
+    desc: tmp disable husky commit check, this is STUPID way!!!
     cmds:
       - npx husky uninstall
 
