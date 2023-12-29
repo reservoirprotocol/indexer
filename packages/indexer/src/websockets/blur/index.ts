@@ -100,15 +100,6 @@ if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config
       } = JSON.parse(message);
 
       const collection = parsedMessage.contractAddress.toLowerCase();
-
-      // For debugging
-      if (
-        collection !== "0x306b1ea3ecdf94ab739f1910bbda052ed4a9f949" &&
-        collection !== "0x1193af965786fc46a63cb4d92c33a48219d1c8b6"
-      ) {
-        return;
-      }
-
       const allTraitUpdates = parsedMessage.updates.filter((d) => d.criteriaType === "TRAIT");
 
       // Group all updates by their corresponding trait
