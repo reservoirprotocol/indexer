@@ -86,7 +86,7 @@ export class DeploymentHelper {
         // maxFeePerGas: "2000000000",
         // maxPriorityFeePerGas: "500000000",
         // for x1-Testnet
-        gasPrice: 300000000000,
+        // gasPrice: 300000000000,
       }
     );
 
