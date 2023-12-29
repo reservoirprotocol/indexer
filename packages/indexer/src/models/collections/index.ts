@@ -30,7 +30,6 @@ import {
 } from "@/jobs/collection-updates/top-bid-collection-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
-import * as registry from "@/utils/royalties/registry";
 
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
@@ -144,16 +143,6 @@ export class Collections {
       ]);
 
       return;
-    }
-
-    try {
-      await registry.refreshRegistryRoyalties(collectionResult.id);
-      await royalties.refreshDefaultRoyalties(collectionResult.id);
-    } catch (error) {
-      logger.error(
-        "updateCollectionCache",
-        `refreshRegistryRoyaltiesError. contract=${contract}, tokenId=${tokenId}, community=${community}`
-      );
     }
 
     const collection = await MetadataProviderRouter.getCollectionMetadata(
@@ -296,15 +285,18 @@ export class Collections {
       );
     }
 
-    // Refresh all royalty specs and the default royalties
-    await royalties.refreshAllRoyaltySpecs(
-      collection.id,
-      collection.royalties as royalties.Royalty[] | undefined,
-      collection.openseaRoyalties as royalties.Royalty[] | undefined,
-      false
-    );
-
-    await royalties.refreshDefaultRoyalties(collection.id);
+    if (collection.hasPerTokenRoyalties) {
+      await royalties.clearRoyalties(collection.id);
+    } else {
+      // Refresh all royalty specs and the default royalties
+      await royalties.refreshAllRoyaltySpecs(
+        collection.id,
+        collection.royalties as royalties.Royalty[] | undefined,
+        collection.openseaRoyalties as royalties.Royalty[] | undefined,
+        true
+      );
+      await royalties.refreshDefaultRoyalties(collection.id);
+    }
 
     // Refresh Blur royalties (which get stored separately)
     await updateBlurRoyalties(collection.id, true);

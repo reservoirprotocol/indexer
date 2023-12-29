@@ -158,7 +158,8 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         await royalties.refreshAllRoyaltySpecs(
           collection.id,
           collection.royalties as royalties.Royalty[] | undefined,
-          collection.openseaRoyalties as royalties.Royalty[] | undefined
+          collection.openseaRoyalties as royalties.Royalty[] | undefined,
+          true
         );
         await royalties.refreshDefaultRoyalties(collection.id);
       }
