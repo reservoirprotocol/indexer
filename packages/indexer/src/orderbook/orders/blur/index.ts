@@ -7,6 +7,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -489,40 +490,51 @@ export const savePartialBids = async (
 
           schemaHash = generateSchemaHash(schema);
 
-          // Fetch all tokens matching the attributes
-          const tokens = await redb.manyOrNone(
-            `
-              SELECT token_attributes.token_id
-              FROM token_attributes
-              WHERE token_attributes.collection_id = $/collection/
-                AND token_attributes.key = $/key/
-                AND token_attributes.value = $/value/
-              ORDER BY token_attributes.token_id
-            `,
-            {
-              collection: orderParams.collection,
-              key: orderParams.attribute!.key,
-              value: orderParams.attribute!.value,
-            }
-          );
-
-          if (tokens.length) {
-            const tokensIds = tokens.map((r) => r.token_id);
-            const merkleTree = generateMerkleTree(tokensIds);
-
-            tokenSetId = `list:${orderParams.collection}:${merkleTree.getHexRoot()}`;
-
-            await tokenSet.tokenList.save([
+          // Cache the token-set for efficiency
+          const tokenSetCacheKey = `blur-trait-bid-token-set:${orderParams.collection}:${
+            orderParams.attribute!.key
+          }:${orderParams.attribute!.value}`;
+          const tokenSetCache = await redis.get(tokenSetCacheKey);
+          if (tokenSetCache) {
+            tokenSetId = tokenSetCache;
+          } else {
+            // Fetch all tokens matching the attributes
+            const tokens = await redb.manyOrNone(
+              `
+                SELECT token_attributes.token_id
+                FROM token_attributes
+                WHERE token_attributes.collection_id = $/collection/
+                  AND token_attributes.key = $/key/
+                  AND token_attributes.value = $/value/
+                ORDER BY token_attributes.token_id
+              `,
               {
-                id: tokenSetId,
-                schema,
-                schemaHash: generateSchemaHash(schema),
-                items: {
-                  contract: orderParams.collection,
-                  tokenIds: tokensIds,
-                },
-              } as tokenSet.tokenList.TokenSet,
-            ]);
+                collection: orderParams.collection,
+                key: orderParams.attribute!.key,
+                value: orderParams.attribute!.value,
+              }
+            );
+
+            if (tokens.length) {
+              const tokensIds = tokens.map((r) => r.token_id);
+              const merkleTree = generateMerkleTree(tokensIds);
+
+              tokenSetId = `list:${orderParams.collection}:${merkleTree.getHexRoot()}`;
+
+              await tokenSet.tokenList.save([
+                {
+                  id: tokenSetId,
+                  schema,
+                  schemaHash: generateSchemaHash(schema),
+                  items: {
+                    contract: orderParams.collection,
+                    tokenIds: tokensIds,
+                  },
+                } as tokenSet.tokenList.TokenSet,
+              ]);
+
+              await redis.set(tokenSetCacheKey, tokenSetId, "EX", 24 * 3600);
+            }
           }
         } else {
           schemaHash = generateSchemaHash();
