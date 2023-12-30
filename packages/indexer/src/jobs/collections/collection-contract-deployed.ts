@@ -13,7 +13,6 @@ import { toBuffer } from "@/common/utils";
 import * as registry from "@/utils/royalties/registry";
 import * as royalties from "@/utils/royalties";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
-import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export type CollectionContractDeployed = {
   contract: string;
@@ -156,7 +155,6 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
         // Refresh the on-chain royalties
         await registry.refreshRegistryRoyalties(contract);
         await royalties.refreshDefaultRoyalties(contract);
-        await collectionCheckSpamJob.addToQueue({ collectionId: contract });
       } catch (error) {
         logger.error(
           this.queueName,
