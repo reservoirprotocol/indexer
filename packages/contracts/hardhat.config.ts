@@ -141,7 +141,11 @@ const config: HardhatUserConfig = {
     zora: getNetworkConfig(7777777),
     // Testnets
     goerli: getNetworkConfig(5),
-    x1Testnet: getNetworkConfig(195),
+    // x1Testnet: getNetworkConfig(195),
+    x1Testnet: {
+      ...getNetworkConfig(195),
+      // gasPrice: 300000000000,
+    },
     zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
     zkfairTestnet: getNetworkConfig(43851),

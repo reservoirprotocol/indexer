@@ -1,0 +1,9 @@
+# https://taskfile.dev
+version: "3"
+tasks:
+  i: yarn install
+  build: yarn compile
+
+  ## Commands
+  dep-royalty: npx hardhat run scripts/setup/one-off-royalty-engine.ts --network x1Testnet
+  dep-erc721: npx hardhat run scripts/setup/one-off-test-erc721.ts --network x1Testnet

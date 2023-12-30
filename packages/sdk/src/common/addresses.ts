@@ -92,6 +92,8 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Base]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Linea]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Avalanche]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.X1Testnet]: "0x30db42eed547837b83df218afd260b6fb900ee86",
+  [Network.ZkFair]: "0x3eb55547e37f815f42745a43e4b050c713a432b5",
 };
 
 // Uniswap's `SwapRouter02`
