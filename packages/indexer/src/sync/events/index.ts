@@ -551,8 +551,8 @@ export const syncEvents = async (
     throw new Error(`No logs found for blocks ${blocks.fromBlock} to ${blocks.toBlock}`);
   }
 
-  // filter out transactions that we have no log for (we dont want to save these transactions)
-  if (config.chainId === 137) {
+  // Filter out transactions that we have no log for (we don't want to save these transactions)
+  if ([137, 324].includes(config.chainId)) {
     blockData.forEach((block) => {
       block.transactions = block.transactions.filter((tx) =>
         logs.find((log) => log.transactionHash === tx.hash)
