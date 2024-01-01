@@ -30,6 +30,9 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Base]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Linea]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Avalanche]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.ZkFairTestnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
+  [Network.ZkFair]: "0x75ccb0c712541a57733f9c8bc02e035f5ad0ece6000000000000000000000000",
+  [Network.X1Testnet]: "0xc41a6ce1e045f9b0c9629b4c08518aee9d259af2000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
@@ -51,9 +54,13 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Base]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Linea]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.ZkFairTestnet]: "0x7a2457be35277e4703a18a4481b409db1ecf8357",
+  [Network.ZkFair]: "0x9087854026001ce5907e54d67e33ba750a633c2c",
+  [Network.X1Testnet]: "0x66275f453da73b9d6db967dec5e1e01a3f383841",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
+// https://github.com/cao7113/AlienSwap_seaport/blob/dev-fair-test/scripts/get-conduit-controller-codehash.ts
 export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Ethereum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.EthereumGoerli]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
@@ -73,6 +80,9 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Avalanche]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Base]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Linea]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.ZkFairTestnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
+  [Network.ZkFair]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
+  [Network.X1Testnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {

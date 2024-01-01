@@ -1,0 +1,38 @@
+# https://taskfile.dev
+version: "3"
+tasks:
+  i: yarn install
+  build: yarn build
+  # start all service in this monorepo project
+  # 启动项目，主要是packages/indexer 的jobs和api服务
+  start: yarn start
+  run: yarn start
+  fmt: yarn format
+
+  # pm2 start as root user indexer root dir # --no-daemon
+  pm2-start-fair-test:
+    cmds:
+      - |
+        pm2 start asdf --name "indexer-zkfair-testnet" --interpreter bash -- exec yarn start
+  pm2-start-fair-main:
+    cmds:
+      - |
+        pm2 start asdf --name "indexer-zkfair-mainnet" --interpreter bash -- exec yarn start
+
+  pm2-start-x1-test:
+    cmds:
+      - |
+        # run in MASTER mode, only one instance!!!
+        pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
+        # run in non-master mode, can have multiple instance to run jobs. TODO: disable port and api service
+        MASTER=0 PORT=30202 pm2 start asdf --name "indexer-x1-testnet" --interpreter bash -- exec yarn start
+
+  no-check:
+    desc: tmp disable husky commit check, this is STUPID way!!!
+    cmds:
+      - npx husky uninstall
+
+  list-collection:
+    cmds:
+      - |
+        curl https://api-zkfair-mainnet.alienswap.xyz/search/collections/v1?offset=0&limit=20

@@ -28,6 +28,7 @@ import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
 import * as currenciesEndpoints from "@/api/endpoints/currencies";
+// import { postSyncEventsRealtimeOptions } from "@/api/endpoints/admin/post-sync-events-realtime";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -296,6 +297,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/sync-events",
     options: adminEndpoints.postSyncEventsOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/sync-events-realtime",
+    options: adminEndpoints.postSyncEventsRealtimeOptions,
   });
 
   server.route({

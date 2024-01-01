@@ -1,0 +1,29 @@
+# https://taskfile.dev
+version: "3"
+tasks:
+  log: docker-compose logs -f
+
+  pg: docker-compose exec postgres psql -U postgres
+  pg-x1: docker-compose exec postgres psql -U postgres x1testnet
+  pg-fair: docker-compose exec postgres psql -U postgres zkfair_testnet
+  mk-fair-db: docker-compose exec postgres psql -U postgres -c "create database zkfair_testnet"
+
+  rabbitlog: docker-compose logs -f rabbitmq
+  rabbit: docker-compose exec rabbitmq bash
+
+  redis: docker-compose exec redis redis-cli
+
+  up:
+    cmds:
+      - docker-compose up -d
+      - sleep 10 && task mk-fair-db
+
+  setup:
+    desc: base setup with root user
+    cmds:
+      - |
+        mkdir -p /data
+        mkdir -p /data/logs/nginx
+        # avoid indexer warning???
+        mkdir -p ~/.aws
+        touch ~/.aws/config

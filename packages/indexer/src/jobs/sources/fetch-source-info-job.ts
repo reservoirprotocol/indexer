@@ -113,6 +113,9 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     const tokenUrlBase = this.getTokenUrl(html, url, "base");
     const tokenUrlZksync = this.getTokenUrl(html, url, "zksync");
     const tokenUrlPolygonZkevm = this.getTokenUrl(html, url, "polygon-zkevm");
+    const tokenUrlZkFairTestnet = this.getTokenUrl(html, url, "zkfair-testnet");
+    const tokenUrlZkFair = this.getTokenUrl(html, url, "zkfair");
+    const tokenUrlX1Testnet = this.getTokenUrl(html, url, "x1-testnet");
 
     // Update the source data
     const sources = await Sources.getInstance();
@@ -140,6 +143,9 @@ export class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlBase,
       tokenUrlZksync,
       tokenUrlPolygonZkevm,
+      tokenUrlZkFairTestnet,
+      tokenUrlZkFair,
+      tokenUrlX1Testnet,
     });
   }
 

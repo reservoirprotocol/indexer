@@ -48,3 +48,6 @@ coverage/
 
 # Caches
 .eslintcache
+
+indexer-data/
+pods

@@ -419,10 +419,40 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
+    } else if (config.chainId == 195) {
+      if (sourceEntity.metadata.tokenUrlX1Testnet && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlX1Testnet,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
     } else if (config.chainId == 324) {
       if (sourceEntity.metadata.tokenUrlZksync && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
           sourceEntity.metadata.tokenUrlZksync,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 42766) {
+      if (sourceEntity.metadata.tokenUrlZkFair && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlZkFair,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 43851) {
+      if (sourceEntity.metadata.tokenUrlZkFairTestnet && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlZkFairTestnet,
           "${contract}",
           contract
         );

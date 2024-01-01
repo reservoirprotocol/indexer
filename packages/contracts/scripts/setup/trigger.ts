@@ -10,7 +10,12 @@ import { ethers } from "hardhat";
 
 import { DeploymentHelper } from "./deployment-helper";
 
-export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+// x1-testnet xuxiangqian
+// export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+// deployer address from caoruijian
+// export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
+export const DEPLOYER = "0x0f58D8d97d2267b58B009185b35B7F87121215A9";
+
 const DEPLOYMENTS_FILE = "deployments.json";
 
 export const readDeployment = async (
@@ -78,10 +83,16 @@ const verify = async (contractName: string, version: string, args: any[]) => {
 const dv = async (contractName: string, version: string, args: any[]) => {
   try {
     await deploy(contractName, version, args);
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+  } catch (error) {
+    console.log(`Failed to deploy ${contractName}: ${error}`);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 30000));
+
+  try {
     await verify(contractName, version, args);
   } catch (error) {
-    console.log(`Failed to deploy/verify ${contractName}: ${error}`);
+    console.log(`Failed to verify ${contractName}: ${error}`);
   }
 };
 
@@ -245,12 +256,12 @@ export const trigger = {
     MidaswapModule: async (chainId: number) =>
       [1, 5].includes(chainId)
         ? dv("MidaswapModule", "v2", [
-            DEPLOYER,
-            Sdk.RouterV6.Addresses.Router[chainId],
-            Sdk.Midaswap.Addresses.PairFactory[chainId],
-            Sdk.Midaswap.Addresses.Router[chainId],
-            Sdk.Common.Addresses.WNative[chainId],
-          ])
+          DEPLOYER,
+          Sdk.RouterV6.Addresses.Router[chainId],
+          Sdk.Midaswap.Addresses.PairFactory[chainId],
+          Sdk.Midaswap.Addresses.Router[chainId],
+          Sdk.Common.Addresses.WNative[chainId],
+        ])
         : undefined,
     CaviarV1Module: async (chainId: number) =>
       [1, 5].includes(chainId)
@@ -359,8 +370,8 @@ export const trigger = {
   },
   // Test NFTs
   TestNFTs: {
-    Erc721: async () =>
-      dv("ReservoirErc721", "v1", [
+    Erc721: async (version: string) =>
+      dv("ReservoirErc721", version, [
         DEPLOYER,
         "https://test-tokens-metadata.vercel.app/api/erc721/",
         "https://test-tokens-metadata.vercel.app/api/erc721/contract",

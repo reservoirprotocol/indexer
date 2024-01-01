@@ -23,6 +23,7 @@ export * from "@/api/endpoints/admin/post-routers";
 export * from "@/api/endpoints/admin/post-set-community";
 export * from "@/api/endpoints/admin/post-sync-daily-volumes";
 export * from "@/api/endpoints/admin/post-sync-events";
+export * from "@/api/endpoints/admin/post-sync-events-realtime";
 export * from "@/api/endpoints/admin/post-update-api-key";
 export * from "@/api/endpoints/admin/post-update-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-update-source";

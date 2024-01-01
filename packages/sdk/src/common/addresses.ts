@@ -24,6 +24,9 @@ export const Native: ChainIdToAddress = {
   [Network.Linea]: AddressZero,
   [Network.Zksync]: AddressZero,
   [Network.PolygonZkevm]: AddressZero,
+  [Network.ZkFairTestnet]: AddressZero,
+  [Network.ZkFair]: AddressZero,
+  [Network.X1Testnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -48,6 +51,11 @@ export const WNative: ChainIdToAddress = {
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.Zksync]: "0x5aea5775959fbc2557cc8789bc1bf90a239d9a91",
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
+  // usdc-native-wrapped currency，下面这个是自己找脚本部署的
+  [Network.ZkFairTestnet]: "0x9e1f1ab94bc3f2a4d1966f8f7c36c69db651d45f",
+  // ZkFair官方 https://docs.zkfair.io/users/user-guide/zkfair-contracts#additional-useful-contracts
+  [Network.ZkFair]: "0xd33db7ec50a98164cc865dfaa64666906d79319c",
+  [Network.X1Testnet]: "0x991e01f3900c1a9539f6acadcefbe4213e5805cc",
 };
 
 export const Usdc: ChainIdToAddress = {
@@ -84,6 +92,8 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Base]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Linea]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
   [Network.Avalanche]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.X1Testnet]: "0x30db42eed547837b83df218afd260b6fb900ee86",
+  [Network.ZkFair]: "0x3eb55547e37f815f42745a43e4b050c713a432b5",
 };
 
 // Uniswap's `SwapRouter02`
@@ -115,6 +125,8 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.Zora]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Base]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Linea]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.ZkFair]: "0xa2032a04ddf3841cefb384158eacc5a03abc74ae",
+  [Network.X1Testnet]: "0x067a74bdb4efee03ffaf69fd96b39519f1d1d8bb"
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

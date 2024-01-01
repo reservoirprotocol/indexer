@@ -69,11 +69,16 @@ export class RabbitMq {
         heartbeatIntervalInSeconds: 0,
       }
     );
+    logger.info(
+      "rabbit-connetion",
+      `conneted to ${config.rabbitHostname} username: ${config.rabbitUsername}`
+    );
 
     for (let index = 0; index < RabbitMq.maxPublisherChannelsCount; ++index) {
       const channel = this.rabbitMqPublisherConnection.createChannel();
       await channel.waitForConnect();
       RabbitMq.rabbitMqPublisherChannels[index] = channel;
+      // logger.info("rabbit-channel", `built rabbit channel-${index}`)
 
       channel.once("error", (error) => {
         logger.error("rabbit-channel", `Publisher channel error ${error}`);
@@ -83,6 +88,7 @@ export class RabbitMq {
         logger.warn("rabbit-channel", `Rabbit publisher channel ${index} closed`);
       });
     }
+    logger.info("rabbit-connetion", `build channels ok`);
 
     RabbitMq.rabbitMqPublisherConnection.once("error", (error) => {
       logger.error("rabbit-connection", `Publisher connection error ${error}`);
@@ -91,6 +97,22 @@ export class RabbitMq {
     RabbitMq.rabbitMqPublisherConnection.once("close", (error) => {
       logger.warn("rabbit-connection", `Publisher connection error ${error}`);
     });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("connectFailed", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("connect", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("blocked", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
+
+    // RabbitMq.rabbitMqPublisherConnection.once("disconnect", (error) => {
+    //   logger.error("rabbit-connection", `Publisher connection error ${error}`);
+    // });
   }
 
   public static async send(queueName: string, content: RabbitMQMessage, delay = 0, priority = 0) {
@@ -258,16 +280,33 @@ export class RabbitMq {
 
   public static async assertQueuesAndExchanges() {
     const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    logger.info(
+      "rabbit-assertion",
+      `before import @/jobs/index with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`
+    );
     const jobsIndex = await import("@/jobs/index");
 
+    logger.info(
+      "rabbit-assertion",
+      `begin building assert connetion with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`
+    );
     const connection = await amqplib.connect({
       hostname: config.rabbitHostname,
       username: config.rabbitUsername,
       password: config.rabbitPassword,
       vhost: getNetworkName(),
     });
+    logger.info(
+      "rabbit-assertion",
+      `rabbit assert connetion complete with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`
+    );
 
     const channel = await connection.createChannel();
+
+    logger.info(
+      "rabbit-assertion",
+      `rabbit createChannel complete with host: ${config.rabbitHostname} user: ${config.rabbitUsername}`
+    );
 
     // Assert the exchange for delayed messages
     await channel.assertExchange(RabbitMq.delayedExchangeName, "x-delayed-message", {

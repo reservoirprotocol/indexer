@@ -32,7 +32,14 @@ export class DeploymentHelper {
     const chainId = await deployer.getChainId();
 
     // Default: https://github.com/lifinance/create3-factory
-    let create3FactoryAddress = "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
+    // let create3FactoryAddress = "0x93FEC2C00BfE902F733B57c5a6CeeD7CD1384AE1";
+    // let create3FactoryAddress = "0x22fCE8142557cF918248DCC232E583340E7A42BC";
+    // 自己部署的create3 on chain: zkfair-testnet	    
+    // let create3FactoryAddress = "0x2bfcE1e2bfc5C68603b75DA48fCec834Ed00Da6D";
+    // // 自己部署的create3 on chain: zkfair-mainnet
+    // let create3FactoryAddress = "0xa2032a04ddf3841cefb384158eacc5a03abc74ae";
+    // 自己部署的create3 on chain: x1-testnet
+    let create3FactoryAddress = "0x067a74bdb4efee03ffaf69fd96b39519f1d1d8bb";
     const code = await ethers.provider.getCode(create3FactoryAddress);
     if (!code || code === "0x") {
       create3FactoryAddress = Sdk.Common.Addresses.Create3Factory[chainId];
@@ -40,6 +47,8 @@ export class DeploymentHelper {
     if (!create3FactoryAddress) {
       throw new Error("No CREATE3 factory available");
     }
+
+    console.log(`[debug] get DeploymentHelper with chainId: ${chainId} create3FactoryAddress: ${create3FactoryAddress} deployer: ${deployer.address}`);
 
     return new DeploymentHelper(deployer, chainId, { create3FactoryAddress });
   }
@@ -76,6 +85,8 @@ export class DeploymentHelper {
       {
         // maxFeePerGas: "2000000000",
         // maxPriorityFeePerGas: "500000000",
+        // for x1-Testnet
+        // gasPrice: 300000000000,
       }
     );
 
