@@ -9,7 +9,6 @@ import { SingleTokenBuilder } from "./builders/single-token";
 import { Provider } from "@ethersproject/abstract-provider";
 import { EIP712_TYPES, OfferTokenType } from "./types";
 import * as Common from "../common";
-import { Network } from "../utils";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { BaseBuilder } from "./builders/base";
 
@@ -137,7 +136,7 @@ export class Order {
       // Check approval
       const isApproved = await erc721.isApproved(
         this.params.offerer,
-        Addresses.Exchange[Network.Ethereum]
+        Addresses.Exchange[this.chainId]
       );
       if (!isApproved) {
         throw new Error("erc721 not approved");
@@ -157,7 +156,7 @@ export class Order {
       // Check approval
       const isApproved = await erc1155.isApproved(
         this.params.offerer,
-        Addresses.Exchange[Network.Ethereum]
+        Addresses.Exchange[this.chainId]
       );
       if (!isApproved) {
         throw new Error("erc1155 no approval");

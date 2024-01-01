@@ -94,11 +94,26 @@ const getNetworkConfig = (chainId?: number) => {
     }
   }
 
-  const config = {
+  let config = {
     chainId,
     url,
     accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : undefined,
   };
+
+  if (chainId === 11155111) {
+    const _mnemonic = process.env.MNEMONIC;
+    if (!_mnemonic) {
+      throw new Error("Specify mnemonic");
+    }
+
+    config = {
+      ...config,
+      accounts: { // @ts-ignore
+        mnemonic: _mnemonic,
+        count: 6
+      }
+    }
+  }
 
   // For zkSync
   if (chainId === 324) {
@@ -128,7 +143,7 @@ const config: HardhatUserConfig = {
       }
     ],
   },
-  defaultNetwork: "mainnet",
+  defaultNetwork: "hardhat",
   networks: {
     // Devnets
     hardhat: {

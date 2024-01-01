@@ -315,7 +315,7 @@ export const trigger = {
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
       ]),
     HotpotModule: async (chainId: number) => 
-      dv("HotpotModule", "v2", [
+      dv("HotpotModule", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Hotpot.Addresses.Exchange[chainId]

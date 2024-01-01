@@ -250,5 +250,6 @@ export const PaymentProcessorModule: ChainIdToAddress = {
 };
 
 export const HotpotModule: ChainIdToAddress = {
-  [Network.Ethereum]: "deploy and fill in",
+  [Network.Ethereum]: "0xDf66c3ecc82d009B0922019e48C250F8dC4810c0",
+  [Network.EthereumSepolia]: "0x73eb5389805d99a365e8650eb1dc7472a5b5c158",
 };

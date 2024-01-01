@@ -18,6 +18,7 @@ import {
   reset,
   setupNFTs,
 } from "../../utils";
+import { Network } from '@reservoir0x/sdk/src/utils';
 
 describe("[ReservoirV6_0_1] Hotpot listings", () => {
   const chainId = getChainId();
@@ -88,69 +89,54 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
             : { kind: "erc1155", contract: erc1155 }),
           id: getRandomInteger(1, 10000),
         },
-        price: parseEther(getRandomFloat(0.0001, 2).toFixed(6)),
+        price: parseEther(getRandomFloat(0.0001, 0.001).toFixed(6)),
         isCancelled: partial && getRandomBoolean(), // imitate partial buy - cancel listings that are not filled
       });
       if (chargeFees) {
-        feesOnTop.push(parseEther(getRandomFloat(0.0001, 0.1).toFixed(6)));
+        feesOnTop.push(parseEther(getRandomFloat(0.0001, 0.0002).toFixed(6)));
       }
     }
     await Hotpot.setupListings(listings, carol);
+    //console.log("Here are the listings: ", listings.map(a => a.matchingOrder!));
 
     // Prepare executions
     // totalPrice does not include fees on top
 
     const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
-    const executions: ExecutionInfo[] = [
-      // 1. Fill listings
-      listingsCount > 1
-        ? {
-            module: HotpotModule.address,
-            data: HotpotModule.interface.encodeFunctionData("acceptETHListings", [
-              listings.map((listing) => listing.order!.getExchangeOrderParams()),
-              {
-                fillTo: carol.address,
-                refundTo: carol.address,
-                revertIfIncomplete: true,
-                amount: totalPrice,
-              },
-              [
-              chargeFees ? 
-                feesOnTop.map((amount) => ({
-                  recipient: emilio.address,
-                  amount,
-                })) : 
-                [],
-              ],
-            ]),
-            value: totalPrice.add(
-              // Anything on top should be refunded
-              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
-            ),
-          }
-        : {
-            module: HotpotModule.address,
-            data: HotpotModule.interface.encodeFunctionData("acceptETHListing", [
-              listings[0].order!.getExchangeOrderParams(),
-              {
-                fillTo: carol.address,
-                refundTo: carol.address,
-                revertIfIncomplete: true,
-                amount: totalPrice,
-              },
-              chargeFees
-                ? feesOnTop.map((amount) => ({
-                    recipient: emilio.address,
-                    amount,
-                  }))
-                : [],
-            ]),
-            value: totalPrice.add(
-              // Anything on top should be refunded
-              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
-            ),
-          },
-    ];
+    const totalFeesOnTop = bn(feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)));
+    const totalRaffleFee = bn(listings.map((l) => l.raffleFee!).reduce((a, b) => bn(a).add(b), bn(0)));
+
+    /* 
+      Setting up execution
+     */
+    const executionFees = chargeFees ? 
+      feesOnTop.map((amount) => ({
+        recipient: emilio.address,
+        amount,
+      })) : [];
+    const ethListingParams = {
+      fillTo: carol.address,
+      refundTo: carol.address,
+      revertIfIncomplete: true,
+      amount: totalPrice.add(totalRaffleFee),
+    };
+    const hotpotOrders = listingsCount > 1 ?
+      listings.map((listing) => listing.matchingOrder!) :
+      listings[0].matchingOrder!;
+    const fullValue = totalPrice.add(
+      totalFeesOnTop.add(parseEther("0.1")).add(totalRaffleFee)
+    );
+    const methodName = listingsCount > 1 ? "acceptETHListings" : "acceptETHListing";
+
+    const executions: ExecutionInfo[] = [{
+      module: HotpotModule.address,
+      data: HotpotModule.interface.encodeFunctionData(methodName, [
+        hotpotOrders,
+        ethListingParams,
+        executionFees,
+      ]),
+      value: fullValue,
+    }];
 
     // Checks
 
@@ -172,7 +158,7 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
     const ethBalancesBefore = await getBalances();
 
     // Execute
-
+    
     await router.connect(carol).execute(executions, {
       value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
@@ -183,15 +169,13 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
 
     // Checks
 
-    const exchange = new Sdk.Hotpot.Exchange(chainId);
     // Alice got the payment
     const alices_payments = listings
       .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
-      .map(async ({ price, order }) => {
-        const raffle_fee = await exchange.calculateRaffleFee(ethers.provider, order!.params);
-        return bn(price).sub(raffle_fee)
+      .map(({ price }) => {
+        return bn(price)
       });
-    const total_alices_payment = (await Promise.all(alices_payments)).reduce(
+    const total_alices_payment = alices_payments.reduce(
       (a, b) => bn(a).add(b), bn(0)
     );
     expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
@@ -201,11 +185,10 @@ describe("[ReservoirV6_0_1] Hotpot listings", () => {
     // Bob got the payment
     const bobs_payments = listings
       .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
-      .map(async ({ price, order }) => {
-        const raffle_fee = await exchange.calculateRaffleFee(ethers.provider, order!.params);
-        return bn(price).sub(raffle_fee)
+      .map(({ price }) => {
+        return bn(price)
       });
-    const total_bobs_payment = (await Promise.all(bobs_payments)).reduce(
+    const total_bobs_payment = bobs_payments.reduce(
       (a, b) => bn(a).add(b), bn(0)
     );
     expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob)).to.eq(

@@ -24,6 +24,8 @@ export type Listing = {
   // Whether the order is to be cancelled
   isCancelled?: boolean;
   order?: Sdk.Hotpot.Order;
+  matchingOrder?: Sdk.Hotpot.Types.OrderParameters,
+  raffleFee?: BigNumberish
 };
 
 export const setupListings = async (
@@ -60,12 +62,18 @@ export const setupListings = async (
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60*60*24,
     });
     await order.sign(seller);
-    await order.buildMatching(
+    listing.matchingOrder = await order.buildMatching(
       ethers.provider, 
       buyer.address
     );
 
     listing.order = order;
+
+    // Set up the fee
+    listing.raffleFee = await exchange.calculateRaffleFee(
+      ethers.provider, 
+      listing.matchingOrder
+    );
 
     // Cancel the order if requested
     if (listing.isCancelled) {

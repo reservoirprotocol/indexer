@@ -47,7 +47,21 @@ export const reset = async () => {
 };
 
 // Retrieve the forked network's chain id
-export const getChainId = () => ((network.config as any).forking?.url.includes("goerli") ? 5 : 1);
+export const getChainId = () => {
+  const url = (network.config as any).forking?.url;
+  const isGoerliForking = url.includes("goerli");
+  const isSepoliaForking = url.includes("sepolia");
+
+  if (isGoerliForking) {
+    return 5;
+  }
+  else if(isSepoliaForking) {
+    return 11155111;
+  }
+  else {
+    return 1;
+  }
+}
 
 // --- Deployments ---
 

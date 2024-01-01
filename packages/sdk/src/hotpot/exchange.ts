@@ -74,14 +74,12 @@ export class Exchange {
       from: maker,
       to: this.exchangeAddress,
       data: this.contract.interface.encodeFunctionData("cancelOrder", [
-        [
-          {
-            offerer: order.params.offerer,
-            offerItem: order.params.offerItem,
-            royalty: order.params.royalty,
-            salt: order.params.salt,
-          },
-        ],
+        {
+          offerer: order.params.offerer,
+          offerItem: order.params.offerItem,
+          royalty: order.params.royalty,
+          salt: order.params.salt,
+        },
       ]),
     };
   }

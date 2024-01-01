@@ -189,11 +189,6 @@
             "type": "address"
           },
           {
-            "internalType": "uint16",
-            "name": "offererIndex",
-            "type": "uint16"
-          },
-          {
             "components": [
               {
                 "internalType": "address",
@@ -243,28 +238,6 @@
             "type": "tuple"
           },
           {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "offererPendingAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "buyerPendingAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "bytes32",
-                "name": "orderHash",
-                "type": "bytes32"
-              }
-            ],
-            "internalType": "struct IOrderFulfiller.PendingAmountData",
-            "name": "pendingAmountsData",
-            "type": "tuple"
-          },
-          {
             "internalType": "uint256",
             "name": "salt",
             "type": "uint256"
@@ -275,24 +248,14 @@
             "type": "bytes"
           },
           {
-            "internalType": "bytes",
-            "name": "pendingAmountsSignature",
-            "type": "bytes"
-          },
-          {
             "internalType": "enum IOrderFulfiller.OfferTokenType",
             "name": "tokenType",
             "type": "uint8"
           }
         ],
-        "internalType": "struct IOrderFulfiller.BatchOrderParameters[]",
+        "internalType": "struct IOrderFulfiller.OrderParameters[]",
         "name": "parameters",
         "type": "tuple[]"
-      },
-      {
-        "internalType": "address[]",
-        "name": "offerers",
-        "type": "address[]"
       }
     ],
     "name": "batchFulfillOrder",
@@ -481,28 +444,6 @@
             "type": "tuple"
           },
           {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "offererPendingAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "uint256",
-                "name": "buyerPendingAmount",
-                "type": "uint256"
-              },
-              {
-                "internalType": "bytes32",
-                "name": "orderHash",
-                "type": "bytes32"
-              }
-            ],
-            "internalType": "struct IOrderFulfiller.PendingAmountData",
-            "name": "pendingAmountsData",
-            "type": "tuple"
-          },
-          {
             "internalType": "uint256",
             "name": "salt",
             "type": "uint256"
@@ -510,11 +451,6 @@
           {
             "internalType": "bytes",
             "name": "orderSignature",
-            "type": "bytes"
-          },
-          {
-            "internalType": "bytes",
-            "name": "pendingAmountsSignature",
             "type": "bytes"
           },
           {

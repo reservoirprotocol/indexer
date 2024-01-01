@@ -28,7 +28,7 @@ describe("Hotpot - Single-token ERC721 test", () => {
     const seller = alice;
     const buyer = bob;
     const tokenId = 0;
-    const price = parseEther("1.35");
+    const price = parseEther("0.35");
     const endTime = (await getCurrentTimestamp(ethers.provider)) + 60 * 60 * 24;
     const exchange = new Hotpot.Exchange(chainId);
     const raffleContractAddress = await exchange.raffleContractAddress(ethers.provider);
@@ -79,7 +79,7 @@ describe("Hotpot - Single-token ERC721 test", () => {
     expect(ownerBefore).to.eq(seller.address);
     
     await exchange.fulfillOrder(buyer, matching_order);
-
+    
     const buyerBalanceAfter = await ethers.provider.getBalance(buyer.address);
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
     const raffleBalanceAfter = await ethers.provider.getBalance(raffleContractAddress);
