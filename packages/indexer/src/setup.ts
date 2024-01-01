@@ -29,7 +29,7 @@ const setup = async () => {
   // Configure the SDK
   Sdk.Global.Config.aggregatorSource = "reservoir.tools";
 
-  if (process.env.LOCAL_TESTING) {
+if (process.env.LOCAL_TESTING == "1") {
     return;
   }
 
