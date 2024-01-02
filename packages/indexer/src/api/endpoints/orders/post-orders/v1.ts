@@ -64,7 +64,7 @@ export const postOrdersV1Options: RouteOptions = {
     try {
       const orders = payload.orders;
 
-      logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
+      // logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
 
       const orderInfos: GenericOrderInfo[] = [];
       for (const { kind, data, originatedAt, source } of orders) {

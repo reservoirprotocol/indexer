@@ -80,7 +80,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         startTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -90,7 +92,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           endTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -108,7 +111,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         fromTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -118,7 +123,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           fromTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -136,7 +142,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         fromTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -146,7 +154,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           fromTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -164,7 +173,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         fromTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -174,7 +185,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           fromTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -192,7 +204,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         fromTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -202,7 +216,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           fromTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -220,7 +235,9 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         undefined,
         fromTimestamp,
         endTimestamp,
-        indexName
+        indexName,
+        false,
+        payload.upsert
       );
 
       if (keepGoing) {
@@ -230,7 +247,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
           fromTimestamp,
           undefined,
           indexName,
-          true
+          true,
+          payload.upsert
         );
       }
     };
@@ -276,7 +294,8 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
     backfillBidActivities = false,
     backfillBidCancelActivities = false,
     fromTimestamp?: number,
-    toTimestamp?: number
+    toTimestamp?: number,
+    upsert?: boolean
   ) {
     if (!config.doElasticsearchWork) {
       return;
@@ -296,6 +315,7 @@ export class BackfillActivitiesElasticsearchJob extends AbstractRabbitMqJobHandl
         backfillBidCancelActivities,
         fromTimestamp,
         toTimestamp,
+        upsert,
       },
     });
   }
@@ -316,6 +336,7 @@ export type BackfillActivitiesElasticsearchJobPayload = {
   backfillBidCancelActivities?: boolean;
   fromTimestamp?: number;
   toTimestamp?: number;
+  upsert?: boolean;
 };
 
 export interface OrderCursorInfo {
