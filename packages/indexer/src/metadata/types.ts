@@ -29,6 +29,8 @@ export interface TokenMetadata {
     rank?: number;
   }[];
   metadataMethod?: string;
+  imageMimeType?: string;
+  mediaMimeType?: string;
 }
 
 export interface CollectionMetadata {
@@ -48,6 +50,7 @@ export interface CollectionMetadata {
   contract: string;
   tokenIdRange: [number, number] | [string, string] | null;
   tokenSetId: string | null;
+  hasPerTokenRoyalties?: boolean;
   isFallback?: boolean;
   paymentTokens?: object | null;
   creator?: string | null;

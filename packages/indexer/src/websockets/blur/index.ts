@@ -75,9 +75,68 @@ if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config
 
       const collection = parsedMessage.contractAddress.toLowerCase();
       const pricePoints = parsedMessage.updates;
-      await blurBidsBufferJob.addToQueue(collection, pricePoints);
+      await blurBidsBufferJob.addToQueue(
+        {
+          collection,
+        },
+        pricePoints
+      );
     } catch (error) {
-      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
+      logger.error(COMPONENT, `Error handling collection bid: ${error} (message = ${message})`);
+    }
+  });
+
+  // Trait bids
+  client.on("trait_bidLevels", async (message: string) => {
+    try {
+      type PricePointWithAttribute = Sdk.Blur.Types.BlurBidPricePoint & {
+        criteriaType: string;
+        criteriaValue: { [key: string]: string };
+      };
+
+      const parsedMessage: {
+        contractAddress: string;
+        updates: PricePointWithAttribute[];
+      } = JSON.parse(message);
+
+      const collection = parsedMessage.contractAddress.toLowerCase();
+      const allTraitUpdates = parsedMessage.updates.filter((d) => d.criteriaType === "TRAIT");
+
+      // Group all updates by their corresponding trait
+      const groupedTraitUpdates: {
+        [attributeId: string]: PricePointWithAttribute[];
+      } = {};
+      for (const update of allTraitUpdates) {
+        const keys = Object.keys(update.criteriaValue);
+        if (keys.length === 1) {
+          const attributeKey = keys[0];
+          const attributeValue = update.criteriaValue[attributeKey];
+
+          const attributeId = `${attributeKey}:${attributeValue}`;
+          if (!groupedTraitUpdates[attributeId]) {
+            groupedTraitUpdates[attributeId] = [];
+          }
+          groupedTraitUpdates[attributeId].push(update);
+        }
+      }
+
+      await Promise.all(
+        Object.keys(groupedTraitUpdates).map(async (attributeId) => {
+          const [attributeKey, attributeValue] = attributeId.split(":");
+          await blurBidsBufferJob.addToQueue(
+            {
+              collection,
+              attribute: {
+                key: attributeKey,
+                value: attributeValue,
+              },
+            },
+            groupedTraitUpdates[attributeId]
+          );
+        })
+      );
+    } catch (error) {
+      logger.error(COMPONENT, `Error handling trait bid: ${error} (message = ${message})`);
     }
   });
 }

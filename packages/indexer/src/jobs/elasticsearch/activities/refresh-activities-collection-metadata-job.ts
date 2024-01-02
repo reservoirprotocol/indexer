@@ -67,16 +67,16 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
     if (processResult?.addToQueue) {
       rabbitMqMessage.payload.context = "onCompleted";
 
-      await this.addToQueue(rabbitMqMessage.payload);
+      await this.addToQueue(rabbitMqMessage.payload, 5000);
     }
   }
 
-  public async addToQueue(payload: RefreshActivitiesCollectionMetadataJobPayload) {
+  public async addToQueue(payload: RefreshActivitiesCollectionMetadataJobPayload, delay = 0) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.send({ payload, jobId: payload.collectionId });
+    await this.send({ payload, jobId: payload.collectionId }, delay);
   }
 }
 

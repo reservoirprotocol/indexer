@@ -2,10 +2,12 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import pLimit from "p-limit";
 
-import { idb, pgp } from "@/common/db";
+import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -104,9 +106,18 @@ export const savePartialListings = async (
       const sources = await Sources.getInstance();
       const source = await sources.getOrInsert("blur.io");
 
-      const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
+      // Handle: filtering
+      const isFilteredBlur = await checkMarketplaceIsFiltered(orderParams.collection, [
         Sdk.BlurV2.Addresses.Delegate[config.chainId],
       ]);
+      const isFilteredSeaport = await checkMarketplaceIsFiltered(orderParams.collection, [
+        new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+        ),
+      ]);
+      // Blur uses Seaport if a collection is blocked on Blur
+      const isFiltered = isFilteredBlur && isFilteredSeaport;
+
       if (isFiltered) {
         // Force remove any orders
         orderParams.price = undefined;
@@ -402,6 +413,13 @@ const getBlurBidId = (collection: string) =>
   // Buy orders have a single order id per collection
   keccak256(["string", "address"], ["blur", collection]);
 
+const getBlurTraitBidId = (collection: string, attributeKey: string, attributeValue: string) =>
+  // Buy orders have a single order id per attribute
+  keccak256(
+    ["string", "address", "string", "string"],
+    ["blur", collection, attributeKey, attributeValue]
+  );
+
 export const savePartialBids = async (
   orderInfos: PartialBidOrderInfo[],
   ingestMethod?: "websocket" | "rest"
@@ -418,7 +436,15 @@ export const savePartialBids = async (
       return;
     }
 
-    const id = getBlurBidId(orderParams.collection);
+    const isAttributeBid = Boolean(orderParams.attribute);
+
+    const id = isAttributeBid
+      ? getBlurTraitBidId(
+          orderParams.collection,
+          orderParams.attribute!.key,
+          orderParams.attribute!.value
+        )
+      : getBlurBidId(orderParams.collection);
     const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, [
       Sdk.BlurV2.Addresses.Delegate[config.chainId],
     ]);
@@ -445,16 +471,87 @@ export const savePartialBids = async (
         }
 
         // Handle: token set
-        const schemaHash = generateSchemaHash();
-        const [{ id: tokenSetId }] = await tokenSet.contractWide.save([
-          {
-            id: `contract:${orderParams.collection}`.toLowerCase(),
-            schemaHash,
-            contract: orderParams.collection,
-          },
-        ]);
+        let tokenSetId: string | undefined;
+        let schemaHash: string | undefined;
+
+        if (isAttributeBid) {
+          const schema = {
+            kind: "attribute",
+            data: {
+              collection: orderParams.collection,
+              attributes: [
+                {
+                  key: orderParams.attribute!.key,
+                  value: orderParams.attribute!.value,
+                },
+              ],
+            },
+          };
+
+          schemaHash = generateSchemaHash(schema);
+
+          // Cache the token-set for efficiency
+          const tokenSetCacheKey = `blur-trait-bid-token-set:${orderParams.collection}:${
+            orderParams.attribute!.key
+          }:${orderParams.attribute!.value}`;
+          const tokenSetCache = await redis.get(tokenSetCacheKey);
+          if (tokenSetCache) {
+            tokenSetId = tokenSetCache;
+          } else {
+            // Fetch all tokens matching the attributes
+            const tokens = await redb.manyOrNone(
+              `
+                SELECT token_attributes.token_id
+                FROM token_attributes
+                WHERE token_attributes.collection_id = $/collection/
+                  AND token_attributes.key = $/key/
+                  AND token_attributes.value = $/value/
+                ORDER BY token_attributes.token_id
+              `,
+              {
+                collection: orderParams.collection,
+                key: orderParams.attribute!.key,
+                value: orderParams.attribute!.value,
+              }
+            );
+
+            if (tokens.length) {
+              const tokensIds = tokens.map((r) => r.token_id);
+              const merkleTree = generateMerkleTree(tokensIds);
+
+              tokenSetId = `list:${orderParams.collection}:${merkleTree.getHexRoot()}`;
+
+              await tokenSet.tokenList.save([
+                {
+                  id: tokenSetId,
+                  schema,
+                  schemaHash: generateSchemaHash(schema),
+                  items: {
+                    contract: orderParams.collection,
+                    tokenIds: tokensIds,
+                  },
+                } as tokenSet.tokenList.TokenSet,
+              ]);
+
+              await redis.set(tokenSetCacheKey, tokenSetId, "EX", 24 * 3600);
+            }
+          }
+        } else {
+          schemaHash = generateSchemaHash();
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            {
+              id: `contract:${orderParams.collection}`.toLowerCase(),
+              schemaHash,
+              contract: orderParams.collection,
+            },
+          ]);
+        }
+
         if (!tokenSetId) {
-          throw new Error("No token set available");
+          return results.push({
+            id,
+            status: "no-token-set-available",
+          });
         }
 
         // Handle: source
@@ -512,7 +609,7 @@ export const savePartialBids = async (
           currency_price: price,
           currency_value: value,
           needs_conversion: null,
-          quantity_remaining: totalQuantity.toString(),
+          quantity_remaining: isAttributeBid ? "1" : totalQuantity.toString(),
           valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
           nonce: null,
           source_id_int: source?.id,
@@ -673,7 +770,7 @@ export const savePartialBids = async (
               id,
               price,
               value,
-              totalQuantity,
+              totalQuantity: isAttributeBid ? 1 : totalQuantity,
               rawData: currentBid,
             }
           );

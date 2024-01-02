@@ -34,6 +34,7 @@ type OrderInfo = {
 export type StateCache = {
   royalties: Map<string, Royalty[][]>;
   orderInfos: Map<string, OrderInfo>;
+  order: Map<string, number>;
 };
 
 export interface RoyaltyAdapter {
@@ -151,6 +152,7 @@ export const assignRoyaltiesToFillEvents = async (
   const cache: StateCache = {
     royalties: new Map(),
     orderInfos: new Map(),
+    order: new Map(),
   };
 
   const limit = pLimit(50);

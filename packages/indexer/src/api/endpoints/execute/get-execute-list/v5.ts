@@ -18,7 +18,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getExecuteError } from "@/orderbook/orders/errors";
-import { checkBlacklistAndFallback } from "@/orderbook/orders";
+import { OrderKind, checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 
@@ -58,7 +58,7 @@ export const getExecuteListV5Options: RouteOptions = {
   description: "Create Listings",
   notes:
     "Generate listings and submit them to multiple marketplaces.\n\n Notes:\n\n- Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n\n- We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   plugins: {
     "hapi-swagger": {
       order: 11,
@@ -270,7 +270,7 @@ export const getExecuteListV5Options: RouteOptions = {
       quantity?: number;
       weiPrice: string;
       endWeiPrice?: string;
-      orderKind: string;
+      orderKind: OrderKind;
       orderbook: string;
       fees?: string[];
       marketplaceFees?: string[];
@@ -545,7 +545,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 break;
               }
 
-              case "zeroex-v4": {
+              case "zeroex-v4" as any: {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }

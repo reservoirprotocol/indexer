@@ -7,6 +7,7 @@ import { Network } from "@reservoir0x/sdk/dist/utils";
 import { config } from "../../config";
 import { extractByCollectionERC721 } from "../../orderbook/mints/calldata/detector/artblocks";
 import type { Info } from "../../orderbook/mints/calldata/detector/artblocks";
+import * as utils from "@/events-sync/utils";
 
 jest.setTimeout(60 * 1000);
 

@@ -55,7 +55,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy Tokens",
   notes:
     "Use this API to fill listings. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
@@ -142,7 +142,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router (where possible)"
       ),
-      forceTrustedForwarder: Joi.string()
+      forwarderChannel: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
@@ -509,7 +509,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               },
               payload.taker,
               {
-                ppV2TrustedChannel: payload.forceTrustedForwarder,
+                ppV2TrustedChannel: payload.forwarderChannel,
               }
             )
           );
@@ -561,6 +561,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         payload.executionMethod === "intent" ||
         (payload.currencyChainId !== undefined && payload.currencyChainId !== config.chainId);
 
+      let allMintsHaveExplicitRecipient = true;
+
       let lastError: string | undefined;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -603,7 +605,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (collectionData) {
               const collectionMint = normalizePartialCollectionMint(rawMint);
 
-              const { txData, price } = await generateCollectionMintTxData(
+              const { txData, price, hasExplicitRecipient } = await generateCollectionMintTxData(
                 collectionMint,
                 payload.taker,
                 item.quantity,
@@ -612,6 +614,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   referrer: payload.referrer,
                 }
               );
+              allMintsHaveExplicitRecipient = allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
               const orderId = `mint:${collectionMint.collection}`;
               mintDetails.push({
@@ -878,15 +881,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
                   if (quantityToMint > 0) {
                     try {
-                      const { txData, price } = await generateCollectionMintTxData(
-                        mint,
-                        payload.taker,
-                        quantityToMint,
-                        {
+                      const { txData, price, hasExplicitRecipient } =
+                        await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
                           comment: payload.comment,
                           referrer: payload.referrer,
-                        }
-                      );
+                        });
+                      allMintsHaveExplicitRecipient =
+                        allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
                       const orderId = `mint:${item.collection}`;
                       mintDetails.push({
@@ -1106,15 +1107,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
                   if (quantityToMint > 0) {
                     try {
-                      const { txData, price } = await generateCollectionMintTxData(
-                        mint,
-                        payload.taker,
-                        quantityToMint,
-                        {
+                      const { txData, price, hasExplicitRecipient } =
+                        await generateCollectionMintTxData(mint, payload.taker, quantityToMint, {
                           comment: payload.comment,
                           referrer: payload.referrer,
-                        }
-                      );
+                        });
+                      allMintsHaveExplicitRecipient =
+                        allMintsHaveExplicitRecipient && hasExplicitRecipient;
 
                       const orderId = `mint:${collectionData.id}`;
                       mintDetails.push({
@@ -1479,6 +1478,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       const getCrossChainQuote = async () => {
+        const originChainId = originalPayload.currencyChainId ?? config.chainId;
+        const destinationChainId = config.chainId;
+
         const ccConfig: {
           enabled: boolean;
           user?: {
@@ -1490,11 +1492,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           };
         } = await axios
           .get(
-            `${config.crossChainSolverBaseUrl}/config?originChainId=${
-              originalPayload.currencyChainId
-            }&destinationChainId=${config.chainId}&user=${originalPayload.taker}&currency=${
-              Sdk.Common.Addresses.Native[originalPayload.currencyChainId]
-            }`
+            `${config.crossChainSolverBaseUrl}/config?originChainId=${originChainId}&destinationChainId=${destinationChainId}&user=${originalPayload.taker}&currency=${Sdk.Common.Addresses.Native[originChainId]}`
           )
           .then((response) => response.data);
 
@@ -1504,18 +1502,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const data = {
           request: {
-            originChainId: originalPayload.currencyChainId,
-            destinationChainId: config.chainId,
+            originChainId,
+            destinationChainId,
             data: originalPayload,
             endpoint: "/execute/buy/v7",
             salt: Math.floor(Math.random() * 1000000),
           },
         };
 
-        const { requestId, price, relayerFee, depositGasFee } = await axios
+        const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
           .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
           .then((response) => ({
             requestId: response.data.requestId,
+            shortRequestId: response.data.shortRequestId,
             price: response.data.price,
             relayerFee: response.data.relayerFee,
             depositGasFee: response.data.depositGasFee,
@@ -1536,6 +1535,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         return {
           requestId,
+          shortRequestId,
           request: data.request,
           price,
           relayerFee,
@@ -1959,10 +1959,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
             data: {
               from: payload.taker,
               to: data.solver.address,
-              data: data.requestId,
+              data: data.shortRequestId,
               value: bn(cost).sub(data.user.balance).toString(),
               gasLimit: 22000,
-              chainId: payload.currencyChainId,
+              // `0x1234` or `4660` denotes cross-chain balance spending
+              chainId: payload.currencyChainId === 4660 ? 1 : payload.currencyChainId,
             },
             check: {
               endpoint: "/execute/status/v1",

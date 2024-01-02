@@ -9,7 +9,6 @@ import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { acquireLock, redis } from "@/common/redis";
-import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -23,7 +22,6 @@ import { topBidsCache } from "@/models/top-bids-caching";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import { getUSDAndNativePrices } from "@/utils/prices";
@@ -429,7 +427,7 @@ export const save = async (
                     contract: info.contract,
                     tokenIds: tokensIds,
                   },
-                } as TokenSet,
+                } as tokenSet.tokenList.TokenSet,
               ]);
             }
 
@@ -891,15 +889,13 @@ export const save = async (
   await Promise.all(
     orderInfos.map((orderInfo) =>
       limit(async () =>
-        tracer.trace("handleOrder", { resource: "seaportV15Save" }, () =>
-          handleOrder(
-            orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
-            orderInfo.metadata,
-            orderInfo.isReservoir,
-            orderInfo.isOpenSea,
-            orderInfo.isOkx,
-            orderInfo.openSeaOrderParams
-          )
+        handleOrder(
+          orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
+          orderInfo.metadata,
+          orderInfo.isReservoir,
+          orderInfo.isOpenSea,
+          orderInfo.isOkx,
+          orderInfo.openSeaOrderParams
         )
       )
     )

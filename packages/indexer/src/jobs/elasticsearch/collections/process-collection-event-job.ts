@@ -74,7 +74,9 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
       );
 
       if (rawResult) {
-        document = new CollectionDocumentBuilder().buildDocument({
+        const builder = new CollectionDocumentBuilder();
+
+        document = await builder.buildDocument({
           id: rawResult.id,
           created_at: new Date(rawResult.created_at),
           contract: rawResult.contract,

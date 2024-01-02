@@ -17,6 +17,7 @@ import {
   EventKind,
   processCollectionEventJob,
 } from "@/jobs/elasticsearch/collections/process-collection-event-job";
+import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -44,6 +45,8 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         },
       },
     ]);
+
+    await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -61,26 +64,36 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      const collectionKey = `collection-cache:v4:${payload.after.id}`;
+      const collectionKey = `collection-cache:v5:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
       if (cachedCollection !== null) {
         // If the collection exists, fetch the on_sale_count
         const collectionMetadataQuery = `
-          SELECT
-            count_query.on_sale_count,
-            orders.currency AS floor_sell_currency,
-            orders.currency_normalized_value AS normalized_floor_sell_currency_value,
-            orders.currency_value AS floor_sell_currency_value
-          FROM (
-            SELECT
-              COUNT(*) AS on_sale_count
-              FROM tokens
-              WHERE tokens.collection_id = $/collectionId/
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS count_query 
-          LEFT JOIN orders ON orders.id = $/askOrderId/;
+        SELECT
+        count_query.on_sale_count,
+        orders.currency AS floor_sell_currency,
+        orders.currency_normalized_value AS normalized_floor_sell_currency_value,
+        orders.currency_value AS floor_sell_currency_value,
+        (
+          ARRAY( 
+            SELECT 
+              tokens.image
+            FROM tokens
+            WHERE tokens.collection_id = $/collectionId/ 
+            ORDER BY rarity_rank DESC NULLS LAST 
+            LIMIT 4 
+          )
+        ) AS sample_images
+      FROM (
+        SELECT
+          COUNT(*) AS on_sale_count
+          FROM tokens
+          WHERE tokens.collection_id = $/collectionId/
+          AND tokens.floor_sell_value IS NOT NULL
+      ) AS count_query 
+      LEFT JOIN orders ON orders.id = $/askOrderId/;
         `;
 
         const result = await redb.one(collectionMetadataQuery, {
@@ -96,13 +109,36 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           floor_sell_currency: result.floor_sell_currency
             ? fromBuffer(result.floor_sell_currency)
             : Sdk.Common.Addresses.Native[config.chainId],
-          metadata: JSON.parse(metadata),
+          metadata: {
+            ...JSON.parse(metadata),
+            sample_images: result?.sample_images || [],
+          },
           on_sale_count: result.on_sale_count,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
         await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+      }
+
+      const isSpam = Number(payload.after.is_spam) > 0;
+
+      // If name changed
+      const nameChanged = payload.before.name !== payload.after.name;
+
+      // If the collection url changed
+      const urlChanged =
+        payload.before?.metadata?.externalUrl !== payload.after?.metadata?.externalUrl;
+
+      // If the collections was marked as verified
+      const verificationChanged =
+        payload.before?.metadata?.safelistRequestStatus !==
+          payload.after?.metadata?.safelistRequestStatus &&
+        payload.after?.metadata?.safelistRequestStatus === "verified";
+
+      // If the name/url/verification changed check for spam
+      if (((nameChanged || urlChanged) && !isSpam) || (verificationChanged && isSpam)) {
+        await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
       }
 
       const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;

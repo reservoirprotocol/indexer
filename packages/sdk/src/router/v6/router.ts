@@ -1,4 +1,4 @@
-import { Interface } from "@ethersproject/abi";
+import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
@@ -238,6 +238,8 @@ export class Router {
       forceDirectFilling?: boolean;
       // Wallet used for relaying the fill transaction
       relayer?: string;
+      // Whether all mints have an explicit recipient
+      allMintsHaveExplicitRecipient?: boolean;
     }
   ): Promise<FillMintsResult> {
     const txs: FillMintsResult["txs"][0][] = [];
@@ -248,7 +250,11 @@ export class Router {
     if (
       !Addresses.MintModule[this.chainId] ||
       options?.forceDirectFilling ||
-      (details.length === 1 && !details[0].fees?.length && !details[0].comment && !options?.relayer)
+      // Single mints with no fees, no comment and no `relayer` field (only if the mint doesn't have an explicit recipient)
+      (details.length === 1 &&
+        !details[0].fees?.length &&
+        !details[0].comment &&
+        (options?.allMintsHaveExplicitRecipient ? true : !options?.relayer))
     ) {
       // Under some conditions, we simply return that transaction data back to the caller
 
@@ -4859,5 +4865,72 @@ export class Router {
         ],
       };
     }
+  }
+
+  public parseExecutions(calldata: string) {
+    const executions: {
+      module: string;
+      moduleName: string;
+      method: string;
+      sighash: string;
+      args: Result;
+      params: {
+        fillTo: string;
+        refundTo: string;
+        revertIfIncomplete?: boolean;
+        token?: string;
+        amount?: string;
+      };
+    }[] = [];
+
+    try {
+      const isRouter = calldata.includes("0x760f2a0b");
+
+      const routerContract = isRouter ? this.contracts.router : this.contracts.approvalProxy;
+      const parsed = routerContract.interface.parseTransaction({
+        data: calldata,
+      });
+
+      const executionInfos = parsed.args.executionInfos;
+      for (const executionInfo of executionInfos) {
+        for (const contractName of Object.keys(this.contracts)) {
+          if (!contractName.includes("Module")) {
+            continue;
+          }
+
+          const contract = this.contracts[contractName];
+          try {
+            const parsed = contract.interface.parseTransaction({
+              data: executionInfo.data,
+            });
+
+            const isParsed = executions.find((c) => c.sighash);
+            if (!isParsed) {
+              const executionParams = parsed.args.params;
+              executions.push({
+                module: contract.address,
+                moduleName: contractName,
+                method: parsed.name,
+                args: parsed.args,
+                sighash: parsed.sighash,
+                params: {
+                  refundTo: executionParams.refundTo.toLowerCase(),
+                  fillTo: executionParams.fillTo.toLowerCase(),
+                  revertIfIncomplete: executionParams.revertIfIncomplete,
+                  token: executionParams.token,
+                  amount: executionParams.amount ? executionParams.amount.toString() : undefined,
+                },
+              });
+            }
+          } catch {
+            // Parsing failed
+          }
+        }
+      }
+    } catch {
+      // Parsing failed
+    }
+
+    return executions;
   }
 }

@@ -171,7 +171,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${params.collection} not found`);
       }
 
-      let defaultRoyalties = (collectionResult.royalties ?? []) as Royalty[];
+      let defaultRoyalties = collectionResult.royalties as Royalty[] | null;
       if (query.tokenId) {
         defaultRoyalties = await registry.getRegistryRoyalties(
           fromBuffer(collectionResult.contract),
@@ -240,17 +240,18 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
       // Handle Reservoir
       {
-        const royalties = defaultRoyalties;
         marketplaces.push({
           name: "Reservoir",
           imageUrl: `https://${getSubDomain()}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
           fee: {
             bps: 0,
           },
-          royalties: {
-            minBps: 0,
-            maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
-          },
+          royalties: defaultRoyalties
+            ? {
+                minBps: 0,
+                maxBps: defaultRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+              }
+            : undefined,
           orderbook: "reservoir",
           exchanges: {
             seaport: {
@@ -498,9 +499,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   }
                 }
               } else if (exchange.enabled && exchange.orderKind === "payment-processor-v2") {
-                const settings = await paymentProcessorV2.getCollectionPaymentSettings(
-                  params.collection
-                );
+                const settings = await paymentProcessorV2.getConfigByContract(params.collection);
 
                 let paymentTokens = [Sdk.Common.Addresses.Native[config.chainId]];
                 if (
@@ -516,6 +515,8 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   paymentProcessorV2.PaymentSettings.PricingConstraints
                 ) {
                   paymentTokens = [settings.constrainedPricingPaymentMethod];
+                  exchange.maxPriceRaw = settings?.pricingBounds?.ceilingPrice;
+                  exchange.minPriceRaw = settings?.pricingBounds?.floorPrice;
                 }
 
                 exchange.supportedBidCurrencies = paymentTokens.filter(

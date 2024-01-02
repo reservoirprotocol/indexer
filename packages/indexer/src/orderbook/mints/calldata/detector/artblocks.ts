@@ -233,21 +233,8 @@ export const extractByCollectionERC721 = async (
 export const refreshByCollection = async (collection: string) => {
   const existingCollectionMints = await getCollectionMints(collection, { standard: STANDARD });
 
-  // Dedupe by collection and project id
-  const dedupedExistingMints = existingCollectionMints.filter((existing, index) => {
-    return (
-      index ===
-      latestCollectionMints.findIndex((found) => {
-        return (
-          existing.collection === found.collection &&
-          (existing.details.info! as Info).projectId === (found.details.info! as Info).projectId
-        );
-      })
-    );
-  });
-
   let latestCollectionMints: CollectionMint[] = [];
-  for (const { details } of dedupedExistingMints) {
+  for (const { details } of existingCollectionMints) {
     // Fetch the currently available mints
     latestCollectionMints = latestCollectionMints.concat(
       await extractByCollectionERC721(collection, details.info! as Info)

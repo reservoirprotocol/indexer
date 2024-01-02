@@ -14,7 +14,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 const version = "v1";
 
 export const postExecuteCallV1Options: RouteOptions = {
-  description: "Make arbitrary same-chain and cross-chain calls via s voler",
+  description: "Make arbitrary same-chain and cross-chain calls via solver",
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
@@ -114,10 +114,11 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       };
 
-      const { requestId, price, relayerFee, depositGasFee } = await axios
+      const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
         .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
         .then((response) => ({
           requestId: response.data.requestId,
+          shortRequestId: response.data.shortRequestId,
           price: response.data.price,
           relayerFee: response.data.relayerFee,
           depositGasFee: response.data.depositGasFee,
@@ -171,12 +172,13 @@ export const postExecuteCallV1Options: RouteOptions = {
         steps[0].items.push({
           status: "incomplete",
           data: {
-            from: payload.taker,
+            from: user,
             to: ccConfig.solver!.address,
-            data: requestId,
+            data: shortRequestId,
             value: bn(cost).sub(ccConfig.user!.balance).toString(),
             gasLimit: 22000,
-            chainId: originChainId,
+            // `0x1234` or `4660` denotes cross-chain balance spending
+            chainId: originChainId === 4660 ? 1 : originChainId,
           },
           check: {
             endpoint: "/execute/status/v1",
@@ -234,7 +236,7 @@ export const postExecuteCallV1Options: RouteOptions = {
             Sdk.Common.Addresses.Native[originChainId],
             undefined,
             undefined,
-            payload.currencyChainId
+            originChainId
           ),
         },
       };

@@ -1,6 +1,6 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import { SyncBlockOptions, syncEvents } from "@/events-sync/index";
+import { SyncBlockOptions, syncEvents, syncEventsOnly } from "@/events-sync/index";
 
 export type EventSyncBackfillJobPayload = {
   fromBlock: number;
@@ -11,7 +11,7 @@ export type EventSyncBackfillJobPayload = {
 export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-backfill";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 3;
   timeout = 60000;
   backoff = {
     type: "exponential",
@@ -23,10 +23,11 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
 
     // to stop the job from running into issues or taking too long, we dont want to sync a large amount of blocks in one job
     // if the fromBlock & toBlock have a large difference, split the job into smaller jobs
-    // if the syncDetails are null, split the job into smaller jobs of 5 blocks
-    // otherwise, split the job into smaller jobs of 50 blocks
+    // if the syncDetails are null, split the job into smaller jobs of 1 block
+    // otherwise, split the job into smaller jobs of 1 blocks
     const diff = toBlock - fromBlock;
-    const splitSize = syncOptions?.syncDetails ? 50 : 5;
+    const splitSize = syncOptions?.blocksPerBatch || 1;
+
     if (diff > splitSize) {
       const splitJobs = [];
       for (let i = fromBlock; i < toBlock; i += splitSize) {
@@ -43,14 +44,24 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
     }
 
     try {
-      await syncEvents(
-        {
-          fromBlock,
-          toBlock,
-        },
-        false,
-        syncOptions
-      );
+      if (syncOptions?.syncEventsOnly) {
+        await syncEventsOnly(
+          {
+            fromBlock,
+            toBlock,
+          },
+          syncOptions
+        );
+      } else {
+        await syncEvents(
+          {
+            fromBlock,
+            toBlock,
+          },
+          false,
+          syncOptions
+        );
+      }
     } catch (error) {
       logger.error(
         this.queueName,

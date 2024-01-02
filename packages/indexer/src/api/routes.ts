@@ -838,6 +838,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/deposit/v1",
+    options: executeEndpoints.postExecuteDepositV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/mint/v1",
     options: executeEndpoints.postExecuteMintV1Options,
   });
@@ -1408,6 +1414,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v8",
+    options: tokensEndpoints.getUserTokensV8Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/tokens/refresh/v1",
     options: tokensEndpoints.postTokensRefreshV1Options,
@@ -1581,6 +1593,12 @@ export const setupRoutes = (server: Server) => {
       method: "GET",
       path: "/debug/reset",
       options: debugEndpoints.resetOptions,
+    });
+
+    server.route({
+      method: "GET",
+      path: "/debug/parse-royalties",
+      options: debugEndpoints.parseRoyaltiesOptions,
     });
   }
 };

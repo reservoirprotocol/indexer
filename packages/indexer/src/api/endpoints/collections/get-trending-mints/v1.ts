@@ -8,7 +8,7 @@ import Joi from "joi";
 
 import { redis } from "@/common/redis";
 
-const REDIS_EXPIRATION_MINTS = 120; // Assuming an hour, adjust as needed.
+const REDIS_EXPIRATION_MINTS = 1800; // 30 minutes
 
 import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
@@ -26,6 +26,10 @@ import { Assets } from "@/utils/assets";
 const version = "v1";
 
 export const getTrendingMintsV1Options: RouteOptions = {
+  cache: {
+    expiresIn: 60 * 1000,
+    privacy: "public",
+  },
   description: "Top Trending Mints",
   notes: "Get top trending mints",
   tags: ["api", "Collections"],
@@ -113,6 +117,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
           sixHourCount: Joi.number().allow(null),
           oneHourCount: Joi.number().allow(null),
           mintType: Joi.string().allow("free", "paid", "", null),
+          mintStandard: Joi.string().allow("", null),
           mintStatus: Joi.string().allow("", null),
           mintStages: Joi.array().items(
             Joi.object({
@@ -164,7 +169,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
         limit,
       });
 
-      if (trendingMints.length < 0) {
+      if (trendingMints.length < 1) {
         const response = h.response({ mints: [] });
         return response;
       }
@@ -238,11 +243,24 @@ async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Min
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const baseQuery = `
-SELECT 
-    collection_id, start_time, end_time, created_at, updated_at, max_supply, max_mints_per_wallet, price
+  SELECT 
+    mints.collection_id, 
+    start_time, 
+    end_time, 
+    created_at, 
+    updated_at, 
+    max_supply, 
+    max_mints_per_wallet, 
+    price, 
+    standard
 FROM 
-    collection_mints
-${whereClause} LIMIT 50000;
+    collection_mints mints 
+LEFT JOIN 
+    collection_mint_standards 
+ON 
+    collection_mint_standards.collection_id = mints.collection_id
+${whereClause} 
+LIMIT 50000;
   `;
 
   const result = await redb.manyOrNone<Mint>(baseQuery);
@@ -340,6 +358,7 @@ async function formatCollections(
         maxSupply: Number.isSafeInteger(Number(mintData?.max_supply))
           ? Number(mintData?.max_supply)
           : null,
+        mintStandard: mintData?.standard || "unknown",
         createdAt: mintData?.created_at && new Date(mintData?.created_at).toISOString(),
         startDate: mintData?.start_time && new Date(mintData?.start_time).toISOString(),
         endDate: mintData?.end_time && new Date(mintData?.end_time).toISOString(),
@@ -349,7 +368,7 @@ async function formatCollections(
         mintVolume: r.volume,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
         mintStages:
-          mintData.mint_stages.length > 0
+          mintData?.mint_stages?.length > 0
             ? await Promise.all(
                 mintData.mint_stages.map(async (m: Mint["mint_stages"][0]) => {
                   return {

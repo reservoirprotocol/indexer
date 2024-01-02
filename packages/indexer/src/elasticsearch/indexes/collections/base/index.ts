@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { formatEth, fromBuffer } from "@/common/utils";
-
-import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
+import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
+import { formatEth, formatUsd, fromBuffer, now } from "@/common/utils";
 import { getNetworkName } from "@/config/network";
+import { getUSDAndNativePrices } from "@/utils/prices";
+
+import { BuildDocumentData, BaseDocument } from "@/elasticsearch/indexes/base";
+// import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -19,6 +22,7 @@ export interface CollectionDocument extends BaseDocument {
   imageVersion: number;
   allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
+  allTimeVolumeUsd?: number;
   floorSell?: {
     id?: string;
     value?: string;
@@ -49,16 +53,41 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   opensea_verification_status?: string;
 }
 
-export class CollectionDocumentBuilder extends DocumentBuilder {
-  public buildDocument(data: BuildCollectionDocumentData): CollectionDocument {
-    const baseDocument = super.buildDocument(data);
+export class CollectionDocumentBuilder {
+  public async buildDocument(data: BuildCollectionDocumentData): Promise<CollectionDocument> {
+    let allTimeVolumeUsd = 0;
+
+    try {
+      const prices = await getUSDAndNativePrices(
+        Sdk.Common.Addresses.Native[config.chainId],
+        data.all_time_volume,
+        now(),
+        {
+          onlyUSD: true,
+        }
+      );
+
+      allTimeVolumeUsd = formatUsd(prices.usdPrice!);
+    } catch {
+      // logger.warn(
+      //   "cdc-indexer-collections",
+      //   JSON.stringify({
+      //     topic: "debugActivitiesErrors",
+      //     message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+      //       data.all_time_volume
+      //     }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+      //     error,
+      //   })
+      // );
+    }
 
     const document = {
-      ...baseDocument,
       chain: {
         id: config.chainId,
         name: getNetworkName(),
       },
+      id: data.id,
+      indexedAt: new Date(),
       createdAt: data.created_at,
       contract: fromBuffer(data.contract),
       name: data.name,
@@ -71,6 +100,7 @@ export class CollectionDocumentBuilder extends DocumentBuilder {
       imageVersion: data.image_version,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
+      allTimeVolumeUsd: allTimeVolumeUsd,
       floorSell: data.floor_sell_id
         ? {
             id: data.floor_sell_id,

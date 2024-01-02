@@ -53,7 +53,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     const toTimestamp = payload.toTimestamp || 9999999999;
     const indexName = payload.indexName ?? ActivitiesIndex.getIndexName();
     const keepGoing = payload.keepGoing;
-    const upsert = payload.upsert || true;
+    const upsert = payload.upsert ?? true;
 
     const fromTimestampISO = new Date(fromTimestamp * 1000).toISOString();
     const toTimestampISO = new Date(toTimestamp * 1000).toISOString();
@@ -212,7 +212,8 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
     fromTimestamp?: number,
     toTimestamp?: number,
     indexName?: string,
-    keepGoing?: boolean
+    keepGoing?: boolean,
+    upsert?: boolean
   ) {
     if (!config.doElasticsearchWork) {
       return;
@@ -227,7 +228,7 @@ export class BackfillSaveActivitiesElasticsearchJob extends AbstractRabbitMqJobH
 
     return this.send(
       {
-        payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing },
+        payload: { type, cursor, fromTimestamp, toTimestamp, indexName, keepGoing, upsert },
         jobId,
       },
       1000
