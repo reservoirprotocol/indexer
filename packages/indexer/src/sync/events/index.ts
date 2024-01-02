@@ -483,7 +483,7 @@ export const syncEventsOnly = async (
   logger.info(
     "sync-events-batch-timing-v2",
     JSON.stringify({
-      message: `Events realtime syncing blocks ${blocks.fromBlock} to ${blocks.toBlock}`,
+      message: `Events syncing blocks ${blocks.fromBlock} to ${blocks.toBlock}`,
       blockRange: [blocks.fromBlock, blocks.toBlock],
       syncTime: endSyncTime - startSyncTime,
 
