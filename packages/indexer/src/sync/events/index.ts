@@ -724,10 +724,12 @@ export const checkForMissingBlocks = async (block: number) => {
       for (let i = latestBlockNumber + 1; i <= block; i++) {
         await eventsSyncRealtimeJob.addToQueue({ block: i });
 
-        logger.info(
-          "sync-events-realtime",
-          `Found missing block: ${i} latest block ${block} latestBlock ${latestBlockNumber}`
-        );
+        if (config.chainId !== 324) {
+          logger.info(
+            "sync-events-realtime",
+            `Found missing block: ${i} latest block ${block} latestBlock ${latestBlockNumber}`
+          );
+        }
       }
     }
   } else {

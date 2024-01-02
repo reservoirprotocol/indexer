@@ -13,7 +13,7 @@ export interface AskDocument extends BaseDocument {
   contractAndTokenId: string;
   contract: string;
   token: {
-    id: string;
+    id: number;
     name: string;
     image: string;
     media?: string;
@@ -137,8 +137,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
       contractAndTokenId: `${fromBuffer(data.contract)}:${data.token_id}`,
       contract: fromBuffer(data.contract),
       token: {
-        id: data.token_id,
-        idV2: Number(data.token_id),
+        id: Number(data.token_id),
         name: data.token_name,
         image: data.token_image,
         attributes: data.token_attributes,

@@ -9,6 +9,7 @@ import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { hasCustomHandler } from "@/metadata/custom";
 
 export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-fetch-uri-queue";
@@ -25,7 +26,22 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
 
     // Get the onchain tokens from the list
     const pendingRefreshTokens = new PendingRefreshTokens("onchain");
-    const fetchTokens = await pendingRefreshTokens.get(count);
+    let fetchTokens = await pendingRefreshTokens.get(count);
+
+    // if the token has custom metadata, don't fetch it and instead process it
+    const customTokens = fetchTokens.filter((token) => hasCustomHandler(token.contract));
+    if (customTokens.length) {
+      await onchainMetadataProcessTokenUriJob.addToQueueBulk(
+        customTokens.map((token) => ({
+          contract: token.contract,
+          tokenId: token.tokenId,
+          uri: "",
+        }))
+      );
+    }
+
+    // Filter out custom tokens
+    fetchTokens = fetchTokens.filter((token) => !hasCustomHandler(token.contract));
 
     // If no more tokens
     if (_.isEmpty(fetchTokens)) {
