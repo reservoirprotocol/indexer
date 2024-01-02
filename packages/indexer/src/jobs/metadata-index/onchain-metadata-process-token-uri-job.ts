@@ -35,16 +35,41 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         { contract, tokenId, uri },
       ]);
 
+      const fallbackMimeTypes = ["image/gif"];
+
       if (metadata.length) {
+        if (
+          config.fallbackMetadataIndexingMethod &&
+          ((metadata[0].imageMimeType && fallbackMimeTypes.includes(metadata[0].imageMimeType)) ||
+            (metadata[0].mediaMimeType && fallbackMimeTypes.includes(metadata[0].mediaMimeType)))
+        ) {
+          await metadataIndexFetchJob.addToQueue(
+            [
+              {
+                kind: "single-token",
+                data: {
+                  method: config.fallbackMetadataIndexingMethod,
+                  contract,
+                  tokenId,
+                  collection: contract,
+                },
+              },
+            ],
+            true,
+            5
+          );
+          return;
+        }
+
         await this.uploadImageIfNecessary(metadata[0]);
         await metadataIndexWriteJob.addToQueue(metadata);
         return;
-      } else {
-        logger.warn(
-          this.queueName,
-          `No metadata found. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
-        );
       }
+
+      logger.warn(
+        this.queueName,
+        `No metadata found. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
+      );
     } catch (e) {
       if (e instanceof RequestWasThrottledError) {
         logger.warn(
@@ -107,7 +132,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
   }
 
   private async uploadImageIfNecessary(metadata: TokenMetadata) {
-    const uploadMimeTypes = ["image/gif"];
+    const uploadMimeTypes = [""];
     if (
       (metadata.imageUrl?.startsWith("data:") ||
         (metadata.imageMimeType && uploadMimeTypes.includes(metadata.imageMimeType))) &&
