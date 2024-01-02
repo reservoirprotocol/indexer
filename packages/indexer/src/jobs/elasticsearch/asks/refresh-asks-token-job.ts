@@ -43,6 +43,8 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(contract: string, tokenId: string) {
+    return;
+
     if (!config.doElasticsearchWork) {
       return;
     }
