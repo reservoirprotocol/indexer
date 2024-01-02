@@ -66,9 +66,9 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     if (fromAddress && fromAddress !== AddressZero) {
       queries.push(`
         INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
-        VALUES ($/fromAddress/, $/collection/, $/contract/, $/amount/, $/isSpam/)
+        VALUES ($/fromAddress/, $/collection/, $/contract/, -$/amount/, $/isSpam/)
         ON CONFLICT (owner, collection_id)
-        DO UPDATE SET token_count = GREATEST(user_collections.token_count - $/amount/, 0), is_spam = $/isSpam/, updated_at = now();
+        DO UPDATE SET token_count = user_collections.token_count - $/amount/, is_spam = $/isSpam/, updated_at = now();
       `);
     }
 
