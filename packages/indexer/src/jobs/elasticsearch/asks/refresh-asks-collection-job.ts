@@ -42,8 +42,6 @@ export default class RefreshAsksCollectionJob extends AbstractRabbitMqJobHandler
   }
 
   public async addToQueue(collectionId: string) {
-    return;
-
     if (!config.doElasticsearchWork) {
       return;
     }
