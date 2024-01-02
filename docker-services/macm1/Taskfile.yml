@@ -6,14 +6,12 @@ tasks:
   pg: docker-compose exec postgres psql -U postgres
   mk-fair-db: docker-compose exec postgres psql -U postgres -c "create database zkfair_testnet"
   pg-fair: docker-compose exec postgres psql -U postgres zkfair_testnet
-  pg-x1: docker-compose exec postgres psql -U postgres x1testnet
-
-  rabbitlog: docker-compose logs -f rabbitmq
-  rabbit: docker-compose exec rabbitmq bash
+  mk-x1-db: docker-compose exec postgres psql -U postgres -c "create database indexer_x1_testnet"
+  pg-x1: docker-compose exec postgres psql -U postgres indexer_x1_testnet
 
   redis: docker-compose exec redis redis-cli
+  rabbitlog: docker-compose logs -f rabbitmq
+  rabbitsh: docker-compose exec rabbitmq bash
 
-  up:
-    cmds:
-      - docker-compose up -d
-      - sleep 10 && task mk-fair-db
+  # setup
+  up: docker-compose up -d

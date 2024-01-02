@@ -23,7 +23,6 @@ tasks:
     cmds:
       - |
         mkdir -p /data
-        mkdir -p /data/logs/nginx
         # avoid indexer warning???
         mkdir -p ~/.aws
         touch ~/.aws/config

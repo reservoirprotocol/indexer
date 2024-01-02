@@ -13,7 +13,7 @@ services:
     networks:
       - local
     volumes:
-      - ./indexer-data/pg/:/var/lib/postgresql/data/
+      - ~/alien/data/indexer-data/pg/:/var/lib/postgresql/data/
     ports:
       - 15432:5432
 
@@ -26,7 +26,7 @@ services:
     networks:
       - local
     volumes:
-      - ./indexer-data/redis:/data
+      - ~/alien/data/indexer-data/redis:/data
     ports:
       - 16379:6379
 
@@ -48,7 +48,7 @@ services:
       - 5672:5672
       - 15672:15672
     volumes:
-      - ./indexer-data/rabbit:/var/lib/rabbitmq
+      - ~/alien/data/indexer-data/rabbit:/var/lib/rabbitmq
     networks:
       - local
 
