@@ -61,6 +61,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 7777777:
         url = "https://rpc.zora.co";
         break;
+      case 68840142:
+        url = "https://rpc.testnet.frame.xyz/http";
+        break;
       // Testnets
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
@@ -165,6 +168,7 @@ const config: HardhatUserConfig = {
     mumbai: getNetworkConfig(80001),
     baseGoerli: getNetworkConfig(84531),
     sepolia: getNetworkConfig(11155111),
+    frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(2863311531),
   },
   etherscan: {
@@ -191,6 +195,7 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
       baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
+      frameTestnet: "0x",
       ancient8Testnet: "0x",
     },
     customChains: [
@@ -298,6 +303,15 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-goerli.basescan.org/api",
           browserURL: "https://goerli.basescan.org",
+        },
+      },
+      // This isn't working, couldn't find any valid API for their explorer
+      {
+        network: "frameTestnet",
+        chainId: 68840142,
+        urls: {
+          apiURL: "https://explorer.testnet.frame.xyz/api",
+          browserURL: "https://explorer.testnet.frame.xyz",
         },
       },
       {

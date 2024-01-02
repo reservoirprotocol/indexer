@@ -8,7 +8,6 @@ import {
 } from "@/jobs/general-tracking/actions-log-job";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { config } from "@/config/index";
-import _ from "lodash";
 import { logger } from "@/common/logger";
 
 export type CollectionCheckSpamJobPayload = {
@@ -69,7 +68,7 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
     const newSpamState = 1;
 
     for (const spamName of config.spamNames) {
-      if (_.includes(_.toLower(collection.name).match(/\w+/g), spamName)) {
+      if (collection.name.match(new RegExp("\\b" + spamName + "\\b", "gi"))) {
         // The name includes a spam word Collection is spam update track and return
         await this.updateSpamStatus(collection.id, newSpamState);
 

@@ -19,94 +19,98 @@ const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
 export const refreshRegistryRoyalties = async (collection: string) => {
-  if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-    logger.info(
-      "refreshRegistryRoyalties",
-      JSON.stringify({
-        topic: "debugRefreshRoyalties",
-        message: `Start. collection=${collection}`,
-      })
+  try {
+    if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
+      logger.info(
+        "refreshRegistryRoyalties",
+        JSON.stringify({
+          topic: "debugRefreshRoyalties",
+          message: `Start. collection=${collection}`,
+        })
+      );
+    }
+
+    // Fetch the collection's contract
+    const collectionResult = await idb.oneOrNone(
+      `
+        SELECT
+          collections.contract
+        FROM collections
+        WHERE collections.id = $/collection/
+      `,
+      { collection }
     );
-  }
+    if (!collectionResult?.contract) {
+      return;
+    }
 
-  // Fetch the collection's contract
-  const collectionResult = await idb.oneOrNone(
-    `
-      SELECT
-        collections.contract
-      FROM collections
-      WHERE collections.id = $/collection/
-    `,
-    { collection }
-  );
-  if (!collectionResult?.contract) {
-    return;
-  }
+    // Fetch 10 random tokens from the collection
+    const tokenResults = await idb.manyOrNone(
+      `
+        SELECT
+          tokens.token_id
+        FROM tokens
+        WHERE tokens.collection_id = $/collection/
+        LIMIT 10
+      `,
+      { collection }
+    );
 
-  // Fetch 10 random tokens from the collection
-  const tokenResults = await idb.manyOrNone(
-    `
-      SELECT
-        tokens.token_id
-      FROM tokens
-      WHERE tokens.collection_id = $/collection/
-      LIMIT 10
-    `,
-    { collection }
-  );
+    const token = fromBuffer(collectionResult.contract);
 
-  const token = fromBuffer(collectionResult.contract);
+    // Get the royalties of all selected tokens
+    const tokenRoyalties = await Promise.all(
+      tokenResults.map(async (r) => getRegistryRoyalties(token, r.token_id))
+    );
+    const uniqueRoyalties = _.uniqBy(tokenRoyalties, (r) => stringify(r));
 
-  // Get the royalties of all selected tokens
-  const tokenRoyalties = await Promise.all(
-    tokenResults.map(async (r) => getRegistryRoyalties(token, r.token_id))
-  );
-  const uniqueRoyalties = _.uniqBy(tokenRoyalties, (r) => stringify(r));
+    let latestRoyalties: Royalty[] = [];
+    if (uniqueRoyalties.length === 1) {
+      // Here all royalties are the same, so we take that as the collection-level royalty
+      latestRoyalties = uniqueRoyalties[0];
+    } else {
+      // Here we got non-unique royalties
 
-  let latestRoyalties: Royalty[] = [];
-  if (uniqueRoyalties.length === 1) {
-    // Here all royalties are the same, so we take that as the collection-level royalty
-    latestRoyalties = uniqueRoyalties[0];
-  } else {
-    // Here we got non-unique royalties
+      // However, before assuming there are no collection-level royalties we query one
+      // more random (hopefully inexistent token id). If that returns a value found in
+      // the `uniqueRoyalties` array then we assume that is the collection-level value
+      // and the non-unique royalties were just one-offs (eg. just a few single tokens
+      // had the royalties changed), which we want to filter out.
 
-    // However, before assuming there are no collection-level royalties we query one
-    // more random (hopefully inexistent token id). If that returns a value found in
-    // the `uniqueRoyalties` array then we assume that is the collection-level value
-    // and the non-unique royalties were just one-offs (eg. just a few single tokens
-    // had the royalties changed), which we want to filter out.
-
-    try {
-      const randomTokenId = String(Math.floor(Math.random() * 10000000000000));
-      const randomTokenRoyalties = await getRegistryRoyalties(token, randomTokenId);
-      if (uniqueRoyalties.find((r) => stringify(r) === stringify(randomTokenRoyalties))) {
-        latestRoyalties = randomTokenRoyalties;
-      } else {
+      try {
+        const randomTokenId = String(Math.floor(Math.random() * 10000000000000));
+        const randomTokenRoyalties = await getRegistryRoyalties(token, randomTokenId);
+        if (uniqueRoyalties.find((r) => stringify(r) === stringify(randomTokenRoyalties))) {
+          latestRoyalties = randomTokenRoyalties;
+        } else {
+          latestRoyalties = [];
+        }
+      } catch {
+        // Protect against the case where querying the royalties of a non-existent token reverts
         latestRoyalties = [];
       }
-    } catch {
-      // Protect against the case where querying the royalties of a non-existent token reverts
-      latestRoyalties = [];
     }
-  }
 
-  if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-    logger.info(
-      "refreshRegistryRoyalties",
-      JSON.stringify({
-        topic: "debugRefreshRoyalties",
-        message: `getRegistryRoyalties. collection=${collection}`,
-        latestRoyalties,
-      })
+    if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
+      logger.info(
+        "refreshRegistryRoyalties",
+        JSON.stringify({
+          topic: "debugRefreshRoyalties",
+          message: `getRegistryRoyalties. collection=${collection}`,
+          latestRoyalties,
+        })
+      );
+    }
+
+    // Save the retrieved royalty spec
+    await updateRoyaltySpec(
+      collection,
+      "onchain",
+      latestRoyalties.length ? latestRoyalties : undefined
     );
+  } catch {
+    // Skip errors
   }
-
-  // Save the retrieved royalty spec
-  await updateRoyaltySpec(
-    collection,
-    "onchain",
-    latestRoyalties.length ? latestRoyalties : undefined
-  );
 };
 
 const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {

@@ -46,4 +46,8 @@ export type BlurBidPricePoint = {
 export type BlurBidPool = {
   collection: string;
   pricePoints: BlurBidPricePoint[];
+  attribute?: {
+    key: string;
+    value: string;
+  };
 };
