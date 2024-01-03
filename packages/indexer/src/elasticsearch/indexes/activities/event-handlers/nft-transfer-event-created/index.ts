@@ -42,6 +42,14 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       }
     );
 
+    logger.info(
+      "nft-transfer-event-created-event-handler",
+      JSON.stringify({
+        message: `debug2.`,
+        data,
+      })
+    );
+
     if (!data) {
       logger.warn(
         "NftTransferEventCreatedEventHandler",
@@ -139,6 +147,14 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
     );
 
     for (const result of results) {
+      logger.info(
+        "nft-transfer-event-created-event-handler",
+        JSON.stringify({
+          message: `debug3.`,
+          result,
+        })
+      );
+
       try {
         const eventHandler = new NftTransferEventCreatedEventHandler(
           result.event_tx_hash,
