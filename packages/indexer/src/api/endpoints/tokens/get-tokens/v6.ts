@@ -2011,8 +2011,8 @@ export const getListedTokensFromES = async (query: any) => {
       }
     }
 
-    const contract = r.contract;
-    const tokenId = r.token_id;
+    const contract = ask.contract;
+    const tokenId = ask.token.id.toString();
 
     const floorSellSource = ask.order.pricing.price
       ? sources.get(Number(ask.order.sourceId), contract, tokenId)
