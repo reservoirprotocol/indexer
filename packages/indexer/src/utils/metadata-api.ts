@@ -128,14 +128,18 @@ export class MetadataApi {
         indexingMethod = "simplehash";
       }
 
-      let url = `${
-        config.metadataApiBaseUrl
-      }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
+      let url = `${config.metadataApiBaseUrl
+        }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
       if (options?.additionalQueryParams) {
         for (const [key, value] of Object.entries(options.additionalQueryParams)) {
           url += `&${key}=${value}`;
         }
       }
+
+      logger.info(
+        "metadata-api",
+        `getCollectionMetadata url=${url}`
+      );
 
       const { data } = await axios.get(url);
 
@@ -189,10 +193,13 @@ export class MetadataApi {
 
       method = method === "" ? config.metadataIndexingMethod : method;
 
-      const url = `${
-        config.metadataApiBaseUrl
-      }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
+      const url = `${config.metadataApiBaseUrl
+        }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
 
+      logger.info(
+        "metadata-api",
+        `getTokensMetadata url=${url}`
+      );
       const { data } = await axios.get(url);
 
       metadataFromAPI = (data as any).metadata;
@@ -234,9 +241,8 @@ export class MetadataApi {
   ): Promise<TokenMetadata | null> {
     method = method === "" ? config.metadataIndexingMethod : method;
 
-    const url = `${
-      config.metadataApiBaseUrl
-    }/v4/${getNetworkName()}/metadata/token?method=${method}`;
+    const url = `${config.metadataApiBaseUrl
+      }/v4/${getNetworkName()}/metadata/token?method=${method}`;
 
     let response;
     try {
@@ -244,8 +250,7 @@ export class MetadataApi {
     } catch (error: any) {
       logger.error(
         "metadata-api",
-        `parseTokenMetadata error. url=${url}, request=${JSON.stringify(request)}, error=${
-          error.message
+        `parseTokenMetadata error. url=${url}, request=${JSON.stringify(request)}, error=${error.message
         }`
       );
       return null;
@@ -268,9 +273,8 @@ export class MetadataApi {
     }
     method = method === "" ? config.metadataIndexingMethod : method;
 
-    const url = `${
-      config.metadataApiBaseUrl
-    }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
+    const url = `${config.metadataApiBaseUrl
+      }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);
 
