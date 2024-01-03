@@ -12,7 +12,9 @@
     "format-check": "prettier --cache --check \"packages/**/src/**/*.+(js|ts|json)\"",
     "format": "prettier --cache --write \"packages/**/src/**/*.+(js|ts|json)\"",
     "prepare": "husky install",
-    "release": "standard-version"
+    "release": "standard-version",
+    "indexer": "yarn workspace @reservoir0x/indexer",
+    "sdk": "yarn workspace @reservoir0x/sdk"
   },
   "dependencies": {
     "eslint": "^8.10.0",

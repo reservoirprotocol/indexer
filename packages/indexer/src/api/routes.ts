@@ -1139,6 +1139,12 @@ export const setupRoutes = (server: Server) => {
     options: ownersEndpoints.getCommonCollectionsOwnersV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/owners/count/v1",
+    options: ownersEndpoints.getOwnersCountV1Options,
+  });
+
   // Redirects
 
   server.route({
