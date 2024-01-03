@@ -19,7 +19,7 @@ export const edb = pgp({
 export const idb = pgp({
   connectionString: config.databaseUrl,
   keepAlive: true,
-  max: config.doBackgroundWork ? 160 : 80,
+  max: config.doBackgroundWork ? (config.chainId === 1 ? 200 : 160) : 80,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
   statement_timeout: config.disableDatabaseStatementTimeout ? undefined : 5 * 60 * 1000,
