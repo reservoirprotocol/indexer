@@ -2015,11 +2015,11 @@ export const getListedTokensFromES = async (query: any) => {
     const tokenId = ask.token.id;
 
     const floorSellSource = ask.order.pricing.price
-      ? sources.get(Number(ask.order.sourceId), contract, tokenId)
+      ? sources.get(Number(ask.order.sourceId), contract, tokenId.toString())
       : undefined;
 
     const topBuySource = r.top_buy_id
-      ? sources.get(Number(r.top_buy_source_id_int), contract, tokenId)
+      ? sources.get(Number(r.top_buy_source_id_int), contract, tokenId.toString())
       : undefined;
 
     // Use default currencies for backwards compatibility with entries

@@ -41,8 +41,6 @@ CREATE INDEX "collections_slug_index"
 CREATE INDEX "collections_created_at_index"
   ON "collections"("created_at");
 
-CREATE EXTENSION pg_trgm;
-
 CREATE INDEX "collections_name_index"
   ON "collections"
   USING GIN ("name" gin_trgm_ops);

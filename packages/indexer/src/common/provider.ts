@@ -18,6 +18,20 @@ export const baseProvider = new StaticJsonRpcProvider(
   config.chainId
 );
 
+export const metadataIndexingBaseProvider = new StaticJsonRpcProvider(
+  {
+    url: config.baseNetworkMetadataIndexingUrl,
+    headers: [1, 324].includes(config.chainId)
+      ? {}
+      : {
+          "x-session-hash": getUuidByString(
+            `${config.baseNetworkMetadataIndexingUrl}${config.chainId}`
+          ),
+        },
+  },
+  config.chainId
+);
+
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-808736570
 export const safeWebSocketSubscription = (
   callback: (provider: WebSocketProvider) => Promise<void>

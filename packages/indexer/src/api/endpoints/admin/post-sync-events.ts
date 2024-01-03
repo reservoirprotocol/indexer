@@ -35,6 +35,7 @@ export const postSyncEventsOptions: RouteOptions = {
       ),
       blocksPerBatch: Joi.number().integer().positive(),
       backfill: Joi.boolean().default(true),
+      syncEventsOnly: Joi.boolean().default(false),
     }),
   },
   handler: async (request: Request) => {
@@ -50,11 +51,13 @@ export const postSyncEventsOptions: RouteOptions = {
       const syncDetails = payload.syncDetails;
       const backfill = payload.backfill;
       const blocksPerBatch = payload.blocksPerBatch;
+      const syncEventsOnly = payload.syncEventsOnly;
 
       await eventsSyncBackfillJob.addToQueue(fromBlock, toBlock, {
         syncDetails,
         backfill,
         blocksPerBatch,
+        syncEventsOnly,
       });
 
       return { message: "Request accepted" };

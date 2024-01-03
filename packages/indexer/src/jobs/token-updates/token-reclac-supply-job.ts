@@ -2,7 +2,7 @@
 
 import { Tokens } from "@/models/tokens";
 import { idb, redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { bn, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
 import { acquireLock } from "@/common/redis";
@@ -37,20 +37,20 @@ export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     let totalSupply = await this.calcTotalSupply(contract, tokenId);
     const totalRemainingSupply = await this.calcRemainingSupply(contract, tokenId);
 
-    if (totalRemainingSupply > totalSupply) {
+    if (bn(totalRemainingSupply).gt(totalSupply)) {
       totalSupply = totalRemainingSupply;
     }
 
     await idb.none(
       `
-              UPDATE tokens SET
-                supply = $/totalSupply/,
-                remaining_supply = $/totalRemainingSupply/,
-                updated_at = now()
-              WHERE tokens.contract = $/contract/
-                AND tokens.token_id = $/tokenId/
-                AND (supply IS DISTINCT FROM $/totalSupply/ OR remaining_supply IS DISTINCT FROM $/totalRemainingSupply/)
-            `,
+        UPDATE tokens SET
+          supply = $/totalSupply/,
+          remaining_supply = $/totalRemainingSupply/,
+          updated_at = now()
+        WHERE tokens.contract = $/contract/
+          AND tokens.token_id = $/tokenId/
+          AND (supply IS DISTINCT FROM $/totalSupply/ OR remaining_supply IS DISTINCT FROM $/totalRemainingSupply/)
+      `,
       {
         contract: toBuffer(contract),
         tokenId,
@@ -62,7 +62,7 @@ export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
   public async calcRemainingSupply(contract: string, tokenId: string) {
     const limit = 1000;
-    let remainingSupply = 0;
+    let remainingSupply = "0";
     let continuation = "";
     let nftBalances = [];
 
@@ -98,7 +98,9 @@ export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
       continuation = `AND (contract, token_id, owner) > ($/lastContract/, $/lastTokenId/, $/lastOwner/)`;
 
       if (!_.isEmpty(nftBalances)) {
-        remainingSupply += _.sumBy(nftBalances, (event) => Number(event.amount));
+        nftBalances.map(
+          (event) => (remainingSupply = bn(event.amount).add(remainingSupply).toString())
+        );
 
         const lastBalance = _.last(nftBalances);
         values.lastContract = lastBalance.contract;
@@ -112,7 +114,7 @@ export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
   public async calcTotalSupply(contract: string, tokenId: string) {
     const limit = 1000;
-    let totalSupply = 0;
+    let totalSupply = "0";
     let continuation = "";
     let transferEvents = [];
 
@@ -149,7 +151,7 @@ export default class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
       continuation = `AND ("timestamp", tx_hash, log_index, batch_index) > ($/lastTimestamp/, $/lastTxHash/, $/lastLogIndex/, $/lastBatchIndex/)`;
 
       if (!_.isEmpty(transferEvents)) {
-        totalSupply += _.sumBy(transferEvents, (event) => Number(event.amount));
+        transferEvents.map((event) => (totalSupply = bn(event.amount).add(totalSupply).toString()));
 
         const lastEvent = _.last(transferEvents);
         values.lastTimestamp = lastEvent.timestamp;

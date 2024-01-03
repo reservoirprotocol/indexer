@@ -72,6 +72,8 @@ CREATE INDEX "tokens_contract_rarity_rank_token_id_index"
 
 CREATE EXTENSION IF NOT EXISTS btree_gin;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE INDEX "tokens_contract_name_token_id_index"
   ON "tokens" USING GIN ("contract", "name" gin_trgm_ops, "token_id");
 

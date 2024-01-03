@@ -45,6 +45,8 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         },
       },
     ]);
+
+    await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
