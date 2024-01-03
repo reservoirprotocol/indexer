@@ -23,19 +23,22 @@ const main = async () => {
   }
 
   // 2. Deploy the approval proxy
-  const approvalProxy = await trigger.Router.ApprovalProxy(chainId).then(() =>
-    readDeployment("ReservoirApprovalProxy", "v1", chainId)
-  );
-  if (approvalProxy) {
-    Sdk.RouterV6.Addresses.ApprovalProxy[chainId] = approvalProxy;
-  }
+  // const approvalProxy = await trigger.Router.ApprovalProxy(chainId).then(() =>
+  //   readDeployment("ReservoirApprovalProxy", "v1", chainId)
+  // );
+  // if (approvalProxy) {
+  //   Sdk.RouterV6.Addresses.ApprovalProxy[chainId] = approvalProxy;
+  // }
 
-  // 3. Deploy the conduit and grant access for the approval proxy
-  await trigger.Router.SeaportConduit(chainId);
+  // // 3. Deploy the conduit and grant access for the approval proxy
+  // await trigger.Router.SeaportConduit(chainId);
 
   // 4. Deploy any modules that depend on the router
-  for (const deploy of Object.values(trigger.Modules)) {
-    await deploy(chainId);
+  for (const [key, deploy] of Object.entries(trigger.Modules)) {
+    console.log(key);
+    if (key == "HotpotModule") {
+      await deploy(chainId);
+    }
   }
 
   // // 5. Deploy various utilities

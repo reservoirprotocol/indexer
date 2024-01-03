@@ -18,6 +18,7 @@ export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
+export * as hotpot from "@/orderbook/orders/hotpot";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
@@ -87,6 +88,7 @@ export type OrderKind =
   | "payment-processor"
   | "blur-v2"
   | "joepeg"
+  | "hotpot"
   | "payment-processor-v2"
   | "mooar";
 
@@ -193,6 +195,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("alienswap.xyz");
       case "mooar":
         return sources.getOrInsert("mooar.com");
+      case "hotpot":
+        return sources.getOrInsert("market.hotpot.gg");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -466,6 +470,14 @@ export const generateListingDetailsV6 = async (
         kind: "payment-processor",
         ...common,
         order: new Sdk.PaymentProcessor.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "hotpot": {
+      return {
+        kind: "hotpot",
+        ...common,
+        order: new Sdk.Hotpot.Order(config.chainId, order.rawData),
       };
     }
 

@@ -49,6 +49,7 @@ import * as PaymentProcessorV2 from "./payment-processor-v2";
 import * as Seadrop from "./seadrop";
 import * as BlurV2 from "./blur-v2";
 import * as Joepeg from "./joepeg";
+import * as Hotpot from "./hotpot";
 import * as ArtBlocks from "./artblocks";
 import * as Mooar from "./mooar";
 import * as HighlightXyz from "./highlightxyz";
@@ -107,6 +108,7 @@ export {
   Seadrop,
   BlurV2,
   Joepeg,
+  Hotpot,
   ArtBlocks,
   Mooar,
   HighlightXyz,

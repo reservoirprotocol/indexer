@@ -10,7 +10,7 @@ import { ethers } from "hardhat";
 
 import { DeploymentHelper, getGasConfigs } from "./deployment-helper";
 
-export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+export const DEPLOYER = "0xe2D3f8c3C5597736ea34F1A24C6D3C9000e9796e";
 const DEPLOYMENTS_FILE = "deployments.json";
 
 export const readDeployment = async (
@@ -303,6 +303,12 @@ export const trigger = {
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.PaymentProcessor.Addresses.Exchange[chainId],
+      ]),
+    HotpotModule: async (chainId: number) => 
+      dv("HotpotModule", "v3", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.Hotpot.Addresses.Exchange[chainId]
       ]),
     MintModule: async () => dv("MintModule", "v3", []),
   },

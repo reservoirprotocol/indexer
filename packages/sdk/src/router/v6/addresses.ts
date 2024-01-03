@@ -250,3 +250,8 @@ export const PaymentProcessorModule: ChainIdToAddress = {
   [Network.Polygon]: "0x806ccd909e94218a08545eb9ea88a5a0dde6e0c6",
   [Network.Mumbai]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
 };
+
+export const HotpotModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0xDf66c3ecc82d009B0922019e48C250F8dC4810c0",
+  [Network.EthereumSepolia]: "0x73eb5389805d99a365e8650eb1dc7472a5b5c158",
+};

@@ -47,6 +47,7 @@ import * as joepeg from "@/events-sync/data/joepeg";
 import * as metadataUpdate from "@/events-sync/data/metadata-update";
 import * as soundxyz from "@/events-sync/data/soundxyz";
 import * as createdotfun from "@/events-sync/data/createdotfun";
+import * as hotpot from "@/events-sync/data/hotpot";
 import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
 import * as titlesxyz from "@/events-sync/data/titlesxyz";
 import * as artblocks from "@/events-sync/data/artblocks";
@@ -102,6 +103,7 @@ export type EventKind =
   | "metadata-update"
   | "soundxyz"
   | "createdotfun"
+  | "hotpot"
   | "payment-processor-v2"
   | "titlesxyz"
   | "artblocks"
@@ -304,6 +306,8 @@ export type EventSubKind =
   | "soundxyz-range-edition-mint-created"
   | "soundxyz-merkle-drop-mint-created"
   | "createdotfun-configuration-updated"
+  | "hotpot-order-filled"
+  | "hotpot-order-cancelled"
   | "payment-processor-v2-buy-listing-erc721"
   | "payment-processor-v2-buy-listing-erc1155"
   | "payment-processor-v2-accept-offer-erc721"
@@ -540,6 +544,8 @@ const allEventData = [
   soundxyz.rangeEditionMintCreated,
   soundxyz.merkleDropMintCreated,
   createdotfun.configurationUpdated,
+  hotpot.orderFulfilled,
+  hotpot.orderCancelled,
   paymentProcessorV2.acceptOfferERC1155,
   paymentProcessorV2.acceptOfferERC721,
   paymentProcessorV2.buyListingERC1155,
