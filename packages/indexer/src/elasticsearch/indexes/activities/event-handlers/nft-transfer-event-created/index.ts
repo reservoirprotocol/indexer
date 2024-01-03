@@ -90,7 +90,8 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
-                        collections.image_version AS "collection_image_version"
+                        collections.image_version AS "collection_image_version",
+                        collections.is_minting AS "collection_is_minting"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
                     WHERE nft_transfer_events.address = tokens.contract
@@ -100,6 +101,11 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
   parseEvent(data: any) {
     data.timestamp = data.event_timestamp;
+
+    if (this.getActivityType(data) === ActivityType.mint) {
+      data.event_collection_is_minting =
+        data.collection_is_minting != null ? data.collection_is_minting : undefined;
+    }
   }
 
   static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {
