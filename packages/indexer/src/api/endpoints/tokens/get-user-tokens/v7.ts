@@ -559,7 +559,6 @@ export const getUserTokensV7Options: RouteOptions = {
         WHERE owner = $/user/
         AND uc.token_count > 0
         ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST
-        LIMIT $/limit/
       `;
     }
 
