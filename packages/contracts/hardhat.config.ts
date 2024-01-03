@@ -89,6 +89,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 2863311531:
         url = "https://rpc-testnet.ancient8.gg/";
         break;
+      case 204:
+        url = "https://opbnb-mainnet-rpc.bnbchain.org";
+        break;
       default:
         throw new Error("Unsupported chain id");
     }
@@ -160,6 +163,7 @@ const config: HardhatUserConfig = {
     linea: getNetworkConfig(59144),
     scroll: getNetworkConfig(534352),
     zora: getNetworkConfig(7777777),
+    opBnb: getNetworkConfig(204),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),

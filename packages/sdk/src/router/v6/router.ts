@@ -751,7 +751,7 @@ export class Router {
             value: string;
             path: { contract: string; tokenId: string }[];
             errors: { tokenId: string; isUnrecoverable?: boolean; reason: string }[];
-          };
+          }[];
         } = await axios
           .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
             taker,
@@ -766,73 +766,75 @@ export class Router {
           })
           .then((response) => response.data.calldata);
 
-        for (const [contract, data] of Object.entries(result)) {
-          const successfulBlurCompatibleListings: ListingDetails[] = [];
-          for (const { tokenId } of data.path) {
-            const listing = blurCompatibleListings.find(
-              (d) => d.contract === contract && d.tokenId === tokenId
-            );
-            if (listing) {
-              successfulBlurCompatibleListings.push(listing);
-            }
-          }
-
-          // Expose errors
-          for (const { tokenId, isUnrecoverable, reason } of data.errors) {
-            if (options?.onError) {
+        for (const [contract, entries] of Object.entries(result)) {
+          for (const data of entries) {
+            const successfulBlurCompatibleListings: ListingDetails[] = [];
+            for (const { tokenId } of data.path) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (listing) {
-                await options.onError("order-fetcher-blur-listings", new Error(reason), {
-                  isUnrecoverable:
-                    listing.kind === "blur" &&
-                    (["RestrictedContract", "ListingNotFound"].includes(reason) ||
-                      isUnrecoverable) &&
-                    listing.tokenId === tokenId,
-                  orderId: listing.orderId,
-                  additionalInfo: { detail: listing, taker },
-                });
+                successfulBlurCompatibleListings.push(listing);
               }
             }
-          }
 
-          // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
-          if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
-            // Mark the orders handled by Blur as successful
-            const orderIds: string[] = [];
-            for (const d of successfulBlurCompatibleListings) {
-              if (buyInCurrency !== d.currency) {
-                swapDetails.push({
-                  tokenIn: buyInCurrency,
-                  tokenOut: d.currency,
-                  tokenOutAmount: d.price,
-                  recipient: taker,
-                  refundTo: taker,
-                  details: [d],
-                  txIndex: txs.length,
-                });
+            // Expose errors
+            for (const { tokenId, isUnrecoverable, reason } of data.errors) {
+              if (options?.onError) {
+                const listing = blurCompatibleListings.find(
+                  (d) => d.contract === contract && d.tokenId === tokenId
+                );
+                if (listing) {
+                  await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                    isUnrecoverable:
+                      listing.kind === "blur" &&
+                      (["RestrictedContract", "ListingNotFound"].includes(reason) ||
+                        isUnrecoverable) &&
+                      listing.tokenId === tokenId,
+                    orderId: listing.orderId,
+                    additionalInfo: { detail: listing, taker },
+                  });
+                }
               }
-
-              success[d.orderId] = true;
-              orderIds.push(d.orderId);
             }
 
-            txs.push({
-              approvals: [],
-              permits: [],
-              preSignatures: [],
-              txTags: {
-                listings: { blur: orderIds.length },
-              },
-              txData: {
-                from: data.from,
-                to: data.to,
-                data: data.data + generateSourceBytes(options?.source),
-                value: data.value,
-              },
-              orderIds,
-            });
+            // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
+            if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
+              // Mark the orders handled by Blur as successful
+              const orderIds: string[] = [];
+              for (const d of successfulBlurCompatibleListings) {
+                if (buyInCurrency !== d.currency) {
+                  swapDetails.push({
+                    tokenIn: buyInCurrency,
+                    tokenOut: d.currency,
+                    tokenOutAmount: d.price,
+                    recipient: taker,
+                    refundTo: taker,
+                    details: [d],
+                    txIndex: txs.length,
+                  });
+                }
+
+                success[d.orderId] = true;
+                orderIds.push(d.orderId);
+              }
+
+              txs.push({
+                approvals: [],
+                permits: [],
+                preSignatures: [],
+                txTags: {
+                  listings: { blur: orderIds.length },
+                },
+                txData: {
+                  from: data.from,
+                  to: data.to,
+                  data: data.data + generateSourceBytes(options?.source),
+                  value: data.value,
+                },
+                orderIds,
+              });
+            }
           }
         }
       } catch (error) {
