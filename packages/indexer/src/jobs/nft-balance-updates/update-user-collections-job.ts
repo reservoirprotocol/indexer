@@ -1,6 +1,6 @@
 import { edb, pgp } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { toBuffer } from "@/common/utils";
+import { bn, toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
 import { getNetworkSettings } from "@/config/network";
 import _ from "lodash";
@@ -66,7 +66,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
     if (fromAddress && fromAddress !== AddressZero) {
       queries.push(`
         INSERT INTO user_collections (owner, collection_id, contract, token_count, is_spam)
-        VALUES ($/fromAddress/, $/collection/, $/contract/, -$/amount/, $/isSpam/)
+        VALUES ($/fromAddress/, $/collection/, $/contract/, $/negativeAmount/, $/isSpam/)
         ON CONFLICT (owner, collection_id)
         DO UPDATE SET token_count = user_collections.token_count - $/amount/, is_spam = $/isSpam/, updated_at = now();
       `);
@@ -89,6 +89,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
         collection: collection.id,
         contract: toBuffer(contract),
         amount,
+        negativeAmount: bn(0).sub(amount).toString(),
         isSpam: collection.isSpam,
       });
     }

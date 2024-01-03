@@ -186,6 +186,11 @@ export const getExecuteBidV5Options: RouteOptions = {
               .description(
                 "List of marketplace fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
               ),
+            marketplaceFlatFees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of marketplace flat fees (formatted as `feeRecipient:weiAmount`) to be bundled within the order."
+              ),
             customRoyalties: Joi.array()
               .items(Joi.string().pattern(regex.fee))
               .description(
@@ -296,6 +301,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         excludeFlaggedTokens: boolean;
         fees?: string[];
         marketplaceFees?: string[];
+        marketplaceFlatFees?: string[];
         customRoyalties?: string[];
         currency: string;
         listingTime?: number;
@@ -621,6 +627,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           }
           for (const feeData of params.marketplaceFees ?? []) {
             const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "marketplace", source);
+          }
+          for (const feeData of params.marketplaceFlatFees ?? []) {
+            const [feeRecipient, weiAmount] = feeData.split(":");
+            const unitPrice = bn(params.weiPrice).div(params.quantity ?? 1);
+            const fee = bn(weiAmount).mul(10000).div(unitPrice);
             (params as any).fee.push(fee);
             (params as any).feeRecipient.push(feeRecipient);
             await feeRecipients.create(feeRecipient, "marketplace", source);
