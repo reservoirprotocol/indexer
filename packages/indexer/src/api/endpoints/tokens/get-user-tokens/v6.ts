@@ -409,8 +409,45 @@ export const getUserTokensV6Options: RouteOptions = {
       `;
     }
 
+    // Sorting
+    let sorting = "";
+    if (query.sortBy === "acquiredAt") {
+      sorting = `
+        ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+    } else {
+      sorting = `
+        ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+    }
+
+    // Continuation
+    let continuationFilter = "";
+    if (query.continuation) {
+      const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
+        query.continuation,
+        /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
+      );
+
+      (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
+      (query as any).collectionId = collectionId;
+      (query as any).tokenId = tokenId;
+      query.sortDirection = query.sortDirection || "desc";
+      if (query.sortBy === "acquiredAt") {
+        continuationFilter = ` AND (acquired_at, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`;
+      } else {
+        continuationFilter = `AND (last_token_appraisal_value, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`;
+      }
+    }
+
     try {
-      let baseQuery = `
+      const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.image_version, t.image_mime_type, t.media_mime_type, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
@@ -444,60 +481,14 @@ export const getUserTokensV6Options: RouteOptions = {
                   : "TRUE"
               }
               AND amount > 0
+              ${continuationFilter}
+              ${sorting}
           ) AS b
           ${tokensJoin}
           ${includeDynamicPricingQuery}
           JOIN collections c ON c.id = t.collection_id
           JOIN contracts con ON b.contract = con.address
       `;
-
-      const conditions: string[] = [];
-
-      if (query.continuation) {
-        const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
-          query.continuation,
-          /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
-        );
-
-        (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
-        (query as any).collectionId = collectionId;
-        (query as any).tokenId = tokenId;
-
-        query.sortDirection = query.sortDirection || "desc";
-
-        if (query.sortBy === "acquiredAt") {
-          conditions.push(
-            `(acquired_at, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`
-          );
-        } else {
-          conditions.push(
-            `(last_token_appraisal_value, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`
-          );
-        }
-      }
-
-      if (conditions.length) {
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-      }
-
-      // Sorting
-      if (query.sortBy === "acquiredAt") {
-        baseQuery += `
-        ORDER BY
-          acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
-      } else {
-        baseQuery += `
-        ORDER BY
-          last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
-      }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
 
