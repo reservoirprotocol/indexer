@@ -341,6 +341,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           t.description,
           t.image,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           t.media,
           t.collection_id,
           c.name AS collection_name,
@@ -418,7 +420,12 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             name: r.name,
             isSpam: Number(r.is_spam) > 0,
             description: r.description,
-            image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+            image: Assets.getResizedImageUrl(
+              r.image,
+              undefined,
+              r.image_version,
+              r.image_mime_type
+            ),
             media: r.media,
             kind: r.kind,
             metadataDisabled:

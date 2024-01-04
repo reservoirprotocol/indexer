@@ -191,6 +191,8 @@ export const getUserTokensV3Options: RouteOptions = {
           t.name,
           t.image,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           t.collection_id,
           null AS top_bid_id,
           null AS top_bid_value,

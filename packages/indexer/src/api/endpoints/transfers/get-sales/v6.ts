@@ -342,6 +342,8 @@ export const getSalesV6Options: RouteOptions = {
                     tokens.image,
                     tokens.collection_id,
                     tokens.image_version,
+                    (tokens.metadata->>'image_mime_type')::text AS image_mime_type,
+                    (tokens.metadata->>'media_mime_type')::text AS media_mime_type,
                     collections.name AS collection_name
                   FROM tokens
                   LEFT JOIN collections 
@@ -401,7 +403,7 @@ export const getSalesV6Options: RouteOptions = {
           contract: r.contract,
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version, r.image_mime_type),
           collectionId: r.collection_id,
           collectionName: r.collection_name,
           washTradingScore: r.wash_trading_score,

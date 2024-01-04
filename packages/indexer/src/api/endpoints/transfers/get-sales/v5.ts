@@ -321,8 +321,9 @@ export const getSalesV5Options: RouteOptions = {
                   SELECT
                     tokens.name,
                     tokens.image,
-                    tokens.collection_id,
-                    tokens.image_version,
+                                        tokens.image_version,
+                    (tokens.metadata->>'image_mime_type')::text AS image_mime_type,
+                    (tokens.metadata->>'media_mime_type')::text AS media_mime_type,
                     collections.name AS collection_name
                   FROM tokens
                   LEFT JOIN collections 

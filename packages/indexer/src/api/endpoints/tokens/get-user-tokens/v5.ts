@@ -272,6 +272,8 @@ export const getUserTokensV5Options: RouteOptions = {
           t.name,
           t.image,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           t.collection_id,
           t.metadata_disabled AS "t_metadata_disabled",
           null AS top_bid_id,
@@ -295,6 +297,8 @@ export const getUserTokensV5Options: RouteOptions = {
             t.name,
             t.image,
             t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
             t.collection_id,
             t.metadata_disabled AS "t_metadata_disabled",
             ${selectFloorData}

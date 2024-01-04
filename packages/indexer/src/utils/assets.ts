@@ -17,7 +17,8 @@ export class Assets {
   public static getResizedImageURLs(
     assets: string | string[],
     size?: number,
-    image_version?: number
+    image_version?: number,
+    image_mime_type?: string
   ) {
     if (_.isEmpty(assets) || assets == "") {
       return undefined;
@@ -27,10 +28,10 @@ export class Assets {
       if (config.enableImageResizing) {
         if (_.isArray(assets)) {
           return assets.map((asset) => {
-            return this.getResizedImageUrl(asset, size, image_version);
+            return this.getResizedImageUrl(asset, size, image_version, image_mime_type);
           });
         }
-        return this.getResizedImageUrl(assets, size, image_version);
+        return this.getResizedImageUrl(assets, size, image_version, image_mime_type);
       }
     } catch (error) {
       // logger.error("getLocalAssetsLink", `Error: ${error}`);
@@ -59,7 +60,8 @@ export class Assets {
   public static getResizedImageUrl(
     imageUrl: string,
     size?: number,
-    image_version?: number
+    image_version?: number,
+    image_mime_type?: string
   ): string {
     if (imageUrl) {
       try {
@@ -74,10 +76,10 @@ export class Assets {
               resizeImageUrl = imageUrl.replace(/w=\d+/, `w=${ImageSize.large}`);
             }
 
-            return Assets.signImage(resizeImageUrl, size);
+            return Assets.signImage(resizeImageUrl, size, image_version, image_mime_type);
           }
 
-          return Assets.signImage(resizeImageUrl, size, image_version);
+          return Assets.signImage(resizeImageUrl, size, image_version, image_mime_type);
         }
       } catch (error) {
         logger.error("getResizedImageUrl", `Error: ${error}`);
@@ -103,7 +105,12 @@ export class Assets {
     return imageUrl;
   }
 
-  public static signImage(imageUrl: string, width?: number, image_version?: number): string {
+  public static signImage(
+    imageUrl: string,
+    width?: number,
+    image_version?: number,
+    image_mime_type?: string
+  ): string {
     const validImagePrefixes = ["http", "data:image"];
     if (config.imageResizingBaseUrl == null) {
       throw new Error("Image resizing base URL is not set");
@@ -134,10 +141,31 @@ export class Assets {
       }
     ).toString();
 
+    const fileExtension = Assets.getFileExtension(image_mime_type);
+
     return `${
       config.imageResizingBaseUrl
     }/${IMAGE_RESIZE_WORKER_VERSION}/${getNetworkName()}/${encodeURIComponent(ciphertext)}${
-      width ? "?width=" + width : ""
-    }`;
+      fileExtension ? "." + fileExtension : ""
+    }
+      ${width ? "?width=" + width : ""}`;
+  }
+
+  private static getFileExtension(mimeType: string | undefined): string {
+    if (!mimeType) {
+      return "";
+    }
+    let fileExtension = mimeType?.split("/")[1];
+    if (fileExtension == "svg+xml") {
+      fileExtension = "svg";
+    } else if (fileExtension == "jpeg") {
+      fileExtension = "jpg";
+    } else if (fileExtension == "tiff") {
+      fileExtension = "tif";
+    } else if (fileExtension == "x-icon") {
+      fileExtension = "ico";
+    }
+
+    return fileExtension;
   }
 }

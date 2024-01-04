@@ -214,6 +214,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             tokens.image,
             tokens.metadata_disabled,
             tokens.image_version,
+            (tokens.metadata->>'image_mime_type') as image_mime_type,
             tokens.rarity_score,
             tokens.rarity_rank
           FROM tokens
@@ -230,6 +231,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   name: token.name,
                   image: token.image,
                   image_version: token.image_version,
+                  image_mime_type: token.image_mime_type,
                   metadata_disabled: token.metadata_disabled,
                   rarity_score: token.rarity_score,
                   rarity_rank: token.rarity_rank,
@@ -249,6 +251,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                     name: tokenResult.name,
                     image: tokenResult.image,
                     image_version: tokenResult.image_version,
+                    image_mime_type: tokenResult.image_mime_type,
                     metadata_disabled: tokenResult.metadata_disabled,
                     rarity_score: tokenResult.rarity_score,
                     rarity_rank: tokenResult.rarity_rank,
@@ -355,7 +358,8 @@ export const getTokenActivityV5Options: RouteOptions = {
           tokenImageUrl = Assets.getResizedImageUrl(
             originalImageUrl,
             undefined,
-            tokenMetadata?.image_version
+            tokenMetadata?.image_version,
+            tokenMetadata?.image_mime_type
           );
         }
 

@@ -30,6 +30,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
+import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 const version = "v8";
 
@@ -412,6 +413,8 @@ export const getUserTokensV8Options: RouteOptions = {
           t.name,
           t.image,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           t.metadata,
           t.media,
           t.description,
@@ -457,6 +460,8 @@ export const getUserTokensV8Options: RouteOptions = {
             t.name,
             t.image,
             t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
             t.metadata,
             t.media,
             t.description,
@@ -736,6 +741,8 @@ export const getUserTokensV8Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = userTokens.map(async (r) => {
+        const metadata = parseMetadata(r);
+
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -765,15 +772,27 @@ export const getUserTokensV8Options: RouteOptions = {
               tokenId: tokenId,
               kind: r.kind,
               name: r.name,
-              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
-              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
-              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
-              metadata: r.token_metadata?.image_original_url
-                ? {
-                    imageOriginal: r.token_metadata.image_original_url,
-                    tokenURI: r.token_metadata.metadata_original_url,
-                  }
-                : undefined,
+              image: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.medium,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageSmall: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.small,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageLarge: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.large,
+                r.image_version,
+                r.image_mime_type
+              ),
+              metadata: Object.values(metadata).every((el) => el === undefined)
+                ? undefined
+                : metadata,
               description: r.description,
               rarityScore: r.rarity_score,
               rarityRank: r.rarity_rank,
@@ -946,4 +965,37 @@ export const getUserTokensV8Options: RouteOptions = {
       throw error;
     }
   },
+};
+
+export const parseMetadata = (r: any) => {
+  const metadata: any = {};
+  if (r.metadata?.image_original_url) {
+    metadata.imageOriginal = r.metadata.image_original_url;
+  }
+
+  if (r.metadata?.animation_original_url) {
+    metadata.mediaOriginal = r.metadata.animation_original_url;
+  }
+
+  if (!r.image && r.metadata?.image_original_url) {
+    r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
+  }
+
+  if (!r.media && r.metadata?.animation_original_url) {
+    r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
+  }
+
+  if (r.metadata?.image_mime_type) {
+    metadata.imageMimeType = r.metadata.image_mime_type;
+  }
+
+  if (r.metadata?.animation_mime_type) {
+    metadata.mediaMimeType = r.metadata.animation_mime_type;
+  }
+
+  if (r.token_uri) {
+    metadata.tokenURI = r.metadata.metadata_original_url;
+  }
+
+  return metadata;
 };

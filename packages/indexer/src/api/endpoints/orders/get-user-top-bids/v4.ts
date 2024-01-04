@@ -292,7 +292,8 @@ export const getUserTopBidsV4Options: RouteOptions = {
             LIMIT 1
         ) y ON TRUE
         LEFT JOIN LATERAL (
-            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
+            SELECT t.token_id, t.image_version, (t.metadata->>'image_mime_type') AS "image_mime_type", (t.metadata->>'media_mime_type') AS "media_mime_type",
+            t.name, t.image, t.collection_id, t.floor_sell_value AS "token_floor_sell_value", t.last_sell_value AS "token_last_sell_value", o.currency AS "token_floor_sell_currency", o.currency_price AS "token_floor_sell_currency_price"
             FROM tokens t
             LEFT JOIN orders o ON o.id = t.floor_sell_id
             WHERE t.contract = nb.contract
@@ -402,7 +403,12 @@ export const getUserTopBidsV4Options: RouteOptions = {
               tokenId: tokenId,
               name: r.name,
               kind: r.contract_kind,
-              image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+              image: Assets.getResizedImageUrl(
+                r.image,
+                undefined,
+                r.image_version,
+                r.image_mime_type
+              ),
               floorAskPrice: r.token_floor_sell_value
                 ? await getJoiPriceObject(
                     {
