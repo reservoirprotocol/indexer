@@ -20,7 +20,9 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
   description: "Collections Autocomplete",
   tags: ["api", "Collections"],
   plugins: {
-    "hapi-swagger": {},
+    "hapi-swagger": {
+      order: 3,
+    },
   },
   validate: {
     query: Joi.object({
