@@ -64,7 +64,8 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     });
 
     try {
-      const collectionKey = `collection-cache:v5:${payload.after.id}`;
+      logger.info("top-selling-collections", `updating ${payload.after.id}`);
+      const collectionKey = `collection-cache:v6:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
@@ -111,14 +112,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
             : Sdk.Common.Addresses.Native[config.chainId],
           metadata: {
             ...JSON.parse(metadata),
-            sample_images: result?.sample_images || [],
           },
+          sample_images: result?.sample_images || [],
           on_sale_count: result.on_sale_count,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
-        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX", "KEEPTTL");
       }
 
       const isSpam = Number(payload.after.is_spam) > 0;
