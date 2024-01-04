@@ -18,7 +18,7 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Search collections",
+  description: "Collections Autocomplete",
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {

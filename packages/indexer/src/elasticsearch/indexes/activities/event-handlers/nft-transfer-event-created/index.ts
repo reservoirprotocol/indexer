@@ -116,15 +116,6 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       data.event_collection_is_minting =
         data.collection_is_minting != null ? data.collection_is_minting : undefined;
     }
-
-    logger.info(
-      "nft-transfer-event-created-event-handler",
-      JSON.stringify({
-        message: `debug.`,
-        activityType,
-        data,
-      })
-    );
   }
 
   static async generateActivities(events: NftTransferEventInfo[]): Promise<ActivityDocument[]> {

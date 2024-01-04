@@ -742,12 +742,18 @@ export const getUserTokensV8Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = userTokens.map(async (r) => {
-        const metadata = parseMetadata(r);
+        const metadata = parseMetadata(r.token_metadata);
+
+        if (!r.image && r.token_metadata?.image_original_url) {
+          r.image = onchainMetadataProvider.parseIPFSURI(r.token_metadata.image_original_url);
+        }
+
+        if (!r.media && r.token_metadata?.animation_original_url) {
+          r.media = onchainMetadataProvider.parseIPFSURI(r.token_metadata.animation_original_url);
+        }
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
-        // eslint-disable-next-line
-        console.log(r);
 
         // Use default currencies for backwards compatibility with entries
         // that don't have the currencies cached in the tokens table
@@ -970,34 +976,26 @@ export const getUserTokensV8Options: RouteOptions = {
   },
 };
 
-export const parseMetadata = (r: any) => {
+export const parseMetadata = (token_metadata: any) => {
   const metadata: any = {};
-  if (r.metadata?.image_original_url) {
-    metadata.imageOriginal = r.metadata.image_original_url;
+  if (token_metadata?.image_original_url) {
+    metadata.imageOriginal = token_metadata.image_original_url;
   }
 
-  if (r.metadata?.animation_original_url) {
-    metadata.mediaOriginal = r.metadata.animation_original_url;
+  if (token_metadata?.animation_original_url) {
+    metadata.mediaOriginal = token_metadata.animation_original_url;
   }
 
-  if (!r.image && r.metadata?.image_original_url) {
-    r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
+  if (token_metadata?.image_mime_type) {
+    metadata.imageMimeType = token_metadata.image_mime_type;
   }
 
-  if (!r.media && r.metadata?.animation_original_url) {
-    r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
+  if (token_metadata?.animation_mime_type) {
+    metadata.mediaMimeType = token_metadata.animation_mime_type;
   }
 
-  if (r.metadata?.image_mime_type) {
-    metadata.imageMimeType = r.metadata.image_mime_type;
-  }
-
-  if (r.metadata?.animation_mime_type) {
-    metadata.mediaMimeType = r.metadata.animation_mime_type;
-  }
-
-  if (r.token_uri) {
-    metadata.tokenURI = r.metadata.metadata_original_url;
+  if (token_metadata?.token_uri) {
+    metadata.tokenURI = token_metadata.metadata_original_url;
   }
 
   return metadata;
