@@ -574,7 +574,8 @@ export const getUserTokensV8Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
                t.supply, t.remaining_supply, t.description,
-               t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
+               t.rarity_score, t.t_is_spam, t.image_version, t.image_mime_type, t.media_mime_type,
+               ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
@@ -745,6 +746,8 @@ export const getUserTokensV8Options: RouteOptions = {
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
+        // eslint-disable-next-line
+        console.log(r);
 
         // Use default currencies for backwards compatibility with entries
         // that don't have the currencies cached in the tokens table

@@ -147,8 +147,7 @@ export class Assets {
       config.imageResizingBaseUrl
     }/${IMAGE_RESIZE_WORKER_VERSION}/${getNetworkName()}/${encodeURIComponent(ciphertext)}${
       fileExtension ? "." + fileExtension : ""
-    }
-      ${width ? "?width=" + width : ""}`;
+    }${width ? "?width=" + width : ""}`;
   }
 
   private static getFileExtension(mimeType: string | undefined): string {

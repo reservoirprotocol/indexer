@@ -264,8 +264,9 @@ export const getSalesV5Options: RouteOptions = {
                   tokens_data.image,
                   tokens_data.collection_id,
                   tokens_data.collection_name,
-                  tokens_data.image_version
-                `
+                  tokens_data.image_version,
+                  tokens_data.image_mime_type,
+                  tokens_data.media_mime_type                `
               : ""
           }
         FROM (
