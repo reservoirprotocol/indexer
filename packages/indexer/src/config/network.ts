@@ -1116,6 +1116,20 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "ACT",
               decimals: 18,
             },
+            "0xfac45d8f87c8aad3284b539d81b677771fb60f7f",
+            {
+              contract: "0xFAC45D8f87C8aAd3284B539d81B677771fb60F7F",
+              name: "USDCTestToken",
+              symbol: "USDC",
+              decimals: 6,
+            },
+            "0xa6de6c90f2ffd30b54b830359a9f17ed44dd63ac",
+            {
+              contract: "0xA6de6C90f2FFd30B54b830359a9f17Ed44dd63Ac",
+              name: "TetherToken",
+              symbol: "USDT",
+              decimals: 6,
+            },
           ],
         ]),
         onStartup: async () => {
