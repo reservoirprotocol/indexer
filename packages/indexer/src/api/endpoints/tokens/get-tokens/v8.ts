@@ -33,9 +33,10 @@ import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
-import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { getListedTokensFromES } from "@/api/endpoints/tokens/get-tokens/v6";
+import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
+import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 const version = "v8";
 
@@ -401,7 +402,7 @@ export const getTokensV8Options: RouteOptions = {
         })
       );
 
-      const listedTokens = await getListedTokensFromES(query);
+      const listedTokens = await getListedTokensFromES(query, true);
 
       if (listedTokens.continuation || query.source || query.nativeSource) {
         return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
@@ -730,6 +731,8 @@ export const getTokensV8Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           c.image_version AS collection_image_version,
           c.name AS collection_name,
           con.kind,
@@ -1412,19 +1415,7 @@ export const getTokensV8Options: RouteOptions = {
           }
         }
 
-        const metadata = {
-          imageOriginal: undefined,
-          mediaOriginal: undefined,
-        };
-
-        if (r.metadata?.image_original_url) {
-          metadata.imageOriginal = r.metadata.image_original_url;
-        }
-
-        if (r.metadata?.animation_original_url) {
-          metadata.mediaOriginal = r.metadata.animation_original_url;
-        }
-
+        const metadata = parseMetadata(r.metadata);
         if (!r.image && r.metadata?.image_original_url) {
           r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
         }
@@ -1441,9 +1432,24 @@ export const getTokensV8Options: RouteOptions = {
               tokenId,
               name: r.name,
               description: r.description,
-              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
-              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
-              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
+              image: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.medium,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageSmall: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.small,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageLarge: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.large,
+                r.image_version,
+                r.image_mime_type
+              ),
               metadata: Object.values(metadata).every((el) => el === undefined)
                 ? undefined
                 : metadata,

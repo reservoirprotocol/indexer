@@ -546,6 +546,8 @@ export const getTokensV5Options: RouteOptions = {
           t.last_sell_value,
           t.last_sell_timestamp,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
             SELECT
