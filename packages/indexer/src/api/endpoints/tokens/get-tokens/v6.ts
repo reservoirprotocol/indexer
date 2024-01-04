@@ -403,7 +403,7 @@ export const getTokensV6Options: RouteOptions = {
         })
       );
 
-      const listedTokens = await getListedTokensFromES(query);
+      const listedTokens = await getListedTokensFromES(query, false);
 
       if (listedTokens.continuation || query.source || query.nativeSource) {
         return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
@@ -1627,7 +1627,7 @@ export const getTokensV6Options: RouteOptions = {
   },
 };
 
-export const getListedTokensFromES = async (query: any) => {
+export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAsObj = false) => {
   let collections: any[] = [];
 
   if (query.collection && !_.isArray(query.collection)) {
@@ -1807,7 +1807,9 @@ export const getListedTokensFromES = async (query: any) => {
                 'createdAt', ta.created_at,
                 'tokenCount', attributes.token_count,
                 'onSaleCount', attributes.on_sale_count,
-                'floorAskPrice', attributes.floor_sell_value::TEXT,
+                'floorAskValue', attributes.floor_sell_value::TEXT,
+                'floorAskCurrency', attributes.floor_sell_currency,
+                'floorAskCurrencyValue', attributes.floor_sell_currency_value::TEXT,
                 'topBidValue', attributes.top_buy_value::TEXT
               )
             )
@@ -2012,14 +2014,14 @@ export const getListedTokensFromES = async (query: any) => {
     }
 
     const contract = ask.contract;
-    const tokenId = ask.token.id;
+    const tokenId = ask.token.id.toString();
 
     const floorSellSource = ask.order.pricing.price
-      ? sources.get(Number(ask.order.sourceId), contract, tokenId.toString())
+      ? sources.get(Number(ask.order.sourceId), contract, tokenId)
       : undefined;
 
     const topBuySource = r.top_buy_id
-      ? sources.get(Number(r.top_buy_source_id_int), contract, tokenId.toString())
+      ? sources.get(Number(r.top_buy_source_id_int), contract, tokenId)
       : undefined;
 
     // Use default currencies for backwards compatibility with entries
@@ -2200,20 +2202,50 @@ export const getListedTokensFromES = async (query: any) => {
           owner: ask.order.maker,
           attributes: query.includeAttributes
             ? r.attributes
-              ? _.map(r.attributes, (attribute) => ({
-                  key: attribute.key,
-                  kind: attribute.kind,
-                  value: attribute.value,
-                  tokenCount: attribute.tokenCount,
-                  onSaleCount: attribute.onSaleCount,
-                  floorAskPrice: attribute.floorAskPrice
-                    ? formatEth(attribute.floorAskPrice)
-                    : attribute.floorAskPrice,
-                  topBidValue: attribute.topBidValue
-                    ? formatEth(attribute.topBidValue)
-                    : attribute.topBidValue,
-                  createdAt: new Date(attribute.createdAt).toISOString(),
-                }))
+              ? attributeFloorAskPriceAsObj
+                ? await Promise.all(
+                    _.map(r.attributes, async (attribute) => ({
+                      key: attribute.key,
+                      kind: attribute.kind,
+                      value: attribute.value,
+                      tokenCount: attribute.tokenCount,
+                      onSaleCount: attribute.onSaleCount,
+                      floorAskPrice: attribute.floorAskValue
+                        ? await getJoiPriceObject(
+                            {
+                              gross: {
+                                amount: String(
+                                  attribute.floorAskCurrencyValue ?? attribute.floorAskValue
+                                ),
+                                nativeAmount: String(attribute.floorAskValue),
+                              },
+                            },
+                            attribute.floorAskCurrency
+                              ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
+                              : Sdk.Common.Addresses.Native[config.chainId],
+                            query.displayCurrency
+                          )
+                        : null,
+                      topBidValue: attribute.topBidValue
+                        ? formatEth(attribute.topBidValue)
+                        : attribute.topBidValue,
+                      createdAt: new Date(attribute.createdAt).toISOString(),
+                    }))
+                  )
+                : _.map(r.attributes, (attribute) => ({
+                    key: attribute.key,
+                    kind: attribute.kind,
+                    value: attribute.value,
+                    tokenCount: attribute.tokenCount,
+                    onSaleCount: attribute.onSaleCount,
+                    floorAskPrice: attribute.floorAskValue
+                      ? formatEth(attribute.floorAskValue)
+                      : attribute.floorAskValue,
+                    topBidValue: attribute.topBidValue
+                      ? formatEth(attribute.topBidValue)
+                      : attribute.topBidValue,
+                    createdAt: new Date(attribute.createdAt).toISOString(),
+                  }))
               : []
             : undefined,
         },

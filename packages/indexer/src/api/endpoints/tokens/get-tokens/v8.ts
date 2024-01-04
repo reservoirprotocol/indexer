@@ -401,7 +401,7 @@ export const getTokensV8Options: RouteOptions = {
         })
       );
 
-      const listedTokens = await getListedTokensFromES(query);
+      const listedTokens = await getListedTokensFromES(query, true);
 
       if (listedTokens.continuation || query.source || query.nativeSource) {
         return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };

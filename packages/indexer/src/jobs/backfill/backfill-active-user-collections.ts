@@ -82,7 +82,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
           lastUpdatedAt: lastItem.updated_at.toISOString(),
           limit:
             lastItem.updated_at.toISOString() === lastUpdatedAt
-              ? _.min([(values.limit += 1000), 10000])
+              ? _.min([(values.limit += 1000), 15000])
               : undefined,
         },
       };
