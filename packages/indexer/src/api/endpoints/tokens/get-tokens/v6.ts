@@ -2287,8 +2287,8 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             query.displayCurrency
           ),
           maker: ask.order.maker,
-          validFrom: Math.ceil(ask.order.validFrom),
-          validUntil: Math.ceil(ask.order.validUntil),
+          validFrom: Math.trunc(ask.order.validFrom),
+          validUntil: Math.trunc(ask.order.validUntil),
           quantityFilled: query.includeQuantity ? ask.order.quantityFilled : undefined,
           quantityRemaining: query.includeQuantity ? ask.order.quantityRemaining : undefined,
           dynamicPricing,
