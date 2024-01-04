@@ -556,6 +556,53 @@ export const getUserTokensV7Options: RouteOptions = {
           `;
     }
 
+    // Sorting
+    let sorting = "";
+    if (query.sortBy === "acquiredAt") {
+      sorting = `
+          ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}
+          LIMIT $/limit/
+        `;
+    } else if (query.sortBy === "lastAppraisalValue") {
+      sorting = `
+          ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+          LIMIT $/limit/
+        `;
+    } else if (query.sortBy === "floorAskPrice") {
+      sorting = `
+          ORDER BY uc.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+          LIMIT $/limit/
+        `;
+    }
+
+    // Continuation
+    let continuationFilter = "";
+    if (query.continuation) {
+      const [sortByValue, collectionId, tokenId] = splitContinuation(
+        query.continuation,
+        /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
+      );
+
+      (query as any).sortByValue = sortByValue;
+      (query as any).collectionId = collectionId;
+      (query as any).tokenId = tokenId;
+      query.sortDirection = query.sortDirection || "desc";
+
+      if (query.sortBy === "acquiredAt") {
+        continuationFilter = `AND (acquired_at, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } (to_timestamp($/sortByValue/), $/tokenId/)`;
+      } else if (query.sortBy === "lastAppraisalValue") {
+        continuationFilter = `AND (last_token_appraisal_value, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } ($/sortByValue/, $/tokenId/)`;
+      } else if (query.sortBy === "floorAskPrice") {
+        continuationFilter = `AND (uc.floor_sell_value, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } ($/sortByValue/, $/tokenId/)`;
+      }
+    }
+
     let ucTable = "";
     if (query.sortBy === "floorAskPrice") {
       ucTable = `
@@ -569,7 +616,7 @@ export const getUserTokensV7Options: RouteOptions = {
     }
 
     try {
-      let baseQuery = `
+      const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
                t.supply, t.remaining_supply, t.description,
@@ -619,6 +666,8 @@ export const getUserTokensV7Options: RouteOptions = {
                 ? "(nft_balances.contract, nft_balances.token_id) IN ($/tokensFilter:raw/)"
                 : "TRUE"
             }
+            ${continuationFilter}
+            ${sorting}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id ${
@@ -647,65 +696,6 @@ export const getUserTokensV7Options: RouteOptions = {
           ) ELSE t.floor_sell_id END
 
       `;
-
-      const conditions: string[] = [];
-
-      if (query.continuation) {
-        const [sortByValue, collectionId, tokenId] = splitContinuation(
-          query.continuation,
-          /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
-        );
-
-        (query as any).sortByValue = sortByValue;
-        (query as any).collectionId = collectionId;
-        (query as any).tokenId = tokenId;
-        query.sortDirection = query.sortDirection || "desc";
-
-        if (query.sortBy === "acquiredAt") {
-          conditions.push(
-            `(acquired_at, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } (to_timestamp($/sortByValue/), $/tokenId/)`
-          );
-        } else if (query.sortBy === "lastAppraisalValue") {
-          conditions.push(
-            `(last_token_appraisal_value, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } ($/sortByValue/, $/tokenId/)`
-          );
-        } else if (query.sortBy === "floorAskPrice") {
-          conditions.push(
-            `(uc.floor_sell_value, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } ($/sortByValue/, $/tokenId/)`
-          );
-        }
-      }
-
-      if (conditions.length) {
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-      }
-
-      // Sorting
-      if (query.sortBy === "acquiredAt") {
-        baseQuery += `
-          ORDER BY
-            b.acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
-          LIMIT $/limit/
-        `;
-      } else if (query.sortBy === "lastAppraisalValue") {
-        baseQuery += `
-          ORDER BY
-            last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
-          LIMIT $/limit/
-        `;
-      } else if (query.sortBy === "floorAskPrice") {
-        baseQuery += `
-          ORDER BY
-            uc.floor_sell_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
-          LIMIT $/limit/
-        `;
-      }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
 
