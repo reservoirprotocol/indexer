@@ -29,6 +29,7 @@ import { redb } from "@/common/db";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
 import { Assets } from "@/utils/assets";
+import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
 
 const version = "v6";
 
@@ -233,17 +234,18 @@ export const getUserActivityV6Options: RouteOptions = {
       });
 
       let tokensMetadata: any[] = [];
+      let collectionsMetadata: any[] = [];
       let disabledCollectionMetadata: any = {};
 
       if (query.includeMetadata) {
+        disabledCollectionMetadata = await MetadataStatus.get(
+          activities.map((activity) => activity.collection?.id ?? "")
+        );
+
         try {
           let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
-
-          disabledCollectionMetadata = await MetadataStatus.get(
-            activities.map((activity) => activity.collection?.id ?? "")
-          );
 
           if (tokensToFetch.length) {
             // Make sure each token is unique
@@ -340,6 +342,15 @@ export const getUserActivityV6Options: RouteOptions = {
         } catch (error) {
           logger.error(`get-user-activity-${version}-handler`, `Token cache error: ${error}`);
         }
+
+        try {
+          collectionsMetadata = await ActivitiesCollectionCache.getCollections(activities);
+        } catch (error) {
+          logger.error(
+            `get-collection-activity-${version}-handler`,
+            `Collection cache error: ${error}`
+          );
+        }
       }
 
       const result = _.map(activities, async (activity) => {
@@ -350,6 +361,10 @@ export const getUserActivityV6Options: RouteOptions = {
         const tokenMetadata = tokensMetadata?.find(
           (token) =>
             token.contract == activity.contract && `${token.token_id}` == activity.token?.id
+        );
+
+        const collectionMetadata = collectionsMetadata?.find(
+          (collection) => collection.id == activity.collection?.id
         );
 
         let order;
@@ -364,8 +379,10 @@ export const getUserActivityV6Options: RouteOptions = {
                 collection: getJoiCollectionObject(
                   {
                     id: activity.collection?.id,
-                    name: activity.collection?.name,
-                    image: activity.collection?.image,
+                    name: collectionMetadata ? collectionMetadata.name : activity.collection?.name,
+                    image: collectionMetadata
+                      ? collectionMetadata.image
+                      : activity.collection?.image,
                     isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -431,6 +448,26 @@ export const getUserActivityV6Options: RouteOptions = {
           );
         }
 
+        let collectionImageUrl = undefined;
+
+        if (query.includeMetadata) {
+          const collectionImage = collectionMetadata
+            ? collectionMetadata.image
+            : activity.collection?.image;
+
+          if (collectionImage) {
+            const collectionImageVersion = collectionMetadata
+              ? collectionMetadata.image_version
+              : activity.collection?.imageVersion;
+
+            collectionImageUrl = Assets.getResizedImageUrl(
+              collectionImage,
+              undefined,
+              collectionImageVersion
+            );
+          }
+        }
+
         return getJoiActivityObject(
           {
             type: activity.type,
@@ -465,15 +502,12 @@ export const getUserActivityV6Options: RouteOptions = {
             },
             collection: {
               collectionId: activity.collection?.id,
-              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage:
-                query.includeMetadata && activity.collection?.image != null
-                  ? Assets.getResizedImageUrl(
-                      activity.collection?.image,
-                      undefined,
-                      activity.collection?.imageVersion
-                    )
-                  : undefined,
+              collectionName: query.includeMetadata
+                ? collectionMetadata
+                  ? collectionMetadata.name
+                  : activity.collection?.name
+                : undefined,
+              collectionImage: collectionImageUrl,
               isSpam: activity.collection?.isSpam,
             },
             txHash: activity.event?.txHash,

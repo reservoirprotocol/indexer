@@ -18,6 +18,7 @@ import {
   processCollectionEventJob,
 } from "@/jobs/elasticsearch/collections/process-collection-event-job";
 import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
+import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -63,8 +64,33 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.CollectionEvent,
     });
 
+    const changed = [];
+
+    for (const key in payload.after) {
+      const beforeValue = payload.before[key];
+      const afterValue = payload.after[key];
+
+      if (beforeValue !== afterValue) {
+        changed.push(key);
+      }
+    }
+
     try {
-      logger.info("top-selling-collections", `updating ${payload.after.id}`);
+      // Update the elasticsearch activities collection cache
+      if (changed.some((value) => ["name", "image", "image_version"].includes(value))) {
+        await ActivitiesCollectionCache.refreshCollection(payload.after.id, payload.after);
+      }
+    } catch (error) {
+      logger.error(
+        "IndexerCollectionsHandler",
+        JSON.stringify({
+          message: `failed to update activities collection cache. collectionId=${payload.after.id}, error=${error}`,
+          error,
+        })
+      );
+    }
+
+    try {
       const collectionKey = `collection-cache:v6:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
