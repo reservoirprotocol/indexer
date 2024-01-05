@@ -37,7 +37,6 @@ import * as AsksIndex from "@/elasticsearch/indexes/asks";
 import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
-import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 const version = "v6";
 
@@ -1415,14 +1414,7 @@ export const getTokensV6Options: RouteOptions = {
           }
         }
 
-        const metadata = parseMetadata(r.metadata);
-        if (!r.image && r.metadata?.image_original_url) {
-          r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
-        }
-
-        if (!r.media && r.metadata?.animation_original_url) {
-          r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
-        }
+        const metadata = parseMetadata(r, r.metadata);
 
         return {
           token: getJoiTokenObject(

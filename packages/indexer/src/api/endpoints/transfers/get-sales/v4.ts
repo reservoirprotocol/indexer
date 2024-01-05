@@ -294,7 +294,8 @@ export const getSalesV4Options: RouteOptions = {
                   SELECT
                     tokens.name,
                     tokens.image,
-                                        tokens.image_version,
+                    tokens.collection_id,
+                    tokens.image_version,
                     (tokens.metadata->>'image_mime_type')::text AS image_mime_type,
                     (tokens.metadata->>'media_mime_type')::text AS media_mime_type,
                     collections.name AS collection_name

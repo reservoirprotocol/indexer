@@ -102,7 +102,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
             this.queueName,
             JSON.stringify({
               topic: "simpleHashFallbackDebug",
-              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${undefined}`,
               contract: result.contract,
               error: result.error,
               reason: "No uri found",

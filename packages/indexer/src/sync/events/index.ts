@@ -708,8 +708,26 @@ export const checkForOrphanedBlock = async (block: number) => {
 
   // TODO: add block hash to contracts table, and delete contracts / tokens associated to the orphaned block
 
+  //check if we have the orphaned block in redis
+  const blockDataRedis = await redis.get(`block:${block}`);
+  if (blockDataRedis && JSON.parse(blockDataRedis).hash === orphanedBlock.hash) {
+    // if we have the orphaned block in redis, delete it
+    await redis.del(`block:${block}`);
+  }
   // delete the block data
   await blocksModel.deleteBlock(block, orphanedBlock.hash);
+
+  // check if we have the new block in postgres (get block with number = block and hash != orphanedBlock.hash)
+  const newBlock = await blocksModel.getBlockWithNumber(block, orphanedBlock.hash);
+
+  if (!newBlock) {
+    logger.info(
+      "events-sync-catchup",
+      `New block ${block} with hash ${upstreamBlockHash} not found in database, syncing block`
+    );
+    // resync the block
+    await eventsSyncRealtimeJob.addToQueue({ block: block });
+  }
 };
 
 export const checkForMissingBlocks = async (block: number) => {

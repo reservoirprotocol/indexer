@@ -885,7 +885,7 @@ export const save = async (
   };
 
   // Process all orders concurrently
-  const limit = pLimit(20);
+  const limit = pLimit(15);
   await Promise.all(
     orderInfos.map((orderInfo) =>
       limit(async () =>

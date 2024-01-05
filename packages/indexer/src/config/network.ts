@@ -1117,6 +1117,24 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0xb501ff1d6303158479c8f7bdf5eee8ef1e3cf63e",
+            {
+              contract: "0xb501FF1d6303158479c8f7BDf5Eee8EF1e3Cf63E",
+              name: "fake USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+            },
+          ],
+          [
+            "0xa6de6c90f2ffd30b54b830359a9f17ed44dd63ac",
+            {
+              contract: "0xA6de6C90f2FFd30B54b830359a9f17Ed44dd63Ac",
+              name: "TetherToken",
+              symbol: "USDT",
+              decimals: 6,
+            },
+          ],
         ]),
         onStartup: async () => {
           // Insert the native currency

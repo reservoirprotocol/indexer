@@ -81,6 +81,7 @@ export interface Metadata {
   safelistRequestStatus?: string;
   name?: string;
   description?: string;
+  mintConfig?: any;
 }
 
 export type MapEntry = {

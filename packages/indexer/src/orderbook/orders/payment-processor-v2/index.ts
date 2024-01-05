@@ -21,6 +21,7 @@ import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
+import { getExternalCosigner } from "@/utils/offchain-cancel/external-cosign";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -153,7 +154,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (
         order.params.cosigner &&
         order.params.cosigner !== AddressZero &&
-        order.params.cosigner.toLowerCase() !== cosigner().address.toLowerCase()
+        !(
+          order.params.cosigner.toLowerCase() === cosigner().address.toLowerCase() ||
+          (await getExternalCosigner(order.params.cosigner.toLowerCase()))
+        )
       ) {
         return results.push({
           id,

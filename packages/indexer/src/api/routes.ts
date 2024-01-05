@@ -923,6 +923,12 @@ export const setupRoutes = (server: Server) => {
     options: managementEndpoints.postSimulateOrderV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/management/cosigners/v1",
+    options: managementEndpoints.postCosignersV1Options,
+  });
+
   // Oracle
 
   server.route({

@@ -9,7 +9,6 @@ import { formatEth } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 import * as collectionsIndex from "@/elasticsearch/indexes/collections";
-// import { JoiPrice } from "@/common/joi";
 
 const version = "v1";
 
@@ -19,10 +18,10 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Collections Autocomplete",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 3,
     },
   },
   validate: {
