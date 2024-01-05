@@ -132,9 +132,10 @@ export const config = {
   privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
   imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
 
-  cloudflareAccountID: String(process.env.CLOUDFLARE_ACCOUNT_ID),
-  cloudflareAPIKey: String(process.env.CLOUDFLARE_API_KEY),
-  cloudflareDomain: String(process.env.CLOUDFLARE_DOMAIN),
+  // For metadata image uploading, disabled for now.
+  // cloudflareAccountID: String(process.env.CLOUDFLARE_ACCOUNT_ID),
+  // cloudflareAPIKey: String(process.env.CLOUDFLARE_API_KEY),
+  // cloudflareDomain: String(process.env.CLOUDFLARE_DOMAIN),
 
   zeroExApiKey: process.env.ZEROEX_API_KEY,
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
