@@ -3,7 +3,7 @@
 import { config } from "@/config/index";
 import { CollectionMetadata, TokenMetadata } from "../types";
 
-import { baseProvider } from "@/common/provider";
+import { metadataIndexingBaseProvider } from "@/common/provider";
 import { defaultAbiCoder } from "ethers/lib/utils";
 import { logger } from "@/common/logger";
 import { ethers } from "ethers";
@@ -313,7 +313,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const contract = new ethers.Contract(
         contractAddress,
         [...erc721Interface.fragments, ...erc1155Interface.fragments],
-        baseProvider
+        metadataIndexingBaseProvider
       );
 
       const erc721Supported = await contract.supportsInterface("0x80ac58cd");
@@ -401,7 +401,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   }
 
   getRPC() {
-    return config.baseNetworkHttpUrl;
+    return config.baseNetworkMetadataIndexingUrl;
   }
 
   async getContractName(contractAddress: string) {
@@ -409,7 +409,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const contract = new ethers.Contract(
         contractAddress,
         ["function name() view returns (string)"],
-        baseProvider
+        metadataIndexingBaseProvider
       );
       const name = await contract.name();
       return name;
@@ -427,7 +427,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const contract = new ethers.Contract(
         contractAddress,
         ["function contractURI() view returns (string)"],
-        baseProvider
+        metadataIndexingBaseProvider
       );
       let uri = await contract.contractURI();
       uri = normalizeLink(uri);
@@ -517,6 +517,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   parseIPFSURI(uri: string) {
     if (uri && uri?.includes("ipfs://")) {
       uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+    }
+
+    if (uri && uri?.includes("gateway.pinata.cloud")) {
+      uri = uri.replace("gateway.pinata.cloud", "ipfs.io");
     }
 
     return uri;

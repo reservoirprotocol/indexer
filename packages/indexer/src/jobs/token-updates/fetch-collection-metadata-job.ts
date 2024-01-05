@@ -8,9 +8,9 @@ import { getNetworkSettings } from "@/config/network";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import * as royalties from "@/utils/royalties";
 
 export type FetchCollectionMetadataJobPayload = {
@@ -151,14 +151,18 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         );
       }
 
-      // Refresh all royalty specs and the default royalties
-      await royalties.refreshAllRoyaltySpecs(
-        collection.id,
-        collection.royalties as royalties.Royalty[] | undefined,
-        collection.openseaRoyalties as royalties.Royalty[] | undefined
-      );
-
-      await royalties.refreshDefaultRoyalties(collection.id);
+      if (collection.hasPerTokenRoyalties) {
+        await royalties.clearRoyalties(collection.id);
+      } else {
+        // Refresh all royalty specs and the default royalties
+        await royalties.refreshAllRoyaltySpecs(
+          collection.id,
+          collection.royalties as royalties.Royalty[] | undefined,
+          collection.openseaRoyalties as royalties.Royalty[] | undefined,
+          true
+        );
+        await royalties.refreshDefaultRoyalties(collection.id);
+      }
 
       // Refresh marketplace fees
       await marketplaceFees.updateMarketplaceFeeSpec(

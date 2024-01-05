@@ -8,7 +8,7 @@ import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
-import { CollectionMint } from "@/orderbook/mints";
+import { CollectionMint, updateCollectionMintingStatus } from "@/orderbook/mints";
 import * as mints from "@/orderbook/mints/calldata/detector";
 
 // For now, use the deployer address
@@ -503,4 +503,7 @@ export const refreshMintsForCollection = async (collection: string) => {
       );
     }
   }
+
+  // Update minting status
+  await updateCollectionMintingStatus(collection);
 };

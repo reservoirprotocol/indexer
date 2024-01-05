@@ -11,7 +11,7 @@ import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, fromBuffer, now } from "@/common/utils";
+import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as b from "@/utils/auth/blur";
@@ -38,9 +38,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      id: Joi.string().lowercase().required(),
+      id: Joi.string().lowercase(),
+      token: Joi.string().pattern(regex.token).lowercase(),
+      collection: Joi.string().lowercase(),
       skipRevalidation: Joi.boolean().default(false),
-    }),
+    }).xor("token", "collection", "id"),
   },
   response: {
     schema: Joi.object({
@@ -109,7 +111,54 @@ export const postSimulateOrderV1Options: RouteOptions = {
     };
 
     try {
-      const id = payload.id;
+      let id = payload.id;
+
+      // Lookup the floor-ask order by token
+      const token = payload.token;
+      if (token) {
+        const [contract, tokenId] = payload.token.split(":");
+        const result = await idb.oneOrNone(
+          `
+            SELECT
+              tokens.floor_sell_id
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+        if (result && result.floor_sell_id) {
+          id = result.floor_sell_id;
+        }
+      }
+
+      // Lookup the floor-ask order by collection
+      const collection = payload.collection;
+      if (collection) {
+        const result = await idb.oneOrNone(
+          `
+            SELECT
+              collections.floor_sell_id
+            FROM collections
+            WHERE collections.id = $/collection/
+            LIMIT 1
+          `,
+          {
+            collection,
+          }
+        );
+        if (result && result.floor_sell_id) {
+          id = result.floor_sell_id;
+        }
+      }
+
+      if (!id) {
+        throw Boom.badRequest("No corresponding order was found");
+      }
 
       const orderResult = await idb.oneOrNone(
         `

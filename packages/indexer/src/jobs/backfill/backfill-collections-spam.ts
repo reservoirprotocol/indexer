@@ -43,6 +43,7 @@ export class BackfillCollectionsSpamJob extends AbstractRabbitMqJobHandler {
         SELECT id, name
         FROM collections
         WHERE (is_spam IS NULL OR is_spam = 0)
+        AND name SIMILAR TO  '%(Unidentified contract)%'
         ${cursor}
         ORDER BY collections.id
         LIMIT $/limit/

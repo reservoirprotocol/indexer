@@ -126,6 +126,16 @@ export const getOrdersBidsV6Options: RouteOptions = {
         .description(
           "Filter to sources by domain. Only active listed will be returned. Must set `includeRawData=true` to reveal individual bids when `sources=blur.io`. Example: `opensea.io`"
         ),
+      orderType: Joi.string()
+        .when("maker", {
+          is: Joi.exist(),
+          then: Joi.allow(),
+          otherwise: Joi.forbidden(),
+        })
+        .valid("token", "collection", "attribute", "custom")
+        .description(
+          "Filter to a particular order type. Must be one of `token`, `collection`, `attribute`, `custom`. Only valid when a maker is specified."
+        ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .when("ids", {
@@ -326,6 +336,10 @@ export const getOrdersBidsV6Options: RouteOptions = {
         "token_set_schema_hash"
       );
 
+      const orderTypeJoin = query.orderType
+        ? `JOIN token_sets ON token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash`
+        : "";
+
       let baseQuery = `
         SELECT
           contracts.kind AS "contract_kind",
@@ -376,6 +390,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDepth ? ", orders.raw_data" : ""}
         FROM orders
+        ${orderTypeJoin}
         JOIN LATERAL (
           SELECT kind
           FROM contracts
@@ -571,6 +586,38 @@ export const getOrdersBidsV6Options: RouteOptions = {
           `;
 
           conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
+        }
+
+        if (query.orderType) {
+          switch (query.orderType) {
+            case "token": {
+              conditions.push(`orders.token_set_id LIKE 'token:%'`);
+              break;
+            }
+            case "collection": {
+              conditions.push(`(
+                orders.token_set_id LIKE 'contract:%'
+                OR orders.token_set_id LIKE 'range:%'
+                OR (orders.token_set_id LIKE 'list:%' AND token_sets.attribute_id IS NULL)
+                OR orders.token_set_id LIKE 'dynamic:collection-non-flagged:%'
+              )`);
+              break;
+            }
+            case "attribute": {
+              conditions.push(
+                `(orders.token_set_id LIKE 'list:%' AND token_sets.attribute_id IS NOT NULL)`
+              );
+              break;
+            }
+            case "custom": {
+              conditions.push(`(
+                orders.token_set_id LIKE 'list:%' 
+                AND token_sets.collection_id IS NULL
+                AND token_sets.attribute_id IS NULL
+              )`);
+              break;
+            }
+          }
         }
       }
 

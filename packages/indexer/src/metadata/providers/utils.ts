@@ -118,6 +118,9 @@ export const normalizeMetadata = (collection: Collection): Metadata => {
     description: {
       key: "description",
     },
+    mintConfig: {
+      key: "mintConfig",
+    },
   };
 
   const metadata: Metadata = {};

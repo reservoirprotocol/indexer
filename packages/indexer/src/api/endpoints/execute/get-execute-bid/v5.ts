@@ -20,7 +20,7 @@ import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { getExecuteError } from "@/orderbook/orders/errors";
-import { checkBlacklistAndFallback } from "@/orderbook/orders";
+import { OrderKind, checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import * as e from "@/utils/auth/erc721c";
 import * as erc721c from "@/utils/erc721c";
@@ -186,6 +186,11 @@ export const getExecuteBidV5Options: RouteOptions = {
               .description(
                 "List of marketplace fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
               ),
+            marketplaceFlatFees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of marketplace flat fees (formatted as `feeRecipient:weiAmount`) to be bundled within the order."
+              ),
             customRoyalties: Joi.array()
               .items(Joi.string().pattern(regex.fee))
               .description(
@@ -288,7 +293,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         quantity?: number;
         weiPrice: string;
         options?: any;
-        orderKind: string;
+        orderKind: OrderKind;
         orderbook: string;
         orderbookApiKey?: string;
         automatedRoyalties: boolean;
@@ -296,6 +301,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         excludeFlaggedTokens: boolean;
         fees?: string[];
         marketplaceFees?: string[];
+        marketplaceFlatFees?: string[];
         customRoyalties?: string[];
         currency: string;
         listingTime?: number;
@@ -621,6 +627,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           }
           for (const feeData of params.marketplaceFees ?? []) {
             const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "marketplace", source);
+          }
+          for (const feeData of params.marketplaceFlatFees ?? []) {
+            const [feeRecipient, weiAmount] = feeData.split(":");
+            const unitPrice = bn(params.weiPrice).div(params.quantity ?? 1);
+            const fee = bn(weiAmount).mul(10000).div(unitPrice);
             (params as any).fee.push(fee);
             (params as any).feeRecipient.push(feeRecipient);
             await feeRecipients.create(feeRecipient, "marketplace", source);
@@ -1054,7 +1068,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "zeroex-v4": {
+              case "zeroex-v4" as any: {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",

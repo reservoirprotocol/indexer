@@ -15,6 +15,9 @@ export const config = {
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
+  baseNetworkMetadataIndexingUrl: String(
+    process.env.BASE_NETWORK_METADATA_INDEXING_URL || process.env.BASE_NETWORK_HTTP_URL
+  ),
 
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 

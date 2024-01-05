@@ -26,7 +26,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://eth.llamarpc.com";
         break;
       case 10:
-        url = "https://optimism.llamarpc.com";
+        url = "https://mainnet.optimism.io/";
         break;
       case 56:
         url = "https://bsc.drpc.org";
@@ -44,7 +44,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://developer-access-mainnet.base.org";
         break;
       case 42161:
-        url = "https://arbitrum.llamarpc.com";
+        url = "https://arb1.arbitrum.io/rpc";
         break;
       case 42170:
         url = "https://arbitrum-nova.publicnode.com";
@@ -56,10 +56,13 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.linea.build";
         break;
       case 534352:
-        url = "https://rpc.ankr.com/scroll";
+        url = "https://rpc.scroll.io";
         break;
       case 7777777:
         url = "https://rpc.zora.co";
+        break;
+      case 68840142:
+        url = "https://rpc.testnet.frame.xyz/http";
         break;
       // Testnets
       case 5:
@@ -80,14 +83,14 @@ const getNetworkConfig = (chainId?: number) => {
       case 84531:
         url = "https://goerli.base.org";
         break;
-      case 534353:
-        url = "https://alpha-rpc.scroll.io/l2";
-        break;
       case 11155111:
         url = "https://1rpc.io/sepolia";
         break;
       case 2863311531:
         url = "https://rpc-testnet.ancient8.gg/";
+        break;
+      case 204:
+        url = "https://opbnb-mainnet-rpc.bnbchain.org";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -160,6 +163,7 @@ const config: HardhatUserConfig = {
     linea: getNetworkConfig(59144),
     scroll: getNetworkConfig(534352),
     zora: getNetworkConfig(7777777),
+    opBnb: getNetworkConfig(204),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
@@ -167,8 +171,8 @@ const config: HardhatUserConfig = {
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
     baseGoerli: getNetworkConfig(84531),
-    scrollAlpha: getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
+    frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(2863311531),
   },
   etherscan: {
@@ -194,8 +198,8 @@ const config: HardhatUserConfig = {
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
       polygonMumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
       baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
-      scrollAlpha: process.env.ETHERSCAN_API_KEY_SCROLL_ALPHA ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
+      frameTestnet: "0x",
       ancient8Testnet: "0x",
     },
     customChains: [
@@ -305,12 +309,13 @@ const config: HardhatUserConfig = {
           browserURL: "https://goerli.basescan.org",
         },
       },
+      // This isn't working, couldn't find any valid API for their explorer
       {
-        network: "scrollAlpha",
-        chainId: 534353,
+        network: "frameTestnet",
+        chainId: 68840142,
         urls: {
-          apiURL: "https://api-sepolia.scrollscan.com/api",
-          browserURL: "https://sepolia.scrollscan.com",
+          apiURL: "https://explorer.testnet.frame.xyz/api",
+          browserURL: "https://explorer.testnet.frame.xyz",
         },
       },
       {

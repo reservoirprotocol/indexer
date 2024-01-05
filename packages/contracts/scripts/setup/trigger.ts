@@ -8,7 +8,7 @@ import * as Sdk from "@reservoir0x/sdk/src";
 import { promises as fs } from "fs";
 import { ethers } from "hardhat";
 
-import { DeploymentHelper } from "./deployment-helper";
+import { DeploymentHelper, getGasConfigs } from "./deployment-helper";
 
 export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
 const DEPLOYMENTS_FILE = "deployments.json";
@@ -75,10 +75,14 @@ const verify = async (contractName: string, version: string, args: any[]) => {
   await dh.verify(address, args);
 };
 
+const waitBeforeVerification = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 30000));
+};
+
 const dv = async (contractName: string, version: string, args: any[]) => {
   try {
     await deploy(contractName, version, args);
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+    await waitBeforeVerification();
     await verify(contractName, version, args);
   } catch (error) {
     console.log(`Failed to deploy/verify ${contractName}: ${error}`);
@@ -121,8 +125,8 @@ export const trigger = {
 
         const result = await conduitController.getConduit(conduitKey);
         if (!result.exists) {
-          await conduitController.createConduit(conduitKey, DEPLOYER);
-          await new Promise((resolve) => setTimeout(resolve, 30000));
+          await conduitController.createConduit(conduitKey, DEPLOYER, getGasConfigs(chainId));
+          await waitBeforeVerification();
         }
 
         // Grant ApprovalProxy
@@ -136,7 +140,8 @@ export const trigger = {
           await conduitController.updateChannel(
             result.conduit,
             Sdk.RouterV6.Addresses.ApprovalProxy[chainId],
-            true
+            true,
+            getGasConfigs(chainId)
           );
         }
 
@@ -151,7 +156,8 @@ export const trigger = {
           await conduitController.updateChannel(
             result.conduit,
             Sdk.SeaportV15.Addresses.Exchange[chainId],
-            true
+            true,
+            getGasConfigs(chainId)
           );
         }
 
@@ -303,14 +309,17 @@ export const trigger = {
   // Utilities
   Utilities: {
     OffChainCancellationZone: async (chainId: number) => {
-      if (!(await readDeployment("SignedZoneController", "v1", chainId))) {
-        await dv("SignedZoneController", "v1", []);
+      const version = "v1";
+
+      if (!(await readDeployment("SignedZoneController", version, chainId))) {
+        await dv("SignedZoneController", version, []);
       }
+      // await verify("SignedZoneController", version, []);
 
       const [deployer] = await ethers.getSigners();
 
       const controller = new Contract(
-        await readDeployment("SignedZoneController", "v1", chainId).then((a) => a!),
+        await readDeployment("SignedZoneController", version, chainId).then((a) => a!),
         new Interface([
           "function createZone(string zoneName, string apiEndpoint, string documentationURI, address initialOwner, bytes32 salt)",
           "function getZone(bytes32 salt) view returns (address)",
@@ -329,19 +338,23 @@ export const trigger = {
           "",
           "",
           deployer.address,
-          salt
+          salt,
+          getGasConfigs(chainId)
         );
         await tx.wait();
 
-        console.log(`Deployed cancellation zone at address ${zoneAddress}`);
+        await writeDeployment(zoneAddress, "SignedZone", version, chainId);
+        await waitBeforeVerification();
+        await verify("SignedZone", version, []);
       }
+      // await verify("SignedZone", version, []);
 
       const oracleSigner = "0x32da57e736e05f75aa4fae2e9be60fd904492726";
       const activeSigners = await controller
         .getActiveSigners(zoneAddress)
         .then((signers: string[]) => signers.map((s) => s.toLowerCase()));
       if (!activeSigners.includes(oracleSigner)) {
-        await controller.updateSigner(zoneAddress, oracleSigner, true);
+        await controller.updateSigner(zoneAddress, oracleSigner, true, getGasConfigs(chainId));
         console.log(`Signer ${oracleSigner} configured`);
       }
     },

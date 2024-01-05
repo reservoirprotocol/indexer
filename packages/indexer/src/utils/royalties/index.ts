@@ -214,6 +214,23 @@ export const refreshAllRoyaltySpecs = async (
   }
 };
 
+// Clear the existing royalties of a collection (useful for collections which have per-token royalties)
+export const clearRoyalties = async (collection: string) => {
+  await idb.none(
+    `
+      UPDATE collections SET
+        royalties = NULL,
+        royalties_bps = NULL,
+        new_royalties = NULL,
+        updated_at = now()
+      WHERE collections.id = $/id/
+    `,
+    {
+      id: collection,
+    }
+  );
+};
+
 // The default royalties are represented by the max royalties across all royalty specs
 export const refreshDefaultRoyalties = async (collection: string) => {
   const royaltiesResult = await idb.oneOrNone(

@@ -179,7 +179,7 @@ export const getUserTokensV2Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, b.acquired_at, t.name,
-               t.image, t.image_version, t.collection_id, b.floor_sell_id, b.floor_sell_value, t.top_buy_id,
+               t.image, t.image_version,  t.image_mime_type, t.media_mime_type, t.collection_id, b.floor_sell_id, b.floor_sell_value, t.top_buy_id,
                t.top_buy_value, t.total_buy_value, c.name as collection_name,
                c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
                c.metadata_disabled AS "c_metadata_disabled", t_metadata_disabled,
@@ -198,7 +198,8 @@ export const getUserTokensV2Options: RouteOptions = {
               AND amount > 0
           ) AS b
           JOIN LATERAL (
-            SELECT t.token_id, t.image_version, t.name, t.image, t.collection_id,
+            SELECT t.token_id, t.image_version, (t.metadata->>'image_mime_type') AS "image_mime_type", (t.metadata->>'media_mime_type') AS "media_mime_type",
+            t.name, t.image, t.collection_id,
                t.top_buy_id, t.top_buy_value, b.token_count * t.top_buy_value AS total_buy_value,
                t.metadata_disabled AS "t_metadata_disabled"
             FROM tokens t

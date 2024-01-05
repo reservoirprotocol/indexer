@@ -50,6 +50,7 @@ export interface CollectionMetadata {
   contract: string;
   tokenIdRange: [number, number] | [string, string] | null;
   tokenSetId: string | null;
+  hasPerTokenRoyalties?: boolean;
   isFallback?: boolean;
   paymentTokens?: object | null;
   creator?: string | null;

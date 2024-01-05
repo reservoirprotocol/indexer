@@ -191,6 +191,20 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
           isSpam: isSpam ?? 0,
         }
       );
+    } else {
+      // If no results make sure the user balance is 0
+      await idb.none(
+        `
+            UPDATE user_collections
+            SET token_count = 0
+            WHERE owner = $/owner/
+            AND collection_id = $/collection/;
+          `,
+        {
+          owner: toBuffer(user),
+          collection: collectionId,
+        }
+      );
     }
   }
 

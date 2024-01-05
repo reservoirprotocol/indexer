@@ -80,7 +80,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
             bidsByContract[contract].push(price);
           }
 
-          let auth = payload.auth;
+          let auth = query.auth;
           if (!auth) {
             const signer = verifyMessage(
               arrayify(keccak256(["string[]"], [orderIds.sort()])),

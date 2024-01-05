@@ -1,9 +1,9 @@
 import { idb, redb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { acquireLock, doesLockExist, redis, releaseLock } from "@/common/redis";
-import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 
 export type CollectionFloorJobPayload = {
   kind: string;
@@ -26,13 +26,13 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: CollectionFloorJobPayload) {
     const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
-    // First, retrieve the token's associated collection.
+    // First, retrieve the token's associated collection
     const collectionResult = await redb.oneOrNone(
       `
-            SELECT tokens.collection_id FROM tokens
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-          `,
+        SELECT tokens.collection_id FROM tokens
+        WHERE tokens.contract = $/contract/
+          AND tokens.token_id = $/tokenId/
+      `,
       {
         contract: toBuffer(contract),
         tokenId,
@@ -40,12 +40,11 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     );
 
     if (!collectionResult?.collection_id) {
-      // Skip if the token is not associated to a collection.
+      // Skip if the token is not associated to a collection
       return;
     }
 
-    let acquiredLock;
-
+    let acquiredLock = false;
     if (!["revalidation"].includes(kind)) {
       acquiredLock = await acquireLock(
         `${this.queueName}-lock:${collectionResult.collection_id}`,
@@ -182,14 +181,14 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
 
       const floorToken = await idb.oneOrNone(
         `
-              SELECT
-                tokens.contract,
-                tokens.token_id
-              FROM tokens
-              WHERE tokens.collection_id = $/collection/
-              ORDER BY tokens.floor_sell_value
-              LIMIT 1
-            `,
+          SELECT
+            tokens.contract,
+            tokens.token_id
+          FROM tokens
+          WHERE tokens.collection_id = $/collection/
+          ORDER BY tokens.floor_sell_value
+          LIMIT 1
+        `,
         {
           collection: collectionResult.collection_id,
         }

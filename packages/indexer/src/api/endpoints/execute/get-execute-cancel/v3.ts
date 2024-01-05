@@ -609,7 +609,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
             status: "complete",
           });
 
-          cancelTx = await axios
+          const blurCancelTx = await axios
             .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
               maker,
               contract: orderResult.raw_data.collection,
@@ -617,6 +617,11 @@ export const getExecuteCancelV3Options: RouteOptions = {
               authToken: blurAuth.accessToken,
             })
             .then((response) => response.data);
+          if (!blurCancelTx) {
+            throw Boom.badRequest("No matching order(s)");
+          }
+
+          cancelTx = blurCancelTx;
 
           break;
         }

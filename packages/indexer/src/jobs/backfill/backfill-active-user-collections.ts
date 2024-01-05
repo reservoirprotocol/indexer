@@ -59,7 +59,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
         // Check if the user was already synced
         const lock = `backfill-active-users-supply:${fromBuffer(result.owner)}`;
 
-        if (await acquireLock(lock, 60 * 60 * 24)) {
+        if (await acquireLock(lock, 60 * 60 * 12)) {
           jobs.push({
             user: fromBuffer(result.owner),
           });
@@ -82,7 +82,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
           lastUpdatedAt: lastItem.updated_at.toISOString(),
           limit:
             lastItem.updated_at.toISOString() === lastUpdatedAt
-              ? _.min([(values.limit += 1000), 10000])
+              ? _.min([(values.limit += 1000), 15000])
               : undefined,
         },
       };
