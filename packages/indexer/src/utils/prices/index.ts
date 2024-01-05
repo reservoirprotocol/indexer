@@ -13,6 +13,7 @@ import { getCurrency } from "@/utils/currencies";
 const USD_DECIMALS = 6;
 // TODO: This should be a per-network setting
 const NATIVE_UNIT = bn("1000000000000000000");
+const supportUsdPriceChainIds = [42766];
 
 export type Price = {
   currency: string;
@@ -82,7 +83,8 @@ const getUpstreamUSDPrice = async (
       }
     } else if (
       getNetworkSettings().whitelistedCurrencies.has(currencyAddress) ||
-      isTestnetCurrency(currencyAddress)
+      isTestnetCurrency(currencyAddress) ||
+      supportUsdPriceChainIds.includes(config.chainId)
     ) {
       // Whitelisted currencies don't have a price, so we just hardcode the minimum possible value
       let value = "1";
@@ -268,7 +270,7 @@ export const getUSDAndNativePrices = async (
   let nativePrice: string | undefined;
 
   // support zkfair WUSDC usd price
-  const supportUsdPriceChainIds = [42766];
+
   if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress) || supportUsdPriceChainIds.includes(config.chainId)) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
