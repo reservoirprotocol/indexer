@@ -228,7 +228,7 @@ export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
 
     if (collectionMint.pricePerQuantity) {
       if (!existingCollectionMint.pricePerQuantity) {
-        updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+        updatedFields.push(" price_per_quantity = $/pricePerQuantity:json/");
         updatedParams.pricePerQuantity = collectionMint.pricePerQuantity;
       } else {
         const unknownEntries = collectionMint.pricePerQuantity.filter(
@@ -239,7 +239,7 @@ export const upsertCollectionMint = async (collectionMint: CollectionMint) => {
         );
 
         if (unknownEntries.length) {
-          updatedFields.push(" price_per_quantity = $/pricePerQuantity/");
+          updatedFields.push(" price_per_quantity = $/pricePerQuantity:json/");
           updatedParams.pricePerQuantity = [
             ...existingCollectionMint.pricePerQuantity,
             ...unknownEntries,
