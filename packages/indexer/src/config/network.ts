@@ -1116,9 +1116,9 @@ export const getNetworkSettings = (): NetworkSettings => {
               symbol: "ACT",
               decimals: 18,
             },
-            "0xfac45d8f87c8aad3284b539d81b677771fb60f7f",
+            "0xb501ff1d6303158479c8f7bdf5eee8ef1e3cf63e",
             {
-              contract: "0xFAC45D8f87C8aAd3284B539d81B677771fb60F7F",
+              contract: "0xb501FF1d6303158479c8f7BDf5Eee8EF1e3Cf63E",
               name: "USDCTestToken",
               symbol: "USDC",
               decimals: 6,
