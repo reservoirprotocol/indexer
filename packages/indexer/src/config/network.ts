@@ -1119,7 +1119,7 @@ export const getNetworkSettings = (): NetworkSettings => {
             "0xb501ff1d6303158479c8f7bdf5eee8ef1e3cf63e",
             {
               contract: "0xb501FF1d6303158479c8f7BDf5Eee8EF1e3Cf63E",
-              name: "USDCTestToken",
+              name: "fake USD Coin",
               symbol: "USDC",
               decimals: 6,
             },
