@@ -32,16 +32,15 @@ export class BackfillOrderEventsDatesJob extends AbstractRabbitMqJobHandler {
     let cursor = "";
 
     if (id) {
-      cursor = `AND id > $/id/`;
+      cursor = `WHERE id > $/id/`;
       values.id = id;
     }
 
     const results = await idb.manyOrNone(
       `
           WITH x AS (
-              SELECT id, created_at
+              SELECT id, created_at, updated_at
               FROM order_events
-              WHERE updated_at IS NULL
               ${cursor}
               ORDER BY id ASC
               LIMIT $/limit/
@@ -51,6 +50,7 @@ export class BackfillOrderEventsDatesJob extends AbstractRabbitMqJobHandler {
           SET updated_at = x.created_at
           FROM x
           WHERE order_events."id" = x."id"
+          AND order_events.updated_at IS NULL
           RETURNING x.id
         `,
       values

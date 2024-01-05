@@ -11,6 +11,7 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
     type: "exponential",
     delay: 10000,
   } as BackoffStrategy;
+  disableErrorLogs = true;
 
   protected async process(payload: GenericOrderInfo) {
     await processOrder(this, payload);
