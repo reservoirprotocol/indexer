@@ -142,6 +142,19 @@ export abstract class AbstractBaseMetadataProvider {
         this.method
       );
     });
+
+    // if the imageMimeType is not "image/", we want to set imageUrl to null and mediaUrl to imageUrl
+    if (
+      parsedMetadata.imageMimeType &&
+      !parsedMetadata.imageMimeType.startsWith("image/") &&
+      parsedMetadata.imageUrl
+    ) {
+      parsedMetadata.mediaUrl = parsedMetadata.imageUrl;
+      parsedMetadata.imageUrl = null;
+      parsedMetadata.imageMimeType = undefined;
+      parsedMetadata.mediaMimeType = parsedMetadata.imageMimeType;
+    }
+
     return parsedMetadata;
   }
 }

@@ -36,6 +36,7 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { CollectionMintStandard } from "@/orderbook/mints";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as offchainCancel from "@/utils/offchain-cancel";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
@@ -105,6 +106,21 @@ mintsSources.set("0xb66a603f4cfe17e3d27b87a8bfcad319856518b8", "rarible.com");
 mintsSources.set("0xc143bbfcdbdbed6d454803804752a064a622c1f3", "async.art");
 mintsSources.set("0xfbeef911dc5821886e1dda71586d90ed28174b7d", "knownorigin.io");
 mintsSources.set("0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0", "superrare.com");
+
+const standardMintSources = new Map<CollectionMintStandard, string>();
+standardMintSources.set("manifold", "manifold.xyz");
+standardMintSources.set("seadrop-v1.0", "opensea.io");
+standardMintSources.set("thirdweb", "thirdweb.com");
+standardMintSources.set("zora", "zora.co");
+standardMintSources.set("decent", "decent.xyz");
+standardMintSources.set("foundation", "foundation.app");
+standardMintSources.set("lanyard", "lanyard.org");
+standardMintSources.set("mintdotfun", "mint.fun");
+standardMintSources.set("soundxyz", "sound.xyz");
+standardMintSources.set("createdotfun", "mint.fun");
+standardMintSources.set("titlesxyz", "titles.xyz");
+standardMintSources.set("artblocks", "artblocks.io");
+standardMintSources.set("highlightxyz", "highlight.xyz");
 
 export const getOrderSourceByOrderId = async (
   orderId: string
@@ -196,6 +212,8 @@ export const getOrderSourceByOrderKind = async (
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
+        } else if (address) {
+          return getMintSourceFromAddress(address);
         }
       }
     }
@@ -204,6 +222,22 @@ export const getOrderSourceByOrderKind = async (
   }
 
   // In case nothing matched, return `undefined` by default
+};
+
+export const getMintSourceFromAddress = async (
+  address: string
+): Promise<SourcesEntity | undefined> => {
+  const result = await idb.oneOrNone(
+    "SELECT standard FROM collection_mint_standards WHERE collection_id = $/collection/",
+    { collection: address }
+  );
+
+  const standard = result?.standard;
+
+  if (standard && standardMintSources.has(standard)) {
+    const sources = await Sources.getInstance();
+    return sources.getOrInsert(standardMintSources.get(standard)!);
+  }
 };
 
 // Support for filling listings

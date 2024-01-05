@@ -171,9 +171,6 @@ import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
 import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
 import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/token-reassigned-user-collections-job";
-import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
-import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
-import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
 import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillActiveUserCollectionsJob } from "@/jobs/backfill/backfill-active-user-collections";
@@ -335,9 +332,6 @@ export class RabbitMqJobsConsumer {
       resyncUserCollectionsJob,
       backfillUserCollectionsJob,
       tokenReassignedUserCollectionsJob,
-      backfillFtBalancesDatesJob,
-      backfillFtTransferEventsDatesJob,
-      backfillOrderEventsDatesJob,
       backfillTransactionsDatesJob,
       backfillTokenSupplyJob,
       backfillActiveUserCollectionsJob,
