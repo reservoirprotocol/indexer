@@ -167,10 +167,10 @@ const getCachedUSDPrice = async (
     .then((data) =>
       data
         ? {
-            currency: currencyAddress,
-            timestamp: data.timestamp,
-            value: data.value,
-          }
+          currency: currencyAddress,
+          timestamp: data.timestamp,
+          value: data.value,
+        }
         : undefined
     )
     .catch(() => undefined);
@@ -267,7 +267,9 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
+  // support zkfair WUSDC usd price
+  const supportUsdPriceChainIds = [42766];
+  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress) || supportUsdPriceChainIds.includes(config.chainId)) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,

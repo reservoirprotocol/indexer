@@ -69,6 +69,8 @@ export const Usdc: ChainIdToAddress = {
   [Network.Avalanche]: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
   [Network.Zksync]: "0x3355df6d4c9c3035724fd0e3914de96a5a83aaf4",
   [Network.Base]: "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca",
+  // WUSDC is ERC20 USDC on zkfair, because USDC is its native token!!! NOTE: its decimal is 18!!!
+  [Network.ZkFair]: "0xd33db7ec50a98164cc865dfaa64666906d79319c",
 };
 
 export const Dai: ChainIdToAddress = {
