@@ -946,12 +946,11 @@ export const checkBlacklistAndFallback = async (
 
   // Fallback to Seaport if when PaymentProcessor is blocked
   if (
-    ["payment-processor", "payment-processor-v2"].includes(params.orderKind) &&
+    ["payment-processor"].includes(params.orderKind) &&
     ["reservoir"].includes(params.orderbook)
   ) {
     const isBlocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
-      Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
     ]);
 
     // https://linear.app/reservoir/issue/PRO-1163/failing-ppv1-purchase
