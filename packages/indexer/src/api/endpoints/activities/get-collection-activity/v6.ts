@@ -29,6 +29,7 @@ import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
 import { Assets, ImageSize } from "@/utils/assets";
 import { ApiKeyManager } from "@/models/api-keys";
+import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
 
 const version = "v6";
 
@@ -247,17 +248,18 @@ export const getCollectionActivityV6Options: RouteOptions = {
       );
 
       let tokensMetadata: any[] = [];
+      let collectionsMetadata: any[] = [];
       let disabledCollectionMetadata: any = {};
 
       if (query.includeMetadata) {
+        disabledCollectionMetadata = await MetadataStatus.get(
+          activities.map((activity) => activity.collection?.id ?? "")
+        );
+
         try {
           let tokensToFetch = activities
             .filter((activity) => activity.token)
             .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
-
-          disabledCollectionMetadata = await MetadataStatus.get(
-            activities.map((activity) => activity.collection?.id ?? "")
-          );
 
           if (tokensToFetch.length) {
             // Make sure each token is unique
@@ -351,6 +353,15 @@ export const getCollectionActivityV6Options: RouteOptions = {
         } catch (error) {
           logger.error(`get-collection-activity-${version}-handler`, `Token cache error: ${error}`);
         }
+
+        try {
+          collectionsMetadata = await ActivitiesCollectionCache.getCollections(activities);
+        } catch (error) {
+          logger.error(
+            `get-collection-activity-${version}-handler`,
+            `Collection cache error: ${error}`
+          );
+        }
       }
 
       const result = _.map(activities, async (activity) => {
@@ -361,6 +372,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
         const tokenMetadata = tokensMetadata?.find(
           (token) =>
             token.contract == activity.contract && `${token.token_id}` == activity.token?.id
+        );
+
+        const collectionMetadata = collectionsMetadata?.find(
+          (collection) => collection.id == activity.collection?.id
         );
 
         let order;
@@ -375,8 +390,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
                 collection: getJoiCollectionObject(
                   {
                     id: activity.collection?.id,
-                    name: activity.collection?.name,
-                    image: activity.collection?.image,
+                    name: collectionMetadata ? collectionMetadata.name : activity.collection?.name,
+                    image: collectionMetadata
+                      ? collectionMetadata.image
+                      : activity.collection?.image,
                     isSpam: activity.collection?.isSpam,
                   },
                   disabledCollectionMetadata[activity.collection?.id ?? ""],
@@ -446,12 +463,23 @@ export const getCollectionActivityV6Options: RouteOptions = {
         }
 
         let collectionImageUrl = null;
-        if (query.includeMetadata && activity.collection?.image) {
-          collectionImageUrl = Assets.getResizedImageUrl(
-            activity.collection?.image,
-            ImageSize.small,
-            activity.collection?.imageVersion
-          );
+
+        if (query.includeMetadata) {
+          const collectionImage = collectionMetadata
+            ? collectionMetadata.image
+            : activity.collection?.image;
+
+          if (collectionImage) {
+            const collectionImageVersion = collectionMetadata
+              ? collectionMetadata.image_version
+              : activity.collection?.imageVersion;
+
+            collectionImageUrl = Assets.getResizedImageUrl(
+              collectionImage,
+              ImageSize.small,
+              collectionImageVersion
+            );
+          }
         }
 
         return getJoiActivityObject(
@@ -486,7 +514,11 @@ export const getCollectionActivityV6Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               isSpam: activity.collection?.isSpam,
-              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionName: query.includeMetadata
+                ? collectionMetadata
+                  ? collectionMetadata.name
+                  : activity.collection?.name
+                : undefined,
               collectionImage: collectionImageUrl,
             },
             txHash: activity.event?.txHash,
