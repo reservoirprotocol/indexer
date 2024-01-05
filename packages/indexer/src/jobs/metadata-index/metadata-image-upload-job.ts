@@ -1,223 +1,225 @@
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import fetch from "node-fetch";
-import { Buffer } from "buffer";
-import { logger } from "@/common/logger";
-import { config } from "@/config/index";
-import { Tokens } from "@/models/tokens";
-import { Collections } from "@/models/collections";
-import sharp from "sharp";
+// NOTE: This has not been tested yet. The code is commented out as it might be useful in the future if we decide to use Cloudflare for image hosting.
 
-import crypto from "crypto";
-export type MetadataImageUploadKind =
-  | "token-image"
-  | "token-media"
-  | "token-uri"
-  | "collection-image"
-  | "collection-banner";
+// import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+// import fetch from "node-fetch";
+// import { Buffer } from "buffer";
+// import { logger } from "@/common/logger";
+// import { config } from "@/config/index";
+// import { Tokens } from "@/models/tokens";
+// import { Collections } from "@/models/collections";
+// import sharp from "sharp";
 
-export type MetadataImageUploadJobPayload = {
-  tokenId: string;
-  contract: string;
-  imageURI: string;
-  mimeType: string | null;
-  kind: MetadataImageUploadKind;
-};
+// import crypto from "crypto";
+// export type MetadataImageUploadKind =
+//   | "token-image"
+//   | "token-media"
+//   | "token-uri"
+//   | "collection-image"
+//   | "collection-banner";
 
-const MAX_GIF_SIZE = 50 * 1000000; // 50 megapixels
+// export type MetadataImageUploadJobPayload = {
+//   tokenId: string;
+//   contract: string;
+//   imageURI: string;
+//   mimeType: string | null;
+//   kind: MetadataImageUploadKind;
+// };
 
-export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
-  queueName = "metadata-image-upload-job";
-  maxRetries = 3;
-  concurrency = 3;
-  timeout = 5 * 60 * 1000;
-  backoff = {
-    type: "exponential",
-    delay: 20000,
-  } as BackoffStrategy;
+// const MAX_GIF_SIZE = 50 * 1000000; // 50 megapixels
 
-  protected async process(payload: MetadataImageUploadJobPayload) {
-    const { imageURI, contract, tokenId } = payload;
+// export default class MetadataImageUploadJob extends AbstractRabbitMqJobHandler {
+//   queueName = "metadata-image-upload-job";
+//   maxRetries = 3;
+//   concurrency = 3;
+//   timeout = 5 * 60 * 1000;
+//   backoff = {
+//     type: "exponential",
+//     delay: 20000,
+//   } as BackoffStrategy;
 
-    try {
-      let imageBuffer, uploadUrl;
+//   protected async process(payload: MetadataImageUploadJobPayload) {
+//     const { imageURI, contract, tokenId } = payload;
 
-      if (this.isDataURI(imageURI)) {
-        // Handle data URI
-        imageBuffer = this.dataURIToBuffer(imageURI);
-      } else {
-        switch (payload.mimeType) {
-          case "image/gif":
-            imageBuffer = await this.fetchImageBuffer(imageURI);
-            // resize gif to have a max total of 50 megapixels (sum of all frames)
-            // this is to prevent OOM errors when processing large gifs
-            if (await this.isGifAboveMaxSize(imageBuffer)) {
-              imageBuffer = await this.resizeGif(imageBuffer);
-            } else {
-              // Skip upload to Cloudflare if image is small enough
-              uploadUrl = imageURI;
-            }
-            break;
-          default:
-            throw new Error(`Unsupported image MIME type: ${payload.mimeType}`);
-        }
-      }
+//     try {
+//       let imageBuffer, uploadUrl;
 
-      // Upload to Cloudflare if uploadUrl is not set
-      if (!uploadUrl) {
-        const uploadResult = await this.uploadToCloudflare(imageBuffer);
-        if (!uploadResult.success) {
-          throw new Error(`Failed to upload to Cloudflare: ${uploadResult.errors}`);
-        }
+//       if (this.isDataURI(imageURI)) {
+//         // Handle data URI
+//         imageBuffer = this.dataURIToBuffer(imageURI);
+//       } else {
+//         switch (payload.mimeType) {
+//           case "image/gif":
+//             imageBuffer = await this.fetchImageBuffer(imageURI);
+//             // resize gif to have a max total of 50 megapixels (sum of all frames)
+//             // this is to prevent OOM errors when processing large gifs
+//             if (await this.isGifAboveMaxSize(imageBuffer)) {
+//               imageBuffer = await this.resizeGif(imageBuffer);
+//             } else {
+//               // Skip upload to Cloudflare if image is small enough
+//               uploadUrl = imageURI;
+//             }
+//             break;
+//           default:
+//             throw new Error(`Unsupported image MIME type: ${payload.mimeType}`);
+//         }
+//       }
 
-        uploadUrl = uploadResult.result.variants[2];
-      }
+//       // Upload to Cloudflare if uploadUrl is not set
+//       if (!uploadUrl) {
+//         const uploadResult = await this.uploadToCloudflare(imageBuffer);
+//         if (!uploadResult.success) {
+//           throw new Error(`Failed to upload to Cloudflare: ${uploadResult.errors}`);
+//         }
 
-      switch (payload.kind) {
-        case "token-image":
-          await Tokens.update(contract, tokenId, {
-            image: uploadUrl,
-          });
-          break;
-        case "token-media":
-          await Tokens.update(contract, tokenId, {
-            media: uploadUrl,
-          });
-          break;
-        case "token-uri":
-          await Tokens.update(contract, tokenId, {
-            token_uri: uploadUrl,
-          });
-          break;
-        case "collection-image":
-          await Collections.updateCollectionMetadata(contract, {
-            imageUrl: uploadUrl,
-          });
-          break;
-        case "collection-banner":
-          await Collections.updateCollectionMetadata(contract, {
-            bannerImageUrl: uploadUrl,
-          });
-          break;
-      }
-    } catch (error) {
-      logger.error(this.queueName, `Error. imageURI=${imageURI}, error=${error}`);
-      throw error; // Rethrow the error to handle retry logic
-    }
-  }
+//         uploadUrl = uploadResult.result.variants[2];
+//       }
 
-  private isDataURI(uri: string) {
-    return uri.startsWith("data:");
-  }
+//       switch (payload.kind) {
+//         case "token-image":
+//           await Tokens.update(contract, tokenId, {
+//             image: uploadUrl,
+//           });
+//           break;
+//         case "token-media":
+//           await Tokens.update(contract, tokenId, {
+//             media: uploadUrl,
+//           });
+//           break;
+//         case "token-uri":
+//           await Tokens.update(contract, tokenId, {
+//             token_uri: uploadUrl,
+//           });
+//           break;
+//         case "collection-image":
+//           await Collections.updateCollectionMetadata(contract, {
+//             imageUrl: uploadUrl,
+//           });
+//           break;
+//         case "collection-banner":
+//           await Collections.updateCollectionMetadata(contract, {
+//             bannerImageUrl: uploadUrl,
+//           });
+//           break;
+//       }
+//     } catch (error) {
+//       logger.error(this.queueName, `Error. imageURI=${imageURI}, error=${error}`);
+//       throw error; // Rethrow the error to handle retry logic
+//     }
+//   }
 
-  private dataURIToBuffer(dataURI: string) {
-    const base64 = dataURI.split(",")[1];
-    const buffer = Buffer.from(base64, "base64");
-    return buffer;
-  }
+//   private isDataURI(uri: string) {
+//     return uri.startsWith("data:");
+//   }
 
-  private async fetchImageBuffer(url: string) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from URL: ${url}`);
-    }
-    return Buffer.from(await response.arrayBuffer());
-  }
+//   private dataURIToBuffer(dataURI: string) {
+//     const base64 = dataURI.split(",")[1];
+//     const buffer = Buffer.from(base64, "base64");
+//     return buffer;
+//   }
 
-  private async isGifAboveMaxSize(imageBuffer: Buffer) {
-    const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
-    const { width, height, pages } = await sharp(gif).metadata();
+//   private async fetchImageBuffer(url: string) {
+//     const response = await fetch(url);
+//     if (!response.ok) {
+//       throw new Error(`Failed to fetch image from URL: ${url}`);
+//     }
+//     return Buffer.from(await response.arrayBuffer());
+//   }
 
-    if (!width || !height || !pages) {
-      throw new Error(`Failed to get metadata for image`);
-    }
+//   private async isGifAboveMaxSize(imageBuffer: Buffer) {
+//     const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
+//     const { width, height, pages } = await sharp(gif).metadata();
 
-    const totalPixels = width * height * pages;
-    return totalPixels > MAX_GIF_SIZE;
-  }
+//     if (!width || !height || !pages) {
+//       throw new Error(`Failed to get metadata for image`);
+//     }
 
-  private async resizeGif(imageBuffer: Buffer) {
-    const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
-    const { width, height, pages } = await sharp(gif).metadata();
+//     const totalPixels = width * height * pages;
+//     return totalPixels > MAX_GIF_SIZE;
+//   }
 
-    if (!width || !height || !pages) {
-      throw new Error(`Failed to get metadata for image`);
-    }
+//   private async resizeGif(imageBuffer: Buffer) {
+//     const gif = await sharp(imageBuffer, { animated: true }).toBuffer();
+//     const { width, height, pages } = await sharp(gif).metadata();
 
-    const totalPixels = width * height * pages;
-    if (totalPixels <= MAX_GIF_SIZE) {
-      return imageBuffer;
-    }
+//     if (!width || !height || !pages) {
+//       throw new Error(`Failed to get metadata for image`);
+//     }
 
-    const newWidth = Math.floor(Math.sqrt((MAX_GIF_SIZE * width) / height));
-    const newHeight = Math.floor(Math.sqrt((MAX_GIF_SIZE * height) / width));
+//     const totalPixels = width * height * pages;
+//     if (totalPixels <= MAX_GIF_SIZE) {
+//       return imageBuffer;
+//     }
 
-    const resizedGif = await sharp(gif)
-      .resize(newWidth, newHeight, {
-        fit: "inside",
-      })
-      .toBuffer();
+//     const newWidth = Math.floor(Math.sqrt((MAX_GIF_SIZE * width) / height));
+//     const newHeight = Math.floor(Math.sqrt((MAX_GIF_SIZE * height) / width));
 
-    return resizedGif;
-  }
+//     const resizedGif = await sharp(gif)
+//       .resize(newWidth, newHeight, {
+//         fit: "inside",
+//       })
+//       .toBuffer();
 
-  private async uploadToCloudflare(imageBuffer: Buffer) {
-    // take a hash of the image to use as the filename, so we can check if the image already exists
-    const hash = crypto.createHash("sha256").update(imageBuffer).digest("hex");
+//     return resizedGif;
+//   }
 
-    if (await this.checkIfImageExistsInCloudflare(hash)) {
-      return {
-        success: true,
-        result: { variants: [`https://${config.cloudflareDomain}/${hash}`] },
-      };
-    }
+//   private async uploadToCloudflare(imageBuffer: Buffer) {
+//     // take a hash of the image to use as the filename, so we can check if the image already exists
+//     const hash = crypto.createHash("sha256").update(imageBuffer).digest("hex");
 
-    const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.cloudflareAPIKey}`,
-        "Content-Type": "application/octet-stream",
-      },
-      body: JSON.stringify({
-        file: imageBuffer.toString("base64"),
-        id: hash,
-      }),
-    });
+//     if (await this.checkIfImageExistsInCloudflare(hash)) {
+//       return {
+//         success: true,
+//         result: { variants: [`https://${config.cloudflareDomain}/${hash}`] },
+//       };
+//     }
 
-    if (!response.ok) {
-      throw new Error(`Cloudflare API responded with ${response.status}: ${response.statusText}`);
-    }
+//     const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1`;
+//     const response = await fetch(url, {
+//       method: "POST",
+//       headers: {
+//         Authorization: `Bearer ${config.cloudflareAPIKey}`,
+//         "Content-Type": "application/octet-stream",
+//       },
+//       body: JSON.stringify({
+//         file: imageBuffer.toString("base64"),
+//         id: hash,
+//       }),
+//     });
 
-    return response.json();
-  }
+//     if (!response.ok) {
+//       throw new Error(`Cloudflare API responded with ${response.status}: ${response.statusText}`);
+//     }
 
-  private async checkIfImageExistsInCloudflare(hash: string) {
-    const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1/${hash}`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${config.cloudflareAPIKey}`,
-      },
-    });
+//     return response.json();
+//   }
 
-    if (!response.ok) {
-      return false;
-    }
+//   private async checkIfImageExistsInCloudflare(hash: string) {
+//     const url = `https://api.cloudflare.com/client/v4/accounts/${config.cloudflareAccountID}/images/v1/${hash}`;
+//     const response = await fetch(url, {
+//       method: "GET",
+//       headers: {
+//         Authorization: `Bearer ${config.cloudflareAPIKey}`,
+//       },
+//     });
 
-    return true;
-  }
+//     if (!response.ok) {
+//       return false;
+//     }
 
-  public async addToQueue(params: MetadataImageUploadJobPayload, delay = 0) {
-    await this.send({ payload: params }, delay);
-  }
+//     return true;
+//   }
 
-  public async addToQueueBulk(params: MetadataImageUploadJobPayload[]) {
-    await this.sendBatch(
-      params.map((param) => {
-        return { payload: param };
-      })
-    );
-  }
-}
+//   public async addToQueue(params: MetadataImageUploadJobPayload, delay = 0) {
+//     await this.send({ payload: params }, delay);
+//   }
 
-export const metadataImageUploadJob = new MetadataImageUploadJob();
+//   public async addToQueueBulk(params: MetadataImageUploadJobPayload[]) {
+//     await this.sendBatch(
+//       params.map((param) => {
+//         return { payload: param };
+//       })
+//     );
+//   }
+// }
+
+// export const metadataImageUploadJob = new MetadataImageUploadJob();

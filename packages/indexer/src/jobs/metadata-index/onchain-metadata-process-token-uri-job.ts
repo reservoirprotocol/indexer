@@ -6,8 +6,6 @@ import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job"
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { metadataImageUploadJob } from "./metadata-image-upload-job";
-import { TokenMetadata } from "@/metadata/types";
 
 export type OnchainMetadataProcessTokenUriJobPayload = {
   contract: string;
@@ -40,8 +38,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       if (metadata.length) {
         if (
           config.fallbackMetadataIndexingMethod &&
+          // if image mimetype is in fallbackMimeTypes, we fallback
           ((metadata[0].imageMimeType && fallbackMimeTypes.includes(metadata[0].imageMimeType)) ||
-            (metadata[0].mediaMimeType && fallbackMimeTypes.includes(metadata[0].mediaMimeType)))
+            // if media mimetype is in fallbackMimeTypes, we fallback
+            (metadata[0].mediaMimeType && fallbackMimeTypes.includes(metadata[0].mediaMimeType)) ||
+            // if image/media url is a data uri, we fallback
+            metadata[0].imageUrl?.startsWith("data:") ||
+            metadata[0].mediaUrl?.startsWith("data:"))
         ) {
           await metadataIndexFetchJob.addToQueue(
             [
@@ -61,7 +64,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           return;
         }
 
-        await this.uploadImageIfNecessary(metadata[0]);
         await metadataIndexWriteJob.addToQueue(metadata);
         return;
       }
@@ -131,38 +133,39 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     );
   }
 
-  private async uploadImageIfNecessary(metadata: TokenMetadata) {
-    const uploadMimeTypes = [""];
-    if (
-      (metadata.imageUrl?.startsWith("data:") ||
-        (metadata.imageMimeType && uploadMimeTypes.includes(metadata.imageMimeType))) &&
-      metadata.imageUrl
-    ) {
-      await metadataImageUploadJob.addToQueue({
-        contract: metadata.contract,
-        tokenId: metadata.tokenId,
-        imageURI: metadata.imageUrl,
-        mimeType: metadata.imageMimeType,
-        kind: "token-image",
-      });
-      metadata.imageUrl = null;
-    }
+  // NOTE: This has not been tested yet. The code is commented out as it might be useful in the future if we decide to use Cloudflare for image hosting.
+  // private async uploadImageIfNecessary(metadata: TokenMetadata) {
+  //   const uploadMimeTypes = [""];
+  //   if (
+  //     (metadata.imageUrl?.startsWith("data:") ||
+  //       (metadata.imageMimeType && uploadMimeTypes.includes(metadata.imageMimeType))) &&
+  //     metadata.imageUrl
+  //   ) {
+  //     await metadataImageUploadJob.addToQueue({
+  //       contract: metadata.contract,
+  //       tokenId: metadata.tokenId,
+  //       imageURI: metadata.imageUrl,
+  //       mimeType: metadata.imageMimeType,
+  //       kind: "token-image",
+  //     });
+  //     metadata.imageUrl = null;
+  //   }
 
-    if (
-      (metadata.mediaUrl?.startsWith("data:") ||
-        (metadata.mediaMimeType && uploadMimeTypes.includes(metadata.mediaMimeType))) &&
-      metadata.mediaUrl
-    ) {
-      await metadataImageUploadJob.addToQueue({
-        contract: metadata.contract,
-        tokenId: metadata.tokenId,
-        imageURI: metadata.mediaUrl,
-        mimeType: metadata.mediaMimeType,
-        kind: "token-media",
-      });
-      metadata.mediaUrl = null;
-    }
-  }
+  //   if (
+  //     (metadata.mediaUrl?.startsWith("data:") ||
+  //       (metadata.mediaMimeType && uploadMimeTypes.includes(metadata.mediaMimeType))) &&
+  //     metadata.mediaUrl
+  //   ) {
+  //     await metadataImageUploadJob.addToQueue({
+  //       contract: metadata.contract,
+  //       tokenId: metadata.tokenId,
+  //       imageURI: metadata.mediaUrl,
+  //       mimeType: metadata.mediaMimeType,
+  //       kind: "token-media",
+  //     });
+  //     metadata.mediaUrl = null;
+  //   }
+  // }
 
   public async addToQueue(params: OnchainMetadataProcessTokenUriJobPayload, delay = 0) {
     await this.send({ payload: params }, delay);
