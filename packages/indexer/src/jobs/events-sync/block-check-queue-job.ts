@@ -17,11 +17,8 @@ export type BlockCheckJobPayload = {
 
 export class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
-  // maxRetries = 10;
-  // concurrency = 1;
-  // todo-job
-  maxRetries = [43851].includes(config.chainId) ? 2 : 10;
-  concurrency = [43851].includes(config.chainId) ? 1 : 2;
+  maxRetries = 10;
+  concurrency = 1;
 
   lazyMode = true;
   timeout = 60000;
