@@ -40,7 +40,6 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
         txHash: data.after.tx_hash,
         logIndex: data.after.log_index,
         batchIndex: data.after.batch_index,
-        isAirdrop: data.after.kind === "airdrop",
         timestamp: data.after.timestamp,
         createdAt: new Date(data.after.created_at).toISOString(),
         updatedAt: new Date(data.after.updated_at).toISOString(),
@@ -153,7 +152,6 @@ interface TransferInfo {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
-  kind: string;
 }
 
 export type TransferWebsocketEventInfo = {

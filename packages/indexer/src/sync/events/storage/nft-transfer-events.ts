@@ -12,6 +12,7 @@ import { getNetworkSettings } from "@/config/network";
 import { BaseEventParams } from "../parser";
 import { allEventsAddresses } from "../data";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { logger } from "@/common/logger";
 
 export type Event = {
   kind: ContractKind;
@@ -391,6 +392,7 @@ export const getEventKind = (
 ): DbEvent["kind"] => {
   const ns = getNetworkSettings();
   let kind: DbEvent["kind"] = null;
+  logger.info("debug-getEventKind", JSON.stringify(event));
   if (
     event.baseEventParams.from !== event.to &&
     event.baseEventParams?.to &&
