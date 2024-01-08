@@ -461,7 +461,7 @@ export const syncEventsOnly = async (
             log,
           }));
       } catch (error) {
-        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events (syncEventsOnly): ${error}`);
         throw error;
       }
     })
@@ -601,7 +601,7 @@ export const syncEvents = async (
             log,
           }));
       } catch (error) {
-        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events (syncEvents): ${error}`);
         throw error;
       }
     })
