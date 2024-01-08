@@ -642,8 +642,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/collections/autocomplete/v1",
-    options: collectionsEndpoints.getAutocompleteCollectionsV1Options,
+    path: "/collections/search/v1",
+    options: collectionsEndpoints.getCollectionSearchV1Options,
   });
 
   // Chain
