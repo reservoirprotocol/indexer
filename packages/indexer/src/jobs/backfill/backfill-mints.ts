@@ -75,6 +75,8 @@ if (config.doBackgroundWork) {
       await Promise.all(
         results.map((result) =>
           limit(() => {
+            // eslint-disable-next-line
+            // @ts-ignore
             const baseEventParams: BaseEventParams = {
               address: fromBuffer(result.address),
               block: result.block,

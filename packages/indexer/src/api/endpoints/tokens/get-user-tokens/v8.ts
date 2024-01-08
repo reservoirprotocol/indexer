@@ -980,7 +980,11 @@ export const parseMetadata = (r: any, token_metadata: any) => {
     metadata.tokenURI = token_metadata.metadata_original_url;
   }
 
-  if (!r.image && token_metadata?.image_original_url) {
+  if (
+    !r.image &&
+    token_metadata?.image_original_url &&
+    token_metadata?.imageMimeType.startsWith("image/")
+  ) {
     r.image = onchainMetadataProvider.parseIPFSURI(token_metadata.image_original_url);
   }
 
