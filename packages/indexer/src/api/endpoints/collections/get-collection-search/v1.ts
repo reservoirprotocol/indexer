@@ -17,7 +17,7 @@ export const getCollectionSearchV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Cross Chain Collection Search",
+  description: "Search Collections (Cross Chain)",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
