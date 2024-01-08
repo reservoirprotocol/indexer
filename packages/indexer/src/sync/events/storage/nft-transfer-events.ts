@@ -3,12 +3,15 @@ import _ from "lodash";
 import { idb, pgp } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { BaseEventParams } from "@/events-sync/parser";
 import { eventsSyncNftTransfersWriteBufferJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import { getRouters } from "@/utils/routers";
 import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
 import { getNetworkSettings } from "@/config/network";
+import { BaseEventParams } from "../parser";
+import { allEventsAddresses } from "../data";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 export type Event = {
   kind: ContractKind;
@@ -21,7 +24,7 @@ export type Event = {
 
 type ContractKind = "erc721" | "erc1155" | "cryptopunks" | "erc721-like";
 
-type DbEvent = {
+export type DbEvent = {
   address: Buffer;
   block: number;
   block_hash: Buffer;
@@ -34,6 +37,7 @@ type DbEvent = {
   to: Buffer;
   token_id: string;
   amount: string;
+  kind: "airdrop" | "mint" | "burn" | null;
 };
 
 type erc721Token = {
@@ -70,7 +74,20 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   for (const event of events) {
     const contractId = event.baseEventParams.address.toString();
-
+    // If its a mint, and the recipient did NOT initiate the transaction, then its an airdrop
+    const routers = await getRouters();
+    const kind: DbEvent["kind"] = getEventKind(
+      {
+        from: event.from,
+        to: event.to,
+        baseEventParams: {
+          from: event.baseEventParams.from,
+          // Because to can be null (contract creation, but we should never encounter it as null here its just for types to be happy)
+          to: event.baseEventParams.to || AddressZero,
+        },
+      },
+      routers
+    );
     transferValues.push({
       address: toBuffer(event.baseEventParams.address),
       block: event.baseEventParams.block,
@@ -84,6 +101,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       to: toBuffer(event.to),
       token_id: event.tokenId,
       amount: event.amount,
+      kind: kind,
     });
 
     if (!uniqueContracts.has(contractId)) {
@@ -137,6 +155,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           "to",
           "token_id",
           "amount",
+          "kind",
         ],
         { table: "nft_transfer_events" }
       );
@@ -162,12 +181,14 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "from",
             "to",
             "token_id",
-            "amount"
+            "amount",
+            "kind"
           ) VALUES ${pgp.helpers.values(event, columns)}
           ON CONFLICT DO NOTHING
           RETURNING
             "address",
             "token_id",
+            "kind",
             true AS "new_transfer",
             ARRAY["from", "to"] AS "owners",
             ARRAY[-"amount", "amount"] AS "amount_deltas",
@@ -178,26 +199,29 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           "token_id",
           "owner",
           "amount",
-          "acquired_at"
+          "acquired_at",
+          "is_airdropped"
         ) (
           SELECT
             "y"."address",
             "y"."token_id",
             "y"."owner",
             SUM("y"."amount_delta"),
-            MIN("y"."timestamp")
+            MIN("y"."timestamp"),
+            "y"."is_airdropped"
           FROM (
             SELECT
               "address",
               "token_id",
               unnest("owners") AS "owner",
               unnest("amount_deltas") AS "amount_delta",
-              unnest("timestamps") AS "timestamp"
+              unnest("timestamps") AS "timestamp",
+              "kind" = 'airdrop' AS "is_airdropped"
             FROM "x"
-            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
+            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC, "kind" ASC
           ) "y"
           ${deferUpdate ? `WHERE y.owner != ${pgp.as.buffer(() => event.from)}` : ""}
-          GROUP BY "y"."address", "y"."token_id", "y"."owner"
+          GROUP BY "y"."address", "y"."token_id", "y"."owner", "y"."is_airdropped"
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
@@ -352,4 +376,34 @@ export const removeEvents = async (block: number, blockHash: string) => {
       blockHash: toBuffer(blockHash),
     }
   );
+};
+
+export const getEventKind = (
+  event: {
+    from: string;
+    to: string;
+    baseEventParams: {
+      from: string;
+      to: string;
+    };
+  },
+  routers: Map<string, SourcesEntity>
+): DbEvent["kind"] => {
+  const ns = getNetworkSettings();
+  let kind: DbEvent["kind"] = null;
+  if (
+    event.baseEventParams.from !== event.to &&
+    event.baseEventParams?.to &&
+    !routers.has(event.baseEventParams?.to) &&
+    !allEventsAddresses.includes(event.baseEventParams?.to) &&
+    event.baseEventParams?.from !== event.baseEventParams?.to
+  ) {
+    kind = "airdrop";
+  } else if (ns.mintAddresses.includes(event.from)) {
+    kind = "mint";
+  } else if (ns.burnAddresses.includes(event.to)) {
+    kind = "burn";
+  }
+
+  return kind;
 };

@@ -8,7 +8,6 @@ import {
   assignMintCommentToFillEvents,
   assignSourceToFillEvents,
 } from "@/events-sync/handlers/utils/fills";
-import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
@@ -39,6 +38,7 @@ import {
   permitUpdatesJob,
   PermitUpdatesJobPayload,
 } from "@/jobs/permit-updates/permit-updates-job";
+import { BaseEventParams } from "@/events-sync/parserV2";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {

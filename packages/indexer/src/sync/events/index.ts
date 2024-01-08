@@ -443,10 +443,26 @@ export const syncEventsOnly = async (
     })
   );
 
+  // fetch tx data for logs that we are interested in
+  const txHashes = [...new Set(logs.map((log) => log.transactionHash))];
+  const txData = await Promise.all(
+    txHashes.map(async (txHash) => {
+      const tx = await baseProvider.getTransaction(txHash);
+      if (!tx) {
+        throw new Error(`Transaction ${txHash} not found with RPC provider`);
+      }
+      return tx;
+    })
+  );
+
   let enhancedEvents = logs
     .map((log) => {
       try {
-        const baseEventParams = parseEvent(log, blockTimestamps[log.blockNumber]);
+        const tx = txData.find((tx) => tx.hash === log.transactionHash);
+        if (!tx) {
+          throw new Error(`Transaction ${log.transactionHash} not found with RPC provider`);
+        }
+        const baseEventParams = parseEvent(log, blockTimestamps[log.blockNumber], 1, tx);
         return availableEventData
           .filter(
             ({ addresses, numTopics, topic }) =>
@@ -581,12 +597,15 @@ export const syncEvents = async (
   let enhancedEvents = logs
     .map((log) => {
       try {
-        // const baseEventParams = parseEvent(log, blockData.timestamp);
         const block = blockData.find((b) => b.hash === log.blockHash);
         if (!block) {
           throw new Error(`Block ${log.blockHash} not found with RPC provider`);
         }
-        const baseEventParams = parseEvent(log, block.timestamp);
+        const txData = block.transactions.find((tx) => tx.hash === log.transactionHash);
+        if (!txData) {
+          throw new Error(`Transaction ${log.transactionHash} not found in block ${block}`);
+        }
+        const baseEventParams = parseEvent(log, block.timestamp, 1, txData);
         return availableEventData
           .filter(
             ({ addresses, numTopics, topic }) =>
