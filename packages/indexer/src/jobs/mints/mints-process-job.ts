@@ -233,6 +233,17 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
             collectionMints = await detector.titlesxyz.extractByCollectionERC721(data.collection);
             break;
           }
+
+          case "highlightxyz": {
+            collectionMints = await detector.highlightxyz.extractByCollectionERC721(
+              data.collection,
+              {
+                vectorId: data.additionalInfo.vectorId,
+              }
+            );
+
+            break;
+          }
         }
 
         // Also refresh (to clean up any old stages)

@@ -923,6 +923,12 @@ export const setupRoutes = (server: Server) => {
     options: managementEndpoints.postSimulateOrderV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/management/cosigners/v1",
+    options: managementEndpoints.postCosignersV1Options,
+  });
+
   // Oracle
 
   server.route({
@@ -1414,6 +1420,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v8",
+    options: tokensEndpoints.getUserTokensV8Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/tokens/refresh/v1",
     options: tokensEndpoints.postTokensRefreshV1Options,
@@ -1587,6 +1599,12 @@ export const setupRoutes = (server: Server) => {
       method: "GET",
       path: "/debug/reset",
       options: debugEndpoints.resetOptions,
+    });
+
+    server.route({
+      method: "GET",
+      path: "/debug/parse-royalties",
+      options: debugEndpoints.parseRoyaltiesOptions,
     });
   }
 };

@@ -32,6 +32,10 @@ export default class ReplaceActivitiesCollectionJob extends AbstractRabbitMqJobH
       return;
     }
 
+    if (oldCollectionId === newCollectionId) {
+      return;
+    }
+
     const collection = await Collections.getById(newCollectionId);
 
     if (collection) {

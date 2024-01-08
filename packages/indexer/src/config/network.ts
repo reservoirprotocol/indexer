@@ -81,6 +81,12 @@ export const getNetworkName = () => {
     case 13472:
       return "immutable-zkevm-testnet";
 
+    case 68840142:
+      return "frame-testnet";
+
+    case 204:
+      return "opbnb";
+
     default:
       return "unknown";
   }
@@ -393,7 +399,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0xaef06250d07cb6389d730d0eec7d90a1549be812",
               name: "RugLabz",
               symbol: "RLBZ",
-              decimals: 18,
+              decimals: 9,
               metadata: {
                 image: "https://i.ibb.co/XYVTLZf/Untitled.png",
               },
@@ -1111,6 +1117,24 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0xb501ff1d6303158479c8f7bdf5eee8ef1e3cf63e",
+            {
+              contract: "0xb501FF1d6303158479c8f7BDf5Eee8EF1e3Cf63E",
+              name: "fake USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+            },
+          ],
+          [
+            "0xa6de6c90f2ffd30b54b830359a9f17ed44dd63ac",
+            {
+              contract: "0xA6de6C90f2FFd30B54b830359a9f17Ed44dd63Ac",
+              name: "TetherToken",
+              symbol: "USDT",
+              decimals: 6,
+            },
+          ],
         ]),
         onStartup: async () => {
           // Insert the native currency
@@ -1584,6 +1608,74 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'tIMX',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/17233/standard/immutableX-symbol-BLK-RGB.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Frame Testnet
+    case 68840142: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        isTestnet: true,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // opBNB
+    case 204: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        coingecko: {
+          networkId: "opbnb",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Binance Coin',
+                  'BNB',
+                  18,
+                  '{"coingeckoCurrencyId": "binancecoin", "image": "https://assets.coingecko.com/coins/images/12591/large/binance-coin-logo.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

@@ -1,4 +1,4 @@
-import { Interface } from "@ethersproject/abi";
+import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
@@ -751,7 +751,7 @@ export class Router {
             value: string;
             path: { contract: string; tokenId: string }[];
             errors: { tokenId: string; isUnrecoverable?: boolean; reason: string }[];
-          };
+          }[];
         } = await axios
           .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
             taker,
@@ -766,73 +766,75 @@ export class Router {
           })
           .then((response) => response.data.calldata);
 
-        for (const [contract, data] of Object.entries(result)) {
-          const successfulBlurCompatibleListings: ListingDetails[] = [];
-          for (const { tokenId } of data.path) {
-            const listing = blurCompatibleListings.find(
-              (d) => d.contract === contract && d.tokenId === tokenId
-            );
-            if (listing) {
-              successfulBlurCompatibleListings.push(listing);
-            }
-          }
-
-          // Expose errors
-          for (const { tokenId, isUnrecoverable, reason } of data.errors) {
-            if (options?.onError) {
+        for (const [contract, entries] of Object.entries(result)) {
+          for (const data of entries) {
+            const successfulBlurCompatibleListings: ListingDetails[] = [];
+            for (const { tokenId } of data.path) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (listing) {
-                await options.onError("order-fetcher-blur-listings", new Error(reason), {
-                  isUnrecoverable:
-                    listing.kind === "blur" &&
-                    (["RestrictedContract", "ListingNotFound"].includes(reason) ||
-                      isUnrecoverable) &&
-                    listing.tokenId === tokenId,
-                  orderId: listing.orderId,
-                  additionalInfo: { detail: listing, taker },
-                });
+                successfulBlurCompatibleListings.push(listing);
               }
             }
-          }
 
-          // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
-          if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
-            // Mark the orders handled by Blur as successful
-            const orderIds: string[] = [];
-            for (const d of successfulBlurCompatibleListings) {
-              if (buyInCurrency !== d.currency) {
-                swapDetails.push({
-                  tokenIn: buyInCurrency,
-                  tokenOut: d.currency,
-                  tokenOutAmount: d.price,
-                  recipient: taker,
-                  refundTo: taker,
-                  details: [d],
-                  txIndex: txs.length,
-                });
+            // Expose errors
+            for (const { tokenId, isUnrecoverable, reason } of data.errors) {
+              if (options?.onError) {
+                const listing = blurCompatibleListings.find(
+                  (d) => d.contract === contract && d.tokenId === tokenId
+                );
+                if (listing) {
+                  await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                    isUnrecoverable:
+                      listing.kind === "blur" &&
+                      (["RestrictedContract", "ListingNotFound"].includes(reason) ||
+                        isUnrecoverable) &&
+                      listing.tokenId === tokenId,
+                    orderId: listing.orderId,
+                    additionalInfo: { detail: listing, taker },
+                  });
+                }
               }
-
-              success[d.orderId] = true;
-              orderIds.push(d.orderId);
             }
 
-            txs.push({
-              approvals: [],
-              permits: [],
-              preSignatures: [],
-              txTags: {
-                listings: { blur: orderIds.length },
-              },
-              txData: {
-                from: data.from,
-                to: data.to,
-                data: data.data + generateSourceBytes(options?.source),
-                value: data.value,
-              },
-              orderIds,
-            });
+            // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
+            if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
+              // Mark the orders handled by Blur as successful
+              const orderIds: string[] = [];
+              for (const d of successfulBlurCompatibleListings) {
+                if (buyInCurrency !== d.currency) {
+                  swapDetails.push({
+                    tokenIn: buyInCurrency,
+                    tokenOut: d.currency,
+                    tokenOutAmount: d.price,
+                    recipient: taker,
+                    refundTo: taker,
+                    details: [d],
+                    txIndex: txs.length,
+                  });
+                }
+
+                success[d.orderId] = true;
+                orderIds.push(d.orderId);
+              }
+
+              txs.push({
+                approvals: [],
+                permits: [],
+                preSignatures: [],
+                txTags: {
+                  listings: { blur: orderIds.length },
+                },
+                txData: {
+                  from: data.from,
+                  to: data.to,
+                  data: data.data + generateSourceBytes(options?.source),
+                  value: data.value,
+                },
+                orderIds,
+              });
+            }
           }
         }
       } catch (error) {
@@ -4865,5 +4867,72 @@ export class Router {
         ],
       };
     }
+  }
+
+  public parseExecutions(calldata: string) {
+    const executions: {
+      module: string;
+      moduleName: string;
+      method: string;
+      sighash: string;
+      args: Result;
+      params: {
+        fillTo: string;
+        refundTo: string;
+        revertIfIncomplete?: boolean;
+        token?: string;
+        amount?: string;
+      };
+    }[] = [];
+
+    try {
+      const isRouter = calldata.includes("0x760f2a0b");
+
+      const routerContract = isRouter ? this.contracts.router : this.contracts.approvalProxy;
+      const parsed = routerContract.interface.parseTransaction({
+        data: calldata,
+      });
+
+      const executionInfos = parsed.args.executionInfos;
+      for (const executionInfo of executionInfos) {
+        for (const contractName of Object.keys(this.contracts)) {
+          if (!contractName.includes("Module")) {
+            continue;
+          }
+
+          const contract = this.contracts[contractName];
+          try {
+            const parsed = contract.interface.parseTransaction({
+              data: executionInfo.data,
+            });
+
+            const isParsed = executions.find((c) => c.sighash);
+            if (!isParsed) {
+              const executionParams = parsed.args.params;
+              executions.push({
+                module: contract.address,
+                moduleName: contractName,
+                method: parsed.name,
+                args: parsed.args,
+                sighash: parsed.sighash,
+                params: {
+                  refundTo: executionParams.refundTo.toLowerCase(),
+                  fillTo: executionParams.fillTo.toLowerCase(),
+                  revertIfIncomplete: executionParams.revertIfIncomplete,
+                  token: executionParams.token,
+                  amount: executionParams.amount ? executionParams.amount.toString() : undefined,
+                },
+              });
+            }
+          } catch {
+            // Parsing failed
+          }
+        }
+      }
+    } catch {
+      // Parsing failed
+    }
+
+    return executions;
   }
 }

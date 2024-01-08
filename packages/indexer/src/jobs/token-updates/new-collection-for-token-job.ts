@@ -186,6 +186,14 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
         );
       }
 
+      if (collection.id === oldCollectionId) {
+        logger.info(
+          this.queueName,
+          `collection id ${collection.id} same as old collection id ${JSON.stringify(payload)}`
+        );
+        return;
+      }
+
       if (this.updateActivities(contract)) {
         // Trigger async job to recalc the daily volumes
         await updateCollectionDailyVolumeJob.addToQueue({

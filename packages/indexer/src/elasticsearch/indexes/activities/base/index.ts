@@ -123,6 +123,7 @@ export interface BuildActivityData extends BuildDocumentData {
   event_batch_index?: number;
   event_fill_source_id?: number;
   event_wash_trading_score?: number;
+  event_collection_is_minting?: boolean;
   order_id?: string | null;
   order_side?: string;
   order_source_id_int?: number;
@@ -187,6 +188,7 @@ export class ActivityBuilder extends DocumentBuilder {
             blockHash: fromBuffer(data.event_block_hash!),
             fillSourceId: data.event_fill_source_id,
             washTradingScore: data.event_wash_trading_score,
+            collectionIsMinting: data.event_collection_is_minting,
           }
         : undefined,
       token: data.token_id
@@ -204,7 +206,9 @@ export class ActivityBuilder extends DocumentBuilder {
             name: data.collection_name,
             image: data.collection_image,
             isSpam: Number(data.collection_is_spam) > 0,
-            imageVersion: data.collection_image_version,
+            imageVersion: data.collection_image_version
+              ? Math.floor(new Date(data.collection_image_version).getTime() / 1000)
+              : undefined,
           }
         : undefined,
       order: data.order_id

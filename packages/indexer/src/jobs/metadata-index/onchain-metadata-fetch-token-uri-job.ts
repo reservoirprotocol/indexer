@@ -9,6 +9,7 @@ import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { hasCustomHandler } from "@/metadata/custom";
 
 export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-fetch-uri-queue";
@@ -25,7 +26,22 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
 
     // Get the onchain tokens from the list
     const pendingRefreshTokens = new PendingRefreshTokens("onchain");
-    const fetchTokens = await pendingRefreshTokens.get(count);
+    let fetchTokens = await pendingRefreshTokens.get(count);
+
+    // if the token has custom metadata, don't fetch it and instead process it
+    const customTokens = fetchTokens.filter((token) => hasCustomHandler(token.contract));
+    if (customTokens.length) {
+      await onchainMetadataProcessTokenUriJob.addToQueueBulk(
+        customTokens.map((token) => ({
+          contract: token.contract,
+          tokenId: token.tokenId,
+          uri: "",
+        }))
+      );
+    }
+
+    // Filter out custom tokens
+    fetchTokens = fetchTokens.filter((token) => !hasCustomHandler(token.contract));
 
     // If no more tokens
     if (_.isEmpty(fetchTokens)) {
@@ -84,14 +100,21 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         } else {
           logger.info(
             this.queueName,
-            `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${undefined}`,
+              contract: result.contract,
+              error: result.error,
+              reason: "No uri found",
+            })
           );
 
-          fallbackTokens.push({
-            collection: result.contract,
-            contract: result.contract,
-            tokenId: result.tokenId,
-          });
+          // DISABLED FOR NOW
+          // fallbackTokens.push({
+          //   collection: result.contract,
+          //   contract: result.contract,
+          //   tokenId: result.tokenId,
+          // });
         }
       });
 
@@ -99,13 +122,8 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
-      for (const fallbackToken of fallbackTokens) {
-        logger.info(
-          this.queueName,
-          `Fallback. contract=${fallbackToken.contract}, tokenId=${fallbackToken.tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
-        );
-
-        if (config.fallbackMetadataIndexingMethod) {
+      if (config.fallbackMetadataIndexingMethod) {
+        for (const fallbackToken of fallbackTokens) {
           await metadataIndexFetchJob.addToQueue(
             [
               {

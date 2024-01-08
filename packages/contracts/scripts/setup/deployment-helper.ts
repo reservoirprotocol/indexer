@@ -7,7 +7,19 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk/src";
+import { Network } from "@reservoir0x/sdk/src/utils";
 import hre, { ethers } from "hardhat";
+
+export const getGasConfigs = (chainId: number) => {
+  if ([Network.Zora, Network.ZoraTestnet, Network.Ancient8Testnet].includes(chainId)) {
+    return {
+      maxFeePerGas: "2000000000",
+      maxPriorityFeePerGas: "500000000",
+    };
+  }
+
+  return {};
+};
 
 export class DeploymentHelper {
   public deployer: Signer;
@@ -69,15 +81,7 @@ export class DeploymentHelper {
       .getContractFactory(contractName, this.deployer)
       .then((factory) => factory.getDeployTransaction(...args).data);
 
-    await create3Factory.deploy(
-      salt,
-      creationCode,
-      // Overrides for some edge-cases
-      {
-        // maxFeePerGas: "2000000000",
-        // maxPriorityFeePerGas: "500000000",
-      }
-    );
+    await create3Factory.deploy(salt, creationCode, getGasConfigs(this.chainId));
 
     const deploymentAddress: string = await create3Factory.getDeployed(
       await this.deployer.getAddress(),
@@ -87,11 +91,9 @@ export class DeploymentHelper {
   }
 
   public async verify(contractAddress: string, args: any[]) {
-    if (process.env.ETHERSCAN_API_KEY) {
-      await hre.run("verify:verify", {
-        address: contractAddress,
-        constructorArguments: args,
-      });
-    }
+    await hre.run("verify:verify", {
+      address: contractAddress,
+      constructorArguments: args,
+    });
   }
 }

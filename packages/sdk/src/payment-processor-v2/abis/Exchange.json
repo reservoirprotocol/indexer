@@ -3,22 +3,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "defaultContractOwner_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "modulePaymentSettings_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "moduleOnChainCancellation_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "moduleTrades_",
+        "name": "configurationContract",
         "type": "address"
       }
     ],
@@ -28,6 +13,11 @@
   {
     "inputs": [],
     "name": "InvalidShortString",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentProcessor__InvalidConstructorArguments",
     "type": "error"
   },
   {
@@ -143,6 +133,44 @@
       }
     ],
     "name": "AcceptOfferERC721",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "BannedAccountAddedForCollection",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "BannedAccountRemovedForCollection",
     "type": "event"
   },
   {
@@ -423,6 +451,63 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint32",
+        "name": "id",
+        "type": "uint32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "ReassignedPaymentMethodWhitelistOwnership",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "channel",
+        "type": "address"
+      }
+    ],
+    "name": "TrustedChannelAddedForCollection",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "channel",
+        "type": "address"
+      }
+    ],
+    "name": "TrustedChannelRemovedForCollection",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "address",
         "name": "account",
@@ -473,13 +558,13 @@
         "type": "uint8"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint32",
         "name": "paymentMethodWhitelistId",
         "type": "uint32"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "constrainedPricingPaymentMethod",
         "type": "address"
@@ -507,6 +592,18 @@
         "internalType": "address",
         "name": "exclusiveBountyReceiver",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "blockTradesFromUntrustedChannels",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "blockBannedAccounts",
+        "type": "bool"
       }
     ],
     "name": "UpdatedCollectionPaymentSettings",
@@ -554,6 +651,32 @@
     "name": "acceptOffer",
     "outputs": [],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "addBannedAccountForCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "addTrustedChannelForCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -660,6 +783,16 @@
             "internalType": "bool",
             "name": "isRoyaltyBountyExclusive",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "blockTradesFromUntrustedChannels",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "blockBannedAccounts",
+            "type": "bool"
           }
         ],
         "internalType": "struct CollectionPaymentSettings",
@@ -762,6 +895,25 @@
         "internalType": "address",
         "name": "tokenAddress",
         "type": "address"
+      }
+    ],
+    "name": "getBannedAccounts",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
       },
       {
         "internalType": "uint256",
@@ -775,6 +927,19 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getDefaultPaymentMethods",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
       }
     ],
     "stateMutability": "view",
@@ -812,6 +977,63 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getTrustedChannels",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "paymentMethodWhitelistId",
+        "type": "uint32"
+      }
+    ],
+    "name": "getWhitelistedPaymentMethods",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "paymentMethod",
+        "type": "address"
+      }
+    ],
+    "name": "isDefaultPaymentMethod",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -860,6 +1082,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastPaymentMethodWhitelistId",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
       }
     ],
     "stateMutability": "view",
@@ -939,6 +1174,19 @@
   {
     "inputs": [
       {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "reassignOwnershipOfPaymentMethodWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -973,8 +1221,47 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "removeBannedAccountForCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "removeTrustedChannelForCollection",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "renounceOwnershipOfPaymentMethodWhitelist",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

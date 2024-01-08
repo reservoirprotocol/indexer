@@ -41,7 +41,7 @@ export const getExecuteSellV7Options: RouteOptions = {
   description: "Sell Tokens",
   notes:
     "Use this API to accept bids. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
-  tags: ["api", "Trading"],
+  tags: ["api"],
   timeout: {
     server: 40 * 1000,
   },
@@ -139,7 +139,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
-      forceTrustedForwarder: Joi.string()
+      forwarderChannel: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
@@ -430,7 +430,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             payload.taker,
             {
               permit,
-              ppV2TrustedChannel: payload.forceTrustedForwarder,
+              ppV2TrustedChannel: payload.forwarderChannel,
             }
           )
         );

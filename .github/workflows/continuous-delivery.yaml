@@ -558,6 +558,38 @@ jobs:
             ./prod/platform/indexer-worker-master-immutable-zkevm-testnet.yaml \
             ${{ github.sha }} \
             indexer-worker-master-immutable-zkevm-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-frame-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-api-frame-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-frame-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-frame-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-frame-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-frame-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-frame-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-frame-testnet
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-opbnb.yaml \
+            ${{ github.sha }} \
+            indexer-api-opbnb
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-opbnb.yaml \
+            ${{ github.sha }} \
+            indexer-worker-opbnb
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker-opbnb.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker-opbnb
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-master-opbnb.yaml \
+            ${{ github.sha }} \
+            indexer-worker-master-opbnb
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

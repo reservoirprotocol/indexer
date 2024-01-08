@@ -8,7 +8,7 @@ import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { mintsProcessJob } from "@/jobs/mints/mints-process-job";
-import { CollectionMint } from "@/orderbook/mints";
+import { CollectionMint, updateCollectionMintingStatus } from "@/orderbook/mints";
 import * as mints from "@/orderbook/mints/calldata/detector";
 
 // For now, use the deployer address
@@ -69,7 +69,9 @@ type BaseCustomInfo = {
 export type CustomInfo =
   | (BaseCustomInfo & mints.manifold.Info)
   | (BaseCustomInfo & mints.soundxyz.Info)
-  | (BaseCustomInfo & mints.artblocks.Info);
+  | (BaseCustomInfo & mints.artblocks.Info)
+  | (BaseCustomInfo & mints.highlightxyz.Info)
+  | (BaseCustomInfo & mints.zora.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,
@@ -466,6 +468,10 @@ export const refreshMintsForCollection = async (collection: string) => {
       case "zora":
         await mints.zora.refreshByCollection(collection);
         break;
+
+      case "highlightxyz":
+        await mints.highlightxyz.refreshByCollection(collection);
+        break;
     }
   }
 
@@ -497,4 +503,7 @@ export const refreshMintsForCollection = async (collection: string) => {
       );
     }
   }
+
+  // Update minting status
+  await updateCollectionMintingStatus(collection);
 };

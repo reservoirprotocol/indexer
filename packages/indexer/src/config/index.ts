@@ -15,6 +15,9 @@ export const config = {
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
+  baseNetworkMetadataIndexingUrl: String(
+    process.env.BASE_NETWORK_METADATA_INDEXING_URL || process.env.BASE_NETWORK_HTTP_URL
+  ),
 
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
@@ -174,4 +177,6 @@ export const config = {
   debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
 
   coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
+
+  spamNames: process.env.SPAM_NAMES ? String(process.env.SPAM_NAMES).split(",") : [],
 };

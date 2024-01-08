@@ -4,7 +4,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { now, toBuffer } from "@/common/utils";
+import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
@@ -90,441 +90,445 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
             let fillabilityStatus = "fillable";
             let approvalStatus = "approved";
 
-            switch (result.kind) {
-              case "looks-rare-v2": {
-                const order = new Sdk.LooksRareV2.Order(config.chainId, result.raw_data);
-                try {
-                  await looksRareV2Check.offChainCheck(order, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "x2y2": {
-                const order = new Sdk.X2Y2.Order(config.chainId, result.raw_data);
-                try {
-                  await x2y2Check.offChainCheck(order, result.originated_at, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "zeroex-v4-erc721":
-              case "zeroex-v4-erc1155": {
-                const order = new Sdk.ZeroExV4.Order(config.chainId, result.raw_data);
-                try {
-                  await zeroExV4Check.offChainCheck(order, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "seaport": {
-                const order = new Sdk.SeaportV11.Order(config.chainId, result.raw_data);
-                const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
-                try {
-                  await seaportCheck.offChainCheck(order, "seaport", exchange, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                    quantityRemaining: result.quantity_remaining,
-                    singleTokenERC721ApprovalCheck: true,
-                    permitId: result.raw_data.permitId,
-                    permitIndex: result.raw_data.permitIndex,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "seaport-v1.4": {
-                const order = new Sdk.SeaportV14.Order(config.chainId, result.raw_data);
-                const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
-                try {
-                  await seaportCheck.offChainCheck(order, "seaport-v1.4", exchange, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                    quantityRemaining: result.quantity_remaining,
-                    singleTokenERC721ApprovalCheck: true,
-                    permitId: result.raw_data.permitId,
-                    permitIndex: result.raw_data.permitIndex,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "seaport-v1.5": {
-                const order = new Sdk.SeaportV15.Order(config.chainId, result.raw_data);
-                const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
-                try {
-                  await seaportCheck.offChainCheck(order, "seaport-v1.5", exchange, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                    quantityRemaining: result.quantity_remaining,
-                    singleTokenERC721ApprovalCheck: true,
-                    permitId: result.raw_data.permitId,
-                    permitIndex: result.raw_data.permitIndex,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "nftx": {
-                try {
-                  await nftxCheck.offChainCheck(result.id);
-
-                  // Fully refresh the order at most once per hour
-                  const order = new Sdk.Nftx.Order(config.chainId, result.raw_data);
-                  const cacheKey = `order-fixes:nftx:${order.params.pool}`;
-                  if (!(await redis.get(cacheKey))) {
-                    await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbookOrdersJob.addToQueue([
-                      {
-                        kind: "nftx",
-                        info: {
-                          orderParams: {
-                            pool: order.params.pool,
-                            txHash: HashZero,
-                            txTimestamp: now(),
-                            txBlock: result.block_number,
-                            logIndex: result.log_index,
-                            forceRecheck: true,
-                          },
-                          metadata: {},
-                        },
-                      },
-                    ]);
-                  }
-
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else {
-                    return;
-                  }
-                }
-
-                break;
-              }
-
-              case "sudoswap": {
-                try {
-                  const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
-                  const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
-                  if (!(await redis.get(cacheKey))) {
-                    await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbookOrdersJob.addToQueue([
-                      {
-                        kind: "sudoswap",
-                        info: {
-                          orderParams: {
-                            pool: order.params.pair,
-                            txHash: HashZero,
-                            txTimestamp: now(),
-                            txBlock: result.block_number,
-                            logIndex: result.log_index,
-                            forceRecheck: true,
-                          },
-                          metadata: {},
-                        },
-                      },
-                    ]);
-                  }
-
-                  // TODO: Add support for bid validation
-                  if (result.side === "sell") {
-                    const [, contract, tokenId] = result.token_set_id.split(":");
-                    const balance = await commonHelpers.getNftBalance(
-                      contract,
-                      tokenId,
-                      order.params.pair
-                    );
-                    if (balance.lte(0)) {
+            if (bn(result.quantity_remaining).lte(0)) {
+              fillabilityStatus = "filled";
+            } else {
+              switch (result.kind) {
+                case "looks-rare-v2": {
+                  const order = new Sdk.LooksRareV2.Order(config.chainId, result.raw_data);
+                  try {
+                    await looksRareV2Check.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
                       fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
-                } catch {
-                  return;
+
+                  break;
                 }
 
-                break;
-              }
-
-              case "caviar-v1": {
-                try {
-                  const order = new Sdk.CaviarV1.Order(config.chainId, result.raw_data);
-                  const cacheKey = `order-fixes:caviar-v1:${order.params.pool}`;
-                  if (!(await redis.get(cacheKey))) {
-                    await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbookOrdersJob.addToQueue([
-                      {
-                        kind: "caviar-v1",
-                        info: {
-                          orderParams: {
-                            pool: order.params.pool,
-                            txHash: HashZero,
-                            txTimestamp: now(),
-                            txBlock: result.block_number,
-                            logIndex: result.log_index,
-                            forceRecheck: true,
-                          },
-                          metadata: {},
-                        },
-                      },
-                    ]);
-                  }
-
-                  // TODO: Add support for bid validation
-                  if (result.side === "sell") {
-                    const [, contract, tokenId] = result.token_set_id.split(":");
-                    const balance = await commonHelpers.getNftBalance(
-                      contract,
-                      tokenId,
-                      order.params.pool
-                    );
-                    if (balance.lte(0)) {
+                case "x2y2": {
+                  const order = new Sdk.X2Y2.Order(config.chainId, result.raw_data);
+                  try {
+                    await x2y2Check.offChainCheck(order, result.originated_at, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
                       fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
-                } catch {
-                  return;
+
+                  break;
                 }
 
-                break;
-              }
-
-              case "sudoswap-v2": {
-                try {
-                  const order = new Sdk.SudoswapV2.Order(config.chainId, result.raw_data);
-                  const cacheKey = `order-fixes:sudoswap-v2:${order.params.pair}`;
-                  if (!(await redis.get(cacheKey))) {
-                    await redis.set(cacheKey, "locked", "EX", 3600);
-                    await orderbookOrdersJob.addToQueue([
-                      {
-                        kind: "sudoswap-v2",
-                        info: {
-                          orderParams: {
-                            pool: order.params.pair,
-                            txHash: HashZero,
-                            txTimestamp: now(),
-                            txBlock: result.block_number,
-                            logIndex: result.log_index,
-                            forceRecheck: true,
-                          },
-                          metadata: {},
-                        },
-                      },
-                    ]);
-                  }
-
-                  // TODO: Add support for bid validation
-                  if (result.side === "sell") {
-                    const [, contract, tokenId] = result.token_set_id.split(":");
-                    const balance = await commonHelpers.getNftBalance(
-                      contract,
-                      tokenId,
-                      order.params.pair
-                    );
-                    if (balance.lte(0)) {
+                case "zeroex-v4-erc721":
+                case "zeroex-v4-erc1155": {
+                  const order = new Sdk.ZeroExV4.Order(config.chainId, result.raw_data);
+                  try {
+                    await zeroExV4Check.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
                       fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
-                } catch {
-                  return;
+
+                  break;
                 }
 
-                break;
-              }
+                case "seaport": {
+                  const order = new Sdk.SeaportV11.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
+                  try {
+                    await seaportCheck.offChainCheck(order, "seaport", exchange, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
+                      singleTokenERC721ApprovalCheck: true,
+                      permitId: result.raw_data.permitId,
+                      permitIndex: result.raw_data.permitIndex,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
 
-              case "rarible": {
-                const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
-                try {
-                  await raribleCheck.offChainCheck(order, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
+                  break;
+                }
+
+                case "seaport-v1.4": {
+                  const order = new Sdk.SeaportV14.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+                  try {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.4", exchange, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
+                      singleTokenERC721ApprovalCheck: true,
+                      permitId: result.raw_data.permitId,
+                      permitIndex: result.raw_data.permitIndex,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
+
+                case "seaport-v1.5": {
+                  const order = new Sdk.SeaportV15.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+                  try {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.5", exchange, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
+                      singleTokenERC721ApprovalCheck: true,
+                      permitId: result.raw_data.permitId,
+                      permitIndex: result.raw_data.permitIndex,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
+
+                case "nftx": {
+                  try {
+                    await nftxCheck.offChainCheck(result.id);
+
+                    // Fully refresh the order at most once per hour
+                    const order = new Sdk.Nftx.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:nftx:${order.params.pool}`;
+                    if (!(await redis.get(cacheKey))) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbookOrdersJob.addToQueue([
+                        {
+                          kind: "nftx",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pool,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
+
+                case "sudoswap": {
+                  try {
+                    const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
+                    if (!(await redis.get(cacheKey))) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbookOrdersJob.addToQueue([
+                        {
+                          kind: "sudoswap",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pair
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
                     return;
                   }
+
+                  break;
                 }
 
-                break;
-              }
+                case "caviar-v1": {
+                  try {
+                    const order = new Sdk.CaviarV1.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:caviar-v1:${order.params.pool}`;
+                    if (!(await redis.get(cacheKey))) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbookOrdersJob.addToQueue([
+                        {
+                          kind: "caviar-v1",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pool,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
 
-              case "payment-processor": {
-                const order = new Sdk.PaymentProcessor.Order(config.chainId, result.raw_data);
-                try {
-                  await paymentProcessorCheck.offChainCheck(order, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pool
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
                     return;
                   }
+
+                  break;
                 }
 
-                break;
-              }
+                case "sudoswap-v2": {
+                  try {
+                    const order = new Sdk.SudoswapV2.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap-v2:${order.params.pair}`;
+                    if (!(await redis.get(cacheKey))) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbookOrdersJob.addToQueue([
+                        {
+                          kind: "sudoswap-v2",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
 
-              case "payment-processor-v2": {
-                const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
-                try {
-                  await paymentProcessorV2Check.offChainCheck(order, {
-                    onChainApprovalRecheck: true,
-                    checkFilledOrCancelled: true,
-                  });
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (error: any) {
-                  if (error.message === "cancelled") {
-                    fillabilityStatus = "cancelled";
-                  } else if (error.message === "filled") {
-                    fillabilityStatus = "filled";
-                  } else if (error.message === "no-balance") {
-                    fillabilityStatus = "no-balance";
-                  } else if (error.message === "no-approval") {
-                    approvalStatus = "no-approval";
-                  } else if (error.message === "no-balance-no-approval") {
-                    fillabilityStatus = "no-balance";
-                    approvalStatus = "no-approval";
-                  } else {
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pair
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
                     return;
                   }
+
+                  break;
                 }
 
-                break;
+                case "rarible": {
+                  const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
+                  try {
+                    await raribleCheck.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
+
+                case "payment-processor": {
+                  const order = new Sdk.PaymentProcessor.Order(config.chainId, result.raw_data);
+                  try {
+                    await paymentProcessorCheck.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
+
+                case "payment-processor-v2": {
+                  const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
+                  try {
+                    await paymentProcessorV2Check.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+
+                  break;
+                }
               }
             }
 

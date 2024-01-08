@@ -110,6 +110,7 @@ export const getTransfersV2Options: RouteOptions = {
           tokens.name,
           tokens.image,
           tokens.image_version,
+          (tokens.metadata->>'image_mime_type')::text as image_mime_type,
           tokens.collection_id,
           collections.name as collection_name,
           nft_transfer_events.from,
@@ -246,7 +247,7 @@ export const getTransfersV2Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version, r.image_mime_type),
           collection: {
             id: r.collection_id,
             name: r.collection_name,

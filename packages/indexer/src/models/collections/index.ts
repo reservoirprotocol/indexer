@@ -22,7 +22,7 @@ import * as royalties from "@/utils/royalties";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
+// import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 import {
   topBidCollectionJob,
@@ -30,7 +30,6 @@ import {
 } from "@/jobs/collection-updates/top-bid-collection-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
-import * as registry from "@/utils/royalties/registry";
 
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
@@ -146,16 +145,6 @@ export class Collections {
       return;
     }
 
-    try {
-      await registry.refreshRegistryRoyalties(collectionResult.id);
-      await royalties.refreshDefaultRoyalties(collectionResult.id);
-    } catch (error) {
-      logger.error(
-        "updateCollectionCache",
-        `refreshRegistryRoyaltiesError. contract=${contract}, tokenId=${tokenId}, community=${community}`
-      );
-    }
-
     const collection = await MetadataProviderRouter.getCollectionMetadata(
       contract,
       tokenId,
@@ -208,6 +197,22 @@ export class Collections {
       }
     }
 
+    // If no image use one of the tokens images
+    if (_.isEmpty(collection.metadata?.imageUrl)) {
+      const tokenImageQuery = `
+        SELECT image
+        FROM tokens
+        WHERE collection_id = $/collection/
+        ORDER BY rarity_rank DESC NULLS LAST
+        LIMIT 1`;
+
+      const tokenImage = await redb.oneOrNone(tokenImageQuery, { collection: collection.id });
+      if (tokenImage?.image) {
+        collection.metadata = collection.metadata ?? {};
+        collection.metadata.imageUrl = tokenImage.image;
+      }
+    }
+
     const query = `
       UPDATE collections SET
         metadata = $/metadata:json/,
@@ -247,48 +252,51 @@ export class Collections {
       isSpamContract: Number(isSpamContract),
     };
 
-    const result = await idb.oneOrNone(query, values);
+    await idb.oneOrNone(query, values);
 
-    try {
-      if (
-        result &&
-        (result?.old_metadata.name != collection.name ||
-          result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
-      ) {
-        logger.info(
-          "updateCollectionCache",
-          JSON.stringify({
-            topic: "debugActivitiesErrors",
-            message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
-            collectionId: collection.id,
-            collection,
-            result,
-          })
-        );
+    // try {
+    //   if (
+    //     result &&
+    //     (result?.old_metadata.name != collection.name ||
+    //       result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
+    //   ) {
+    //     logger.info(
+    //       "updateCollectionCache",
+    //       JSON.stringify({
+    //         topic: "debugActivitiesErrors",
+    //         message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
+    //         collectionId: collection.id,
+    //         collection,
+    //         result,
+    //       })
+    //     );
+    //
+    //     await refreshActivitiesCollectionMetadataJob.addToQueue({
+    //       collectionId: collection.id,
+    //       context: "updateCollectionCache",
+    //     });
+    //   }
+    // } catch (error) {
+    //   logger.error(
+    //     "updateCollectionCache",
+    //     `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+    //       collection
+    //     )}, result=${JSON.stringify(result)}`
+    //   );
+    // }
 
-        await refreshActivitiesCollectionMetadataJob.addToQueue({
-          collectionId: collection.id,
-          context: "updateCollectionCache",
-        });
-      }
-    } catch (error) {
-      logger.error(
-        "updateCollectionCache",
-        `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
-          collection
-        )}, result=${JSON.stringify(result)}`
+    if (collection.hasPerTokenRoyalties) {
+      await royalties.clearRoyalties(collection.id);
+    } else {
+      // Refresh all royalty specs and the default royalties
+      await royalties.refreshAllRoyaltySpecs(
+        collection.id,
+        collection.royalties as royalties.Royalty[] | undefined,
+        collection.openseaRoyalties as royalties.Royalty[] | undefined,
+        true
       );
+      await royalties.refreshDefaultRoyalties(collection.id);
     }
-
-    // Refresh all royalty specs and the default royalties
-    await royalties.refreshAllRoyaltySpecs(
-      collection.id,
-      collection.royalties as royalties.Royalty[] | undefined,
-      collection.openseaRoyalties as royalties.Royalty[] | undefined,
-      false
-    );
-
-    await royalties.refreshDefaultRoyalties(collection.id);
 
     // Refresh Blur royalties (which get stored separately)
     await updateBlurRoyalties(collection.id, true);
@@ -306,7 +314,7 @@ export class Collections {
     // Refresh Payment Processor
     await Promise.all([
       paymentProcessor.getConfigByContract(collection.contract, true),
-      paymentProcessorV2.getCollectionPaymentSettings(collection.contract, true),
+      paymentProcessorV2.getConfigByContract(collection.contract, true),
     ]);
   }
 

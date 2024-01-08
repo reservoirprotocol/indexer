@@ -36,6 +36,7 @@ import { idb } from "@/common/db";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { CollectionMintStandard } from "@/orderbook/mints";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as offchainCancel from "@/utils/offchain-cancel";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
@@ -87,7 +88,8 @@ export type OrderKind =
   | "payment-processor"
   | "blur-v2"
   | "joepeg"
-  | "payment-processor-v2";
+  | "payment-processor-v2"
+  | "mooar";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -104,6 +106,21 @@ mintsSources.set("0xb66a603f4cfe17e3d27b87a8bfcad319856518b8", "rarible.com");
 mintsSources.set("0xc143bbfcdbdbed6d454803804752a064a622c1f3", "async.art");
 mintsSources.set("0xfbeef911dc5821886e1dda71586d90ed28174b7d", "knownorigin.io");
 mintsSources.set("0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0", "superrare.com");
+
+const standardMintSources = new Map<CollectionMintStandard, string>();
+standardMintSources.set("manifold", "manifold.xyz");
+standardMintSources.set("seadrop-v1.0", "opensea.io");
+standardMintSources.set("thirdweb", "thirdweb.com");
+standardMintSources.set("zora", "zora.co");
+standardMintSources.set("decent", "decent.xyz");
+standardMintSources.set("foundation", "foundation.app");
+standardMintSources.set("lanyard", "lanyard.org");
+standardMintSources.set("mintdotfun", "mint.fun");
+standardMintSources.set("soundxyz", "sound.xyz");
+standardMintSources.set("createdotfun", "mint.fun");
+standardMintSources.set("titlesxyz", "titles.xyz");
+standardMintSources.set("artblocks", "artblocks.io");
+standardMintSources.set("highlightxyz", "highlight.xyz");
 
 export const getOrderSourceByOrderId = async (
   orderId: string
@@ -190,9 +207,13 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "mooar":
+        return sources.getOrInsert("mooar.com");
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
+        } else if (address) {
+          return getMintSourceFromAddress(address);
         }
       }
     }
@@ -201,6 +222,22 @@ export const getOrderSourceByOrderKind = async (
   }
 
   // In case nothing matched, return `undefined` by default
+};
+
+export const getMintSourceFromAddress = async (
+  address: string
+): Promise<SourcesEntity | undefined> => {
+  const result = await idb.oneOrNone(
+    "SELECT standard FROM collection_mint_standards WHERE collection_id = $/collection/",
+    { collection: address }
+  );
+
+  const standard = result?.standard;
+
+  if (standard && standardMintSources.has(standard)) {
+    const sources = await Sources.getInstance();
+    return sources.getOrInsert(standardMintSources.get(standard)!);
+  }
 };
 
 // Support for filling listings
@@ -471,11 +508,11 @@ export const generateListingDetailsV6 = async (
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
       const extraArgs: any = {};
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -871,11 +908,11 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
-      const settings = await paymentProcessorV2Utils.getCollectionPaymentSettings(
+      const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -906,35 +943,60 @@ export const generateBidDetailsV6 = async (
   }
 };
 
-// Check collection's blacklist, override the `orderKind` and `orderbook` in params
+// Check the collection's blacklist and override the `orderKind` and `orderbook` in the `params`
 export const checkBlacklistAndFallback = async (
   collection: string,
   params: {
-    orderKind: string;
+    orderKind: OrderKind;
     orderbook: string;
   }
 ) => {
   // Fallback to Seaport when LooksRare is blocked
   if (["looks-rare-v2"].includes(params.orderKind) && ["looks-rare"].includes(params.orderbook)) {
-    const blocked = await checkMarketplaceIsFiltered(collection, [
+    const isBlocked = await checkMarketplaceIsFiltered(collection, [
       Sdk.LooksRareV2.Addresses.Exchange[config.chainId],
       Sdk.LooksRareV2.Addresses.TransferManager[config.chainId],
     ]);
-    if (blocked) {
+    if (isBlocked) {
       params.orderKind = "seaport-v1.5";
     }
   }
 
+  const seaportIsBlocked = await checkMarketplaceIsFiltered(collection, [
+    Sdk.SeaportV15.Addresses.Exchange[config.chainId],
+    new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
+      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
+    ),
+  ]);
+
   // Fallback to PaymentProcessor when Seaport is blocked
-  if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
-    const blocked = await checkMarketplaceIsFiltered(collection, [
-      Sdk.SeaportV15.Addresses.Exchange[config.chainId],
-      new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
-        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero
-      ),
+  if (
+    ["seaport-v1.5"].includes(params.orderKind) &&
+    ["reservoir"].includes(params.orderbook) &&
+    seaportIsBlocked
+  ) {
+    params.orderKind = "payment-processor";
+  }
+
+  // Fallback to Seaport if when PaymentProcessor is blocked
+  if (
+    ["payment-processor"].includes(params.orderKind) &&
+    ["reservoir"].includes(params.orderbook)
+  ) {
+    const isBlocked = await checkMarketplaceIsFiltered(collection, [
+      Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
     ]);
-    if (blocked) {
-      params.orderKind = "payment-processor";
+
+    // https://linear.app/reservoir/issue/PRO-1163/failing-ppv1-purchase
+    const isBlockedCustom =
+      config.chainId === 137 && collection === "0xdbc52cd5b8eda1a7bcbabb838ca927d23e3673e5";
+
+    if (isBlocked || isBlockedCustom) {
+      if (!seaportIsBlocked) {
+        params.orderKind = "seaport-v1.5";
+      } else {
+        throw new Error("Collection is blocking all supported exchanges");
+      }
     }
   }
 };

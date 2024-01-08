@@ -104,6 +104,9 @@ export const generateOpenApiSpec = async () => {
       {
         url: "https://api-scroll.reservoir.tools",
       },
+      {
+        url: "https://api-frame-testnet.reservoir.tools",
+      },
     ];
 
     // Preset list of tags.

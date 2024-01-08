@@ -79,6 +79,7 @@ export const CONFIG_DEFAULT = {
           blockHash: { type: "keyword" },
           fillSourceId: { type: "integer" },
           washTradingScore: { type: "double" },
+          collectionIsMinting: { type: "boolean" },
         },
       },
       pricing: {

@@ -50,7 +50,9 @@ import * as createdotfun from "@/events-sync/data/createdotfun";
 import * as erc721cV2 from "@/events-sync/data/erc721c-v2";
 import * as titlesxyz from "@/events-sync/data/titlesxyz";
 import * as artblocks from "@/events-sync/data/artblocks";
+import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
+import * as mooar from "@/events-sync/data/mooar";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -104,7 +106,11 @@ export type EventKind =
   | "titlesxyz"
   | "artblocks"
   | "erc721c-v2"
-  | "ditto";
+  | "ditto"
+  | "mooar"
+  | "titlesxyz"
+  | "ditto"
+  | "highlightxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -313,6 +319,8 @@ export type EventSubKind =
   | "payment-processor-v2-updated-token-level-pricing-boundaries"
   | "payment-processor-v2-trusted-channel-removed-for-collection"
   | "payment-processor-v2-trusted-channel-added-for-collection"
+  | "payment-processor-v2-banned-account-removed-for-collection"
+  | "payment-processor-v2-banned-account-added-for-collection"
   | "artblocks-project-updated"
   | "artblocks-minter-registered"
   | "artblocks-minter-removed"
@@ -324,7 +332,15 @@ export type EventSubKind =
   | "erc721c-v2-removed-account-from-list"
   | "erc721c-v2-removed-code-hash-from-list"
   | "erc721c-v2-applied-list-to-collection"
-  | "ditto-pool-initialized";
+  | "ditto-pool-initialized"
+  | "mooar-order-filled"
+  | "highlightxyz-edition-vector-created"
+  | "highlightxyz-series-vector-created"
+  | "highlightxyz-vector-updated"
+  | "highlightxyz-vector-deleted"
+  | "highlightxyz-discrete-da-created"
+  | "highlightxyz-mechanic-vector-registered"
+  | "highlightxyz-discrete-da-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -539,6 +555,8 @@ const allEventData = [
   paymentProcessorV2.updatedCollectionPaymentSettings,
   paymentProcessorV2.trustedChannelAddedForCollection,
   paymentProcessorV2.trustedChannelRemovedForCollection,
+  paymentProcessorV2.bannedAccountAddedForCollection,
+  paymentProcessorV2.bannedAccountRemovedForCollection,
   artblocks.projectUpdated,
   artblocks.projectMinterRegistered,
   artblocks.projectMinterRemoved,
@@ -550,7 +568,15 @@ const allEventData = [
   erc721cV2.removedAccountFromList,
   erc721cV2.removedCodeHashFromList,
   erc721cV2.appliedListToCollection,
+  highlightxyz.editonVectorCreated,
+  highlightxyz.seriesVectorCreated,
+  highlightxyz.vectorUpdated,
+  highlightxyz.vectorDeleted,
+  highlightxyz.discreteDACreated,
+  highlightxyz.mechanicVectorRegistered,
+  highlightxyz.mechanicVectorUpdated,
   ditto.dittoPoolInitialized,
+  mooar.orderFulfilled,
 ];
 
 export const getEventData = (events?: string[]) => {

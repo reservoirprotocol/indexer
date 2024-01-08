@@ -206,6 +206,7 @@ export const getCollectionsV7Options: RouteOptions = {
           description: Joi.string().allow("", null),
           metadataDisabled: Joi.boolean().default(false),
           isSpam: Joi.boolean().default(false),
+          isMinting: Joi.boolean().default(false),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string().description("Total tokens within the collection."),
           onSaleCount: Joi.string().description("Total tokens currently on sale."),
@@ -491,6 +492,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
           collections.is_spam,
+          collections.is_minting,
           collections.metadata_disabled,
           ${floorAskSelectQuery}
           collections.token_count,
@@ -832,6 +834,7 @@ export const getCollectionsV7Options: RouteOptions = {
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
               isSpam: Number(r.is_spam) > 0,
+              isMinting: Boolean(r.is_minting),
               sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
               tokenCount: String(r.token_count),
               onSaleCount: String(r.on_sale_count),
@@ -973,7 +976,7 @@ export const getCollectionsV7Options: RouteOptions = {
                         : m.price,
                       pricePerQuantity: m.pricePerQuantity
                         ? await Promise.all(
-                            m.price_per_quantity.map(
+                            m.pricePerQuantity.map(
                               async ({ price, quantity }: { price: string; quantity: number }) => ({
                                 price: await getJoiPriceObject(
                                   { gross: { amount: price } },

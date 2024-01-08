@@ -30,6 +30,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
+import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
 
 const version = "v7";
 
@@ -41,7 +42,7 @@ export const getUserTokensV7Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -412,6 +413,8 @@ export const getUserTokensV7Options: RouteOptions = {
           t.name,
           t.image,
           t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           t.metadata,
           t.media,
           t.description,
@@ -457,6 +460,8 @@ export const getUserTokensV7Options: RouteOptions = {
             t.name,
             t.image,
             t.image_version,
+          (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+          (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
             t.metadata,
             t.media,
             t.description,
@@ -555,7 +560,7 @@ export const getUserTokensV7Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
                t.supply, t.remaining_supply, t.description,
-               t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
+               t.rarity_score, t.t_is_spam, t.image_version, t.image_mime_type, t.media_mime_type, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
@@ -693,6 +698,7 @@ export const getUserTokensV7Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = userTokens.map(async (r) => {
+        const metadata = parseMetadata(r, r.token_metadata);
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -722,15 +728,27 @@ export const getUserTokensV7Options: RouteOptions = {
               tokenId: tokenId,
               kind: r.kind,
               name: r.name,
-              image: Assets.getResizedImageUrl(r.image, ImageSize.medium, r.image_version),
-              imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small, r.image_version),
-              imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large, r.image_version),
-              metadata: r.token_metadata?.image_original_url
-                ? {
-                    imageOriginal: r.token_metadata.image_original_url,
-                    tokenURI: r.token_metadata.metadata_original_url,
-                  }
-                : undefined,
+              image: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.medium,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageSmall: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.small,
+                r.image_version,
+                r.image_mime_type
+              ),
+              imageLarge: Assets.getResizedImageUrl(
+                r.image,
+                ImageSize.large,
+                r.image_version,
+                r.image_mime_type
+              ),
+              metadata: Object.values(metadata).every((el) => el === undefined)
+                ? undefined
+                : metadata,
               description: r.description,
               rarityScore: r.rarity_score,
               rarityRank: r.rarity_rank,

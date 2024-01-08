@@ -21,6 +21,7 @@ import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
+import { getExternalCosigner } from "@/utils/offchain-cancel/external-cosign";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -67,9 +68,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Check: various collection restrictions
 
-      const settings = await paymentProcessorV2.getCollectionPaymentSettings(
-        order.params.tokenAddress
-      );
+      const settings = await paymentProcessorV2.getConfigByContract(order.params.tokenAddress);
       if (
         settings &&
         [
@@ -116,13 +115,26 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Check: trusted channels
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2.getAllTrustedChannels(
+        const trustedChannels = await paymentProcessorV2.getTrustedChannels(
           order.params.tokenAddress
         );
         if (trustedChannels.every((c) => c.signer !== AddressZero)) {
           return results.push({
             id,
             status: "signed-trusted-channels-not-yet-supported",
+          });
+        }
+      }
+
+      if (settings?.blockBannedAccounts) {
+        const isBanned = await paymentProcessorV2.checkAccountIsBanned(
+          order.params.tokenAddress,
+          order.params.sellerOrBuyer
+        );
+        if (isBanned) {
+          return results.push({
+            id,
+            status: "maker-was-banned-by-collection",
           });
         }
       }
@@ -142,7 +154,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (
         order.params.cosigner &&
         order.params.cosigner !== AddressZero &&
-        order.params.cosigner.toLowerCase() !== cosigner().address.toLowerCase()
+        !(
+          order.params.cosigner.toLowerCase() === cosigner().address.toLowerCase() ||
+          (await getExternalCosigner(order.params.cosigner.toLowerCase()))
+        )
       ) {
         return results.push({
           id,

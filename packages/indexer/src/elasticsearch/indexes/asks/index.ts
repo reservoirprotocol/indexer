@@ -377,7 +377,12 @@ export const searchTokenAsks = async (params: {
               },
             },
         {
-          contractAndTokenId: {
+          contract: {
+            order: params.sortDirection ?? "asc",
+          },
+        },
+        {
+          "token.id": {
             order: params.sortDirection ?? "asc",
           },
         },
