@@ -398,7 +398,8 @@ export const getEventKind = (
     event.baseEventParams?.to &&
     !routers.has(event.baseEventParams?.to) &&
     !allEventsAddresses.includes(event.baseEventParams?.to) &&
-    event.baseEventParams?.from !== event.baseEventParams?.to
+    event.baseEventParams?.from !== event.baseEventParams?.to &&
+    !ns.burnAddresses.includes(event.baseEventParams?.to)
   ) {
     kind = "airdrop";
   } else if (ns.mintAddresses.includes(event.from)) {
