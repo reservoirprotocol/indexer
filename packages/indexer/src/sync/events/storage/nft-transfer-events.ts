@@ -140,6 +140,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   }
 
   if (transferValues.length) {
+    const erc1155TransfersPerTx: Record<string, number[]> = {};
     for (const event of transferValues) {
       const nftTransferQueries: string[] = [];
       const columns = new pgp.helpers.ColumnSet(
@@ -166,6 +167,14 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         [137, 80001].includes(config.chainId) &&
         _.includes(getNetworkSettings().mintAddresses, fromBuffer(event.from)) &&
         isErc1155;
+
+      if (isErc1155) {
+        if (!erc1155TransfersPerTx[fromBuffer(event.tx_hash)]) {
+          erc1155TransfersPerTx[fromBuffer(event.tx_hash)] = [];
+        }
+
+        erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push(event.log_index);
+      }
 
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
@@ -242,6 +251,16 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         );
       }
     }
+
+    // if any transaction has more than 100 erc1155 transfers, then its a spam/airdrop
+    Object.keys(erc1155TransfersPerTx).forEach((txHash) => {
+      if (erc1155TransfersPerTx[txHash].length > 100) {
+        logger.info(
+          "airdrop-bulk-detection",
+          `txHash ${txHash} has ${erc1155TransfersPerTx[txHash].length} erc1155 transfer`
+        );
+      }
+    });
   }
 
   if (contractValues.length) {

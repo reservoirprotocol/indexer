@@ -168,7 +168,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
       }
 
-      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+      const spamStatusChanged = Boolean(payload.before.is_spam) !== Boolean(payload.after.is_spam);
 
       // Update the elasticsearch activities index
       if (spamStatusChanged) {
