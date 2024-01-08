@@ -12,12 +12,12 @@ import * as collectionsIndex from "@/elasticsearch/indexes/collections";
 
 const version = "v1";
 
-export const getAutocompleteCollectionsV1Options: RouteOptions = {
+export const getCollectionSearchV1Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Collections Autocomplete",
+  description: "Cross Chain Collection Search",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -68,12 +68,9 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
           openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),
-    }).label(`getAutocompleteCollections${version.toUpperCase()}Response`),
+    }).label(`getCollectionSearch${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(
-        `get-autocomplete-collections-${version}-handler`,
-        `Wrong response schema: ${error}`
-      );
+      logger.error(`get-collection-search-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },

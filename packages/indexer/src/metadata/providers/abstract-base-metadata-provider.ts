@@ -93,6 +93,18 @@ export abstract class AbstractBaseMetadataProvider {
         if (metadata.mediaUrl) {
           metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
         }
+
+        // if the imageMimeType is not "image/", we want to set imageUrl to null and mediaUrl to imageUrl
+        if (
+          metadata.imageMimeType &&
+          !metadata.imageMimeType.startsWith("image/") &&
+          metadata.imageUrl
+        ) {
+          metadata.mediaUrl = metadata.imageUrl;
+          metadata.imageUrl = null;
+          metadata.imageMimeType = undefined;
+          metadata.mediaMimeType = metadata.imageMimeType;
+        }
       })
     );
 
@@ -142,18 +154,6 @@ export abstract class AbstractBaseMetadataProvider {
         this.method
       );
     });
-
-    // if the imageMimeType is not "image/", we want to set imageUrl to null and mediaUrl to imageUrl
-    if (
-      parsedMetadata.imageMimeType &&
-      !parsedMetadata.imageMimeType.startsWith("image/") &&
-      parsedMetadata.imageUrl
-    ) {
-      parsedMetadata.mediaUrl = parsedMetadata.imageUrl;
-      parsedMetadata.imageUrl = null;
-      parsedMetadata.imageMimeType = undefined;
-      parsedMetadata.mediaMimeType = parsedMetadata.imageMimeType;
-    }
 
     return parsedMetadata;
   }

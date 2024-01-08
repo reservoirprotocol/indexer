@@ -9,6 +9,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { DeferUpdateAddressBalance } from "@/models/defer-update-address-balance";
 import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export type Event = {
   kind: ContractKind;
@@ -121,6 +122,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   }
 
   if (transferValues.length) {
+    const erc1155TransfersPerTx: Record<string, string[]> = {};
     for (const event of transferValues) {
       const nftTransferQueries: string[] = [];
       const columns = new pgp.helpers.ColumnSet(
@@ -146,6 +148,14 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         [137, 80001].includes(config.chainId) &&
         _.includes(getNetworkSettings().mintAddresses, fromBuffer(event.from)) &&
         isErc1155;
+
+      if (isErc1155) {
+        if (!erc1155TransfersPerTx[fromBuffer(event.tx_hash)]) {
+          erc1155TransfersPerTx[fromBuffer(event.tx_hash)] = [];
+        }
+
+        erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push(fromBuffer(event.to));
+      }
 
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
@@ -217,6 +227,18 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         );
       }
     }
+
+    Object.keys(erc1155TransfersPerTx).forEach((txHash) => {
+      const erc1155Transfers = erc1155TransfersPerTx[txHash];
+      // find count of transfers where the recepient is a unique address, if its more than 100, then its a spam/airdrop
+      const uniqueRecepients = _.uniq(erc1155Transfers);
+      if (uniqueRecepients.length > 100) {
+        logger.info(
+          "airdrop-bulk-detection",
+          `txHash ${txHash} has ${erc1155TransfersPerTx[txHash].length} erc1155 transfer`
+        );
+      }
+    });
   }
 
   if (contractValues.length) {
