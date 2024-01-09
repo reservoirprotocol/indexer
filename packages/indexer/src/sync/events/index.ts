@@ -726,7 +726,7 @@ export const checkForOrphanedBlock = async (block: number) => {
       `New block ${block} with hash ${upstreamBlockHash} not found in database, syncing block`
     );
     // resync the block
-    await eventsSyncRealtimeJob.addToQueue({ block: block });
+    await eventsSyncRealtimeJob.addToQueue({ block: block }, 1 * 1000, true);
   }
 };
 
