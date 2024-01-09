@@ -758,7 +758,12 @@ export const getUserTokensV8Options: RouteOptions = {
               rarityRank: r.rarity_rank,
               supply: !_.isNull(r.supply) ? r.supply : null,
               remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
-              media: r.media,
+              media: Assets.getResizedImageUrl(
+                r.media,
+                undefined,
+                r.image_version,
+                r.media_mime_type
+              ),
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
               metadataDisabled:

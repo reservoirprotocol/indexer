@@ -138,8 +138,18 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             name: data.after.name,
             isSpam: Number(data.after.is_spam) > 0,
             description: data.after.description,
-            image: Assets.getResizedImageUrl(data.after.image),
-            media: data.after.media,
+            image: Assets.getResizedImageUrl(
+              data.after.image,
+              undefined,
+              data.after.image_version,
+              data.after.image_mime_type
+            ),
+            media: Assets.getResizedImageUrl(
+              data.after.media,
+              undefined,
+              data.after.image_version,
+              data.after.media_mime_type
+            ),
             kind: r?.kind,
             isFlagged: Boolean(Number(data.after.is_flagged)),
             metadataDisabled:
@@ -426,7 +436,12 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               r.image_version,
               r.image_mime_type
             ),
-            media: r.media,
+            media: Assets.getResizedImageUrl(
+              r.media,
+              undefined,
+              r.image_version,
+              r.media_mime_type
+            ),
             kind: r.kind,
             metadataDisabled:
               Boolean(Number(r.token_metadata_disabled)) ||
@@ -568,7 +583,10 @@ interface TokenInfo {
   is_spam: number;
   description: string;
   image: string;
+  image_version: number;
+  image_mime_type: string;
   media: string;
+  media_mime_type: string;
   collection_id: string;
   attributes?: string;
   floor_sell_id: string;
