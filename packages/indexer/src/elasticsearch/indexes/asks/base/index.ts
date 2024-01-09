@@ -139,7 +139,6 @@ export class AskDocumentBuilder extends DocumentBuilder {
       token: {
         id: Number(data.token_id),
         name: data.token_name,
-        image: data.token_image,
         attributes: data.token_attributes,
         isFlagged: Boolean(data.token_is_flagged || 0),
         rarityRank: data.token_rarity_rank,
@@ -149,7 +148,6 @@ export class AskDocumentBuilder extends DocumentBuilder {
         ? {
             id: data.collection_id,
             name: data.collection_name,
-            image: data.collection_image,
             isSpam: Number(data.collection_is_spam) > 0,
           }
         : undefined,

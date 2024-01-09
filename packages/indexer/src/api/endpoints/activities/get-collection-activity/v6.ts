@@ -24,12 +24,12 @@ import { Collections } from "@/models/collections";
 import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { redb } from "@/common/db";
-import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { MetadataStatus } from "@/models/metadata-status";
 import { Assets, ImageSize } from "@/utils/assets";
 import { ApiKeyManager } from "@/models/api-keys";
 import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
+import { ActivitiesTokenCache } from "@/models/activities-token-cache";
 
 const version = "v6";
 
@@ -257,99 +257,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         );
 
         try {
-          let tokensToFetch = activities
-            .filter((activity) => activity.token)
-            .map((activity) => `token-cache:${activity.contract}:${activity.token?.id}`);
-
-          if (tokensToFetch.length) {
-            // Make sure each token is unique
-            tokensToFetch = [...new Set(tokensToFetch).keys()];
-
-            tokensMetadata = await redis.mget(tokensToFetch);
-            tokensMetadata = tokensMetadata
-              .filter((token) => token)
-              .map((token) => JSON.parse(token));
-
-            const nonCachedTokensToFetch = tokensToFetch.filter((tokenToFetch) => {
-              const [, contract, tokenId] = tokenToFetch.split(":");
-
-              return (
-                tokensMetadata.find((token) => {
-                  return token.contract === contract && token.token_id === tokenId;
-                }) === undefined
-              );
-            });
-
-            if (nonCachedTokensToFetch.length) {
-              const tokensFilter = [];
-
-              for (const nonCachedTokenToFetch of nonCachedTokensToFetch) {
-                const [, contract, tokenId] = nonCachedTokenToFetch.split(":");
-
-                tokensFilter.push(`('${_.replace(contract, "0x", "\\x")}', '${tokenId}')`);
-              }
-
-              // Fetch details for all tokens
-              const tokensResult = await redb.manyOrNone(
-                `
-          SELECT
-            tokens.contract,
-            tokens.token_id,
-            tokens.name,
-            tokens.image,
-            tokens.image_version,
-            tokens.metadata_disabled,
-            tokens.rarity_score,
-            tokens.rarity_rank
-          FROM tokens
-          WHERE (tokens.contract, tokens.token_id) IN ($/tokensFilter:raw/)
-        `,
-                { tokensFilter: _.join(tokensFilter, ",") }
-              );
-
-              if (tokensResult?.length) {
-                tokensMetadata = tokensMetadata.concat(
-                  tokensResult.map((token) => ({
-                    contract: fromBuffer(token.contract),
-                    token_id: token.token_id,
-                    name: token.name,
-                    image: token.image,
-                    image_version: token.image_version,
-                    metadata_disabled: token.metadata_disabled,
-                    rarity_score: token.rarity_score,
-                    rarity_rank: token.rarity_rank,
-                  }))
-                );
-
-                const redisMulti = redis.multi();
-
-                for (const tokenResult of tokensResult) {
-                  const tokenResultContract = fromBuffer(tokenResult.contract);
-
-                  await redisMulti.set(
-                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
-                    JSON.stringify({
-                      contract: tokenResultContract,
-                      token_id: tokenResult.token_id,
-                      name: tokenResult.name,
-                      image: tokenResult.image,
-                      image_version: tokenResult.image_version,
-                      metadata_disabled: tokenResult.metadata_disabled,
-                      rarity_score: tokenResult.rarity_score,
-                      rarity_rank: tokenResult.rarity_rank,
-                    })
-                  );
-
-                  await redisMulti.expire(
-                    `token-cache:${tokenResultContract}:${tokenResult.token_id}`,
-                    60 * 60 * 24
-                  );
-                }
-
-                await redisMulti.exec();
-              }
-            }
-          }
+          tokensMetadata = await ActivitiesTokenCache.getTokens(activities);
         } catch (error) {
           logger.error(`get-collection-activity-${version}-handler`, `Token cache error: ${error}`);
         }
