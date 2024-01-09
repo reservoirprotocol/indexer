@@ -28,6 +28,7 @@ export interface TokenMetadata {
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  decimals?: number;
   metadataMethod?: string;
   imageMimeType?: string;
   mediaMimeType?: string;
@@ -81,6 +82,7 @@ export interface Metadata {
   safelistRequestStatus?: string;
   name?: string;
   description?: string;
+  mintConfig?: any;
 }
 
 export type MapEntry = {

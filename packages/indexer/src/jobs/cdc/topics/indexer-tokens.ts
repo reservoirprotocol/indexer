@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { redis } from "@/common/redis";
 
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import {
@@ -10,6 +9,7 @@ import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-toke
 import { logger } from "@/common/logger";
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
 import _ from "lodash";
+import { ActivitiesTokenCache } from "@/models/activities-token-cache";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -58,33 +58,33 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         }
       }
 
-      if (
-        changed.some((value) =>
-          [
-            "name",
-            "image",
-            "metadata_disabled",
-            "image_version",
-            "rarity_rank",
-            "rarity_score",
-          ].includes(value)
-        )
-      ) {
-        await redis.set(
-          `token-cache:${payload.after.contract}:${payload.after.token_id}`,
+      try {
+        // Update the elasticsearch activities token cache
+        if (
+          changed.some((value) =>
+            [
+              "name",
+              "image",
+              "metadata_disabled",
+              "image_version",
+              "rarity_rank",
+              "rarity_score",
+            ].includes(value)
+          )
+        ) {
+          await ActivitiesTokenCache.refreshTokens(
+            payload.after.contract,
+            payload.after.token_id,
+            payload.after
+          );
+        }
+      } catch (error) {
+        logger.error(
+          "IndexerCollectionsHandler",
           JSON.stringify({
-            contract: payload.after.contract,
-            token_id: payload.after.token_id,
-            name: payload.after.name,
-            image: payload.after.image,
-            image_version: payload.after.image_version,
-            metadata_disabled: payload.after.metadata_disabled,
-            rarity_rank: payload.after.rarity_rank,
-            rarity_score: payload.after.rarity_score,
-          }),
-          "EX",
-          60 * 60 * 24,
-          "XX"
+            message: `failed to update activities collection cache. collectionId=${payload.after.id}, error=${error}`,
+            error,
+          })
         );
       }
 

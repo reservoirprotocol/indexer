@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { MaxUint256 } from "@ethersproject/constants";
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 import _ from "lodash";
-import * as Boom from "@hapi/boom";
 
+import { getListedTokensFromES } from "@/api/endpoints/tokens/get-tokens/v6";
+import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
@@ -29,14 +31,11 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { config } from "@/config/index";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
+import { Collections } from "@/models/collections";
+import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
-import { CollectionSets } from "@/models/collection-sets";
-import { Collections } from "@/models/collections";
-import { hasExtendCollectionHandler } from "@/metadata/extend";
-import { getListedTokensFromES } from "@/api/endpoints/tokens/get-tokens/v6";
-import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
-import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 const version = "v8";
 
@@ -327,6 +326,9 @@ export const getTokensV8Options: RouteOptions = {
                 })
               )
               .optional(),
+            decimals: Joi.number()
+              .allow(null)
+              .description("Can be set for ERC1155 tokens according to the standard"),
             mintStages: Joi.array().items(
               Joi.object({
                 stage: Joi.string().required(),
@@ -745,6 +747,7 @@ export const getTokensV8Options: RouteOptions = {
           t.last_flag_update,
           t.last_flag_change,
           t.supply,
+          t.decimals,
           t.remaining_supply,
           extract(epoch from t.updated_at) AS t_updated_at,
           t.metadata_disabled AS t_metadata_disabled,
@@ -1185,8 +1188,8 @@ export const getTokensV8Options: RouteOptions = {
           WITH x AS (
             ${baseQuery}
           )
-          SELECT 
-            x.*, 
+          SELECT
+            x.*,
             y.*
           FROM x
           LEFT JOIN LATERAL (
@@ -1415,14 +1418,7 @@ export const getTokensV8Options: RouteOptions = {
           }
         }
 
-        const metadata = parseMetadata(r.metadata);
-        if (!r.image && r.metadata?.image_original_url) {
-          r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
-        }
-
-        if (!r.media && r.metadata?.animation_original_url) {
-          r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
-        }
+        const metadata = parseMetadata(r, r.metadata);
 
         return {
           token: getJoiTokenObject(
@@ -1466,6 +1462,7 @@ export const getTokensV8Options: RouteOptions = {
                 ? new Date(r.last_flag_change).toISOString()
                 : null,
               supply: !_.isNull(r.supply) ? r.supply : null,
+              decimals: !_.isNull(r.decimals) ? r.decimals : null,
               remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
               rarity: r.rarity_score,
               rarityRank: r.rarity_rank,

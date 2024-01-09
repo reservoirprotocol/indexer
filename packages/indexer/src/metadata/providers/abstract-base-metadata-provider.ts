@@ -93,6 +93,18 @@ export abstract class AbstractBaseMetadataProvider {
         if (metadata.mediaUrl) {
           metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
         }
+
+        // if the imageMimeType is not "image/", we want to set imageUrl to null and mediaUrl to imageUrl
+        if (
+          metadata.imageMimeType &&
+          !metadata.imageMimeType.startsWith("image/") &&
+          metadata.imageUrl
+        ) {
+          metadata.mediaUrl = metadata.imageUrl;
+          metadata.imageUrl = null;
+          metadata.imageMimeType = undefined;
+          metadata.mediaMimeType = metadata.imageMimeType;
+        }
       })
     );
 
@@ -142,6 +154,7 @@ export abstract class AbstractBaseMetadataProvider {
         this.method
       );
     });
+
     return parsedMetadata;
   }
 }

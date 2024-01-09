@@ -579,6 +579,12 @@ const allEventData = [
   mooar.orderFulfilled,
 ];
 
+// array of all addresses we're syncing events for
+export const allEventsAddresses = allEventData
+  .filter(({ addresses }) => !!addresses)
+  .map(({ addresses }) => addresses && Object.keys(addresses))
+  .flat();
+
 export const getEventData = (events?: string[]) => {
   if (!events) {
     return allEventData;

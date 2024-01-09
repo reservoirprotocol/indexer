@@ -92,7 +92,8 @@ if (config.doBackgroundWork) {
                     UPDATE nft_balances AS nb
                     SET top_buy_id = z.top_buy_id,
                         top_buy_value = z.top_buy_value,
-                        top_buy_maker = z.top_buy_maker
+                        top_buy_maker = z.top_buy_maker,
+                        updated_at = now()
                     FROM z
                     WHERE nb.contract = z.contract
                     AND nb.token_id = z.token_id

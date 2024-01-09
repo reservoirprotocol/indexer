@@ -694,15 +694,7 @@ export const getUserTokensV8Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = userTokens.map(async (r) => {
-        const metadata = parseMetadata(r.token_metadata);
-
-        if (!r.image && r.token_metadata?.image_original_url) {
-          r.image = onchainMetadataProvider.parseIPFSURI(r.token_metadata.image_original_url);
-        }
-
-        if (!r.media && r.token_metadata?.animation_original_url) {
-          r.media = onchainMetadataProvider.parseIPFSURI(r.token_metadata.animation_original_url);
-        }
+        const metadata = parseMetadata(r, r.token_metadata);
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
@@ -928,7 +920,7 @@ export const getUserTokensV8Options: RouteOptions = {
   },
 };
 
-export const parseMetadata = (token_metadata: any) => {
+export const parseMetadata = (r: any, token_metadata: any) => {
   const metadata: any = {};
   if (token_metadata?.image_original_url) {
     metadata.imageOriginal = token_metadata.image_original_url;
@@ -948,6 +940,18 @@ export const parseMetadata = (token_metadata: any) => {
 
   if (token_metadata?.token_uri) {
     metadata.tokenURI = token_metadata.metadata_original_url;
+  }
+
+  if (
+    !r.image &&
+    token_metadata?.image_original_url &&
+    token_metadata?.imageMimeType?.startsWith("image/")
+  ) {
+    r.image = onchainMetadataProvider.parseIPFSURI(token_metadata.image_original_url);
+  }
+
+  if (!r.media && token_metadata?.animation_original_url) {
+    r.media = onchainMetadataProvider.parseIPFSURI(token_metadata.animation_original_url);
   }
 
   return metadata;

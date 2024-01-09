@@ -290,6 +290,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         kind: typeof trait.value == "number" ? "number" : "string",
         rank: 1,
       })),
+      decimals: metadata?.decimals ? parseInt(metadata.decimals) : undefined,
     };
   }
 

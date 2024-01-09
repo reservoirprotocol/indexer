@@ -84,6 +84,8 @@ if (config.doBackgroundWork) {
               logIndex: result.log_index,
               timestamp: result.timestamp,
               batchIndex: result.batch_index,
+              from: fromBuffer(result.from),
+              to: fromBuffer(result.to),
             };
             const from = fromBuffer(result.from);
             const to = fromBuffer(result.to);

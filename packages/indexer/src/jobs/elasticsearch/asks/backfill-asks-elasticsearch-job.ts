@@ -63,17 +63,6 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         limit,
       });
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugAskIndex",
-          message: `Debug generating ask documents.`,
-          query,
-          payload,
-          rawResults,
-        })
-      );
-
       if (rawResults.length) {
         for (const rawResult of rawResults) {
           try {

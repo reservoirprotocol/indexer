@@ -20,7 +20,7 @@ export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
       await idb.none(
         `
           UPDATE nft_balances
-          SET last_token_appraisal_value = x.last_token_appraisal_value
+          SET last_token_appraisal_value = x.last_token_appraisal_value, updated_at = now()
           FROM (
             SELECT last_token_appraisal_value
             FROM nft_balances

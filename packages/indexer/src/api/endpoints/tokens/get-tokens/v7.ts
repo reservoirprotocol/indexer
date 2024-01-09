@@ -36,7 +36,6 @@ import { Collections } from "@/models/collections";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { getListedTokensFromES } from "@/api/endpoints/tokens/get-tokens/v6";
 import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
-import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 
 const version = "v7";
 
@@ -1416,14 +1415,7 @@ export const getTokensV7Options: RouteOptions = {
           }
         }
 
-        const metadata = parseMetadata(r.metadata);
-        if (!r.image && r.metadata?.image_original_url) {
-          r.image = onchainMetadataProvider.parseIPFSURI(r.metadata.image_original_url);
-        }
-
-        if (!r.media && r.metadata?.animation_original_url) {
-          r.media = onchainMetadataProvider.parseIPFSURI(r.metadata.animation_original_url);
-        }
+        const metadata = parseMetadata(r, r.metadata);
 
         return {
           token: getJoiTokenObject(

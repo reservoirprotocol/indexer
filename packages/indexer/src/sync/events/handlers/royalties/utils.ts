@@ -1,4 +1,4 @@
-import { Filter, Log } from "@ethersproject/abstract-provider";
+import { Filter } from "@ethersproject/abstract-provider";
 
 import { baseProvider } from "@/common/provider";
 import { concat } from "@/common/utils";
@@ -13,32 +13,14 @@ import * as es from "@/events-sync/storage";
 import * as syncEvents from "@/events-sync/index";
 import * as syncEventsUtils from "@/events-sync/utils";
 
-export const getEventParams = (log: Log, timestamp: number) => {
-  const address = log.address.toLowerCase() as string;
-  const block = log.blockNumber as number;
-  const blockHash = log.blockHash.toLowerCase() as string;
-  const txHash = log.transactionHash.toLowerCase() as string;
-  const txIndex = log.transactionIndex as number;
-  const logIndex = log.logIndex as number;
-
-  return {
-    address,
-    txHash,
-    txIndex,
-    block,
-    blockHash,
-    logIndex,
-    timestamp,
-    batchIndex: 1,
-  };
-};
-
 export const getEnhancedEventsFromTx = async (txHash: string) => {
   const enhancedEvents: EnhancedEvent[] = [];
 
   const availableEventData = getEventData();
   const tx = await utils.fetchTransaction(txHash);
   const { logs } = await utils.fetchTransactionLogs(txHash);
+
+  const txData = await utils.fetchTransaction(txHash);
 
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
@@ -52,7 +34,7 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
       enhancedEvents.push({
         kind: eventData.kind,
         subKind: eventData.subKind,
-        baseEventParams: getEventParams(log, tx.blockTimestamp),
+        baseEventParams: parseEvent(log, tx.blockTimestamp, 1, txData),
         log,
       });
     }
@@ -135,9 +117,24 @@ export const parseBlock = async (block: number) => {
   // Get the logs from the RPC
   const logs = await baseProvider.getLogs(eventFilter);
 
+  const txHashes = [...new Set(logs.map((log) => log.transactionHash))];
+  const txData = await Promise.all(
+    txHashes.map(async (txHash) => {
+      const tx = await baseProvider.getTransaction(txHash);
+      if (!tx) {
+        throw new Error(`Transaction ${txHash} not found with RPC provider`);
+      }
+      return tx;
+    })
+  );
+
   let enhancedEvents = logs
     .map((log) => {
-      const baseEventParams = parseEvent(log, blockData.timestamp);
+      const tx = txData.find((tx) => tx.hash === log.transactionHash);
+      if (!tx) {
+        throw new Error(`Transaction ${log.transactionHash} not found with RPC provider`);
+      }
+      const baseEventParams = parseEvent(log, blockData.timestamp, 1, tx);
       return availableEventData
         .filter(
           ({ addresses, numTopics, topic }) =>

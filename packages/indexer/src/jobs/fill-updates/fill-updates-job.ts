@@ -66,7 +66,7 @@ export class FillUpdatesJob extends AbstractRabbitMqJobHandler {
       await idb.none(
         `
                 UPDATE nft_balances SET
-                  last_token_appraisal_value = $/price/
+                  last_token_appraisal_value = $/price/, updated_at = now()
                 WHERE contract = $/contract/
                 AND token_id = $/tokenId/
                 AND owner = $/owner/

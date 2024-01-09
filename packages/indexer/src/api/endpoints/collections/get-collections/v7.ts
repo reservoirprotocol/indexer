@@ -976,7 +976,7 @@ export const getCollectionsV7Options: RouteOptions = {
                         : m.price,
                       pricePerQuantity: m.pricePerQuantity
                         ? await Promise.all(
-                            m.price_per_quantity.map(
+                            m.pricePerQuantity.map(
                               async ({ price, quantity }: { price: string; quantity: number }) => ({
                                 price: await getJoiPriceObject(
                                   { gross: { amount: price } },
