@@ -284,7 +284,7 @@ const getCollections = async () => {
     //   limit: 20,
     // },
     // headers: {
-    //   "x-api-key": "767862fc-6ff9-5dbc-a555-3e6fcaf8c21d",
+    //   "x-api-key": "xxx",
     //   "Content-Type": "application/json",
     //   "user-agent":
     //     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
