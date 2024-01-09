@@ -40,7 +40,8 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://arbitrum-nova.publicnode.com";
         break;
       case 42766:
-        url = "https://rpc.zkfair.io";
+        // url = "https://rpc.zkfair.io";
+        url = "https://dev-rpc.zkfair.io";
         break;
       case 43114:
         url = "https://avalanche-c-chain.publicnode.com";

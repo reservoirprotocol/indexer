@@ -33,7 +33,9 @@ tasks:
     cmds:
       - npx husky uninstall
 
-  list-collection:
+  remote-fair: ssh -N -L 30100:localhost:30100 fair
+  load-fair-collections:
     cmds:
       - |
-        curl https://api-zkfair-mainnet.alienswap.xyz/search/collections/v1?offset=0&limit=20
+        # curl https://api-zkfair-mainnet.alienswap.xyz/search/collections/v1?offset=0&limit=20
+        curl 'http://localhost:30100/search/collections/v2?offset=0&limit=50' | jq

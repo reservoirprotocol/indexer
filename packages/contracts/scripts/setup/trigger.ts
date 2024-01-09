@@ -13,8 +13,8 @@ import { DeploymentHelper } from "./deployment-helper";
 // x1-testnet xuxiangqian
 // export const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
 // deployer address from caoruijian
-// export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
-export const DEPLOYER = "0x0f58D8d97d2267b58B009185b35B7F87121215A9";
+export const DEPLOYER = "0xc41a6Ce1E045f9b0c9629b4c08518aee9D259aF2";
+// export const DEPLOYER = "0x0f58D8d97d2267b58B009185b35B7F87121215A9";
 
 const DEPLOYMENTS_FILE = "deployments.json";
 

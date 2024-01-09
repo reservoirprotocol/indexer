@@ -13,6 +13,8 @@ contract ReservoirErc721 is ERC721, Ownable {
   uint256 private royaltyBps;
 
   string public contractURI;
+  // todo
+  uint256 public totalSupply;
 
   // Constructor
 

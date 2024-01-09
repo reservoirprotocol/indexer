@@ -11,7 +11,6 @@ const main = async () => {
   }
 
   // x1-testnet test-nft
-  // const nftAddr = "0xf1b4f863c5982b6e6def8a80e07649c4f643f37a";
   const nftAddr = "0xc872f3b2c56a234ca90e44a55c8fd270dc0d2ea2";
   const nft = await ethers.getContractAt("ReservoirErc721", nftAddr);
 
@@ -27,8 +26,9 @@ const main = async () => {
   console.log(`pre-check result: ${JSON.stringify(result, null, 3)}`);
 
 
-  const bps = 50;
-  result = await nft.updateRoyalty(deployer.address, bps);
+  const bps = 500;
+  const receipt = "0xF7Fc76dFF41a4F2C56a3E8a46F2718319655Bad4";
+  result = await nft.updateRoyalty(receipt, bps);
   console.log(`updateRoyalty with result: ${JSON.stringify(result, null, 3)}`);
 
   await new Promise((resolve) => {
