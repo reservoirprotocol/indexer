@@ -1,6 +1,11 @@
 name: Release to 13337 reservoir nodes
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - .github/**
 
 run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
 
