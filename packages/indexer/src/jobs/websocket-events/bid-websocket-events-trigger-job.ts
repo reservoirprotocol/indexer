@@ -76,7 +76,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
               }
             }
 
-            if (config.chainId === 1) {
+            if (changed.length === 1) {
               logger.info(
                 this.queueName,
                 JSON.stringify({

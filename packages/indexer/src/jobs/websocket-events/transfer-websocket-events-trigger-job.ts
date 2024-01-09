@@ -69,18 +69,20 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
                 }
               }
 
-              logger.info(
-                this.queueName,
-                JSON.stringify({
-                  message: `No changes detected for transfer. contract=${data.after.address}, tokenId=${data.after.token_id}`,
-                  data,
-                  beforeJson: JSON.stringify(data.before),
-                  afterJson: JSON.stringify(data.after),
-                  changed,
-                  changedJson: JSON.stringify(changed),
-                  hasChanged: changed.length > 0,
-                })
-              );
+              if (changed.length === 1) {
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for transfer. contract=${data.after.address}, tokenId=${data.after.token_id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              }
             } catch (error) {
               logger.error(
                 this.queueName,
