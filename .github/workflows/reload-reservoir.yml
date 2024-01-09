@@ -1,0 +1,17 @@
+name: Reload Reservoir processes
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy code to production
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST_PROD }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVKEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            ansible -m shell -a "sudo systemctl restart reservoir" reservoir
