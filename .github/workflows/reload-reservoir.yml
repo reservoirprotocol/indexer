@@ -17,4 +17,4 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
           ssh-port: ${{ secrets.SSH_PORT }}
           ssh-command: |
-            ansible -m shell -a "sudo systemctl restart reservoir" reservoir
+            ansible -m shell -a 'sudo systemctl restart reservoir' reservoir
