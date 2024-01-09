@@ -1,0 +1,43 @@
+name: "Execute Remote Commands"
+description: "Execute bash commands remotely"
+
+inputs:
+  ssh-private-key:
+    description: "SSH private key"
+    required: true
+  ssh-username:
+    description: "SSH username"
+    required: true
+  ssh-host:
+    description: "SSH host"
+    required: true
+  ssh-port:
+    description: "SSH port"
+    default: "22"
+    required: false
+  ssh-command:
+    description: "SSH command"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install SSH
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y openssh-client
+      shell: bash
+
+    - name: Setup SSH Keys
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ inputs.ssh-private-key }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+      shell: bash
+      env:
+        SSH_PRIVATE_KEY: ${{ inputs.ssh-private-key }}
+
+    - name: Run SSH Commands
+      run: |
+        ssh -o StrictHostKeyChecking=no -p ${{ inputs.ssh-port }} ${{ inputs.ssh-username }}@${{ inputs.ssh-host }} "${{ inputs.ssh-command }}"
+      shell: bash

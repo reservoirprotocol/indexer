@@ -3,15 +3,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  ansible-shell:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy code to production
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Reload reservoir processes on all nodes
+        uses: ./.github/actions/remote-commands
         with:
-          host: ${{ secrets.HOST_PROD }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVKEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
+          ssh-host: ${{ secrets.HOST_PROD }}
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
+          ssh-port: ${{ secrets.SSH_PORT }}
+          ssh-command: |
             ansible -m shell -a "sudo systemctl restart reservoir" reservoir
