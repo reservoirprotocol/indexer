@@ -394,9 +394,15 @@ export const getTokensV8Options: RouteOptions = {
 
     let esTokens: any[] = [];
 
-    const enableElasticsearchAsks =
+    let enableElasticsearchAsks =
       query.sortBy === "floorAskPrice" &&
       !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+
+    if (enableElasticsearchAsks && query.continuation) {
+      const contArr = splitContinuation(query.continuation);
+
+      enableElasticsearchAsks = !isNaN(Number(contArr));
+    }
 
     if (enableElasticsearchAsks) {
       logger.info(
