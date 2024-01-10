@@ -2,6 +2,8 @@ name: Reload Reservoir processes
 on:
   workflow_dispatch:
 
+run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
+
 jobs:
   ansible-shell:
     runs-on: ubuntu-latest
