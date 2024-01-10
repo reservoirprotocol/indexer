@@ -1949,6 +1949,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             t.rarity_rank,
             t.is_flagged,
             t.is_spam AS t_is_spam,
+            t.nsfw_status AS t_nsfw_status,
             t.last_flag_update,
             t.last_flag_change,
             t.supply,
@@ -1959,6 +1960,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             c.creator,
             c.token_count,
             c.is_spam AS c_is_spam,
+            c.nsfw_status AS c_nsfw_status,
             c.metadata_disabled AS c_metadata_disabled,
             (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
             (
@@ -2165,6 +2167,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
           kind: r.kind,
           isFlagged: Boolean(Number(r.is_flagged)),
           isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
+          isNsfw: Number(r.t_nsfw_status) > 0 || Number(r.c_nsfw_status) > 0,
           metadataDisabled:
             Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
           lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
