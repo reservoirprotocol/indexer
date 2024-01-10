@@ -1,4 +1,4 @@
-name: Release to 13337 reservoir nodes
+name: Release to all reservoir nodes
 on:
   workflow_dispatch:
   push:
