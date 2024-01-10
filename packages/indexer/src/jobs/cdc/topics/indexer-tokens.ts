@@ -80,27 +80,30 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         }
       } catch (error) {
         logger.error(
-          "IndexerCollectionsHandler",
+          "IndexerTokensHandler",
           JSON.stringify({
-            message: `failed to update activities collection cache. collectionId=${payload.after.id}, error=${error}`,
+            message: `failed to update activities token cache. collectionId=${payload.after.id}, error=${error}`,
             error,
           })
         );
       }
 
-      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
-
       // Update the elasticsearch activities index
-      if (spamStatusChanged) {
+      if (changed.some((value) => ["is_spam"].includes(value))) {
         await refreshActivitiesTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
       }
 
       // Update the elasticsearch asks index
       if (payload.after.floor_sell_id) {
-        const flagStatusChanged = payload.before.is_flagged !== payload.after.is_flagged;
-        const rarityRankChanged = payload.before.rarity_rank !== payload.after.rarity_rank;
+        if (changed.some((value) => ["is_flagged", "is_spam", "rarity_rank"].includes(value))) {
+          logger.info(
+            "IndexerTokensHandler",
+            JSON.stringify({
+              topic: "debugAskIndex",
+              message: `refreshAsksTokenJob. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            })
+          );
 
-        if (flagStatusChanged || rarityRankChanged || spamStatusChanged) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }
