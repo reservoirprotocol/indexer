@@ -1,11 +1,6 @@
 name: Release to 13337 reservoir nodes
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - .github/**
 
 run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
 
@@ -24,7 +19,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
           ssh-port: ${{ secrets.SSH_PORT }}
           ssh-command: |
-            ansible-playbook /home/ubuntu/playbooks/release.yml -l 13337-reservoir-main
+            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l 13337-reservoir-main
 
   release-to-13337-reservoir-read-01:
     runs-on: ubuntu-latest
@@ -40,4 +35,4 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
           ssh-port: ${{ secrets.SSH_PORT }}
           ssh-command: |
-            ansible-playbook /home/ubuntu/playbooks/release.yml -l 13337-reservoir-read-01
+            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l 13337-reservoir-read-01
