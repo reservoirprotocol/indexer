@@ -96,14 +96,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       // Update the elasticsearch asks index
       if (payload.after.floor_sell_id) {
         if (changed.some((value) => ["is_flagged", "is_spam", "rarity_rank"].includes(value))) {
-          logger.info(
-            "IndexerTokensHandler",
-            JSON.stringify({
-              topic: "debugAskIndex",
-              message: `refreshAsksTokenJob. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
-            })
-          );
-
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
         }
       }

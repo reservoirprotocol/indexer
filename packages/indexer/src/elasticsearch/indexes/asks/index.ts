@@ -647,7 +647,7 @@ export const updateAsksTokenData = async (
           "elasticsearch-asks",
           JSON.stringify({
             topic: "updateAsksTokenData",
-            message: `Errors in response`,
+            message: `Errors in response. contract=${contract}, tokenId=${tokenId}`,
             data: {
               contract,
               tokenId,
@@ -661,22 +661,22 @@ export const updateAsksTokenData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        // logger.info(
-        //   "elasticsearch-asks",
-        //   JSON.stringify({
-        //     topic: "updateAsksTokenData",
-        //     message: `Success`,
-        //     data: {
-        //       contract,
-        //       tokenId,
-        //       tokenData,
-        //     },
-        //     bulkParams,
-        //     bulkParamsJSON: JSON.stringify(bulkParams),
-        //     response,
-        //     keepGoing,
-        //   })
-        // );
+        logger.info(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenData",
+            message: `Success. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+            keepGoing,
+          })
+        );
       }
     }
   } catch (error) {
@@ -689,7 +689,7 @@ export const updateAsksTokenData = async (
         "elasticsearch-asks",
         JSON.stringify({
           topic: "updateAsksTokenData",
-          message: `Unexpected error`,
+          message: `Retryable error. contract=${contract}, tokenId=${tokenId}`,
           data: {
             contract,
             tokenId,
@@ -705,7 +705,7 @@ export const updateAsksTokenData = async (
         "elasticsearch-asks",
         JSON.stringify({
           topic: "updateAsksTokenData",
-          message: `Unexpected error`,
+          message: `Unexpected error. contract=${contract}, tokenId=${tokenId}`,
           data: {
             contract,
             tokenId,
