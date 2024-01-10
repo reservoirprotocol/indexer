@@ -22,7 +22,7 @@ export class HealthCheck {
       return false;
     }
 
-    if (config.master && getNetworkSettings().enableWebSocket) {
+    if (config.master && getNetworkSettings().enableWebSocket && !getNetworkSettings().isTestnet) {
       const timestamp = await redis.get("latest-block-websocket-received");
       const currentTime = now();
       if (timestamp && Number(timestamp) < currentTime - 60) {

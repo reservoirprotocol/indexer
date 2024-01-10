@@ -290,6 +290,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         kind: typeof trait.value == "number" ? "number" : "string",
         rank: 1,
       })),
+      decimals: metadata?.decimals ? parseInt(metadata.decimals) : undefined,
     };
   }
 
@@ -517,6 +518,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   parseIPFSURI(uri: string) {
     if (uri && uri?.includes("ipfs://")) {
       uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+    }
+
+    if (uri && uri?.includes("gateway.pinata.cloud")) {
+      uri = uri.replace("gateway.pinata.cloud", "ipfs.io");
     }
 
     return uri;

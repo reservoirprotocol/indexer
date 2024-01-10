@@ -77,15 +77,12 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                         tokens.token_id,
                         tokens.contract,
                         tokens.name AS "token_name",
-                        tokens.image AS "token_image",
-                        tokens.media AS "token_media",
                         tokens.is_flagged AS "token_is_flagged",
                         tokens.is_spam AS "token_is_spam",
                         tokens.rarity_rank AS "token_rarity_rank",
                         collections.id AS "collection_id", 
                         collections.name AS "collection_name", 
                         collections.is_spam AS "collection_is_spam",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
                         (
                         SELECT 
                           array_agg(

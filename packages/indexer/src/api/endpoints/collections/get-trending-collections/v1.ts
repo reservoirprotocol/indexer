@@ -11,7 +11,7 @@ import { getStartTime, Period } from "@/models/top-selling-collections/top-selli
 import { chunk, flatMap } from "lodash";
 import { redis } from "@/common/redis";
 
-const REDIS_EXPIRATION = 60 * 60 * 24; // 24 hours
+const REDIS_EXPIRATION = 60 * 60 * 48; // 48 hours
 const REDIS_BATCH_SIZE = 100;
 
 import {
@@ -169,7 +169,7 @@ export async function getCollectionsMetadata(
   floorAskPercentChange?: Period
 ) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v5:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v6:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
   const tasks = batches.map(async (batch) => redis.mget(batch));
   const results = await Promise.all(tasks);
@@ -295,8 +295,8 @@ export async function getCollectionsMetadata(
 
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
-        ["set", `collection-cache:v5:${metadata.id}`, JSON.stringify(metadata)],
-        ["expire", `collection-cache:v5:${metadata.id}`, REDIS_EXPIRATION],
+        ["set", `collection-cache:v6:${metadata.id}`, JSON.stringify(metadata)],
+        ["expire", `collection-cache:v6:${metadata.id}`, REDIS_EXPIRATION],
       ];
     });
 

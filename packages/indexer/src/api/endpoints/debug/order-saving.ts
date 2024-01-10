@@ -137,7 +137,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
       await idb.oneOrNone(
         `
           UPDATE nft_balances 
-            SET amount = $/amount/
+            SET amount = $/amount/, updated_at = now()
           WHERE contract = $/contract/
             AND owner = $/owner/
             AND token_id = $/tokenId/

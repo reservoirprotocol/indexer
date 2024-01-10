@@ -636,14 +636,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/collections/nsfw-status/v1",
+    options: collectionsEndpoints.postNsfwStatusCollectionV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/collections/spam-status/v1",
     options: collectionsEndpoints.postSpamStatusCollectionV1Options,
   });
 
   server.route({
     method: "GET",
-    path: "/collections/autocomplete/v1",
-    options: collectionsEndpoints.getAutocompleteCollectionsV1Options,
+    path: "/collections/search/v1",
+    options: collectionsEndpoints.getCollectionSearchV1Options,
   });
 
   // Chain
@@ -921,6 +927,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/management/orders/simulate/v1",
     options: managementEndpoints.postSimulateOrderV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/management/cosigners/v1",
+    options: managementEndpoints.postCosignersV1Options,
   });
 
   // Oracle
@@ -1274,6 +1286,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   // Tokens
+
+  server.route({
+    method: "POST",
+    path: "/tokens/nsfw-status/v1",
+    options: tokensEndpoints.postNsfwStatusTokenV1Options,
+  });
 
   server.route({
     method: "POST",

@@ -9,7 +9,7 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { logger } from "@/common/logger";
 import { getNetworkName } from "@/config/network";
-import { acquireLock, releaseLock } from "@/common/redis";
+import { acquireLock, extendLock } from "@/common/redis";
 import axios from "axios";
 import pLimit from "p-limit";
 import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
@@ -101,16 +101,19 @@ export class RabbitMq {
 
     const msgConsumingBuffer = 30 * 60; // Will be released on the job is done
     const lockTime = Number(_.max([_.toInteger(delay / 1000), 0])) + msgConsumingBuffer;
-    let lockAcquired = false;
 
     // For deduplication messages use redis lock, setting lock only if jobId is passed
     try {
       if (content.jobId && lockTime) {
-        if (!(await acquireLock(content.jobId, lockTime))) {
-          return;
+        // Set lock only if it's the first publish attempt
+        if (content.publishRetryCount === 0) {
+          if (!(await acquireLock(content.jobId, lockTime))) {
+            return;
+          }
+        } else {
+          // if this is re-publish just extend the TTL of the lock
+          await extendLock(content.jobId, lockTime);
         }
-
-        lockAcquired = true;
       }
     } catch (error) {
       logger.warn(
@@ -119,7 +122,7 @@ export class RabbitMq {
           message: `failed to set lock to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
             content
           )}`,
-          queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+          queueName,
         })
       );
     }
@@ -163,27 +166,19 @@ export class RabbitMq {
           `rabbit-message-republish`,
           JSON.stringify({
             message: `successfully republished to ${queueName} content=${JSON.stringify(content)}`,
-            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+            queueName,
           })
         );
       }
     } catch (error) {
       if (`${error}`.includes("nacked")) {
-        if (lockAcquired && content.jobId) {
-          try {
-            await releaseLock(content.jobId);
-          } catch {
-            // Ignore errors
-          }
-        }
-
         logger.error(
           `rabbit-publish-error`,
           JSON.stringify({
             message: `failed to publish and will be republish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
               content
             )}`,
-            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+            queueName,
           })
         );
 
@@ -197,7 +192,7 @@ export class RabbitMq {
             message: `failed to publish to ${queueName} error ${error} lockTime ${lockTime} content=${JSON.stringify(
               content
             )}`,
-            queueName: queueName.substring(_.indexOf(queueName, ".") + 1), // Remove chain name
+            queueName,
           })
         );
       }

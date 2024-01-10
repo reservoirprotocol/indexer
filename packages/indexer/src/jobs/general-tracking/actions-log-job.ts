@@ -14,7 +14,9 @@ export enum ActionsLogOrigin {
 export enum ActionsLogContext {
   SpamContractUpdate = "spam-contract-update",
   SpamCollectionUpdate = "spam-collection-update",
+  NsfwCollectionUpdate = "nsfw-collection-update",
   SpamTokenUpdate = "spam-token-update",
+  NsfwTokenUpdate = "nsfw-token-update",
   DisableMetadataUpdate = "disable-metadata-update",
   CollectionDataOverride = "collection-data-override",
 }

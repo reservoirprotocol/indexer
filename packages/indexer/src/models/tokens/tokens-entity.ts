@@ -28,6 +28,7 @@ export type TokensEntityUpdateParams = {
   supply?: number;
   remainingSupply?: number;
   isSpam?: number;
+  nsfwStatus?: number;
 };
 
 // Define the fields need to instantiate the entity
@@ -61,6 +62,7 @@ export type TokensEntityParams = {
   supply: number | null;
   remaining_supply: number | null;
   is_spam: number | null;
+  nsfw_status: number | null;
 };
 
 export class TokensEntity {
@@ -93,6 +95,7 @@ export class TokensEntity {
   supply: number;
   remainingSupply: number;
   isSpam: number;
+  nsfwStatus: number;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -128,5 +131,6 @@ export class TokensEntity {
     this.supply = Number(params.supply);
     this.remainingSupply = Number(params.remaining_supply);
     this.isSpam = Number(params.is_spam);
+    this.nsfwStatus = Number(params.nsfw_status);
   }
 }

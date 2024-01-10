@@ -126,7 +126,7 @@ if (config.doBackgroundWork) {
           await idb.none(
             `
               UPDATE nft_balances SET
-                amount = x.amount::NUMERIC(78, 0)
+                amount = x.amount::NUMERIC(78, 0), updated_at = now()
               FROM (
                 VALUES ${pgp.helpers.values(values, columns)}
               ) AS x(contract, token_id, owner, amount)

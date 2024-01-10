@@ -9,11 +9,11 @@ import { config } from "@/config/index";
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers: [1, 324].includes(config.chainId)
-      ? {}
-      : {
+    headers: [0].includes(config.chainId)
+      ? {
           "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
-        },
+        }
+      : {},
   },
   config.chainId
 );

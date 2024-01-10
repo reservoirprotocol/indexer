@@ -1,22 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import _ from "lodash";
-import { logger } from "@/common/logger";
-import { idb, ridb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
 import { add, getUnixTime, isAfter } from "date-fns";
+import _ from "lodash";
 import PgPromise from "pg-promise";
-import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
-import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
-import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
-import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
-import { TokenMetadata } from "@/metadata/types";
-import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
+
+import { idb, ridb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 import { flagStatusUpdateJob } from "@/jobs/flag-status/flag-status-update-job";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { newCollectionForTokenJob } from "@/jobs/token-updates/new-collection-for-token-job";
+import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
+import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
+import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
+import { TokenMetadata } from "@/metadata/types";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -45,6 +46,7 @@ export type MetadataIndexWriteJobPayload = {
     kind: "string" | "number" | "date" | "range";
     rank?: number;
   }[];
+  decimals?: number;
   metadataMethod?: string;
   imageMimeType?: string;
   mediaMimeType?: string;
@@ -86,23 +88,25 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       metadataMethod,
       imageMimeType,
       mediaMimeType,
+      decimals,
     } = payload;
 
     // Update the token's metadata
     const result = await idb.oneOrNone(
       `
         WITH updated_check AS (
-            SELECT
-                CASE WHEN (name IS DISTINCT FROM $/name/
-                    OR image IS DISTINCT FROM $/image/
-                    OR media IS DISTINCT FROM $/media/
-                    OR token_uri IS DISTINCT FROM $/tokenURI/
-                    OR description IS DISTINCT FROM $/description/
-                    OR metadata IS DISTINCT FROM $/metadata:json/) THEN true
-                ELSE false
-                END AS is_updated
-            FROM tokens
-            WHERE tokens.contract = $/contract/
+          SELECT
+            CASE WHEN (name IS DISTINCT FROM $/name/
+              OR image IS DISTINCT FROM $/image/
+              OR media IS DISTINCT FROM $/media/
+              OR token_uri IS DISTINCT FROM $/tokenURI/
+              OR description IS DISTINCT FROM $/description/
+              OR metadata IS DISTINCT FROM $/metadata:json/
+              OR decimals IS DISTINCT FROM $/decimals/) THEN true
+            ELSE false
+            END AS is_updated
+          FROM tokens
+          WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
         )
         UPDATE tokens SET
@@ -112,46 +116,52 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           image = $/image/,
           metadata = $/metadata:json/,
           media = $/media/,
-          updated_at = CASE 
-                WHEN (SELECT is_updated FROM updated_check) THEN now()
-                ELSE updated_at
+          decimals = $/decimals/,
+          updated_at = CASE
+            WHEN (SELECT is_updated FROM updated_check) THEN now()
+            ELSE updated_at
           END,
-          image_version = CASE 
-                WHEN (SELECT is_updated FROM updated_check) THEN now()
-                ELSE image_version
+          image_version = CASE
+            WHEN (SELECT is_updated FROM updated_check) THEN now()
+            ELSE image_version
           END,
           collection_id = collection_id,
           created_at = created_at,
-          metadata_indexed_at = CASE 
-                                    WHEN metadata_indexed_at IS NULL AND image IS NOT NULL THEN metadata_indexed_at 
-                                    WHEN metadata_indexed_at IS NULL THEN now() 
-                                    ELSE metadata_indexed_at
-                                END,
+          metadata_indexed_at = CASE
+            WHEN metadata_indexed_at IS NULL AND image IS NOT NULL THEN metadata_indexed_at
+            WHEN metadata_indexed_at IS NULL THEN now()
+            ELSE metadata_indexed_at
+          END,
           metadata_initialized_at = CASE
-                                        WHEN metadata_initialized_at IS NULL AND image IS NOT NULL THEN metadata_initialized_at 
-                                        WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now() 
-                                        ELSE metadata_initialized_at
-                                    END,
-          metadata_changed_at = CASE WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now() ELSE metadata_changed_at END,
-          metadata_updated_at = CASE WHEN (name IS DISTINCT FROM $/name/
-                       OR image IS DISTINCT FROM $/image/
-                       OR media IS DISTINCT FROM $/media/
-                       OR description IS DISTINCT FROM $/description/
-                       OR metadata IS DISTINCT FROM $/metadata:json/) THEN now()
-                  ELSE metadata_updated_at
-             END
+            WHEN metadata_initialized_at IS NULL AND image IS NOT NULL THEN metadata_initialized_at
+            WHEN metadata_initialized_at IS NULL AND COALESCE(image, $/image/) IS NOT NULL THEN now()
+            ELSE metadata_initialized_at
+          END,
+          metadata_changed_at = CASE
+            WHEN metadata_initialized_at IS NOT NULL AND NULLIF(image, $/image/) IS NOT NULL THEN now()
+            ELSE metadata_changed_at
+          END,
+          metadata_updated_at = CASE
+            WHEN (name IS DISTINCT FROM $/name/
+              OR image IS DISTINCT FROM $/image/
+              OR media IS DISTINCT FROM $/media/
+              OR description IS DISTINCT FROM $/description/
+              OR metadata IS DISTINCT FROM $/metadata:json/
+              OR decimals IS DISTINCT FROM $/decimals/) THEN now()
+            ELSE metadata_updated_at
+          END
         WHERE tokens.contract = $/contract/
-        AND tokens.token_id = $/tokenId/
+          AND tokens.token_id = $/tokenId/
         RETURNING collection_id, created_at, image, name, (
           SELECT
-          json_build_object(
-            'name', tokens.name,
-            'image', tokens.image,
-            'media', tokens.media
-          )
+            json_build_object(
+              'name', tokens.name,
+              'image', tokens.image,
+              'media', tokens.media
+            )
           FROM tokens
           WHERE tokens.contract = $/contract/
-          AND tokens.token_id = $/tokenId/
+            AND tokens.token_id = $/tokenId/
         ) AS old_metadata
       `,
       {
@@ -161,6 +171,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         description: description || null,
         image: imageUrl || null,
         tokenURI: tokenURI || null,
+        decimals: decimals || null,
         metadata:
           {
             original_metadata: originalMetadata || null,
@@ -253,10 +264,10 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         SELECT key, id, info
         FROM attribute_keys
         WHERE collection_id = $/collection/
-        AND key IN ('${_.join(
-          _.map(attributes, (a) => PgPromise.as.value(a.key)),
-          "','"
-        )}')
+          AND key IN ('${_.join(
+            _.map(attributes, (a) => PgPromise.as.value(a.key)),
+            "','"
+          )}')
       `,
       { collection }
     );
@@ -276,7 +287,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       ) {
         // If number type try to update range as well and return the ID
         const infoUpdate = `
-          CASE WHEN info IS NULL THEN 
+          CASE WHEN info IS NULL THEN
             jsonb_object(array['min_range', 'max_range'], array[$/value/, $/value/]::text[])
             ELSE
               info || jsonb_object(array['min_range', 'max_range'], array[
@@ -294,11 +305,11 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
         await idb.oneOrNone(
           `
-                UPDATE attribute_keys
-                SET info = ${infoUpdate}
-                WHERE collection_id = $/collection/
-                AND key = $/key/
-              `,
+            UPDATE attribute_keys
+            SET info = ${infoUpdate}
+            WHERE collection_id = $/collection/
+              AND key = $/key/
+          `,
           {
             collection,
             key: String(key),
@@ -354,11 +365,11 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       // Fetch the attribute from the database (will succeed in the common case)
       let attributeResult = await ridb.oneOrNone(
         `
-              SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
-              FROM attributes
-              WHERE attribute_key_id = $/attributeKeyId/
-              AND value = $/value/
-            `,
+          SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
+          FROM attributes
+          WHERE attribute_key_id = $/attributeKeyId/
+            AND value = $/value/
+        `,
         {
           attributeKeyId: attributeKeysIdsMap.get(key)?.id,
           value: String(value),
@@ -390,7 +401,6 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
               ON CONFLICT DO NOTHING
               RETURNING "id"
             )
-            
             UPDATE attribute_keys
             SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x")
             WHERE id = $/attributeKeyId/
@@ -423,32 +433,33 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           UPDATE attributes
           SET sample_images = array_prepend($/image/, sample_images)
           WHERE id = $/attributeId/
-          AND (sample_images IS NULL OR array_length(sample_images, 1) < 4)
-          AND array_position(sample_images, $/image/) IS NULL;`;
+            AND (sample_images IS NULL OR array_length(sample_images, 1) < 4)
+            AND array_position(sample_images, $/image/) IS NULL;
+        `;
       }
 
       // Associate the attribute with the token
       const tokenAttributeResult = await idb.oneOrNone(
         `
-              ${sampleImageUpdate}
-              INSERT INTO "token_attributes" (
-                "contract",
-                "token_id",
-                "attribute_id",
-                "collection_id",
-                "key",
-                "value"
-              ) VALUES (
-                $/contract/,
-                $/tokenId/,
-                $/attributeId/,
-                $/collection/,
-                $/key/,
-                $/value/
-              )
-              ON CONFLICT DO NOTHING
-              RETURNING key, value, attribute_id;
-            `,
+          ${sampleImageUpdate}
+          INSERT INTO "token_attributes" (
+            "contract",
+            "token_id",
+            "attribute_id",
+            "collection_id",
+            "key",
+            "value"
+          ) VALUES (
+            $/contract/,
+            $/tokenId/,
+            $/attributeId/,
+            $/collection/,
+            $/key/,
+            $/value/
+          )
+          ON CONFLICT DO NOTHING
+          RETURNING key, value, attribute_id;
+        `,
         {
           contract: toBuffer(contract),
           tokenId,
@@ -474,16 +485,20 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
 
     // Clear deleted token attributes
     const removedTokenAttributes = await idb.manyOrNone(
-      `WITH x AS (
-                    DELETE FROM token_attributes
-                    WHERE contract = $/contract/
-                    AND token_id = $/tokenId/
-                    ${attributeIdsFilter}
-                    RETURNING contract, token_id, attribute_id, collection_id, key, value, created_at
-                   )
-                   INSERT INTO removed_token_attributes SELECT * FROM x
-                   ON CONFLICT (contract,token_id,attribute_id) DO UPDATE SET deleted_at = now()
-                   RETURNING key, value, attribute_id;`,
+      `
+        WITH x AS (
+          DELETE FROM token_attributes
+          WHERE contract = $/contract/
+            AND token_id = $/tokenId/
+            ${attributeIdsFilter}
+          RETURNING contract, token_id, attribute_id, collection_id, key, value, created_at
+        )
+        INSERT INTO removed_token_attributes
+        SELECT * FROM x
+        ON CONFLICT (contract,token_id,attribute_id)
+          DO UPDATE SET deleted_at = now()
+        RETURNING key, value, attribute_id;
+      `,
       {
         contract: toBuffer(contract),
         tokenId,

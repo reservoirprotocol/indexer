@@ -5,7 +5,7 @@ import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import _ from "lodash";
 import pLimit from "p-limit";
 
-import { idb, pgp, redb } from "@/common/db";
+import { idb, pgp, ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { acquireLock, redis } from "@/common/redis";
@@ -396,7 +396,7 @@ export const save = async (
             schemaHash = generateSchemaHash(schema);
 
             // Fetch all tokens matching the attributes
-            const tokens = await redb.manyOrNone(
+            const tokens = await ridb.manyOrNone(
               `
                 SELECT token_attributes.token_id
                 FROM token_attributes
@@ -772,11 +772,11 @@ export const save = async (
         // Mark the order as being partial in order to force filling through the order-fetcher service
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (order.params as any).partial = true;
+      }
 
-        if (isOkx) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (order.params as any).okxOrderId = (orderParams as any).okxOrderId;
-        }
+      if (isOkx) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).okxOrderId = (orderParams as any).okxOrderId;
       }
 
       // Handle: off-chain cancellation via replacement
@@ -885,7 +885,7 @@ export const save = async (
   };
 
   // Process all orders concurrently
-  const limit = pLimit(20);
+  const limit = pLimit(15);
   await Promise.all(
     orderInfos.map((orderInfo) =>
       limit(async () =>
@@ -975,7 +975,7 @@ const getCollection = async (
   token_set_id: string | null;
 } | null> => {
   if (orderParams.kind === "single-token") {
-    return redb.oneOrNone(
+    return ridb.oneOrNone(
       `
         SELECT
           collections.id,
@@ -995,7 +995,7 @@ const getCollection = async (
       }
     );
   } else {
-    const collection = await redb.oneOrNone(
+    const collection = await ridb.oneOrNone(
       `
         SELECT
           collections.id,
@@ -1062,7 +1062,7 @@ const getCollectionFloorAskValue = async (
         LIMIT 1
       `;
 
-      const collection = await redb.oneOrNone(query, {
+      const collection = await ridb.oneOrNone(query, {
         contract: toBuffer(contract),
         tokenId,
       });

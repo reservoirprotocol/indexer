@@ -18,6 +18,7 @@ import {
   processCollectionEventJob,
 } from "@/jobs/elasticsearch/collections/process-collection-event-job";
 import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
+import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
   topicName = "indexer.public.collections";
@@ -63,8 +64,34 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       eventKind: WebsocketEventKind.CollectionEvent,
     });
 
+    const changed = [];
+
+    for (const key in payload.after) {
+      const beforeValue = payload.before[key];
+      const afterValue = payload.after[key];
+
+      if (beforeValue !== afterValue) {
+        changed.push(key);
+      }
+    }
+
     try {
-      const collectionKey = `collection-cache:v5:${payload.after.id}`;
+      // Update the elasticsearch activities collection cache
+      if (changed.some((value) => ["name", "image", "image_version"].includes(value))) {
+        await ActivitiesCollectionCache.refreshCollection(payload.after.id, payload.after);
+      }
+    } catch (error) {
+      logger.error(
+        "IndexerCollectionsHandler",
+        JSON.stringify({
+          message: `failed to update activities collection cache. collectionId=${payload.after.id}, error=${error}`,
+          error,
+        })
+      );
+    }
+
+    try {
+      const collectionKey = `collection-cache:v6:${payload.after.id}`;
 
       const cachedCollection = await redis.get(collectionKey);
 
@@ -111,14 +138,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
             : Sdk.Common.Addresses.Native[config.chainId],
           metadata: {
             ...JSON.parse(metadata),
-            sample_images: result?.sample_images || [],
           },
+          sample_images: result?.sample_images || [],
           on_sale_count: result.on_sale_count,
           normalized_floor_sell_currency_value: result.normalized_floor_sell_currency_value,
           floor_sell_currency_value: result.floor_sell_currency_value,
         };
 
-        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX");
+        await redis.set(collectionKey, JSON.stringify(updatedPayload), "XX", "KEEPTTL");
       }
 
       const isSpam = Number(payload.after.is_spam) > 0;
@@ -141,7 +168,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
       }
 
-      const spamStatusChanged = payload.before.is_spam !== payload.after.is_spam;
+      const spamStatusChanged = Boolean(payload.before.is_spam) !== Boolean(payload.after.is_spam);
 
       // Update the elasticsearch activities index
       if (spamStatusChanged) {

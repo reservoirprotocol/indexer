@@ -22,7 +22,7 @@ import * as royalties from "@/utils/royalties";
 
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
-import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
+// import { refreshActivitiesCollectionMetadataJob } from "@/jobs/elasticsearch/activities/refresh-activities-collection-metadata-job";
 import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-job";
 import {
   topBidCollectionJob,
@@ -252,38 +252,38 @@ export class Collections {
       isSpamContract: Number(isSpamContract),
     };
 
-    const result = await idb.oneOrNone(query, values);
+    await idb.oneOrNone(query, values);
 
-    try {
-      if (
-        result &&
-        (result?.old_metadata.name != collection.name ||
-          result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
-      ) {
-        logger.info(
-          "updateCollectionCache",
-          JSON.stringify({
-            topic: "debugActivitiesErrors",
-            message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
-            collectionId: collection.id,
-            collection,
-            result,
-          })
-        );
-
-        await refreshActivitiesCollectionMetadataJob.addToQueue({
-          collectionId: collection.id,
-          context: "updateCollectionCache",
-        });
-      }
-    } catch (error) {
-      logger.error(
-        "updateCollectionCache",
-        `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
-          collection
-        )}, result=${JSON.stringify(result)}`
-      );
-    }
+    // try {
+    //   if (
+    //     result &&
+    //     (result?.old_metadata.name != collection.name ||
+    //       result?.old_metadata.metadata?.imageUrl != (collection.metadata as any)?.imageUrl)
+    //   ) {
+    //     logger.info(
+    //       "updateCollectionCache",
+    //       JSON.stringify({
+    //         topic: "debugActivitiesErrors",
+    //         message: `refreshActivitiesCollectionMetadataJob. collectionId=${collection.id}, contract=${contract}, tokenId=${tokenId}, community=${community}`,
+    //         collectionId: collection.id,
+    //         collection,
+    //         result,
+    //       })
+    //     );
+    //
+    //     await refreshActivitiesCollectionMetadataJob.addToQueue({
+    //       collectionId: collection.id,
+    //       context: "updateCollectionCache",
+    //     });
+    //   }
+    // } catch (error) {
+    //   logger.error(
+    //     "updateCollectionCache",
+    //     `refreshActivitiesCollectionMetadataJobError. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+    //       collection
+    //     )}, result=${JSON.stringify(result)}`
+    //   );
+    // }
 
     if (collection.hasPerTokenRoyalties) {
       await royalties.clearRoyalties(collection.id);
