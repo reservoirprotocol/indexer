@@ -82,7 +82,13 @@ export class Assets {
           return Assets.signImage(resizeImageUrl, size, image_version, image_mime_type);
         }
       } catch (error) {
-        logger.error("getResizedImageUrl", `Error: ${error}`);
+        logger.error(
+          "getResizedImageUrl",
+          JSON.stringify({
+            message: `imageUrl=${imageUrl}, size=${size}, image_version=${image_version}, image_mime_type=${image_mime_type}, error=${error}`,
+            error,
+          })
+        );
       }
     }
 
