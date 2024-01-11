@@ -30,11 +30,11 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
-import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
 
-const version = "v8";
+const version = "v9";
 
-export const getUserTokensV8Options: RouteOptions = {
+export const getUserTokensV9Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 60000,
@@ -42,7 +42,7 @@ export const getUserTokensV8Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -565,8 +565,45 @@ export const getUserTokensV8Options: RouteOptions = {
           `;
     }
 
+    // Sorting
+    let sorting = "";
+    if (query.sortBy === "acquiredAt") {
+      sorting = `
+        ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+    } else {
+      sorting = `
+        ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+    }
+
+    // Continuation
+    let continuationFilter = "";
+    if (query.continuation) {
+      const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
+        query.continuation,
+        /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
+      );
+
+      (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
+      (query as any).collectionId = collectionId;
+      (query as any).tokenId = tokenId;
+      query.sortDirection = query.sortDirection || "desc";
+      if (query.sortBy === "acquiredAt") {
+        continuationFilter = ` AND (acquired_at, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`;
+      } else {
+        continuationFilter = `AND (last_token_appraisal_value, token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`;
+      }
+    }
+
     try {
-      let baseQuery = `
+      const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
                t.supply, t.remaining_supply, t.description,
@@ -609,13 +646,15 @@ export const getUserTokensV8Options: RouteOptions = {
                   : "TRUE"
               }
               AND amount > 0
+              ${continuationFilter}
+              ${sorting}
           ) AS b
           ${tokensJoin}
-          JOIN collections c ON c.id = t.collection_id ${
+          LEFT JOIN collections c ON c.id = t.collection_id ${
             query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
           }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
           LEFT JOIN orders o ON o.id = c.floor_sell_id
-          JOIN contracts con ON b.contract = con.address
+          LEFT JOIN contracts con ON b.contract = con.address
           LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
             SELECT 
               id 
@@ -635,54 +674,7 @@ export const getUserTokensV8Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
-
       `;
-
-      const conditions: string[] = [];
-
-      if (query.continuation) {
-        const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
-          query.continuation,
-          /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
-        );
-
-        (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
-        (query as any).collectionId = collectionId;
-        (query as any).tokenId = tokenId;
-        query.sortDirection = query.sortDirection || "desc";
-        if (query.sortBy === "acquiredAt") {
-          conditions.push(
-            `(acquired_at, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`
-          );
-        } else {
-          conditions.push(
-            `(last_token_appraisal_value, b.token_id) ${
-              query.sortDirection == "desc" ? "<" : ">"
-            } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`
-          );
-        }
-      }
-
-      if (conditions.length) {
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-      }
-
-      // Sorting
-      if (query.sortBy === "acquiredAt") {
-        baseQuery += `
-        ORDER BY
-          b.acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
-      } else {
-        baseQuery += `
-        ORDER BY
-          last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
-      }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
 
@@ -935,41 +927,4 @@ export const getUserTokensV8Options: RouteOptions = {
       throw error;
     }
   },
-};
-
-export const parseMetadata = (r: any, token_metadata: any) => {
-  const metadata: any = {};
-  if (token_metadata?.image_original_url) {
-    metadata.imageOriginal = token_metadata.image_original_url;
-  }
-
-  if (token_metadata?.animation_original_url) {
-    metadata.mediaOriginal = token_metadata.animation_original_url;
-  }
-
-  if (token_metadata?.image_mime_type) {
-    metadata.imageMimeType = token_metadata.image_mime_type;
-  }
-
-  if (token_metadata?.animation_mime_type) {
-    metadata.mediaMimeType = token_metadata.animation_mime_type;
-  }
-
-  if (token_metadata?.token_uri) {
-    metadata.tokenURI = token_metadata.metadata_original_url;
-  }
-
-  if (
-    !r.image &&
-    token_metadata?.image_original_url &&
-    token_metadata?.imageMimeType?.startsWith("image/")
-  ) {
-    r.image = onchainMetadataProvider.parseIPFSURI(token_metadata.image_original_url);
-  }
-
-  if (!r.media && token_metadata?.animation_original_url) {
-    r.media = onchainMetadataProvider.parseIPFSURI(token_metadata.animation_original_url);
-  }
-
-  return metadata;
 };
