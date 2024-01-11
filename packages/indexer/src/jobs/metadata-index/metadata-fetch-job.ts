@@ -47,6 +47,16 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
+    if (payload.data.collection === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. collection=${payload.data.collection}`,
+          payload,
+        })
+      );
+    }
+
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;

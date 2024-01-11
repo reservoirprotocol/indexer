@@ -119,6 +119,17 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       });
 
       if (tokensToProcess.length) {
+        for (const tokenToProcess of tokensToProcess) {
+          if (tokenToProcess.contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `tokenToProcess. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}`,
+                tokenToProcess,
+              })
+            );
+          }
+        }
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
