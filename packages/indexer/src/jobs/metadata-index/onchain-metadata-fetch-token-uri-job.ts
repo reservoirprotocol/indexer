@@ -125,7 +125,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
               this.queueName,
               JSON.stringify({
                 message: `tokenToProcess. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}`,
-                tokenToProcess,
+                tokenToProcess: JSON.stringify(tokenToProcess),
               })
             );
           }
