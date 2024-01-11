@@ -1451,7 +1451,12 @@ export const getTokensV6Options: RouteOptions = {
               metadata: Object.values(metadata).every((el) => el === undefined)
                 ? undefined
                 : metadata,
-              media: r.media,
+              media: Assets.getResizedImageUrl(
+                r.media,
+                undefined,
+                r.image_version,
+                r.media_mime_type
+              ),
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
@@ -1939,6 +1944,9 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             t.name,
             t.description,
             t.image,
+            t.image_version,
+            (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
+            (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
             t.metadata,
             t.media,
             t.collection_id,
@@ -2163,7 +2171,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             r.image_mime_type
           ),
           metadata: Object.values(metadata).every((el) => el === undefined) ? undefined : metadata,
-          media: r.media,
+          media: Assets.getResizedImageUrl(r.media, undefined, r.image_version, r.media_mime_type),
           kind: r.kind,
           isFlagged: Boolean(Number(r.is_flagged)),
           isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,

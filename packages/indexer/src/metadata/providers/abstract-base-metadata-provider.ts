@@ -13,6 +13,7 @@ import {
 } from "../extend";
 import { limitFieldSize } from "./utils";
 import fetch from "node-fetch";
+import { logger } from "@/common/logger";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -76,6 +77,17 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
+        if (metadata.contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+          logger.info(
+            "getTokensMetadata",
+            JSON.stringify({
+              message: `Start. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
+              metadata: JSON.stringify(metadata),
+              method: this.method,
+            })
+          );
+        }
+
         if (hasExtendHandler(metadata.contract)) {
           const result = await extendMetadata(metadata);
           return result;

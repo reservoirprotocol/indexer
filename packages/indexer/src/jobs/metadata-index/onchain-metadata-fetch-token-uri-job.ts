@@ -95,6 +95,16 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
 
       // Filter out tokens that have no metadata
       results.forEach((result) => {
+        if (result.contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `tokenToProcess. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}`,
+              result: JSON.stringify(result),
+            })
+          );
+        }
+
         if (result.uri) {
           tokensToProcess.push(result as { contract: string; tokenId: string; uri: string });
         } else {
@@ -119,6 +129,17 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       });
 
       if (tokensToProcess.length) {
+        for (const tokenToProcess of tokensToProcess) {
+          if (tokenToProcess.contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `tokenToProcess. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}`,
+                tokenToProcess: JSON.stringify(tokenToProcess),
+              })
+            );
+          }
+        }
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 

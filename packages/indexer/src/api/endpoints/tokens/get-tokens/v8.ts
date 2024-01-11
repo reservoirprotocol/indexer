@@ -1465,7 +1465,12 @@ export const getTokensV8Options: RouteOptions = {
               metadata: Object.values(metadata).every((el) => el === undefined)
                 ? undefined
                 : metadata,
-              media: r.media,
+              media: Assets.getResizedImageUrl(
+                r.media,
+                undefined,
+                r.image_version,
+                r.media_mime_type
+              ),
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,

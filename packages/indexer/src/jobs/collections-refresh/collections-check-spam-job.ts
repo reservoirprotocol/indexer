@@ -12,6 +12,7 @@ import { logger } from "@/common/logger";
 
 export type CollectionCheckSpamJobPayload = {
   collectionId: string;
+  trigger: "metadata-changed" | "transfer-burst";
 };
 
 export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
@@ -21,10 +22,20 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
   useSharedChannel = true;
 
   protected async process(payload: CollectionCheckSpamJobPayload) {
-    const { collectionId } = payload;
+    const { collectionId, trigger } = payload;
     const collection = await Collections.getById(collectionId, true);
 
     if (collection) {
+      // if the spam was manually set by a trusted partner, don't change it
+      if (collection.isSpam === 100 || collection.isSpam === -100) {
+        return;
+      }
+
+      // if the collection is verified and marked as not spam -> do nothing
+      if (collection.metadata?.safelistRequestStatus === "verified" && collection.isSpam <= 0) {
+        return;
+      }
+
       // if the collection is verified and marked as spam -> unspam the collection
       if (collection.metadata?.safelistRequestStatus === "verified" && collection.isSpam > 0) {
         await this.updateSpamStatus(collection.id, -1);
@@ -56,12 +67,40 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
         return;
       }
 
-      // Check by name and if not spam check by url
-      await this.checkNameFromList(collection);
+      if (trigger === "metadata-changed") {
+        // Check by name and if not spam check by url
+        await this.checkNameFromList(collection);
+        return;
 
-      // if (!(await this.checkName(collection))) {
-      //   await this.checkUrl(collection);
-      // }
+        // if (!(await this.checkName(collection))) {
+        //   await this.checkUrl(collection);
+        // }
+      }
+
+      if (trigger === "transfer-burst") {
+        // check if there is royalty in the collection
+        if (collection?.royalties?.length === 0) {
+          await this.updateSpamStatus(collection.id, 1);
+
+          logger.info(
+            this.queueName,
+            `collection ${collection.id} is spam by burst and no royalties`
+          );
+
+          // Track the change
+          await actionsLogJob.addToQueue([
+            {
+              context: ActionsLogContext.SpamCollectionUpdate,
+              origin: ActionsLogOrigin.TransferBurstSpamCheck,
+              actionTakerIdentifier: this.queueName,
+              collection: collection.id,
+              data: {
+                newSpamState: 1,
+              },
+            },
+          ]);
+        }
+      }
     }
   }
   public async checkNameFromList(collection: CollectionsEntity) {

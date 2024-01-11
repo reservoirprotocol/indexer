@@ -9,6 +9,7 @@ export enum ActionsLogOrigin {
   NameSpamCheck = "name-spam-check",
   UrlSpamCheck = "url-spam-check",
   MarkedAsVerified = "marked-as-verified",
+  TransferBurstSpamCheck = "transfer-burst-spam-check",
 }
 
 export enum ActionsLogContext {

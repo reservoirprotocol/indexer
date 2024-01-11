@@ -17,7 +17,6 @@ import {
   EventKind,
   processCollectionEventJob,
 } from "@/jobs/elasticsearch/collections/process-collection-event-job";
-import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 import { ActivitiesCollectionCache } from "@/models/activities-collection-cache";
 
 export class IndexerCollectionsHandler extends KafkaEventHandler {
@@ -47,7 +46,10 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       },
     ]);
 
-    await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
+    // await collectionCheckSpamJob.addToQueue({
+    //   collectionId: payload.after.id,
+    //   trigger: "metadata-changed",
+    // });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -165,7 +167,10 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
 
       // If the name/url/verification changed check for spam
       if (((nameChanged || urlChanged) && !isSpam) || (verificationChanged && isSpam)) {
-        await collectionCheckSpamJob.addToQueue({ collectionId: payload.after.id });
+        // await collectionCheckSpamJob.addToQueue({
+        //   collectionId: payload.after.id,
+        //   trigger: "metadata-changed",
+        // });
       }
 
       const spamStatusChanged = Boolean(payload.before.is_spam) !== Boolean(payload.after.is_spam);

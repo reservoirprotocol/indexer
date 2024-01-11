@@ -13,6 +13,7 @@ import { BaseEventParams } from "../parser";
 import { allEventsAddresses } from "../data";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { logger } from "@/common/logger";
+import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export type Event = {
   kind: ContractKind;
@@ -140,7 +141,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   }
 
   if (transferValues.length) {
-    const erc1155TransfersPerTx: Record<string, string[]> = {};
+    const erc1155TransfersPerTx: Record<
+      string,
+      {
+        to: string;
+        contract: string;
+      }[]
+    > = {};
     for (const event of transferValues) {
       const nftTransferQueries: string[] = [];
       const columns = new pgp.helpers.ColumnSet(
@@ -173,7 +180,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           erc1155TransfersPerTx[fromBuffer(event.tx_hash)] = [];
         }
 
-        erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push(fromBuffer(event.to));
+        erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push({
+          to: fromBuffer(event.to),
+          contract: fromBuffer(event.address),
+        });
       }
 
       // Atomically insert the transfer events and update balances
@@ -252,17 +262,23 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       }
     }
 
-    Object.keys(erc1155TransfersPerTx).forEach((txHash) => {
-      const erc1155Transfers = erc1155TransfersPerTx[txHash];
-      // find count of transfers where the recepient is a unique address, if its more than 100, then its a spam/airdrop
-      const uniqueRecepients = _.uniq(erc1155Transfers);
-      if (uniqueRecepients.length > 100) {
-        logger.info(
-          "airdrop-bulk-detection",
-          `txHash ${txHash} has ${erc1155TransfersPerTx[txHash].length} erc1155 transfer`
-        );
-      }
-    });
+    await Promise.all(
+      Object.keys(erc1155TransfersPerTx).map(async (txHash) => {
+        const erc1155Transfers = erc1155TransfersPerTx[txHash];
+        // find count of transfers where the recepient is a unique address, if its more than 100, then its a spam/airdrop
+        const uniqueRecepients = _.uniq(erc1155Transfers.map((t) => t.to));
+        if (uniqueRecepients.length > 100) {
+          logger.info(
+            "airdrop-bulk-detection",
+            `txHash ${txHash} has ${erc1155TransfersPerTx[txHash].length} erc1155 transfer`
+          );
+          await collectionCheckSpamJob.addToQueue({
+            collectionId: fromBuffer(transferValues[0].address),
+            trigger: "transfer-burst",
+          });
+        }
+      })
+    );
   }
 
   if (contractValues.length) {

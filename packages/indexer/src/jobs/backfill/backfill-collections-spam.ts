@@ -55,7 +55,10 @@ export class BackfillCollectionsSpamJob extends AbstractRabbitMqJobHandler {
       for (const result of results) {
         for (const spamName of config.spamNames) {
           if (_.includes(_.toLower(result.name), spamName)) {
-            await collectionCheckSpamJob.addToQueue({ collectionId: result.id });
+            await collectionCheckSpamJob.addToQueue({
+              collectionId: result.id,
+              trigger: "metadata-changed",
+            });
           }
         }
       }
