@@ -42,6 +42,7 @@ import * as superrareShared from "./superrare-shared";
 import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
 import * as zedRun from "./zed-run";
+import * as punks2023 from "./punks2023";
 import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
@@ -356,3 +357,6 @@ extend["80001,0xb8290f7a3ba474fe8e9179f419c1485c078e044b"] = zedRun;
 
 // Hape
 extend["1,0x4db1f25d3d98600140dfc18deb7515be5bd293af"] = hape;
+
+// punks2023
+extend["1,0x789e35a999c443fe6089544056f728239b8ffee7"] = punks2023;
