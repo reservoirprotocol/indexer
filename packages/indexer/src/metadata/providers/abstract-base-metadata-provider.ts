@@ -165,7 +165,7 @@ export abstract class AbstractBaseMetadataProvider {
           return res.headers.get("content-type") || "";
         })
         .catch((error) => {
-          logger.error(
+          logger.warn(
             "_getImageMimeType",
             JSON.stringify({
               topic: "debugMimeType",
