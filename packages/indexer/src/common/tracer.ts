@@ -29,7 +29,7 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("pg", {
-    enabled: config.chainId === 324,
+    enabled: false,
   });
 
   tracer.use("elasticsearch", {
