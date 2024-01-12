@@ -19,6 +19,7 @@ export interface AskDocument extends BaseDocument {
     media?: string;
     isFlagged: boolean;
     isSpam: boolean;
+    isNsfw: boolean;
     rarityRank?: number;
     attributes: {
       key: string;
@@ -89,6 +90,7 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   token_is_flagged?: number;
   token_rarity_rank?: number;
   token_is_spam?: number;
+  token_nsfw_status?: number;
   token_attributes?: {
     key: string;
     value: string;
@@ -96,6 +98,7 @@ export interface BuildAskDocumentData extends BuildDocumentData {
   collection_name?: string;
   collection_image?: string;
   collection_is_spam?: number;
+  collection_nsfw_status?: number;
   order_id?: string | null;
   order_valid_from: number;
   order_valid_until: number;
@@ -143,12 +146,14 @@ export class AskDocumentBuilder extends DocumentBuilder {
         isFlagged: Boolean(data.token_is_flagged || 0),
         rarityRank: data.token_rarity_rank,
         isSpam: Number(data.token_is_spam) > 0,
+        isNsfw: Number(data.token_nsfw_status) > 0,
       },
       collection: data.collection_id
         ? {
             id: data.collection_id,
             name: data.collection_name,
             isSpam: Number(data.collection_is_spam) > 0,
+            isNsfw: Number(data.collection_nsfw_status) > 0,
           }
         : undefined,
       order: {

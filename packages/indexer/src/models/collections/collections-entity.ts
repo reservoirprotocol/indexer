@@ -51,7 +51,7 @@ export type CollectionsEntityParams = {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
-  imageVersion: number;
+  image_version: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: Buffer;
@@ -116,7 +116,7 @@ export class CollectionsEntity {
     this.slug = params.slug;
     this.name = params.name;
     this.metadata = params.metadata;
-    this.imageVersion = params.imageVersion;
+    this.imageVersion = params.image_version;
     this.royalties = params.royalties ? params.royalties : [];
     this.community = params.community;
     this.contract = fromBuffer(params.contract);
