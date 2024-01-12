@@ -15,7 +15,7 @@ export class BackfillTransferSpamJob extends AbstractRabbitMqJobHandler {
   singleActiveConsumer = true;
 
   protected async process() {
-    const blocksPerBatch = 200;
+    const blocksPerBatch = 500;
     let blockRangeRedis = await redis.get(`${this.queueName}:blockRange`);
     if (!blockRangeRedis) {
       // query nft_transfer_events to find the first and last block number
