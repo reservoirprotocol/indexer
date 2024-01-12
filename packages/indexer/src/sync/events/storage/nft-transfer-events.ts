@@ -13,7 +13,6 @@ import { BaseEventParams } from "../parser";
 import { allEventsAddresses } from "../data";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { logger } from "@/common/logger";
-import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export type Event = {
   kind: ContractKind;
@@ -270,12 +269,14 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         if (uniqueRecepients.length > 100) {
           logger.info(
             "airdrop-bulk-detection",
-            `txHash ${txHash} has ${erc1155TransfersPerTx[txHash].length} erc1155 transfer`
+            `contract ${fromBuffer(transferValues[0].address)} | txHash ${txHash} has ${
+              erc1155TransfersPerTx[txHash].length
+            } erc1155 transfer`
           );
-          await collectionCheckSpamJob.addToQueue({
-            collectionId: fromBuffer(transferValues[0].address),
-            trigger: "transfer-burst",
-          });
+          // await collectionCheckSpamJob.addToQueue({
+          //   collectionId: fromBuffer(transferValues[0].address),
+          //   trigger: "transfer-burst",
+          // });
         }
       })
     );
