@@ -51,6 +51,7 @@ type Marketplace = {
       supportedBidCurrencies: string[];
       maxPriceRaw?: string;
       minPriceRaw?: string;
+      oracleEnabled: boolean;
     }
   >;
 };
@@ -130,6 +131,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   .allow(null),
                 maxPriceRaw: Joi.string().allow(null),
                 minPriceRaw: Joi.string().allow(null),
+                oracleEnabled: Joi.boolean(),
               })
             ),
         })
@@ -200,6 +202,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
               partialOrderSupported: false,
               traitBidSupported: false,
+              oracleEnabled: false,
             },
             seaport: {
               enabled: false,
@@ -209,6 +212,9 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
               partialOrderSupported: false,
               traitBidSupported: false,
+              oracleEnabled: Boolean(
+                Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+              ),
             },
           },
         });
@@ -231,6 +237,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
               partialOrderSupported: false,
               traitBidSupported: false,
+              oracleEnabled: false,
             },
           },
         });
@@ -263,6 +270,9 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
               partialOrderSupported: true,
               traitBidSupported: true,
+              oracleEnabled: Boolean(
+                Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+              ),
             },
             "payment-processor": {
               orderKind: "payment-processor",
@@ -277,6 +287,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   : Object.keys(ns.supportedBidCurrencies),
               partialOrderSupported: false,
               traitBidSupported: false,
+              oracleEnabled: false,
             },
             "payment-processor-v2": {
               orderKind: "payment-processor-v2",
@@ -291,6 +302,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   : Object.keys(ns.supportedBidCurrencies),
               partialOrderSupported: collectionResult.contract_kind === "erc1155" ? true : false,
               traitBidSupported: false,
+              oracleEnabled: true,
             },
           },
         });
@@ -340,6 +352,9 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               paymentTokens: collectionResult.payment_tokens?.opensea,
               partialOrderSupported: true,
               traitBidSupported: true,
+              oracleEnabled: Boolean(
+                Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+              ),
             },
           },
         });
@@ -376,6 +391,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                 supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
                 partialOrderSupported: true,
                 traitBidSupported: false,
+                oracleEnabled: false,
               },
             },
           });

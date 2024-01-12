@@ -42,6 +42,9 @@ if (config.chainId === 1 && config.doWebsocketWork && config.blurWsUrl && config
       } = JSON.parse(message);
 
       const collection = parsedMessage.contractAddress.toLowerCase();
+      if (collection === "0xc274a97f1691ef390f662067e95a6eff1f99b504") {
+        logger.info("debug", JSON.stringify(parsedMessage));
+      }
       const orderInfos = parsedMessage.tops.map((t) => ({
         kind: "blur-listing",
         info: {
