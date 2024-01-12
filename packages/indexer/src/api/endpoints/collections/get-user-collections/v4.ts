@@ -61,6 +61,9 @@ export const getUserCollectionsV4Options: RouteOptions = {
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as spam."),
+      excludeNsfw: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -172,28 +175,31 @@ export const getUserCollectionsV4Options: RouteOptions = {
     const query = request.query as any;
 
     let liquidCount = "";
-    let selectLiquidCount = "";
     if (query.includeLiquidCount) {
-      selectLiquidCount = "SUM(owner_liquid_count) AS owner_liquid_count,";
       liquidCount = `
         LEFT JOIN LATERAL (
-          SELECT 1 AS owner_liquid_count
-          FROM "orders" "o"
-          JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
-          WHERE "tst"."contract" = nb."contract"
-          AND "tst"."token_id" = nb."token_id"
-          AND "o"."side" = 'buy'
-          AND "o"."fillability_status" = 'fillable'
-          AND "o"."approval_status" = 'approved'
-          AND EXISTS(
-            SELECT FROM "nft_balances"
-            WHERE "nft_balances"."contract" = nb."contract"
-            AND "nft_balances"."token_id" = nb."token_id"
-            AND "nft_balances"."amount" > 0
-            AND "nft_balances"."owner" != "o"."maker"
-          )
-          LIMIT 1
-        ) "lc" ON TRUE
+          SELECT COUNT(*) AS owner_liquid_count
+          FROM nft_balances nb
+          JOIN LATERAL (
+            SELECT 1 AS owner_liquid_count
+            FROM "orders" "o"
+            JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+            AND "o"."side" = 'buy'
+            AND "o"."fillability_status" = 'fillable'
+            AND "o"."approval_status" = 'approved'
+            AND EXISTS(
+              SELECT FROM "nft_balances"
+              WHERE "nft_balances"."contract" = nb."contract"
+              AND "nft_balances"."token_id" = nb."token_id"
+              AND "nft_balances"."amount" > 0
+              AND "nft_balances"."owner" != "o"."maker"
+            )
+            LIMIT 1
+          ) "lc" ON TRUE
+        WHERE nb."owner" = $/user/
+        AND amount > 0
+        AND contract = x.contract
+        ) "lc" ON true
       `;
     }
 
@@ -251,7 +257,6 @@ export const getUserCollectionsV4Options: RouteOptions = {
           collections.day30_floor_sell_value,
           COALESCE(collections.floor_sell_value, 0) * uc.token_count AS owner_total_value,
           uc.token_count AS owner_token_count,
-          ${selectLiquidCount}
           ${selectOnSaleCount}
           (SELECT orders.currency FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency,                
           (SELECT orders.currency_price FROM orders WHERE orders.id = collections.floor_sell_id) AS floor_sell_currency_price,
@@ -268,7 +273,6 @@ export const getUserCollectionsV4Options: RouteOptions = {
         FROM user_collections uc
         JOIN collections ON uc.collection_id = collections.id
         ${onSaleCount}
-        ${liquidCount}
       `;
 
       // Filters
@@ -279,7 +283,11 @@ export const getUserCollectionsV4Options: RouteOptions = {
       conditions.push(`uc.token_count > 0`);
 
       if (query.excludeSpam) {
-        conditions.push(`uc.is_spam <= 0`);
+        conditions.push(`collections.is_spam IS NULL OR collections.is_spam <= 0`);
+      }
+
+      if (query.excludeNsfw) {
+        conditions.push(`collections.nsfw_status IS NULL OR collections.nsfw_status <= 0`);
       }
 
       if (query.community) {
@@ -338,6 +346,7 @@ export const getUserCollectionsV4Options: RouteOptions = {
         WITH x AS (${baseQuery})
         SELECT *
         FROM x
+        ${liquidCount}
         ${topBidQuery}
       `;
 

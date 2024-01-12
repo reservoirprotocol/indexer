@@ -265,19 +265,22 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       Object.keys(erc1155TransfersPerTx).map(async (txHash) => {
         const erc1155Transfers = erc1155TransfersPerTx[txHash];
         // find count of transfers where the recepient is a unique address, if its more than 100, then its a spam/airdrop
-        const uniqueRecepients = _.uniq(erc1155Transfers.map((t) => t.to));
-        if (uniqueRecepients.length > 100) {
-          logger.info(
-            "airdrop-bulk-detection",
-            `contract ${fromBuffer(transferValues[0].address)} | txHash ${txHash} has ${
-              erc1155TransfersPerTx[txHash].length
-            } erc1155 transfer`
+        const contracts = _.uniq(erc1155Transfers.map((t) => t.contract));
+        contracts.forEach(async (contract) => {
+          const uniqueRecepients = _.uniq(
+            erc1155Transfers.filter((t) => t.contract === contract).map((t) => t.to)
           );
-          // await collectionCheckSpamJob.addToQueue({
-          //   collectionId: fromBuffer(transferValues[0].address),
-          //   trigger: "transfer-burst",
-          // });
-        }
+          if (uniqueRecepients.length > 100) {
+            logger.info(
+              "backfill-airdrops",
+              `contract is burst spam: ${contract} | txHash: ${txHash}`
+            );
+            // await collectionCheckSpamJob.addToQueue({
+            //   collectionId: contract,
+            //   trigger: "transfer-burst",
+            // });
+          }
+        });
       })
     );
   }
