@@ -103,9 +103,33 @@ export abstract class AbstractBaseMetadataProvider {
       extendedMetadata.map(async (metadata) => {
         if (metadata.imageUrl) {
           metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
+
+          if (!metadata.imageMimeType) {
+            logger.warn(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "debugMimeType",
+                message: `Missing image mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageUrl=${metadata.imageUrl}`,
+                metadata: JSON.stringify(metadata),
+                method: this.method,
+              })
+            );
+          }
         }
         if (metadata.mediaUrl) {
           metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
+
+          if (!metadata.mediaMimeType) {
+            logger.warn(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "debugMimeType",
+                message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageUrl=${metadata.mediaUrl}`,
+                metadata: JSON.stringify(metadata),
+                method: this.method,
+              })
+            );
+          }
         }
 
         const imageMimeTypesPrefixes = ["image/", "application/octet-stream"];
@@ -122,16 +146,6 @@ export abstract class AbstractBaseMetadataProvider {
           metadata.imageUrl = null;
           metadata.imageMimeType = undefined;
           metadata.mediaMimeType = metadata.imageMimeType;
-
-          logger.info(
-            "getTokensMetadata",
-            JSON.stringify({
-              topic: "debugMimeType",
-              message: `Non image mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
-              metadata: JSON.stringify(metadata),
-              method: this.method,
-            })
-          );
         }
       })
     );
