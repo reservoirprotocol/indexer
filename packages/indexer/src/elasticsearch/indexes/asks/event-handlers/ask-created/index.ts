@@ -79,10 +79,12 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                         tokens.name AS "token_name",
                         tokens.is_flagged AS "token_is_flagged",
                         tokens.is_spam AS "token_is_spam",
+                        tokens.nsfw_status AS "token_nsfw_status",
                         tokens.rarity_rank AS "token_rarity_rank",
                         collections.id AS "collection_id", 
                         collections.name AS "collection_name", 
                         collections.is_spam AS "collection_is_spam",
+                        collections.nsfw_status AS "collection_nsfw_status",
                         (
                         SELECT 
                           array_agg(

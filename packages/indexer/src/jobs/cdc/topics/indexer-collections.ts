@@ -190,11 +190,11 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
           collectionId: payload.after.id,
           context: "spamStatusChanged",
         });
-      }
 
-      // Update the elasticsearch asks index
-      if (payload.after.floor_sell_id && spamStatusChanged) {
-        await refreshAsksCollectionJob.addToQueue(payload.after.id);
+        // Update the elasticsearch asks index
+        if (payload.after.floor_sell_id) {
+          await refreshAsksCollectionJob.addToQueue(payload.after.id);
+        }
       }
 
       // Update the elasticsearch collections index

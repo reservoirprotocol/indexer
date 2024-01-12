@@ -25,6 +25,7 @@ export const CONFIG_DEFAULT = {
           isFlagged: { type: "boolean" },
           rarityRank: { type: "integer" },
           isSpam: { type: "boolean" },
+          isNsfw: { type: "boolean" },
         },
       },
       collection: {
@@ -33,6 +34,7 @@ export const CONFIG_DEFAULT = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           isSpam: { type: "boolean" },
+          isNsfw: { type: "boolean" },
           imageVersion: { type: "date", format: "epoch_second" },
         },
       },

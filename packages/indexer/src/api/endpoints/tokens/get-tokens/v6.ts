@@ -221,6 +221,9 @@ export const getTokensV6Options: RouteOptions = {
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any tokens marked as spam."),
+      excludeNsfw: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any tokens marked as nsfw."),
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
@@ -747,6 +750,7 @@ export const getTokensV6Options: RouteOptions = {
           t.rarity_rank,
           t.is_flagged,
           t.is_spam AS t_is_spam,
+          t.nsfw_status AS t_nsfw_status,
           t.last_flag_update,
           t.last_flag_change,
           t.supply,
@@ -788,7 +792,7 @@ export const getTokensV6Options: RouteOptions = {
         ${mintStagesJoinQuery}
         JOIN collections c ON t.collection_id = c.id ${
           query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
-        }
+        }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         JOIN contracts con ON t.contract = con.address
       `;
 
@@ -848,6 +852,10 @@ export const getTokensV6Options: RouteOptions = {
 
       if (query.excludeSpam) {
         conditions.push(`(t.is_spam IS NULL OR t.is_spam <= 0)`);
+      }
+
+      if (query.excludeNsfw) {
+        conditions.push(`(t.nsfw_status IS NULL OR t.nsfw_status <= 0)`);
       }
 
       if (query.minRarityRank) {
@@ -1460,6 +1468,7 @@ export const getTokensV6Options: RouteOptions = {
               kind: r.kind,
               isFlagged: Boolean(Number(r.is_flagged)),
               isSpam: Number(r.t_is_spam) > 0 || Number(r.c_is_spam) > 0,
+              isNsfw: Number(r.t_nsfw_status) > 0 || Number(r.c_nsfw_status) > 0,
               metadataDisabled:
                 Boolean(Number(r.t_metadata_disabled)) || Boolean(Number(r.c_metadata_disabled)),
               lastFlagUpdate: r.last_flag_update
@@ -1750,6 +1759,10 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     query.spamTokens = { operation: "exclude" };
   }
 
+  if (query.excludeNsfw) {
+    query.nsfwTokens = { operation: "exclude" };
+  }
+
   const { asks, continuation } = await AsksIndex.searchTokenAsks({
     orderKinds: query.orderKinds,
     contracts: query.contract && !_.isArray(query.contract) ? [query.contract] : query.contract,
@@ -1759,6 +1772,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     floorAskPrice: { min: query.minFloorAskPrice, max: query.maxFloorAskPrice },
     flaggedTokens: query.flaggedTokens,
     spamTokens: query.spamTokens,
+    nsfwTokens: query.nsfwTokens,
     normalizeRoyalties: query.normalizeRoyalties,
     limit: query.limit,
     continuation: query.continuation,
@@ -1962,6 +1976,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
             t.last_flag_change,
             t.supply,
             t.remaining_supply,
+            t.decimals,
             t.metadata_disabled AS t_metadata_disabled,
             extract(epoch from t.updated_at) AS t_updated_at,
             c.slug,
