@@ -126,6 +126,7 @@ export abstract class AbstractBaseMetadataProvider {
           logger.info(
             "getTokensMetadata",
             JSON.stringify({
+              topic: "debugMimeType",
               message: `Non image mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
               metadata: JSON.stringify(metadata),
               method: this.method,
@@ -153,6 +154,7 @@ export abstract class AbstractBaseMetadataProvider {
           logger.error(
             "_getImageMimeType",
             JSON.stringify({
+              topic: "debugMimeType",
               message: `Error. url=${url}, error=${error}`,
               error,
             })
