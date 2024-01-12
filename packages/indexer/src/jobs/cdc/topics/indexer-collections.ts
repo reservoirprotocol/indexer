@@ -173,27 +173,36 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         // });
       }
 
-      const spamStatusChanged = Boolean(payload.before.is_spam) !== Boolean(payload.after.is_spam);
-
       // Update the elasticsearch activities index
-      if (spamStatusChanged) {
-        logger.info(
-          "cdc-indexer-collections",
-          JSON.stringify({
-            topic: "debugActivitiesErrors",
-            message: `spamStatusChanged. collectionId=${payload.after.id}, before=${payload.before.is_spam}, after=${payload.after.is_spam}`,
+      if (changed.some((value) => ["is_spam", "nfsw_status"].includes(value))) {
+        const beforeIsSpam = payload.before.is_spam <= 0 ? 0 : payload.before.is_spam;
+        const beforeNsfwStatus = payload.before.nfsw_status <= 0 ? 0 : payload.before.nfsw_status;
+
+        const spamStatusChanged = Boolean(beforeIsSpam) !== Boolean(payload.after.is_spam);
+        const nsfwStatusChanged = Boolean(beforeNsfwStatus) !== Boolean(payload.after.nfsw_status);
+
+        if (spamStatusChanged || nsfwStatusChanged) {
+          logger.info(
+            "cdc-indexer-collections",
+            JSON.stringify({
+              topic: "debugActivitiesErrors",
+              message: `change detected. collectionId=${payload.after.id}, before=${payload.before.is_spam}, after=${payload.after.is_spam}`,
+              collectionId: payload.after.id,
+              beforeIsSpam,
+              beforeNsfwStatus,
+              spamStatusChanged,
+              nsfwStatusChanged,
+            })
+          );
+
+          await refreshActivitiesCollectionMetadataJob.addToQueue({
             collectionId: payload.after.id,
-          })
-        );
+          });
 
-        await refreshActivitiesCollectionMetadataJob.addToQueue({
-          collectionId: payload.after.id,
-          context: "spamStatusChanged",
-        });
-
-        // Update the elasticsearch asks index
-        if (payload.after.floor_sell_id) {
-          await refreshAsksCollectionJob.addToQueue(payload.after.id);
+          // Update the elasticsearch asks index
+          if (payload.after.floor_sell_id) {
+            await refreshAsksCollectionJob.addToQueue(payload.after.id);
+          }
         }
       }
 
