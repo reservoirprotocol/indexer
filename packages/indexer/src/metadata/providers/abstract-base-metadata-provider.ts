@@ -116,6 +116,7 @@ export abstract class AbstractBaseMetadataProvider {
             );
           }
         }
+
         if (metadata.mediaUrl && !metadata.mediaUrl.startsWith("data:")) {
           metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
 
@@ -143,9 +144,9 @@ export abstract class AbstractBaseMetadataProvider {
           )
         ) {
           metadata.mediaUrl = metadata.imageUrl;
+          metadata.mediaMimeType = metadata.imageMimeType;
           metadata.imageUrl = null;
           metadata.imageMimeType = undefined;
-          metadata.mediaMimeType = metadata.imageMimeType;
         }
       })
     );
