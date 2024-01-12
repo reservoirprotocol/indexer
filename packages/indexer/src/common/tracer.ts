@@ -33,7 +33,7 @@ if (process.env.DATADOG_AGENT_URL) {
   });
 
   tracer.use("elasticsearch", {
-    enabled: false,
+    enabled: true,
   });
 
   tracer.use("fetch", {
