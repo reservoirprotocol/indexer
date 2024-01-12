@@ -287,6 +287,7 @@ export const getTokensV6Options: RouteOptions = {
             kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             isSpam: Joi.boolean().default(false),
+            isNsfw: Joi.boolean().default(false),
             metadataDisabled: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
