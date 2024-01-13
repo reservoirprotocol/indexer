@@ -2007,7 +2007,9 @@ export const updateActivitiesCollectionData = async (
             must_not: [
               {
                 term: {
-                  "collection.imageVersion": collectionData.imageVersion,
+                  "collection.imageVersion": Math.floor(
+                    new Date(collectionData.imageVersion).getTime() / 1000
+                  ),
                 },
               },
             ],
