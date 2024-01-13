@@ -261,12 +261,14 @@ export const getUserTokensV9Options: RouteOptions = {
 
     const tokensCollectionFilters: string[] = [];
     const nftBalanceCollectionFilters: string[] = [];
+    let sharedContract = false;
 
     const addCollectionToFilter = (id: string) => {
       const i = nftBalanceCollectionFilters.length;
 
       if (id.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
         // Range based collection
+        sharedContract = true;
         const [contract, startTokenId, endTokenId] = id.split(":");
 
         (query as any)[`contract${i}`] = toBuffer(contract);
@@ -279,19 +281,20 @@ export const getUserTokensV9Options: RouteOptions = {
           AND nft_balances.token_id <= $/endTokenId${i}/)
         `);
       } else if (id.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
+        // List based collections
+        sharedContract = true;
         const collectionParts = id.split(":");
 
         (query as any)[`collection${i}`] = id;
         (query as any)[`contract${i}`] = toBuffer(collectionParts[0]);
 
-        // List based collections
         tokensCollectionFilters.push(`
           collection_id = $/collection${i}/
         `);
 
         nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
       } else {
-        // Contract side collection
+        // Contract wide collection
         (query as any)[`contract${i}`] = toBuffer(id);
         (query as any)[`collection${i}`] = id;
 
@@ -647,12 +650,14 @@ export const getUserTokensV9Options: RouteOptions = {
               }
               AND amount > 0
               ${continuationFilter}
-              ${sorting}
+              ${sharedContract || query.excludeSpam || query.excludeNsfw ? "" : sorting}
           ) AS b
           ${tokensJoin}
-          LEFT JOIN collections c ON c.id = t.collection_id ${
-            query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
-          }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
+          ${
+            sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
+          }JOIN collections c ON c.id = t.collection_id ${
+        query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
+      }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN contracts con ON b.contract = con.address
           LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
@@ -674,6 +679,7 @@ export const getUserTokensV9Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
+          ${sharedContract || query.excludeSpam || query.excludeNsfw ? sorting : ""}
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });

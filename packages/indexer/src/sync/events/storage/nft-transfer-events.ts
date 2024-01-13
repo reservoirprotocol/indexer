@@ -13,6 +13,7 @@ import { BaseEventParams } from "../parser";
 import { allEventsAddresses } from "../data";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { logger } from "@/common/logger";
+import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 
 export type Event = {
   kind: ContractKind;
@@ -275,10 +276,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
               "backfill-airdrops",
               `contract is burst spam: ${contract} | txHash: ${txHash}`
             );
-            // await collectionCheckSpamJob.addToQueue({
-            //   collectionId: contract,
-            //   trigger: "transfer-burst",
-            // });
+            await collectionCheckSpamJob.addToQueue({
+              collectionId: contract,
+              trigger: "transfer-burst",
+            });
           }
         });
       })
