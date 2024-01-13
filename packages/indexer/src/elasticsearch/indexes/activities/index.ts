@@ -1918,10 +1918,7 @@ export const updateActivitiesToken = async (
 };
 
 export type ActivitiesCollectionUpdateData = {
-  name: string | null;
-  image: string | null;
   isSpam: number;
-  imageVersion: number | null;
 };
 
 export const updateActivitiesCollectionData = async (
@@ -1958,71 +1955,6 @@ export const updateActivitiesCollectionData = async (
                 },
               ],
             },
-    },
-    {
-      bool: collectionData.name
-        ? {
-            must_not: [
-              {
-                term: {
-                  "collection.name": collectionData.name,
-                },
-              },
-            ],
-          }
-        : {
-            must: [
-              {
-                exists: {
-                  field: "collection.name",
-                },
-              },
-            ],
-          },
-    },
-    {
-      bool: collectionData.image
-        ? {
-            must_not: [
-              {
-                term: {
-                  "collection.image": collectionData.image,
-                },
-              },
-            ],
-          }
-        : {
-            must: [
-              {
-                exists: {
-                  field: "collection.image",
-                },
-              },
-            ],
-          },
-    },
-    {
-      bool: collectionData.imageVersion
-        ? {
-            must_not: [
-              {
-                term: {
-                  "collection.imageVersion": Math.floor(
-                    new Date(collectionData.imageVersion).getTime() / 1000
-                  ),
-                },
-              },
-            ],
-          }
-        : {
-            must: [
-              {
-                exists: {
-                  field: "collection.imageVersion",
-                },
-              },
-            ],
-          },
     },
   ];
 
@@ -2067,13 +1999,9 @@ export const updateActivitiesCollectionData = async (
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
-              source:
-                "if (params.collection_name == null) { ctx._source.collection.remove('name') } else { ctx._source.collection.name = params.collection_name } if (params.collection_image == null) { ctx._source.collection.remove('image') } else { ctx._source.collection.image = params.collection_image } ctx._source.collection.isSpam = params.is_spam; if (params.image_version != null) { ctx._source.collection.imageVersion = params.image_version }",
+              source: "ctx._source.collection.isSpam = params.is_spam;",
               params: {
-                collection_name: collectionData.name ?? null,
-                collection_image: collectionData.image ?? null,
                 is_spam: collectionData.isSpam > 0,
-                image_version: collectionData.imageVersion ?? null,
               },
             },
           },
