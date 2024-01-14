@@ -15,6 +15,20 @@ import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as registry from "@/utils/royalties/registry";
 
+export const getConduitKeyWithDefault = (conduitKey?: string) => {
+  // Priority of conduits:
+  // - requested conduit
+  // - opensea conduit
+  // - reservoir conduit
+  // - no conduit (exchange address)
+  return (
+    conduitKey ??
+    Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
+    Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId] ??
+    HashZero
+  );
+};
+
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
   collection: string,
@@ -41,17 +55,7 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
-
-  // Priority of conduits:
-  // - requested conduit
-  // - opensea conduit
-  // - reservoir conduit
-  // - no conduit (exchange address)
-  const conduitKey =
-    options.conduitKey ??
-    Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
-    Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId] ??
-    HashZero;
+  const conduitKey = getConduitKeyWithDefault(options.conduitKey);
 
   // LooksRare requires their source in the salt
   if (options.orderbook === "looks-rare") {

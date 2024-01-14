@@ -38,6 +38,7 @@ import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import { fillErrorCallback, getExecuteError } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
+import { getConduitKeyWithDefault } from "@/orderbook/orders/seaport-v1.5/build/utils";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import * as e from "@/utils/auth/erc721c";
@@ -198,6 +199,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .optional()
         .description("Referrer address (where supported)"),
       comment: Joi.string().optional().description("Mint comment (where suported)"),
+      conduitKey: Joi.string()
+        .lowercase()
+        .optional()
+        .pattern(regex.bytes32)
+        .description("Conduit key to use to fulfill the order"),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
       openseaApiKey: Joi.string().description(
@@ -359,6 +365,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
       if (payload.source) {
         await sources.getOrInsert(payload.source);
       }
+
+      const conduitKey = getConduitKeyWithDefault(payload.conduitKey);
 
       // First pass at estimating the gas costs
       const txTags = initializeTxTags();
@@ -1760,7 +1768,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           endTime: Math.floor(Date.now() / 1000) + 5 * 60,
           zoneHash: HashZero,
           salt: getRandomBytes(20).toString(),
-          conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
+          conduitKey,
           counter: (
             await new Sdk.SeaportV15.Exchange(config.chainId).getCounter(
               baseProvider,
@@ -1819,7 +1827,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         // Check allowance
         const operator = new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+          conduitKey
         );
         const approvedAmount = await onChainData
           .fetchAndUpdateFtApproval(currency.contract.address, order.params.offerer, operator)
@@ -2198,6 +2206,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           usePermit: payload.usePermit,
           swapProvider: payload.swapProvider,
           blurAuth,
+          conduitKey,
           onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
