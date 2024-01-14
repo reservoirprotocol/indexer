@@ -18,8 +18,6 @@ export default class RefreshAsksCollectionJob extends AbstractRabbitMqJobHandler
   lazyMode = true;
 
   protected async process(payload: RefreshAsksCollectionJobPayload) {
-    return;
-
     let addToQueue = false;
 
     const { collectionId } = payload;

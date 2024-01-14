@@ -24,8 +24,6 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
   lazyMode = true;
 
   protected async process(payload: ProcessAskEventJobPayload) {
-    return;
-
     const { kind, data } = payload;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
