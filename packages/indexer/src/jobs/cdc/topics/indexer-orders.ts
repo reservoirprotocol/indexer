@@ -57,12 +57,12 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       );
 
       if (afterStatus === "active") {
-        // await processAskEventJob.addToQueue([
-        //   {
-        //     kind: EventKind.newSellOrder,
-        //     data: payload.after,
-        //   },
-        // ]);
+        await processAskEventJob.addToQueue([
+          {
+            kind: EventKind.newSellOrder,
+            data: payload.after,
+          },
+        ]);
       }
     }
   }
@@ -118,12 +118,12 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             },
           ]);
         } else if (beforeStatus === "active") {
-          // await processAskEventJob.addToQueue([
-          //   {
-          //     kind: EventKind.SellOrderInactive,
-          //     data: payload.after,
-          //   },
-          // ]);
+          await processAskEventJob.addToQueue([
+            {
+              kind: EventKind.SellOrderInactive,
+              data: payload.after,
+            },
+          ]);
         }
       } catch (error) {
         logger.error(
