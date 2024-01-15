@@ -16,8 +16,8 @@ export class ContractWideBuilder extends BaseBuilder {
   public getInfo(order: IOrder): BaseOrderInfo | undefined {
     try {
       const { side, isDynamic } = this.getBaseInfo(order);
-
       const offerItem = order.params.offer[0];
+
       if (side === "buy") {
         if (isDynamic) {
           throw new Error("Dynamic buy orders are not supported");

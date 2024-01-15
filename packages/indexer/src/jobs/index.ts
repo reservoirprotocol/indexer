@@ -181,6 +181,7 @@ import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
 import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
 import { backfillNftBalancesDatesJob } from "@/jobs/backfill/backfill-nft-balances-dates";
+import { pendingTxsJob } from "@/jobs/pending-txs/pending-txs-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -346,6 +347,7 @@ export class RabbitMqJobsConsumer {
       collectionCheckSpamJob,
       backfillFtTransferEventsDatesJob,
       backfillNftBalancesDatesJob,
+      pendingTxsJob,
     ];
   }
 
