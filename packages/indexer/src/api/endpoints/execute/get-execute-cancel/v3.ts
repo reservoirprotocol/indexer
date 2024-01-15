@@ -81,7 +81,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
-    const steps: {
+    let steps: {
       id: string;
       action: string;
       description: string;
@@ -176,6 +176,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
           ...gasSettings,
         },
       });
+
+      // Filter out empty steps
+      steps = steps.filter((s) => s.items.length);
 
       return { steps };
     }
@@ -373,7 +376,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         }
 
         // Onchain cancellations
-        if (data.onchainCancellable) {
+        if (data.onchainCancellable.length) {
           const cancelTxs: TxData[] = [];
 
           // The assumption is that the orders all have the same maker
@@ -564,6 +567,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
           }
         }
       }
+
+      // Filter out empty steps
+      steps = steps.filter((s) => s.items.length);
 
       return {
         steps,
