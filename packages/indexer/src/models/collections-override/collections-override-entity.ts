@@ -8,7 +8,6 @@ export type CollectionsOverrideMetadata = {
   discordUrl?: string | null;
   externalUrl?: string | null;
   bannerImageUrl?: string | null;
-  creator?: string | null;
 };
 
 export type CollectionsOverrideRoyalties = {
