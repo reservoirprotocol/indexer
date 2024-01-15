@@ -168,8 +168,10 @@ export const start = async (): Promise<void> => {
       }
 
       if (
-        request.headers["x-admin-api-key"] &&
-        request.headers["x-admin-api-key"] === config.adminApiKey
+        (request.headers["x-admin-api-key"] &&
+          request.headers["x-admin-api-key"] === config.adminApiKey) ||
+        (request.headers["x-api-key"] &&
+          request.headers["x-api-key"] === config.adminApiKey)
       ) {
         return reply.continue;
       }
