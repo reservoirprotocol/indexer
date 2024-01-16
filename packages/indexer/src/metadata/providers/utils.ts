@@ -8,7 +8,7 @@ export const normalizeLink = (link: string) => {
   }
 
   if (link && link === "null") {
-    return null;
+    return "";
   }
 
   return link;
