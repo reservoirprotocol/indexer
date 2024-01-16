@@ -7,6 +7,10 @@ export const normalizeLink = (link: string) => {
     return `https://ipfs.io/ipfs/${link.slice(7)}`;
   }
 
+  if (link && link === "null") {
+    return null;
+  }
+
   return link;
 };
 
