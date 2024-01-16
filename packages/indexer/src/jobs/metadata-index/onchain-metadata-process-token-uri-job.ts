@@ -83,7 +83,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
 
         // if missing imageMimeType/mediaMimeTyp, we fallback to simplehash
-        if (!metadata[0].imageMimeType || !metadata[0].mediaMimeType) {
+        if (
+          (metadata[0].imageUrl && !metadata[0].imageMimeType) ||
+          (metadata[0].mediaUrl && !metadata[0].mediaMimeType)
+        ) {
           if (config.fallbackMetadataIndexingMethod) {
             logger.info(
               this.queueName,
@@ -91,6 +94,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                 topic: "simpleHashFallbackDebug",
                 message: `Fallback - Missing Mime Type. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
                 contract,
+                metadata: JSON.stringify(metadata[0]),
                 reason: "Missing Mime Type",
               })
             );

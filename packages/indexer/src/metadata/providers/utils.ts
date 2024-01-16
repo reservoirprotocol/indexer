@@ -7,7 +7,19 @@ export const normalizeLink = (link: string) => {
     return `https://ipfs.io/ipfs/${link.slice(7)}`;
   }
 
+  if (link && link.startsWith("ipfs/")) {
+    return `https://ipfs.io/ipfs/${link.slice(5)}`;
+  }
+
   if (link && link === "null") {
+    return "";
+  }
+
+  if (link && link.startsWith("/")) {
+    return "";
+  }
+
+  if (link && link.startsWith("''/")) {
     return "";
   }
 
