@@ -10,28 +10,21 @@ on:
 run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
 
 jobs:
-  release-13337-reservoir-main:
+  release:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nodes:
+          - 13337-reservoir-main
+          - 13337-reservoir-read-01
+          - zkevm-testnet-reservoir-main
+          - zkevm-testnet-reservoir-read-01
+          - beam-reservoir-test-acceu
+          - beam-reservoir-test-acceu-readonly
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
-        with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
-          ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l 13337-reservoir-main
 
-  release-13337-reservoir-read-01:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
       - name: Reload reservoir processes on all nodes
         uses: ./.github/actions/remote-commands
         with:
@@ -40,68 +33,4 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
           ssh-port: ${{ secrets.SSH_PORT }}
           ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l 13337-reservoir-read-01
-
-  release-zkevm-testnet-reservoir-main:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
-        with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
-          ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l zkevm-testnet-reservoir-main
-
-  release-zkevm-testnet-reservoir-read-01:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
-        with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
-          ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l zkevm-testnet-reservoir-read-01
-
-  release-beam-reservoir-test-acceu:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
-        with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
-          ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l beam-reservoir-test-acceu
-
-  release-beam-reservoir-test-acceu-readonly:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
-        with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
-          ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l beam-reservoir-test-acceu-readonly
+            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l ${{ matrix.nodes }}
