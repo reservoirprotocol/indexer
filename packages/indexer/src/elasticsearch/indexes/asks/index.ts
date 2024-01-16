@@ -379,6 +379,7 @@ export const searchTokenAsks = async (params: {
 
   try {
     const from = params.continuation ? Number(splitContinuation(params.continuation)[0]) : 0;
+    const order = params.sortDirection ?? "asc";
 
     const esSearchParams = {
       index: INDEX_NAME,
@@ -387,22 +388,22 @@ export const searchTokenAsks = async (params: {
         params.normalizeRoyalties
           ? {
               "order.pricing.normalizedValueDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             }
           : {
               "order.pricing.priceDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             },
         {
           contract: {
-            order: params.sortDirection ?? "asc",
+            order,
           },
         },
         {
           "token.id": {
-            order: params.sortDirection ?? "asc",
+            order,
           },
         },
       ],
@@ -416,6 +417,30 @@ export const searchTokenAsks = async (params: {
     const esResult = await elasticsearch.search<AskDocument>(esSearchParams);
 
     const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
+
+    asks.sort((a, b) => {
+      let retVal = 0;
+      const sortDirectionMultiplier = order === "asc" ? 1 : -1;
+
+      if (
+        params.normalizeRoyalties &&
+        a.order.pricing.normalizedValueDecimal !== b.order.pricing.normalizedValueDecimal
+      ) {
+        return retVal;
+      }
+
+      if (a.order.pricing.priceDecimal !== b.order.pricing.priceDecimal) {
+        return retVal;
+      }
+
+      if (a.contract !== b.contract) {
+        retVal = a.contract > b.contract ? 1 : -1;
+      }
+
+      retVal = Number(a.token.id) > Number(b.token.id) ? 1 : -1;
+
+      return retVal * sortDirectionMultiplier;
+    });
 
     logger.info(
       "elasticsearch-asks",

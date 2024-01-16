@@ -76,6 +76,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               true,
               5
             );
+
             return;
           } else {
             metadata[0].imageUrl = null;
@@ -99,23 +100,23 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               })
             );
 
-            // await metadataIndexFetchJob.addToQueue(
-            //     [
-            //       {
-            //         kind: "single-token",
-            //         data: {
-            //           method: config.fallbackMetadataIndexingMethod,
-            //           contract,
-            //           tokenId,
-            //           collection: contract,
-            //         },
-            //       },
-            //     ],
-            //     true,
-            //     5
-            // );
-            //
-            // return;
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.fallbackMetadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: contract,
+                  },
+                },
+              ],
+              true,
+              5
+            );
+
+            return;
           }
         }
 
@@ -150,6 +151,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               true,
               5
             );
+
             return;
           }
         }
