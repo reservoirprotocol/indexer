@@ -80,6 +80,7 @@ export const CONFIG_DEFAULT = {
           fillSourceId: { type: "integer" },
           washTradingScore: { type: "double" },
           collectionIsMinting: { type: "boolean" },
+          isAirdrop: { type: "boolean" },
         },
       },
       pricing: {
