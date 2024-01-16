@@ -46,7 +46,7 @@ export interface ActivityDocument extends BaseDocument {
     fillSourceId?: number;
     washTradingScore: number;
     collectionIsMinting: boolean;
-    transferIsAirdrop: boolean;
+    transferIsAirdrop?: boolean;
   };
   token?: {
     id: string;
@@ -192,7 +192,9 @@ export class ActivityBuilder extends DocumentBuilder {
             fillSourceId: data.event_fill_source_id,
             washTradingScore: data.event_wash_trading_score,
             collectionIsMinting: data.event_collection_is_minting,
-            transferIsAirdrop: data.event_transfer_kind === "airdrop",
+            transferIsAirdrop: data.event_transfer_kind
+              ? data.event_transfer_kind === "airdrop"
+              : undefined,
           }
         : undefined,
       token: data.token_id
