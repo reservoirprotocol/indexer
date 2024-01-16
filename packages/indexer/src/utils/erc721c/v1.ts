@@ -175,6 +175,7 @@ export const refreshOperatorWhitelist = async (transferValidator: string, id: st
     `,
     {
       transferValidator: toBuffer(transferValidator),
+      id,
     }
   );
 
