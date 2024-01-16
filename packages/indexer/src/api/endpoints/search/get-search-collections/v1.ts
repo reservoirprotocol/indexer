@@ -78,11 +78,11 @@ export const getSearchCollectionsV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
     let whereClause = "";
-    const conditions: string[] = [`token_count > 0`];
+    const conditions: string[] = [`collections.token_count > 0`];
 
     if (query.name) {
       query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      conditions.push(`collections.name ILIKE $/name/`);
     }
 
     if (query.community) {
