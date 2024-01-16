@@ -114,8 +114,8 @@ export const getSearchCollectionsV1Options: RouteOptions = {
               collections.metadata_disabled,
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status
             FROM collections
+            LEFT JOIN collections_override ON collections.id = collections_override.collection_id
             ${whereClause}
-            LEFT JOIN collections_override ON collections.collection_id = collections_override.collection_id
             ORDER BY collections.all_time_volume DESC
             OFFSET $/offset/
             LIMIT $/limit/`;
