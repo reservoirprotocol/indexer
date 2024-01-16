@@ -125,7 +125,7 @@ export abstract class AbstractBaseMetadataProvider {
               "getTokensMetadata",
               JSON.stringify({
                 topic: "debugMimeType",
-                message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageUrl=${metadata.mediaUrl}`,
+                message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
                 metadata: JSON.stringify(metadata),
                 method: this.method,
               })

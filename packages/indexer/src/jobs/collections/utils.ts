@@ -60,7 +60,7 @@ export async function getContractNameAndSymbol(contractAddress: string) {
     const [name, symbol] = await Promise.all([contract.name(), contract.symbol()]);
     return { name, symbol };
   } catch (error) {
-    logger.error(
+    logger.warn(
       "onchain-fetcher",
       `getContractName error. contractAddress:${contractAddress}, error:${error}`
     );
@@ -83,7 +83,7 @@ export async function getContractOwner(contractAddress: string) {
     const owner = await contract.owner();
     return owner;
   } catch (error) {
-    logger.error(
+    logger.warn(
       "onchain-fetcher",
       `getContractOwner error. contractAddress:${contractAddress}, error:${error}`
     );
@@ -103,7 +103,7 @@ export async function getContractDeployer(contractAddress: string) {
     const deployer = await contract.getDeployer();
     return deployer;
   } catch (error) {
-    logger.error(
+    logger.warn(
       "onchain-fetcher",
       `getContractDeployer error. contractAddress:${contractAddress}, error:${error}`
     );

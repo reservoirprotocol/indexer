@@ -283,7 +283,7 @@ export const getUserCollectionsV4Options: RouteOptions = {
       conditions.push(`uc.token_count > 0`);
 
       if (query.excludeSpam) {
-        conditions.push(`collections.is_spam IS NULL OR collections.is_spam <= 0`);
+        conditions.push(`uc.is_spam <= 0`);
       }
 
       if (query.excludeNsfw) {

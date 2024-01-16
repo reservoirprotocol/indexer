@@ -39,7 +39,7 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
     let cursor = "";
 
     if (owner) {
-      cursor = `AND (owner, acquired_at) > ($/owner/, $/acquiredAt/)`;
+      cursor = `AND (owner, acquired_at) < ($/owner/, $/acquiredAt/)`;
       values.owner = toBuffer(owner);
       values.acquiredAt = acquiredAt;
     }
@@ -57,7 +57,7 @@ export class BackfillUserCollectionsJob extends AbstractRabbitMqJobHandler {
         WHERE nb.owner NOT IN ($/AddressZero/, $/deadAddress/)
         AND amount > 0
         ${cursor}
-        ORDER BY nb.owner, acquired_at
+        ORDER BY nb.owner DESC, acquired_at DESC
         LIMIT $/limit/
         `,
       values

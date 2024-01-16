@@ -38,7 +38,6 @@ import {
   ActionsLogOrigin,
   actionsLogJob,
 } from "@/jobs/general-tracking/actions-log-job";
-import { updateUserCollectionsSpamJob } from "@/jobs/nft-balance-updates/update-user-collections-spam-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -543,10 +542,6 @@ export class Collections {
     );
 
     if (updateResult) {
-      for (const collectionId of collectionIds) {
-        await updateUserCollectionsSpamJob.addToQueue({ collectionId, newSpamState });
-      }
-
       // Track the change
       await actionsLogJob.addToQueue(
         updateResult.map((res) => ({

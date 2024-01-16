@@ -1178,24 +1178,26 @@ export const initIndex = async (): Promise<void> => {
 
       const getIndexResponse = await elasticsearch.indices.get({ index: INDEX_NAME });
 
-      const indexName = Object.keys(getIndexResponse)[0];
+      const indexNames = Object.keys(getIndexResponse);
 
-      const putMappingResponse = await elasticsearch.indices.putMapping({
-        index: indexName,
-        properties: indexConfig.mappings.properties,
-      });
+      for (const indexName of indexNames) {
+        const putMappingResponse = await elasticsearch.indices.putMapping({
+          index: indexName,
+          properties: indexConfig.mappings.properties,
+        });
 
-      logger.info(
-        "elasticsearch-activities",
-        JSON.stringify({
-          topic: "initIndex",
-          message: "Updated mappings.",
-          indexName: INDEX_NAME,
-          indexConfig,
-          indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
-          putMappingResponse,
-        })
-      );
+        logger.info(
+          "elasticsearch-activities",
+          JSON.stringify({
+            topic: "initIndex",
+            message: `Updated mappings. indexName=${indexName}`,
+            indexName: INDEX_NAME,
+            indexConfig,
+            indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
+            putMappingResponse,
+          })
+        );
+      }
     } else {
       logger.info(
         "elasticsearch-activities",

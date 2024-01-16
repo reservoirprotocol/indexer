@@ -35,10 +35,6 @@ import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
 const version = "v9";
 
 export const getUserTokensV9Options: RouteOptions = {
-  cache: {
-    privacy: "public",
-    expiresIn: 60000,
-  },
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",

@@ -16,7 +16,7 @@ export type UpdateUserCollectionsSpamJobPayload = {
 export default class UpdateUserCollectionsSpamJob extends AbstractRabbitMqJobHandler {
   queueName = "update-user-collections-spam";
   maxRetries = 15;
-  concurrency = _.includes([56, 137], config.chainId) ? 1 : 5;
+  concurrency = _.includes([137], config.chainId) ? 3 : 5;
   lazyMode = true;
   backoff = {
     type: "exponential",

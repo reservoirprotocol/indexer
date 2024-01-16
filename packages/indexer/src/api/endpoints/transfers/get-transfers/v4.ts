@@ -98,6 +98,7 @@ export const getTransfersV4Options: RouteOptions = {
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
           isDeleted: Joi.boolean().optional(),
+          isAirdrop: Joi.boolean().optional().allow(null),
           updatedAt: Joi.string().optional().description("Time when last updated in indexer"),
           price: JoiPrice.allow(null),
         })
@@ -138,6 +139,7 @@ export const getTransfersV4Options: RouteOptions = {
           nft_transfer_events.batch_index,
           extract(epoch from nft_transfer_events.updated_at) updated_ts,
           nft_transfer_events.is_deleted,
+          nft_transfer_events.kind,
           fe.price,
           fe.currency,
           fe.currency_price
@@ -357,6 +359,8 @@ export const getTransfersV4Options: RouteOptions = {
         batchIndex: r.batch_index,
         timestamp: r.timestamp,
         isDeleted: Boolean(r.is_deleted),
+        isAirdrop: r.kind ? (r.kind === "airdrop" ? true : false) : null,
+
         updatedAt: new Date(r.updated_ts * 1000).toISOString(),
         price: r.price
           ? await getJoiPriceObject(

@@ -57,7 +57,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return this.parseToken(token);
       });
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         JSON.stringify({
           topic: "_getTokensMetadata",
@@ -144,7 +144,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     const [batch, error] = await this.sendBatch(encodedTokens);
 
     if (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `fetchTokens sendBatch error. error: ${JSON.stringify(error)}`
       );
@@ -234,7 +234,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         name: collectionName,
       });
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         JSON.stringify({
           topic: "fetchCollectionError",

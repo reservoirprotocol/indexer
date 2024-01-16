@@ -82,6 +82,43 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           }
         }
 
+        // if missing imageMimeType/mediaMimeTyp, we fallback to simplehash
+        if (
+          (metadata[0].imageUrl && !metadata[0].imageMimeType) ||
+          (metadata[0].mediaUrl && !metadata[0].mediaMimeType)
+        ) {
+          if (config.fallbackMetadataIndexingMethod) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Fallback - Missing Mime Type. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                contract,
+                metadata: JSON.stringify(metadata[0]),
+                reason: "Missing Mime Type",
+              })
+            );
+
+            // await metadataIndexFetchJob.addToQueue(
+            //     [
+            //       {
+            //         kind: "single-token",
+            //         data: {
+            //           method: config.fallbackMetadataIndexingMethod,
+            //           contract,
+            //           tokenId,
+            //           collection: contract,
+            //         },
+            //       },
+            //     ],
+            //     true,
+            //     5
+            // );
+            //
+            // return;
+          }
+        }
+
         // if the imageMimeType/mediaMimeType is gif, we fallback to simplehash
         if (
           metadata[0].imageMimeType === "image/gif" ||

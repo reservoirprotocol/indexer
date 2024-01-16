@@ -190,6 +190,7 @@ export const refreshWhitelist = async (transferValidator: string, id: string) =>
     `,
     {
       transferValidator: toBuffer(transferValidator),
+      id,
     }
   );
 
