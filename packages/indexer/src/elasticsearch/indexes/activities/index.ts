@@ -1190,7 +1190,7 @@ export const initIndex = async (): Promise<void> => {
           "elasticsearch-activities",
           JSON.stringify({
             topic: "initIndex",
-            message: "Updated mappings.",
+            message: `Updated mappings. indexName=${indexName}`,
             indexName: INDEX_NAME,
             indexConfig,
             indexSettings: getNetworkSettings().elasticsearch?.indexes?.activities,
