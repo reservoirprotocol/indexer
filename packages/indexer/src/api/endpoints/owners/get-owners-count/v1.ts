@@ -41,7 +41,7 @@ export const getOwnersCountV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      owners_count: Joi.number(),
+      owners: Joi.number(),
     }).label(`getOwnerCount${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-owners-count-${version}-handler`, `Wrong response schema: ${error}`);
@@ -58,7 +58,6 @@ export const getOwnersCountV1Options: RouteOptions = {
       tokensFilter = `tokens.contract = $/contract/`;
     } else if (query.token) {
       const [contract, tokenId] = query.token.split(":");
-
       (query as any).contract = toBuffer(contract);
       (query as any).tokenId = tokenId;
       tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`;
@@ -68,28 +67,16 @@ export const getOwnersCountV1Options: RouteOptions = {
 
     try {
       const baseQuery = `
-        WITH x AS (
-          SELECT owner, COUNT(*) AS owners_count
-          FROM nft_balances
-          GROUP BY owner
-          ORDER BY owners_count DESC, owner
-        )
-        SELECT 
-          nft_balances.owner,
-          COUNT(*) as owners_count
+        SELECT COUNT(*) FILTER (WHERE nft_balances.amount > 0) AS owners_count
         FROM nft_balances
         JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
-        WHERE ${tokensFilter}
-        AND nft_balances.owner IN (SELECT owner FROM x)
-        GROUP BY nft_balances.owner
-        ORDER BY owners_count DESC, nft_balances.owner
-      `;
+        WHERE ${tokensFilter}`;
 
-      const owners_count = await redb
-        .manyOrNone(baseQuery, query)
-        .then((result) => result[0]?.owners_count ?? 0);
+      const owners = await redb.manyOrNone(baseQuery, query).then((result) => {
+        return Number(result[0]?.owners_count ?? 0);
+      });
 
-      return { owners_count };
+      return { owners };
     } catch (error) {
       logger.error(`get-owners-count-${version}-handler`, `Handler failure: ${error}`);
       throw error;
