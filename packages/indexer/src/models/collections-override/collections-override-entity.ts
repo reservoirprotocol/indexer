@@ -3,6 +3,7 @@ import _ from "lodash";
 export type CollectionsOverrideMetadata = {
   name?: string | null;
   description?: string | null;
+  creator?: string | null;
   imageUrl?: string | null;
   twitterUrl?: string | null;
   discordUrl?: string | null;
@@ -43,22 +44,22 @@ export class CollectionsOverrideEntity {
     this.collectionId = params.collection_id;
     this.override = params.metadata
       ? _.omitBy(
-        {
-          name: params.metadata?.name,
-          metadata: _.omitBy(
-            {
-              description: params.metadata?.description,
-              imageUrl: params.metadata?.imageUrl,
-              twitterUrl: params.metadata?.twitterUrl,
-              discordUrl: params.metadata?.discordUrl,
-              externalUrl: params.metadata?.externalUrl,
-            },
-            _.isUndefined
-          ),
-          royalties: params.royalties ? params.royalties : undefined,
-        },
-        _.isUndefined
-      )
+          {
+            name: params.metadata?.name,
+            metadata: _.omitBy(
+              {
+                description: params.metadata?.description,
+                imageUrl: params.metadata?.imageUrl,
+                twitterUrl: params.metadata?.twitterUrl,
+                discordUrl: params.metadata?.discordUrl,
+                externalUrl: params.metadata?.externalUrl,
+              },
+              _.isUndefined
+            ),
+            royalties: params.royalties ? params.royalties : undefined,
+          },
+          _.isUndefined
+        )
       : {};
     this.createdAt = params.created_at;
     this.updatedAt = params.updated_at;

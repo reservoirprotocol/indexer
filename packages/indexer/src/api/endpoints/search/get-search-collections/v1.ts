@@ -78,11 +78,11 @@ export const getSearchCollectionsV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
     let whereClause = "";
-    const conditions: string[] = [`token_count > 0`];
+    const conditions: string[] = [`collections.token_count > 0`];
 
     if (query.name) {
       query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      conditions.push(`collections.name ILIKE $/name/`);
     }
 
     if (query.community) {
@@ -104,18 +104,19 @@ export const getSearchCollectionsV1Options: RouteOptions = {
 
     const baseQuery = `
             SELECT 
-              id, 
-              name, 
-              contract, 
-              (metadata ->> 'imageUrl')::TEXT AS image, 
-              token_count, 
-              all_time_volume, 
-              floor_sell_value,
-              metadata_disabled,
-              (metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status
+              collections.id, 
+              collections.name, 
+              collections.contract, 
+              COALESCE(collections_override.metadata ->> 'imageUrl', collections.metadata ->> 'imageUrl')::TEXT AS image, 
+              collections.token_count, 
+              collections.all_time_volume, 
+              collections.floor_sell_value,
+              collections.metadata_disabled,
+              (collections.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status
             FROM collections
             ${whereClause}
-            ORDER BY all_time_volume DESC
+            LEFT JOIN collections_override ON collections.collection_id = collections_override.collection_id
+            ORDER BY collections.all_time_volume DESC
             OFFSET $/offset/
             LIMIT $/limit/`;
 
