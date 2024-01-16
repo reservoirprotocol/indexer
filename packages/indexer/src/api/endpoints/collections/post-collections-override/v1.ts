@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import _ from "lodash";
 
 import { logger } from "@/common/logger";
-import { CollectionsOverride } from "@/models/collections-override";
-import { ApiKeyManager } from "@/models/api-keys";
-import * as Boom from "@hapi/boom";
+import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
 import {
   ActionsLogContext,
   actionsLogJob,
   ActionsLogOrigin,
 } from "@/jobs/general-tracking/actions-log-job";
-import { collectionMetadataQueueJob } from "@/jobs/collection-updates/collection-metadata-queue-job";
-import { Tokens } from "@/models/tokens";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
+import { CollectionsOverride } from "@/models/collections-override";
+import { Tokens } from "@/models/tokens";
+import * as Boom from "@hapi/boom";
 
 const version = "v1";
 
@@ -42,6 +42,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
     payload: Joi.object({
       name: Joi.string().allow(null).optional(),
       description: Joi.string().allow(null).optional(),
+      creator: Joi.string().allow(null).optional(),
       imageUrl: Joi.string().allow(null).optional(),
       twitterUrl: Joi.string().allow(null).optional(),
       discordUrl: Joi.string().allow(null).optional(),
@@ -100,6 +101,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
         {
           name: payload.name,
           description: payload.description,
+          creator: payload.creator,
           imageUrl: payload.imageUrl,
           twitterUrl: payload.twitterUrl,
           discordUrl: payload.discordUrl,

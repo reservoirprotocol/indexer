@@ -724,7 +724,8 @@ export const getTokensV6Options: RouteOptions = {
           c.creator,
           c.token_count,
           c.is_spam AS c_is_spam,
-          (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          (collections_override.metadata ->> 'creator') AS "creator_override",
           (
             SELECT
               nb.owner
@@ -752,6 +753,7 @@ export const getTokensV6Options: RouteOptions = {
         JOIN collections c ON t.collection_id = c.id ${query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
         }
         JOIN contracts con ON t.contract = con.address
+        LEFT JOIN collections_override ON t.collection_id = collections_override.collection_id
       `;
 
       if (query.tokenSetId) {
@@ -1408,7 +1410,11 @@ export const getTokensV6Options: RouteOptions = {
                 image: Assets.getLocalAssetsLink(r.collection_image),
                 slug: r.slug,
                 symbol: r.symbol,
-                creator: r.creator ? fromBuffer(r.creator) : null,
+                creator: r.creator_override
+                  ? fromBuffer(toBuffer(String(r.creator_override)))
+                  : r.creator
+                  ? fromBuffer(r.creator)
+                  : null,
                 tokenCount: r.token_count,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
               },
@@ -1851,7 +1857,8 @@ export const getListedTokensFromES = async (query: any) => {
             c.token_count,
             c.is_spam AS c_is_spam,
             c.metadata_disabled AS c_metadata_disabled,
-            (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+            COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+            (collections_override.metadata ->> 'creator') AS "creator_override",
             (
               SELECT
                 nb.owner
@@ -1870,6 +1877,7 @@ export const getListedTokensFromES = async (query: any) => {
           ${joinTopBidQueryPart}
           ${joinMintStagesQueryPart}
           JOIN collections c ON t.collection_id = c.id
+          LEFT JOIN collections_override ON t.collection_id = collections_override.collection_id
           JOIN contracts con ON t.contract = con.address
           WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
         `,
@@ -2054,7 +2062,11 @@ export const getListedTokensFromES = async (query: any) => {
             image: Assets.getLocalAssetsLink(r.collection_image),
             slug: r.slug,
             symbol: r.symbol,
-            creator: r.creator ? fromBuffer(r.creator) : null,
+            creator: r.creator_override
+              ? fromBuffer(toBuffer(String(r.creator_override)))
+              : r.creator
+              ? fromBuffer(r.creator)
+              : null,
             tokenCount: r.token_count,
             metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
           },
