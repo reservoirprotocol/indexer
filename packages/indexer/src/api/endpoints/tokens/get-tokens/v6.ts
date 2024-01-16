@@ -1700,7 +1700,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     const tokensResult = await redb.manyOrNone(`
             SELECT contract, token_id
             FROM token_attributes
-            WHERE collection_id IN ('${query.collection.join(",")}')
+            WHERE collection_id IN ('${collections.join(",")}')
             AND (key, value) IN (${attributes.join(",")});
           `);
 
