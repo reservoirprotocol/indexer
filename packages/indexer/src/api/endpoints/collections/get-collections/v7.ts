@@ -562,8 +562,8 @@ export const getCollectionsV7Options: RouteOptions = {
       }
 
       if (query.creator) {
-        query.creator = toBuffer(query.creator);
         query.creator_override = query.creator.toLowerCase();
+        query.creator = toBuffer(query.creator);
         conditions.push(
           `(collections.creator = $/creator/ OR (collections_override.metadata ->> 'creator')::TEXT = $/creator_override/)`
         );
