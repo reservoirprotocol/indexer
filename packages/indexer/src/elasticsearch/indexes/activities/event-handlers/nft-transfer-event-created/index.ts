@@ -12,6 +12,7 @@ import {
   NftTransferEventInfo,
 } from "@/elasticsearch/indexes/activities/event-handlers/base";
 import { getNetworkSettings } from "@/config/network";
+import { config } from "@/config/index";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -51,21 +52,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       return null;
     }
 
-    const activity = this.buildDocument(data);
-
-    if (activity.contract === "0x9236ca1d6e59f8ab672269443e13669d0bd5b353") {
-      logger.info(
-        "nft-transfer-event-created-event-handler",
-        JSON.stringify({
-          topic: "generate-activities",
-          message: `Debug generateActivity. contract=${activity.contract}`,
-          activity: JSON.stringify(activity),
-          data: JSON.stringify(data),
-        })
-      );
-    }
-
-    return activity;
+    return this.buildDocument(data);
   }
 
   getActivityType(data: any): ActivityType {
@@ -153,12 +140,12 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
         const activity = eventHandler.buildDocument(result);
 
-        if (activity.contract === "0x9236ca1d6e59f8ab672269443e13669d0bd5b353") {
+        if (config.chainId === 1 && activity.type === "mint") {
           logger.info(
             "nft-transfer-event-created-event-handler",
             JSON.stringify({
               topic: "generate-activities",
-              message: `Debug generateActivities. contract=${activity.contract}`,
+              message: `Debug generateActivities. contract=${activity.contract}, tokenId=${activity.token?.id}`,
               activity: JSON.stringify(activity),
               result: JSON.stringify(result),
             })
