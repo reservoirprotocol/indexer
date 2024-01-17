@@ -131,55 +131,58 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
           table: "orders",
         }
       );
+
+      let updatedOrderIds = erc20Orders.map(({ id }) => id);
+
       if (values.length) {
-        if (config.chainId === 80001) {
-          try {
-            const updateQuery =
-              pgp.helpers.update(values, columns) +
-              " WHERE t.id = v.id AND (" +
-              "t.price IS DISTINCT FROM v.price " +
-              "OR t.value IS DISTINCT FROM v.value " +
-              "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
-              ") RETURNING t.id";
+        try {
+          const updateQuery =
+            pgp.helpers.update(values, columns) +
+            " WHERE t.id = v.id AND (" +
+            "t.price IS DISTINCT FROM v.price " +
+            "OR t.value IS DISTINCT FROM v.value " +
+            "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
+            ") RETURNING t.id";
 
-            const updatedOrders = await idb.manyOrNone(updateQuery);
+          const updatedOrders = await idb.manyOrNone(updateQuery);
 
-            logger.info(
-              `erc20-orders-update`,
-              JSON.stringify({
-                message: `Updated erc20 orders.`,
-                values,
-                updatedOrders,
-                updateQuery: pgPromise.as.format(updateQuery),
-              })
-            );
-          } catch (error) {
-            logger.error(
-              `erc20-orders-update`,
-              JSON.stringify({
-                message: `Failed to update erc20 orders: ${error}`,
-                values,
-                error,
-              })
-            );
+          updatedOrderIds = updatedOrders.map(({ id }) => id);
 
-            await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
-          }
-        } else {
+          logger.info(
+            `erc20-orders-update`,
+            JSON.stringify({
+              message: `Updated erc20 orders.`,
+              values,
+              updatedOrderIds,
+              updateQuery: pgPromise.as.format(updateQuery),
+            })
+          );
+        } catch (error) {
+          logger.error(
+            `erc20-orders-update`,
+            JSON.stringify({
+              message: `Failed to update erc20 orders: ${error}`,
+              values,
+              error,
+            })
+          );
+
           await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
         }
       }
 
-      await orderUpdatesByIdJob.addToQueue(
-        erc20Orders.map(
-          ({ id }) =>
-            ({
-              context: `erc20-orders-update-${now}-${id}`,
-              id,
-              trigger: { kind: "reprice" },
-            } as OrderUpdatesByIdJobPayload)
-        )
-      );
+      if (updatedOrderIds.length) {
+        await orderUpdatesByIdJob.addToQueue(
+          erc20Orders.map(
+            ({ id }) =>
+              ({
+                context: `erc20-orders-update-${now}-${id}`,
+                id,
+                trigger: { kind: "reprice" },
+              } as OrderUpdatesByIdJobPayload)
+          )
+        );
+      }
 
       if (erc20Orders.length >= limit) {
         await this.addToQueue(

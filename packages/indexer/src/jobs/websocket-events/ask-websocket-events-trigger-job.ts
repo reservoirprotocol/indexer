@@ -75,20 +75,20 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
                 changed.push(key as keyof OrderInfo);
               }
 
-              // if (changed.length === 1) {
-              //   logger.info(
-              //     this.queueName,
-              //     JSON.stringify({
-              //       message: `No changes detected for ask. orderId=${data.after.id}`,
-              //       data,
-              //       beforeJson: JSON.stringify(data.before),
-              //       afterJson: JSON.stringify(data.after),
-              //       changed,
-              //       changedJson: JSON.stringify(changed),
-              //       hasChanged: changed.length > 0,
-              //     })
-              //   );
-              // }
+              if (changed.length === 1) {
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for ask. orderId=${data.after.id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              }
             }
           } catch (error) {
             logger.error(
