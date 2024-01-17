@@ -66,6 +66,33 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
       const queries: PgPromiseQuery[] = [];
 
       console.log("1")
+
+      // id: collection.id,
+      // slug: collection.slug,
+      // name: collection.name,
+      // community: collection.community,
+      // metadata: collection.metadata,
+      // contract: toBuffer(collection.contract),
+      // tokenIdRange,
+      // tokenSetId: collection.tokenSetId,
+      // mintedTimestamp: mintedTimestamp ?? null,
+      // paymentTokens: collection.paymentTokens ? { opensea: collection.paymentTokens } : {},
+      // creator: collection.creator ? toBuffer(collection.creator) : null,
+
+      console.log("collection", collection)
+
+      console.log("id", collection.id)
+      console.log("slug", collection.slug)
+      console.log("name", collection.name)
+      console.log("community", collection.community)
+      console.log("metadata", collection.metadata)
+      console.log("contract", toBuffer(collection.contract))
+      console.log("tokenIdRange", tokenIdRange)
+      console.log("tokenSetId", collection.tokenSetId)
+      console.log("mintedTimestamp", mintedTimestamp ?? null)
+      console.log("paymentTokens", collection.paymentTokens ? { opensea: collection.paymentTokens } : {})
+      console.log("creator", collection.creator ? toBuffer(collection.creator) : null)
+
       queries.push({
         query: `
             INSERT INTO "collections" (
