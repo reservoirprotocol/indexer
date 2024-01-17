@@ -11,6 +11,7 @@ import {
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { getUSDAndNativePrices, USDAndNativePrices } from "@/utils/prices";
+import pgPromise from "pg-promise";
 
 export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;
@@ -29,6 +30,13 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
 
   protected async process(payload: OrderUpdatesErc20OrderJobPayload) {
     const { continuation } = payload;
+
+    logger.info(
+      `erc20-orders-update`,
+      JSON.stringify({
+        message: `Start. continuation=${continuation}`,
+      })
+    );
 
     try {
       const limit = 500;
@@ -124,7 +132,38 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
         }
       );
       if (values.length) {
-        await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
+        try {
+          const updateQuery =
+            pgp.helpers.update(values, columns) +
+            " WHERE t.id = v.id AND (" +
+            "t.price IS DISTINCT FROM v.price " +
+            "OR t.value IS DISTINCT FROM v.value " +
+            "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
+            ") RETURNING t.id";
+
+          const updatedOrders = await idb.manyOrNone(updateQuery);
+
+          logger.info(
+            `erc20-orders-update`,
+            JSON.stringify({
+              message: `Updated erc20 orders.`,
+              values,
+              updatedOrders,
+              updateQuery: pgPromise.as.format(updateQuery),
+            })
+          );
+        } catch (error) {
+          logger.error(
+            `erc20-orders-update`,
+            JSON.stringify({
+              message: `Failed to update erc20 orders: ${error}`,
+              values,
+              error,
+            })
+          );
+
+          await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
+        }
       }
 
       await orderUpdatesByIdJob.addToQueue(
@@ -145,7 +184,7 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
         );
       }
     } catch (error) {
-      logger.error(`dynamic-orders-update`, `Failed to handle dynamic orders: ${error}`);
+      logger.error(`erc20-orders-update`, `Failed to handle erc20 orders: ${error}`);
     }
   }
 
