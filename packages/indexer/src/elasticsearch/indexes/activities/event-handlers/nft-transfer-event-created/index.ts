@@ -139,6 +139,18 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
         const activity = eventHandler.buildDocument(result);
 
+        if (activity.contract === "0x9236ca1d6e59f8ab672269443e13669d0bd5b353") {
+          logger.info(
+            "generateActivities",
+            JSON.stringify({
+              topic: "debugActivities",
+              message: `Debug. contract=${activity.contract}`,
+              activity: JSON.stringify(activity),
+              result: JSON.stringify(result),
+            })
+          );
+        }
+
         activities.push(activity);
       } catch (error) {
         logger.error(
