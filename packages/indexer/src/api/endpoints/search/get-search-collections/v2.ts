@@ -64,8 +64,10 @@ export const getSearchCollectionsV2Options: RouteOptions = {
         Joi.object({
           collectionId: Joi.string(),
           contract: Joi.string(),
-          image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
+          description: Joi.string().allow("", null),
           isSpam: Joi.boolean().default(false),
           metadataDisabled: Joi.boolean().default(false),
           slug: Joi.string().allow("", null),
@@ -112,11 +114,23 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     }
 
     const baseQuery = `
-            SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
-                   c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
-                   o.currency AS floor_sell_currency, c.is_spam, c.metadata_disabled,
-                   o.currency_price AS floor_sell_currency_price
+            SELECT 
+              c.id, 
+              c.name, 
+              c.contract, 
+              COALESCE(co.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS "image", 
+              COALESCE(co.metadata ->> 'bannerImageUrl', c.metadata ->> 'bannerImageUrl')::TEXT AS "banner", 
+              COALESCE(co.metadata ->> 'description', c.metadata ->> 'description')::TEXT AS "description",
+              c.all_time_volume, 
+              c.floor_sell_value,
+              c.slug, 
+              (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
+              o.currency AS floor_sell_currency, 
+              c.is_spam, 
+              c.metadata_disabled,
+              o.currency_price AS floor_sell_currency_price
             FROM collections c
+            LEFT JOIN collections_override co ON c.id = co.collection_id
             LEFT JOIN orders o ON o.id = c.floor_sell_id
             ${whereClause}
             ORDER BY all_time_volume DESC
@@ -151,6 +165,8 @@ export const getSearchCollectionsV2Options: RouteOptions = {
               slug: collection.slug,
               contract: fromBuffer(collection.contract),
               image: Assets.getLocalAssetsLink(collection.image),
+              banner: collection.banner,
+              description: collection.description,
               isSpam: Number(collection.is_spam) > 0,
               metadataDisabled: Boolean(Number(collection.metadata_disabled)),
               allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
