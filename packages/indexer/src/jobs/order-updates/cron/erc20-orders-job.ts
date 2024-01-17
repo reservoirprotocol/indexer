@@ -155,6 +155,7 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
               values,
               updatedOrderIds,
               updateQuery: pgPromise.as.format(updateQuery),
+              partialUpdate: updatedOrderIds.length !== values.length,
             })
           );
         } catch (error) {
@@ -173,8 +174,8 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
 
       if (updatedOrderIds.length) {
         await orderUpdatesByIdJob.addToQueue(
-          erc20Orders.map(
-            ({ id }) =>
+          updatedOrderIds.map(
+            (id) =>
               ({
                 context: `erc20-orders-update-${now}-${id}`,
                 id,
