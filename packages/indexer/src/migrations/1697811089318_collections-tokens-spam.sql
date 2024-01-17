@@ -1,7 +1,7 @@
 -- Up Migration
 
-ALTER TABLE "collections" ADD COLUMN "is_spam" INT;
-ALTER TABLE "tokens" ADD COLUMN "is_spam" INT;
+ALTER TABLE "collections" ADD COLUMN "is_spam" INT DEFAULT 0;
+ALTER TABLE "tokens" ADD COLUMN "is_spam" INT DEFAULT 0;
 
 -- Down Migration
 
