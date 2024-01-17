@@ -64,6 +64,8 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
       const tokenIdRangeParam = tokenIdRange ? "$/tokenIdRange:raw/" : "$/tokenIdRange/";
 
       const queries: PgPromiseQuery[] = [];
+
+      console.log("1")
       queries.push({
         query: `
             INSERT INTO "collections" (
@@ -106,11 +108,14 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
           creator: collection.creator ? toBuffer(collection.creator) : null,
         },
       });
+      console.log("2")
 
       let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
       if (_.isNull(tokenIdRange)) {
         tokenFilter = `AND "token_id" = $/tokenId/`;
       }
+
+      console.log("3")
 
       // Since this is the first time we run into this collection,
       // we update all tokens that match its token definition
