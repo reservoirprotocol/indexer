@@ -115,6 +115,7 @@ export class ApiKeyManager {
           update_metadata_disabled: true,
           entity_data_override: true,
           override_collection_refresh_cool_down: true,
+          update_spam_status: true,
         },
         ips: [],
         origins: [],
