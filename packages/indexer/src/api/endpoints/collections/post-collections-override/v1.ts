@@ -101,7 +101,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
         {
           name: payload.name,
           description: payload.description,
-          creator: payload.creator,
+          creator: payload.creator?.toLowerCase(),
           imageUrl: payload.imageUrl,
           twitterUrl: payload.twitterUrl,
           discordUrl: payload.discordUrl,
