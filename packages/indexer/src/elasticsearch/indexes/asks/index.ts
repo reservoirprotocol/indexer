@@ -471,7 +471,8 @@ export const searchTokenAsks = async (
   } catch (error) {
     const retryableError =
       (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception" ||
+      (error as any).meta?.body?.error?.type === "search_phase_execution_exception";
 
     if (retryableError) {
       logger.warn(

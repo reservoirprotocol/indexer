@@ -260,17 +260,6 @@ export const autocomplete = async (params: {
 
     const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
 
-    logger.info(
-      "elasticsearch-collections",
-      JSON.stringify({
-        topic: "autocompleteCollections",
-        message: "Debug result",
-        data: {
-          esSearchParamsJSON: JSON.stringify(esSearchParams),
-        },
-      })
-    );
-
     const collections: CollectionDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
     return { collections };
