@@ -139,6 +139,7 @@ const config: HardhatUserConfig = {
         url: networkConfig.url,
         blockNumber: Number(process.env.BLOCK_NUMBER),
       },
+      allowUnlimitedContractSize: true,
       accounts: {
         // Custom mnemonic so that the wallets have no initial state
         mnemonic:

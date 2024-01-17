@@ -290,6 +290,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "highlightxyz",
         data: kindToEvents.get("highlightxyz") ?? [],
       },
+      {
+        kind: "palette",
+        data: kindToEvents.get("palette") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {

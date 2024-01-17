@@ -53,6 +53,7 @@ import * as artblocks from "@/events-sync/data/artblocks";
 import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
 import * as mooar from "@/events-sync/data/mooar";
+import * as palette from "@/events-sync/data/palette";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -110,7 +111,8 @@ export type EventKind =
   | "mooar"
   | "titlesxyz"
   | "ditto"
-  | "highlightxyz";
+  | "highlightxyz"
+  | "palette";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -340,7 +342,28 @@ export type EventSubKind =
   | "highlightxyz-vector-deleted"
   | "highlightxyz-discrete-da-created"
   | "highlightxyz-mechanic-vector-registered"
-  | "highlightxyz-discrete-da-updated";
+  | "highlightxyz-discrete-da-updated"
+  | "palette-listing-created-721"
+  | "palette-listing-modified-721"
+  | "palette-filled-order-721"
+  | "palette-removed-listing-721"
+  | "palette-specific-bid-accepted-721"
+  | "palette-collection-offer-accepted-721"
+  | "palette-listing-created-1155"
+  | "palette-listing-modified-1155"
+  | "palette-specific-bid-accepted-1155"
+  | "palette-removed-listing-1155"
+  | "palette-filled-order-1155"
+  | "palette-collection-offer-accepted-1155"
+  | "palette-specific-bid-created-721"
+  | "palette-specific-bid-created-1155"
+  | "palette-collection-offer-created"
+  | "palette-specific-bid-modified-1155"
+  | "palette-specific-bid-modified-721"
+  | "palette-collection-offer-modified"
+  | "palette-specific-bid-removed-721"
+  | "palette-specific-bid-removed-1155"
+  | "palette-collection-offer-cancelled";
 
 export type EventData = {
   kind: EventKind;
@@ -577,6 +600,27 @@ const allEventData = [
   highlightxyz.mechanicVectorUpdated,
   ditto.dittoPoolInitialized,
   mooar.orderFulfilled,
+  palette.listingCreated721,
+  palette.listingModified721,
+  palette.filledOrder721,
+  palette.removedListing721,
+  palette.specificBidAccepted721,
+  palette.collectionOfferAccepted721,
+  palette.listingCreated1155,
+  palette.listingModified1155,
+  palette.specificBidAccepted1155,
+  palette.removedListing1155,
+  palette.filledOrder1155,
+  palette.collectionOfferAccepted1155,
+  palette.specificBidCreated721,
+  palette.specificBidCreated1155,
+  palette.collectionOfferCreated,
+  palette.specificBidModified721,
+  palette.specificBidModified1155,
+  palette.collectionOfferModified,
+  palette.specificBidRemoved721,
+  palette.specificBidRemoved1155,
+  palette.collectionOfferCancelled,
 ];
 
 // array of all addresses we're syncing events for
