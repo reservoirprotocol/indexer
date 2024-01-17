@@ -176,6 +176,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const collection = args["collection"].toLowerCase();
         const tokenId = args["tokenId"] ? args["tokenId"].toString() : undefined;
         const isCollectionOffer = subKind.includes("collection-offer");
+
         const orderId = getOrderId(
           {
             orderbook,
