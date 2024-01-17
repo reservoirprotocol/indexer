@@ -32,11 +32,15 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
   protected async process(payload: FetchCollectionMetadataJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
+    console.log("payload", payload)
+
     try {
       // Fetch collection metadata
       let collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
         allowFallback: true,
       });
+
+      console.log("collection", collection)
 
       if (config.metadataIndexingMethod === "opensea" && collection?.isFallback) {
         collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
@@ -45,12 +49,16 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         });
       }
 
+      console.log("collection", collection)
+
       let tokenIdRange: string | null = null;
       if (collection.tokenIdRange) {
         tokenIdRange = `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`;
       } else if (collection.id === contract) {
         tokenIdRange = `'(,)'::numrange`;
       }
+
+      console.log("tokenIdRange", tokenIdRange)
 
       // For covering the case where the token id range is null
       const tokenIdRangeParam = tokenIdRange ? "$/tokenIdRange:raw/" : "$/tokenIdRange/";
@@ -122,14 +130,23 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         },
       });
 
+      console.log("1")
+
       // Write the collection to the database
       await idb.none(pgp.helpers.concat(queries));
 
+      console.log("2")
+
       // Schedule a job to re-count tokens in the collection
       await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
+
+      console.log("3")
+
       await recalcOwnerCountQueueJob.addToQueue([
         { context: this.queueName, kind: "collectionId", data: { collectionId: collection.id } },
       ]);
+
+      console.log("4")
 
       if (collection?.id && !config.disableRealtimeMetadataRefresh) {
         await metadataIndexFetchJob.addToQueue(
@@ -150,12 +167,16 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         );
       }
 
+      console.log("5")
+
       // Refresh all royalty specs and the default royalties
       await royalties.refreshAllRoyaltySpecs(
         collection.id,
         collection.royalties as royalties.Royalty[] | undefined,
         collection.openseaRoyalties as royalties.Royalty[] | undefined
       );
+
+      console.log("6")
 
       await royalties.refreshDefaultRoyalties(collection.id);
 
@@ -165,6 +186,7 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
         "opensea",
         collection.openseaFees as royalties.Royalty[] | undefined
       );
+      console.log("7")
     } catch (error) {
       logger.error(
         this.queueName,
