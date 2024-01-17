@@ -132,36 +132,40 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
         }
       );
       if (values.length) {
-        try {
-          const updateQuery =
-            pgp.helpers.update(values, columns) +
-            " WHERE t.id = v.id AND (" +
-            "t.price IS DISTINCT FROM v.price " +
-            "OR t.value IS DISTINCT FROM v.value " +
-            "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
-            ") RETURNING t.id";
+        if (config.chainId === 80001) {
+          try {
+            const updateQuery =
+              pgp.helpers.update(values, columns) +
+              " WHERE t.id = v.id AND (" +
+              "t.price IS DISTINCT FROM v.price " +
+              "OR t.value IS DISTINCT FROM v.value " +
+              "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
+              ") RETURNING t.id";
 
-          const updatedOrders = await idb.manyOrNone(updateQuery);
+            const updatedOrders = await idb.manyOrNone(updateQuery);
 
-          logger.info(
-            `erc20-orders-update`,
-            JSON.stringify({
-              message: `Updated erc20 orders.`,
-              values,
-              updatedOrders,
-              updateQuery: pgPromise.as.format(updateQuery),
-            })
-          );
-        } catch (error) {
-          logger.error(
-            `erc20-orders-update`,
-            JSON.stringify({
-              message: `Failed to update erc20 orders: ${error}`,
-              values,
-              error,
-            })
-          );
+            logger.info(
+              `erc20-orders-update`,
+              JSON.stringify({
+                message: `Updated erc20 orders.`,
+                values,
+                updatedOrders,
+                updateQuery: pgPromise.as.format(updateQuery),
+              })
+            );
+          } catch (error) {
+            logger.error(
+              `erc20-orders-update`,
+              JSON.stringify({
+                message: `Failed to update erc20 orders: ${error}`,
+                values,
+                error,
+              })
+            );
 
+            await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
+          }
+        } else {
           await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
         }
       }
