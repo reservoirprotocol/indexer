@@ -725,7 +725,7 @@ export const getTokensV6Options: RouteOptions = {
           c.token_count,
           c.is_spam AS c_is_spam,
           COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-          (collections_override.metadata ->> 'creator') AS "creator_override",
+          (collections_override.metadata ->> 'creator')::TEXT AS "creator_override",
           (
             SELECT
               nb.owner
@@ -1411,7 +1411,7 @@ export const getTokensV6Options: RouteOptions = {
                 slug: r.slug,
                 symbol: r.symbol,
                 creator: r.creator_override
-                  ? fromBuffer(toBuffer(String(r.creator_override)))
+                  ? r.creator_override
                   : r.creator
                   ? fromBuffer(r.creator)
                   : null,
@@ -1858,7 +1858,7 @@ export const getListedTokensFromES = async (query: any) => {
             c.is_spam AS c_is_spam,
             c.metadata_disabled AS c_metadata_disabled,
             COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-            (collections_override.metadata ->> 'creator') AS "creator_override",
+            (collections_override.metadata ->> 'creator')::TEXT AS "creator_override",
             (
               SELECT
                 nb.owner
@@ -2063,7 +2063,7 @@ export const getListedTokensFromES = async (query: any) => {
             slug: r.slug,
             symbol: r.symbol,
             creator: r.creator_override
-              ? fromBuffer(toBuffer(String(r.creator_override)))
+              ? r.creator_override
               : r.creator
               ? fromBuffer(r.creator)
               : null,
