@@ -38,6 +38,7 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
       // Fetch collection metadata
       let collection = await MetadataProviderRouter.getCollectionMetadata(contract, tokenId, "", {
         allowFallback: true,
+        indexingMethod: "onchain"
       });
 
       console.log("collection", collection)
