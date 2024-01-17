@@ -51,7 +51,21 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
       return null;
     }
 
-    return this.buildDocument(data);
+    const activity = this.buildDocument(data);
+
+    if (activity.contract === "0x9236ca1d6e59f8ab672269443e13669d0bd5b353") {
+      logger.info(
+        "nft-transfer-event-created-event-handler",
+        JSON.stringify({
+          topic: "generate-activities",
+          message: `Debug generateActivity. contract=${activity.contract}`,
+          activity: JSON.stringify(activity),
+          data: JSON.stringify(data),
+        })
+      );
+    }
+
+    return activity;
   }
 
   getActivityType(data: any): ActivityType {
@@ -141,10 +155,10 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
 
         if (activity.contract === "0x9236ca1d6e59f8ab672269443e13669d0bd5b353") {
           logger.info(
-            "generateActivities",
+            "nft-transfer-event-created-event-handler",
             JSON.stringify({
-              topic: "debugActivities",
-              message: `Debug. contract=${activity.contract}`,
+              topic: "generate-activities",
+              message: `Debug generateActivities. contract=${activity.contract}`,
               activity: JSON.stringify(activity),
               result: JSON.stringify(result),
             })
