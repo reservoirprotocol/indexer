@@ -172,14 +172,11 @@ import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user
 import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
 import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/token-reassigned-user-collections-job";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
-import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillActiveUserCollectionsJob } from "@/jobs/backfill/backfill-active-user-collections";
 import { backfillAirdropsJob } from "./backfill/backfill-airdrops";
 import { backfillTransferSpamJob } from "./backfill/backfill-transfer-burst-spam";
-import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attributes-floor-ask";
 import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
-import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
 import { backfillNftBalancesDatesJob } from "@/jobs/backfill/backfill-nft-balances-dates";
 import { pendingTxsJob } from "@/jobs/pending-txs/pending-txs-job";
 import { updateUserCollectionsSpamJob } from "@/jobs/nft-balance-updates/update-user-collections-spam-job";
@@ -339,14 +336,11 @@ export class RabbitMqJobsConsumer {
       backfillUserCollectionsJob,
       tokenReassignedUserCollectionsJob,
       backfillTransactionsDatesJob,
-      backfillTokenSupplyJob,
       backfillActiveUserCollectionsJob,
       backfillAirdropsJob,
       backfillTransferSpamJob,
-      backfillAttributesFloorAskJob,
       syncApiKeysJob,
       collectionCheckSpamJob,
-      backfillFtTransferEventsDatesJob,
       backfillNftBalancesDatesJob,
       pendingTxsJob,
       updateUserCollectionsSpamJob,

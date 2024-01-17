@@ -103,6 +103,7 @@ export interface Metadata {
     type: string;
     data: number[];
   };
+  floor_sell_currency: string;
   normalized_floor_sell_valid_between: string;
   normalized_floor_sell_source_id_int: number;
   top_buy_id: string;

@@ -186,6 +186,7 @@ export const refreshWhitelist = async (transferValidator: string, id: string) =>
       FROM erc721c_v2_configs
       WHERE erc721c_v2_configs.transfer_validator = $/transferValidator/
         AND erc721c_v2_configs.list_id = $/id/
+        AND erc721c_v2_configs.transfer_security_level IN (0, 3, 4, 5, 6, 7, 8)
       LIMIT 1000
     `,
     {
@@ -265,6 +266,7 @@ export const refreshBlacklist = async (transferValidator: string, id: string) =>
       FROM erc721c_v2_configs
       WHERE erc721c_v2_configs.transfer_validator = $/transferValidator/
         AND erc721c_v2_configs.list_id = $/id/
+        AND erc721c_v2_configs.transfer_security_level IN (2)
       LIMIT 1000
     `,
     {

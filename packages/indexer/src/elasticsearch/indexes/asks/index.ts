@@ -193,23 +193,27 @@ export const initIndex = async (): Promise<void> => {
   }
 };
 
-export const searchTokenAsks = async (params: {
-  tokens?: { contract: string; tokenId: string }[];
-  contracts?: string[];
-  collections?: string[];
-  currencies?: string[];
-  orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
-  rarityRank?: { min?: number; max?: number };
-  floorAskPrice?: { min?: number; max?: number };
-  normalizeRoyalties?: boolean;
-  spamTokens?: { operation: "include" | "exclude" };
-  nsfwTokens?: { operation: "include" | "exclude" };
-  flaggedTokens?: { operation: "include" | "exclude" };
-  sources?: number[];
-  limit?: number;
-  continuation?: string | null;
-  sortDirection?: "asc" | "desc";
-}): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
+export const searchTokenAsks = async (
+  params: {
+    tokens?: { contract: string; tokenId: string }[];
+    contracts?: string[];
+    collections?: string[];
+    currencies?: string[];
+    orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
+    rarityRank?: { min?: number; max?: number };
+    floorAskPrice?: { min?: number; max?: number };
+    normalizeRoyalties?: boolean;
+    spamTokens?: { operation: "include" | "exclude" };
+    nsfwTokens?: { operation: "include" | "exclude" };
+    flaggedTokens?: { operation: "include" | "exclude" };
+    sources?: number[];
+    limit?: number;
+    continuation?: string | null;
+    sortDirection?: "asc" | "desc";
+  },
+  retries = 0,
+  debug = false
+): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
   (esQuery as any).bool = {
@@ -379,6 +383,7 @@ export const searchTokenAsks = async (params: {
 
   try {
     const from = params.continuation ? Number(splitContinuation(params.continuation)[0]) : 0;
+    const order = params.sortDirection ?? "asc";
 
     const esSearchParams = {
       index: INDEX_NAME,
@@ -387,22 +392,22 @@ export const searchTokenAsks = async (params: {
         params.normalizeRoyalties
           ? {
               "order.pricing.normalizedValueDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             }
           : {
               "order.pricing.priceDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             },
         {
           contract: {
-            order: params.sortDirection ?? "asc",
+            order,
           },
         },
         {
           "token.id": {
-            order: params.sortDirection ?? "asc",
+            order,
           },
         },
       ],
@@ -417,15 +422,44 @@ export const searchTokenAsks = async (params: {
 
     const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "searchTokenAsks",
-        message: "Debug result",
-        esSearchParamsJSON: JSON.stringify(esSearchParams),
-        asks,
-      })
-    );
+    asks.sort((a, b) => {
+      let retVal = 0;
+      const sortDirectionMultiplier = order === "asc" ? 1 : -1;
+
+      if (
+        params.normalizeRoyalties &&
+        a.order.pricing.normalizedValueDecimal !== b.order.pricing.normalizedValueDecimal
+      ) {
+        return retVal;
+      }
+
+      if (a.order.pricing.priceDecimal !== b.order.pricing.priceDecimal) {
+        return retVal;
+      }
+
+      if (a.contract !== b.contract) {
+        retVal = a.contract > b.contract ? 1 : -1;
+      }
+
+      retVal = Number(a.token.id) > Number(b.token.id) ? 1 : -1;
+
+      return retVal * sortDirectionMultiplier;
+    });
+
+    if (retries > 0 || debug) {
+      logger.info(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Debug result",
+          latency: esResult.took,
+          esSearchParams: JSON.stringify(esSearchParams),
+          retries,
+          esResult: debug ? esResult : undefined,
+          params: debug ? params : undefined,
+        })
+      );
+    }
 
     let continuation = null;
 
@@ -435,16 +469,51 @@ export const searchTokenAsks = async (params: {
 
     return { asks, continuation };
   } catch (error) {
-    logger.error(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "searchTokenAsks",
-        data: {
-          params: params,
-        },
-        error,
-      })
-    );
+    const retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Retrying...",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return searchTokenAsks(params, retries, debug);
+      }
+
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Max retries reached.",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Unexpected error.",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+    }
 
     throw error;
   }
