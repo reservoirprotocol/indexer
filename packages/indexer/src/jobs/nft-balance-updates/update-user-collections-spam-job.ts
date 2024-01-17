@@ -1,6 +1,6 @@
 import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import _ from "lodash";
 import { Collections } from "@/models/collections";
 import { config } from "@/config/index";
@@ -68,7 +68,7 @@ export default class UpdateUserCollectionsSpamJob extends AbstractRabbitMqJobHan
       `,
       {
         collectionId,
-        owner,
+        owner: owner ? toBuffer(owner) : "",
         newSpamState,
         limit,
       }

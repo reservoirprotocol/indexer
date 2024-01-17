@@ -295,13 +295,14 @@ async function formatCollections(
       } else if (useNonFlaggedFloorAsk) {
         prefix = "non_flagged_";
       }
-
-      const floorAskId = metadata[(prefix + "floor_sell_id") as MetadataKey];
-      const floorAskValue = metadata[(prefix + "floor_sell_value") as MetadataKey];
-      const floorAskCurrency = metadata[(prefix + "floor_sell_currency") as MetadataKey];
-      const floorAskSource = metadata[(prefix + "floor_sell_source_id_int") as MetadataKey];
+      const floorAskId = metadata[`${prefix}floor_sell_id` as MetadataKey];
+      const floorAskValue = metadata[`${prefix}floor_sell_value` as MetadataKey];
+      const floorAskCurrency = metadata.floor_sell_currency as MetadataKey;
+      const floorAskSource = metadata[`${prefix}floor_sell_source_id_int` as MetadataKey];
       const floorAskCurrencyValue =
-        metadata[(prefix + `${prefix}floor_sell_currency_value`) as MetadataKey];
+        metadata[
+          `${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value` as MetadataKey
+        ];
 
       if (metadata) {
         floorAsk = {
