@@ -705,7 +705,7 @@ export const getTokensV6Options: RouteOptions = {
           t.media,
           t.collection_id,
           t.image_version,
-          c.name AS collection_name,
+          COALESCE(co.metadata ->> 'name', c.name)::TEXT AS "collection_name",
           con.kind,
           con.symbol,
           ${selectFloorData},
@@ -724,8 +724,8 @@ export const getTokensV6Options: RouteOptions = {
           c.creator,
           c.token_count,
           c.is_spam AS c_is_spam,
-          COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-          (collections_override.metadata ->> 'creator')::TEXT AS "creator_override",
+          COALESCE(co.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
+          (co.metadata ->> 'creator')::TEXT AS "creator_override",
           (
             SELECT
               nb.owner
@@ -753,7 +753,7 @@ export const getTokensV6Options: RouteOptions = {
         JOIN collections c ON t.collection_id = c.id ${query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
         }
         JOIN contracts con ON t.contract = con.address
-        LEFT JOIN collections_override ON t.collection_id = collections_override.collection_id
+        LEFT JOIN collections_override co ON t.collection_id = co.collection_id
       `;
 
       if (query.tokenSetId) {
@@ -1839,7 +1839,7 @@ export const getListedTokensFromES = async (query: any) => {
             t.metadata,
             t.media,
             t.collection_id,
-            c.name AS collection_name,
+            COALESCE(co.metadata ->> 'name', c.name)::TEXT AS "collection_name",
             con.kind,
             con.symbol,
             t.rarity_score,
@@ -1857,8 +1857,8 @@ export const getListedTokensFromES = async (query: any) => {
             c.token_count,
             c.is_spam AS c_is_spam,
             c.metadata_disabled AS c_metadata_disabled,
-            COALESCE(collections_override.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-            (collections_override.metadata ->> 'creator')::TEXT AS "creator_override",
+            COALESCE(co.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+            (co.metadata ->> 'creator')::TEXT AS "creator_override",
             (
               SELECT
                 nb.owner
@@ -1877,7 +1877,7 @@ export const getListedTokensFromES = async (query: any) => {
           ${joinTopBidQueryPart}
           ${joinMintStagesQueryPart}
           JOIN collections c ON t.collection_id = c.id
-          LEFT JOIN collections_override ON t.collection_id = collections_override.collection_id
+          LEFT JOIN collections_override co ON t.collection_id = co.collection_id
           JOIN contracts con ON t.contract = con.address
           WHERE (t.contract, t.token_id) IN ($/tokensFilter:raw/)
         `,
