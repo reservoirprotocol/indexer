@@ -116,7 +116,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
     const baseQuery = `
             SELECT 
               c.id, 
-              c.name, 
+              COALESCE(co.metadata ->> 'name', c.name)::TEXT AS "name",
               c.contract, 
               COALESCE(co.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS "image", 
               COALESCE(co.metadata ->> 'bannerImageUrl', c.metadata ->> 'bannerImageUrl')::TEXT AS "banner", 
