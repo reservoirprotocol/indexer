@@ -413,7 +413,6 @@ export const getUserTokensV9Options: RouteOptions = {
     let tokensJoin = `
       JOIN LATERAL (
         SELECT 
-          t.token_id,
           t.name,
           t.image,
           t.image_version,
@@ -448,8 +447,8 @@ export const getUserTokensV9Options: RouteOptions = {
           ${selectRoyaltyBreakdown}
         FROM tokens t
         ${includeRoyaltyBreakdownQuery}
-        WHERE b.token_id = t.token_id
-        AND b.contract = t.contract
+        WHERE nft_balances.token_id = t.token_id
+        AND nft_balances.contract = t.contract
         ${query.excludeSpam ? `AND (t.is_spam IS NULL OR t.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? `AND (t.nsfw_status IS NULL OR t.nsfw_status <= 0)` : ""}
         AND ${
@@ -462,7 +461,6 @@ export const getUserTokensV9Options: RouteOptions = {
       tokensJoin = `
         JOIN LATERAL (
           SELECT 
-            t.token_id,
             t.name,
             t.image,
             t.image_version,
@@ -490,8 +488,8 @@ export const getUserTokensV9Options: RouteOptions = {
             ${selectRoyaltyBreakdown}
           FROM tokens t
           ${includeRoyaltyBreakdownQuery}
-          WHERE b.token_id = t.token_id
-          AND b.contract = t.contract
+          WHERE nft_balances.token_id = t.token_id
+          AND nft_balances.contract = t.contract
           AND ${
             tokensCollectionFilters.length
               ? "(" + tokensCollectionFilters.join(" OR ") + ")"
@@ -510,16 +508,16 @@ export const getUserTokensV9Options: RouteOptions = {
           FROM "orders" "o"
           JOIN "token_sets_tokens" "tst"
             ON "o"."token_set_id" = "tst"."token_set_id"
-          WHERE "tst"."contract" = "b"."contract"
-            AND "tst"."token_id" = "b"."token_id"
+          WHERE "tst"."contract" = "nft_balances"."contract"
+            AND "tst"."token_id" = "nft_balances"."token_id"
             AND "o"."side" = 'buy'
             AND "o"."fillability_status" = 'fillable'
             AND "o"."approval_status" = 'approved'
             ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
             AND EXISTS(
               SELECT FROM "nft_balances" "nb"
-                WHERE "nb"."contract" = "b"."contract"
-                AND "nb"."token_id" = "b"."token_id"
+                WHERE "nb"."contract" = "nft_balances"."contract"
+                AND "nb"."token_id" = "nft_balances"."token_id"
                 AND "nb"."amount" > 0
                 AND "nb"."owner" != "o"."maker"
                 AND (
@@ -604,9 +602,9 @@ export const getUserTokensV9Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
-               t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
-               t.supply, t.remaining_supply, t.description,
-               t.rarity_score, t.t_is_spam, t.t_nsfw_status, t.image_version, t.image_mime_type, t.media_mime_type,
+               b.name, b.image, b.metadata AS token_metadata, b.media, b.rarity_rank, b.collection_id,
+               b.supply, b.remaining_supply, b.description,
+               b.rarity_score, b.t_is_spam, b.t_nsfw_status, b.image_version, b.image_mime_type, b.media_mime_type,
                ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
@@ -631,8 +629,11 @@ export const getUserTokensV9Options: RouteOptions = {
                ) AS on_sale_count
                ${selectAttributes}
         FROM (
-            SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
+            SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value, t.* ${
+              query.includeTopBid ? ", y.*" : ""
+            }
             FROM nft_balances
+            ${tokensJoin}
             WHERE owner = $/user/
               AND ${
                 nftBalanceCollectionFilters.length
@@ -645,37 +646,44 @@ export const getUserTokensV9Options: RouteOptions = {
                   : "TRUE"
               }
               AND amount > 0
+              ${
+                query.excludeSpam
+                  ? `
+                  AND contract in (
+                    SELECT contract
+                    FROM user_collections uc
+                    WHERE owner = $/user/
+                    AND token_count > 0
+                    AND (is_spam IS NULL OR is_spam <= 0)
+                  )
+                  `
+                  : ""
+              }
               ${continuationFilter}
-              ${sharedContract || query.excludeSpam || query.excludeNsfw ? "" : sorting}
+              ${sharedContract || query.excludeNsfw ? "" : sorting}
           ) AS b
-          ${tokensJoin}
           ${
-            sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
-          }JOIN collections c ON c.id = t.collection_id ${
-        query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
-      }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
-          LEFT JOIN orders o ON o.id = c.floor_sell_id
-          LEFT JOIN contracts con ON b.contract = con.address
-          LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
-            SELECT 
-              id 
-            FROM 
-              orders 
-              JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id 
-            WHERE 
-              con.kind = 'erc1155' 
-              AND token_sets_tokens.contract = b.contract 
-              AND token_sets_tokens.token_id = b.token_id 
-              AND orders.side = 'sell' 
-              AND orders.fillability_status = 'fillable' 
-              AND orders.approval_status = 'approved' 
-              AND orders.maker = $/user/ 
-            ORDER BY 
-              orders.value ASC 
-            LIMIT 
-              1
-          ) ELSE t.floor_sell_id END
-          ${sharedContract || query.excludeSpam || query.excludeNsfw ? sorting : ""}
+            sharedContract || query.excludeNsfw ? "" : "LEFT "
+          }JOIN collections c ON c.id = b.collection_id ${
+        query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""
+      }
+        LEFT JOIN orders o ON o.id = c.floor_sell_id
+        LEFT JOIN contracts con ON b.contract = con.address
+        LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
+          SELECT id 
+          FROM  orders 
+          JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id 
+          WHERE con.kind = 'erc1155' 
+          AND token_sets_tokens.contract = b.contract 
+          AND token_sets_tokens.token_id = b.token_id 
+          AND orders.side = 'sell' 
+          AND orders.fillability_status = 'fillable' 
+          AND orders.approval_status = 'approved' 
+          AND orders.maker = $/user/ 
+          ORDER BY  orders.value ASC 
+          LIMIT 1
+        ) ELSE b.floor_sell_id END
+        ${sharedContract || query.excludeNsfw ? sorting : ""}
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
