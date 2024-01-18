@@ -21,7 +21,10 @@ export interface AskDocument extends BaseDocument {
     isSpam: boolean;
     isNsfw: boolean;
     rarityRank?: number;
-    attributes: { [p: string]: string };
+    attributes: {
+      key: string;
+      value: string;
+    }[];
   };
   collection?: {
     id: string;
@@ -127,10 +130,6 @@ export class AskDocumentBuilder extends DocumentBuilder {
   public buildDocument(data: BuildAskDocumentData): AskDocument {
     const baseDocument = super.buildDocument(data);
 
-    const tokenAttributes = Object.fromEntries(
-      new Map(data.token_attributes?.map((item) => [item.key, item.value]))
-    );
-
     return {
       ...baseDocument,
       chain: {
@@ -143,7 +142,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
       token: {
         id: data.token_id,
         name: data.token_name,
-        attributes: tokenAttributes,
+        attributes: data.token_attributes,
         isFlagged: Boolean(data.token_is_flagged || 0),
         rarityRank: data.token_rarity_rank,
         isSpam: Number(data.token_is_spam) > 0,
