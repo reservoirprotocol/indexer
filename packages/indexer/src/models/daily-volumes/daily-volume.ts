@@ -500,7 +500,7 @@ export class DailyVolume {
           AND (
             all_time_volume IS DISTINCT FROM $/total_new_volume/
             OR day7_volume IS DISTINCT FROM (CASE WHEN day7_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day7_volume END)
-            OR day30_volume IS DISTINCT FROM ($/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END)
+            OR day30_volume IS DISTINCT FROM (CASE WHEN $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END)
           )
         `,
           values: values,
@@ -512,7 +512,13 @@ export class DailyVolume {
 
       return true;
     } catch (error: any) {
-      logger.error("all-time-volumes", `Error while updating all time volumes. error=${error}`);
+      logger.error(
+        "all-time-volumes",
+        JSON.stringify({
+          message: `Error while updating all time volumes. error=${error}`,
+          error,
+        })
+      );
 
       return false;
     }
