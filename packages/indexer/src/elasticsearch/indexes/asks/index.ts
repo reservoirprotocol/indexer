@@ -196,6 +196,7 @@ export const initIndex = async (): Promise<void> => {
 export const searchTokenAsks = async (
   params: {
     tokens?: { contract: string; tokenId: string }[];
+    attributes?: { key: string; value: string }[];
     contracts?: string[];
     collections?: string[];
     currencies?: string[];
@@ -295,6 +296,27 @@ export const searchTokenAsks = async (
 
       (esQuery as any).bool.filter.push(tokensFilter);
     }
+  }
+
+  if (params.attributes?.length) {
+    const attributesFilter = { bool: { should: [] } };
+
+    for (const attribute of params.attributes) {
+      (attributesFilter as any).bool.should.push({
+        bool: {
+          must: [
+            {
+              term: { ["token.attributes.key"]: attribute.key },
+            },
+            {
+              term: { ["token.attributes.value"]: attribute.value },
+            },
+          ],
+        },
+      });
+    }
+
+    (esQuery as any).bool.filter.push(attributesFilter);
   }
 
   (esQuery as any).bool.filter.push({
@@ -620,6 +642,10 @@ export const updateAsksTokenData = async (
     isSpam: number;
     nsfwStatus: number;
     rarityRank?: number;
+    attributes?: {
+      key: string;
+      value: string;
+    }[];
   }
 ): Promise<boolean> => {
   let keepGoing = false;
@@ -727,12 +753,13 @@ export const updateAsksTokenData = async (
           {
             script: {
               source:
-                "ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
+                "if (params.token_attributes != null) { ctx._source.token.attributes = params.token_attributes }; ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
               params: {
                 token_is_nsfw: Number(tokenData.nsfwStatus) > 0,
                 token_is_flagged: Boolean(tokenData.isFlagged),
                 token_is_spam: Number(tokenData.isSpam) > 0,
                 token_rarity_rank: tokenData.rarityRank ?? null,
+                token_attributes: tokenData.attributes ?? null,
               },
             },
           },
