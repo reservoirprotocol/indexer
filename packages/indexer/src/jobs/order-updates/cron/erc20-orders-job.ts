@@ -30,13 +30,6 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
   protected async process(payload: OrderUpdatesErc20OrderJobPayload) {
     const { continuation } = payload;
 
-    logger.info(
-      `erc20-orders-update`,
-      JSON.stringify({
-        message: `Start. continuation=${continuation}`,
-      })
-    );
-
     try {
       const limit = 500;
 
