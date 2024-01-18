@@ -11,7 +11,6 @@ import {
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { getUSDAndNativePrices, USDAndNativePrices } from "@/utils/prices";
-import pgPromise from "pg-promise";
 
 export type OrderUpdatesErc20OrderJobPayload = {
   continuation?: string;
@@ -135,41 +134,17 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
       let updatedOrderIds = erc20Orders.map(({ id }) => id);
 
       if (values.length) {
-        try {
-          const updateQuery =
-            pgp.helpers.update(values, columns) +
-            " WHERE t.id = v.id AND (" +
-            "t.price IS DISTINCT FROM v.price " +
-            "OR t.value IS DISTINCT FROM v.value " +
-            "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
-            ") RETURNING t.id";
+        const updateQuery =
+          pgp.helpers.update(values, columns) +
+          " WHERE t.id = v.id AND (" +
+          "t.price IS DISTINCT FROM v.price " +
+          "OR t.value IS DISTINCT FROM v.value " +
+          "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
+          ") RETURNING t.id";
 
-          const updatedOrders = await idb.manyOrNone(updateQuery);
+        const updatedOrders = await idb.manyOrNone(updateQuery);
 
-          updatedOrderIds = updatedOrders.map(({ id }) => id);
-
-          logger.info(
-            `erc20-orders-update`,
-            JSON.stringify({
-              message: `Updated erc20 orders.`,
-              values,
-              updatedOrderIds,
-              updateQuery: pgPromise.as.format(updateQuery),
-              partialUpdate: updatedOrderIds.length !== values.length,
-            })
-          );
-        } catch (error) {
-          logger.error(
-            `erc20-orders-update`,
-            JSON.stringify({
-              message: `Failed to update erc20 orders: ${error}`,
-              values,
-              error,
-            })
-          );
-
-          await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
-        }
+        updatedOrderIds = updatedOrders.map(({ id }) => id);
       }
 
       if (updatedOrderIds.length) {
