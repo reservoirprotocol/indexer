@@ -92,10 +92,10 @@ export const getUserTokensV9Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .valid("acquiredAt", "lastAppraisalValue")
+        .valid("acquiredAt", "lastAppraisalValue", "floorAskPrice")
         .default("acquiredAt")
         .description(
-          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`. `lastAppraisalValue` is the value of the last sale."
+          "Order the items are returned in the response. Options are `acquiredAt`, `lastAppraisalValue` and `floorAskPrice`. `lastAppraisalValue` is the value of the last sale. `floorAskPrice` is the collection floor ask"
         ),
       sortDirection: Joi.string()
         .lowercase()
@@ -571,34 +571,55 @@ export const getUserTokensV9Options: RouteOptions = {
         ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
-    } else {
+    } else if (query.sortBy === "lastAppraisalValue") {
       sorting = `
         ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
+    } else if (query.sortBy === "floorAskPrice") {
+      sorting = `
+          ORDER BY uc.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+          LIMIT $/limit/
+        `;
     }
 
     // Continuation
     let continuationFilter = "";
     if (query.continuation) {
-      const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
+      const [sortByValue, collectionId, tokenId] = splitContinuation(
         query.continuation,
         /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
       );
 
-      (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
+      (query as any).sortByValue = sortByValue;
       (query as any).collectionId = collectionId;
       (query as any).tokenId = tokenId;
       query.sortDirection = query.sortDirection || "desc";
       if (query.sortBy === "acquiredAt") {
         continuationFilter = ` AND (acquired_at, token_id) ${
           query.sortDirection == "desc" ? "<" : ">"
-        } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`;
-      } else {
-        continuationFilter = `AND (last_token_appraisal_value, token_id) ${
+        } (to_timestamp($/sortByValue/), $/tokenId/)`;
+      } else if (query.sortBy === "lastAppraisalValue") {
+        continuationFilter = `AND (last_token_appraisal_value, nft_balances.token_id) ${
           query.sortDirection == "desc" ? "<" : ">"
-        } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`;
+        } ($/sortByValue/, $/tokenId/)`;
+      } else if (query.sortBy === "floorAskPrice") {
+        continuationFilter = `AND (uc.floor_sell_value, nft_balances.token_id) ${
+          query.sortDirection == "desc" ? "<" : ">"
+        } ($/sortByValue/, $/tokenId/)`;
       }
+    }
+
+    let ucTable = "";
+    if (query.sortBy === "floorAskPrice") {
+      ucTable = `
+        SELECT collection_id, uc.contract, floor_sell_value
+        FROM user_collections uc
+        JOIN collections c ON c.id = uc.collection_id 
+        WHERE owner = $/user/
+        AND uc.token_count > 0
+        ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST
+      `;
     }
 
     try {
@@ -630,9 +651,15 @@ export const getUserTokensV9Options: RouteOptions = {
                     END
                ) AS on_sale_count
                ${selectAttributes}
-        FROM (
-            SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
+        FROM
+            ${ucTable ? `(${ucTable}) AS uc JOIN LATERAL ` : ""} (
+            SELECT amount AS token_count, nft_balances.token_id, nft_balances.contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
+            ${
+              ucTable
+                ? `JOIN tokens t on nft_balances.contract = t.contract and nft_balances.token_id = t.token_id and t.collection_id = uc.collection_id`
+                : ""
+            }
             WHERE owner = $/user/
               AND ${
                 nftBalanceCollectionFilters.length
@@ -645,9 +672,10 @@ export const getUserTokensV9Options: RouteOptions = {
                   : "TRUE"
               }
               AND amount > 0
+              ${ucTable ? `AND nft_balances.contract = uc.contract` : ""}
               ${continuationFilter}
-              ${sharedContract || query.excludeSpam || query.excludeNsfw ? "" : sorting}
-          ) AS b
+              ${sharedContract || query.excludeSpam || query.excludeNsfw || ucTable ? "" : sorting}
+          ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
             sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
@@ -675,7 +703,7 @@ export const getUserTokensV9Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
-          ${sharedContract || query.excludeSpam || query.excludeNsfw ? sorting : ""}
+          ${sharedContract || query.excludeSpam || query.excludeNsfw || ucTable ? sorting : ""}
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
@@ -690,9 +718,17 @@ export const getUserTokensV9Options: RouteOptions = {
               "_" +
               userTokens[userTokens.length - 1].token_id
           );
-        } else {
+        } else if (query.sortBy === "lastAppraisalValue") {
           continuation = buildContinuation(
             _.toInteger(userTokens[userTokens.length - 1].last_token_appraisal_value) +
+              "_" +
+              userTokens[userTokens.length - 1].collection_id +
+              "_" +
+              userTokens[userTokens.length - 1].token_id
+          );
+        } else if (query.sortBy === "floorAskPrice") {
+          continuation = buildContinuation(
+            userTokens[userTokens.length - 1].collection_floor_sell_currency_price +
               "_" +
               userTokens[userTokens.length - 1].collection_id +
               "_" +
