@@ -189,7 +189,7 @@ export default class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
       params.map((info) => {
         return {
           payload: info,
-          jobId: info.kind !== "revalidation" ? info.tokenSetId : undefined,
+          // jobId: info.kind !== "revalidation" ? info.tokenSetId : undefined,
         };
       })
     );
