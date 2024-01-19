@@ -557,7 +557,8 @@ export const getUserTokensV7Options: RouteOptions = {
                t.rarity_score, t.t_is_spam, t.image_version, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               COALESCE(co.metadata ->> 'name', c.name)::TEXT AS "collection_name", COALESCE(co.metadata ->> 'imageUrl', c.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+               con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
@@ -595,6 +596,7 @@ export const getUserTokensV7Options: RouteOptions = {
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN orders ot ON ot.id = t.floor_sell_id
           JOIN contracts con ON b.contract = con.address
+          LEFT JOIN collections_override co ON t.collection_id = co.collection_id
       `;
 
       const conditions: string[] = [];
@@ -727,7 +729,7 @@ export const getUserTokensV7Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
-                imageUrl: r.metadata?.imageUrl,
+                imageUrl: r.collection_image, // uses the overriden image if it exists
                 isSpam: Number(r.c_is_spam) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,

@@ -89,7 +89,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
 
     if (query.name) {
       query.name = `%${query.name}%`;
-      conditions.push(`name ILIKE $/name/`);
+      conditions.push(`(name ILIKE $/name/ OR (co.metadata ->> 'name')::TEXT ILIKE $/name/)`);
     }
 
     if (query.community) {
