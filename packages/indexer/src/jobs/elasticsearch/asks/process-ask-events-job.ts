@@ -67,18 +67,20 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           refresh: true,
         });
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `indexed asks. correlationId=${correlationId}`,
-            topic: "debugMissingAsks",
-            data: {
-              bulkOps: JSON.stringify(bulkOps),
-            },
-            response,
-            correlationId,
-          })
-        );
+        if (config.chainId === 137) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `indexed asks. correlationId=${correlationId}`,
+              topic: "debugMissingAsks",
+              data: {
+                bulkOps: JSON.stringify(bulkOps),
+              },
+              response,
+              correlationId,
+            })
+          );
+        }
 
         if (response.errors) {
           logger.error(
