@@ -530,7 +530,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       ]);
 
       if (result.floor_sell_id) {
-        await refreshAsksTokenAttributesJob.addToQueue(contract, tokenId, 1000);
+        await refreshAsksTokenAttributesJob.addToQueue(contract, tokenId, 5000);
       }
     }
 
