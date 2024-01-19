@@ -37,7 +37,7 @@ export class TraceSyncJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(params: TraceSyncJobPayload, delay = 0) {
+  public async addToQueue(params: TraceSyncJobPayload, delay = 5000) {
     await this.send({ payload: params, jobId: `${params.block}` }, delay);
   }
 }

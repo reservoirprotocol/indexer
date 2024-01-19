@@ -503,7 +503,7 @@ export class DailyVolume {
       logger.error(
         "all-time-volumes",
         JSON.stringify({
-          message: `Error while updating all time volumes. error=${error}`,
+          message: `Error while updating all time volumes. error=${JSON.stringify(error)}`,
           error,
         })
       );

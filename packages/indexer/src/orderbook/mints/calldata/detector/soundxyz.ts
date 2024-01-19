@@ -55,59 +55,121 @@ export const extractByCollection = async (
   try {
     // Using `SuperMinter`
     if (scheduleNum && !moduleInterfaceId) {
-      const minter = new Contract(
+      let minter = new Contract(
         minterAddress,
-        new Interface([
-          `function totalPriceAndFees(
-            address edition,
-            uint8 tier,
-            uint8 scheduleNum,
-            uint32 quantity
-          ) view returns (
-            (
-              uint256 total,
-              uint256 subTotal,
-              uint256 unitPrice,
-              uint256 platformFee,
-              uint256 platformFlatFee,
-              uint256 platformTxFlatFee,
-              uint256 platformMintFlatFee,
-              uint256 platformMintBPSFee,
-              uint256 affiliateFee
-            ) fee
-          )`,
-          `function mintInfo(
-            address edition,
-            uint8 tier,
-            uint8 scheduleNum
-          ) view returns (
-            (
-              address edition,
-              uint8 tier,
-              uint8 scheduleNum,
-              address platform,
-              uint96 price,
-              uint32 startTime,
-              uint32 endTime,
-              uint32 maxMintablePerAccount,
-              uint32 maxMintable,
-              uint32 minted,
-              uint16 affiliateFeeBPS,
-              uint8 mode,
-              bool paused,
-              bool hasMints,
-              bytes32 affiliateMerkleRoot,
-              bytes32 merkleRoot,
-              address signer,
-              bool usePlatformSigner
-            ) info
-          )`,
-        ]),
+        new Interface(["function version() pure returns (string version)"]),
         baseProvider
       );
 
-      const mintInfo = await minter.mintInfo(collection, mintId, scheduleNum);
-      const totalPrice = await minter.totalPriceAndFees(collection, mintId, scheduleNum, 1);
+      const version = await minter.version();
+
+      let mintInfo, totalPrice;
+      if (version === "1_1") {
+        minter = new Contract(
+          minterAddress,
+          new Interface([
+            `function totalPriceAndFees(
+              address edition,
+              uint8 tier,
+              uint8 scheduleNum,
+              uint32 quantity,
+              bool hasValidAffiliate
+            ) view returns (
+              (
+                uint256 total,
+                uint256 subTotal,
+                uint256 unitPrice,
+                uint256 finalArtistFee,
+                uint256 finalAffiliateFee,
+                uint256 finalPlatformFee
+              ) fee
+            )`,
+            `function mintInfo(
+              address edition,
+              uint8 tier,
+              uint8 scheduleNum
+            ) view returns (
+              (
+                address edition,
+                uint8 tier,
+                uint8 scheduleNum,
+                address platform,
+                uint96 price,
+                uint32 startTime,
+                uint32 endTime,
+                uint32 maxMintablePerAccount,
+                uint32 maxMintable,
+                uint32 minted,
+                uint16 affiliateFeeBPS,
+                uint8 mode,
+                bool paused,
+                bool hasMints,
+                bytes32 affiliateMerkleRoot,
+                bytes32 merkleRoot,
+                address signer
+              ) info
+            )`,
+          ]),
+          baseProvider
+        );
+
+        mintInfo = await minter.mintInfo(collection, mintId, scheduleNum);
+        totalPrice = await minter.totalPriceAndFees(collection, mintId, scheduleNum, 1, false);
+      } else {
+        minter = new Contract(
+          minterAddress,
+          new Interface([
+            `function totalPriceAndFees(
+              address edition,
+              uint8 tier,
+              uint8 scheduleNum,
+              uint32 quantity
+            ) view returns (
+              (
+                uint256 total,
+                uint256 subTotal,
+                uint256 unitPrice,
+                uint256 platformFee,
+                uint256 platformFlatFee,
+                uint256 platformTxFlatFee,
+                uint256 platformMintFlatFee,
+                uint256 platformMintBPSFee,
+                uint256 affiliateFee
+              ) fee
+            )`,
+            `function mintInfo(
+              address edition,
+              uint8 tier,
+              uint8 scheduleNum
+            ) view returns (
+              (
+                address edition,
+                uint8 tier,
+                uint8 scheduleNum,
+                address platform,
+                uint96 price,
+                uint32 startTime,
+                uint32 endTime,
+                uint32 maxMintablePerAccount,
+                uint32 maxMintable,
+                uint32 minted,
+                uint16 affiliateFeeBPS,
+                uint8 mode,
+                bool paused,
+                bool hasMints,
+                bytes32 affiliateMerkleRoot,
+                bytes32 merkleRoot,
+                address signer,
+                bool usePlatformSigner
+              ) info
+            )`,
+          ]),
+          baseProvider
+        );
+
+        mintInfo = await minter.mintInfo(collection, mintId, scheduleNum);
+        totalPrice = await minter.totalPriceAndFees(collection, mintId, scheduleNum, 1);
+      }
 
       // Public sale
       if (!mintInfo.paused) {
