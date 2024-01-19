@@ -41,8 +41,8 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
             FROM 
               token_attributes ta 
             WHERE 
-              ta.contract = $ / contract / 
-              AND ta.token_id = $ / tokenId / 
+              ta.contract = $/contract/ 
+              AND ta.token_id = $/tokenId/ 
               AND ta.key != ''
             `,
           {
