@@ -771,15 +771,13 @@ export const updateAsksTokenData = async (
           {
             script: {
               source:
-                "if (params.token_attributes != null) { ctx._source.token.attributes = params.token_attributes }; ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
+                "ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }; if (params.token_attributes != null) { ctx._source.token.attributes = params.token_attributes }",
               params: {
                 token_is_nsfw: Number(tokenData.nsfwStatus) > 0,
                 token_is_flagged: Boolean(tokenData.isFlagged),
                 token_is_spam: Number(tokenData.isSpam) > 0,
                 token_rarity_rank: tokenData.rarityRank ?? null,
-                token_attributes: tokenData.attributes
-                  ? JSON.stringify(tokenData.attributes)
-                  : null,
+                token_attributes: tokenData.attributes ?? null,
               },
             },
           },
