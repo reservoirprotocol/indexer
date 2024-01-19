@@ -307,13 +307,6 @@ export class DailyVolume {
               day1_sales_count = $/sales_count/,
               updated_at = now()
             WHERE id = $/collection_id/
-            AND (
-              day1_volume IS DISTINCT FROM $/volume/
-              OR day1_rank IS DISTINCT FROM $/rank/
-              OR day1_floor_sell_value IS DISTINCT FROM $/floor_sell_value/
-              OR day1_volume_change IS DISTINCT FROM $/volume_change/
-              OR day1_sales_count IS DISTINCT FROM $/sales_count/
-            )
             `,
           values: values,
         });
@@ -497,11 +490,6 @@ export class DailyVolume {
             day30_volume = CASE WHEN day30_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END,
             updated_at = now()
           WHERE id = $/collection_id/
-          AND (
-            all_time_volume IS DISTINCT FROM $/total_new_volume/
-            OR day7_volume IS DISTINCT FROM (CASE WHEN day7_volume < $/volume_since_recent/ THEN $/volume_since_recent/ ELSE day7_volume END)
-            OR day30_volume IS DISTINCT FROM ($/volume_since_recent/ THEN $/volume_since_recent/ ELSE day30_volume END)
-          )
         `,
           values: values,
         });
@@ -512,7 +500,13 @@ export class DailyVolume {
 
       return true;
     } catch (error: any) {
-      logger.error("all-time-volumes", `Error while updating all time volumes. error=${error}`);
+      logger.error(
+        "all-time-volumes",
+        JSON.stringify({
+          message: `Error while updating all time volumes. error=${JSON.stringify(error)}`,
+          error,
+        })
+      );
 
       return false;
     }
