@@ -6,7 +6,6 @@ import crypto from "crypto";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
-import { logger } from "@/common/logger";
 
 export type RefreshAsksTokenAttributesJobPayload = {
   contract: string;
@@ -44,13 +43,6 @@ export default class RefreshAsksTokenAttributesJob extends AbstractRabbitMqJobHa
     );
 
     if (!_.isEmpty(tokenAttributesData)) {
-      logger.info(
-        this.queueName,
-        `Refreshing attributes. contract=${contract}, tokenId=${tokenId}, tokenAttributesData=${JSON.stringify(
-          tokenAttributesData
-        )}`
-      );
-
       const keepGoing = await AsksIndex.updateAsksTokenAttributesData(
         contract,
         tokenId,
@@ -71,7 +63,7 @@ export default class RefreshAsksTokenAttributesJob extends AbstractRabbitMqJobHa
     }
   }
 
-  public async addToQueue(contract: string, tokenId: string) {
+  public async addToQueue(contract: string, tokenId: string, delay = 0) {
     if (!config.doElasticsearchWork) {
       return;
     }
@@ -81,7 +73,7 @@ export default class RefreshAsksTokenAttributesJob extends AbstractRabbitMqJobHa
       .update(`${contract.toLowerCase()}:${tokenId}`)
       .digest("hex");
 
-    await this.send({ payload: { contract, tokenId }, jobId });
+    await this.send({ payload: { contract, tokenId }, jobId }, delay);
   }
 }
 

@@ -530,25 +530,13 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       ]);
 
       if (result.floor_sell_id) {
-        await refreshAsksTokenAttributesJob.addToQueue(contract, tokenId);
+        await refreshAsksTokenAttributesJob.addToQueue(contract, tokenId, 1000);
       }
     }
 
     if (!_.isEmpty(tokenAttributeCounter)) {
       await resyncAttributeCountsJob.addToQueue({ tokenAttributeCounter });
     }
-  }
-
-  public updateActivities(contract: string) {
-    if (config.chainId === 1) {
-      return _.indexOf(["0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"], contract) === -1;
-    }
-
-    if (config.chainId === 137) {
-      return _.indexOf(["0x2953399124f0cbb46d2cbacd8a89cf0599974963"], contract) === -1;
-    }
-
-    return true;
   }
 
   public async addToQueue(tokenMetadataInfos: TokenMetadata[]) {

@@ -754,21 +754,6 @@ export const updateAsksTokenData = async (
       (hit) => ({ id: hit._id, index: hit._index })
     );
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "updateAsksTokenData",
-        message: `_search. contract=${contract}, tokenId=${tokenId}`,
-        data: {
-          contract,
-          tokenId,
-          tokenData,
-        },
-        query,
-        pendingUpdateDocuments: pendingUpdateDocuments.length,
-      })
-    );
-
     if (pendingUpdateDocuments.length) {
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
