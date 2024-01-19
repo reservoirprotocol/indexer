@@ -650,63 +650,66 @@ export const updateAsksTokenData = async (
 ): Promise<boolean> => {
   let keepGoing = false;
 
-  const should: any[] = [
-    {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.isFlagged": Boolean(tokenData.isFlagged),
-            },
-          },
-        ],
-      },
-    },
-    {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.isSpam": Number(tokenData.isSpam) > 0,
-            },
-          },
-        ],
-      },
-    },
-    {
-      bool: {
-        must_not: [
-          {
-            term: {
-              "token.isNsfw": Number(tokenData.nsfwStatus) > 0,
-            },
-          },
-        ],
-      },
-    },
-    {
-      bool: tokenData.rarityRank
-        ? {
-            must_not: [
-              {
-                term: {
-                  "token.rarityRank": tokenData.rarityRank,
-                },
-              },
-            ],
-          }
-        : {
-            must: [
-              {
-                exists: {
-                  field: "token.rarityRank",
-                },
-              },
-            ],
-          },
-    },
-  ];
+  let should: any[] = [];
 
+  if (!tokenData.attributes?.length) {
+    should = [
+      {
+        bool: {
+          must_not: [
+            {
+              term: {
+                "token.isFlagged": Boolean(tokenData.isFlagged),
+              },
+            },
+          ],
+        },
+      },
+      {
+        bool: {
+          must_not: [
+            {
+              term: {
+                "token.isSpam": Number(tokenData.isSpam) > 0,
+              },
+            },
+          ],
+        },
+      },
+      {
+        bool: {
+          must_not: [
+            {
+              term: {
+                "token.isNsfw": Number(tokenData.nsfwStatus) > 0,
+              },
+            },
+          ],
+        },
+      },
+      {
+        bool: tokenData.rarityRank
+          ? {
+              must_not: [
+                {
+                  term: {
+                    "token.rarityRank": tokenData.rarityRank,
+                  },
+                },
+              ],
+            }
+          : {
+              must: [
+                {
+                  exists: {
+                    field: "token.rarityRank",
+                  },
+                },
+              ],
+            },
+      },
+    ];
+  }
   const query = {
     bool: {
       must: [
@@ -744,6 +747,21 @@ export const updateAsksTokenData = async (
 
     const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
       (hit) => ({ id: hit._id, index: hit._index })
+    );
+
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "updateAsksTokenData",
+        message: `_search. contract=${contract}, tokenId=${tokenId}`,
+        data: {
+          contract,
+          tokenId,
+          tokenData,
+        },
+        query,
+        pendingUpdateDocuments: pendingUpdateDocuments.length,
+      })
     );
 
     if (pendingUpdateDocuments.length) {
