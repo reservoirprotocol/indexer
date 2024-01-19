@@ -578,7 +578,7 @@ export const getUserTokensV9Options: RouteOptions = {
       `;
     } else if (query.sortBy === "floorAskPrice") {
       sorting = `
-          ORDER BY uc.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
+          ORDER BY c.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
           LIMIT $/limit/
         `;
     }
@@ -604,7 +604,7 @@ export const getUserTokensV9Options: RouteOptions = {
           query.sortDirection == "desc" ? "<" : ">"
         } ($/sortByValue/, $/tokenId/)`;
       } else if (query.sortBy === "floorAskPrice") {
-        continuationFilter = `AND (uc.floor_sell_value, nft_balances.token_id) ${
+        continuationFilter = `AND (c.floor_sell_value, nft_balances.token_id) ${
           query.sortDirection == "desc" ? "<" : ">"
         } ($/sortByValue/, $/tokenId/)`;
       }
@@ -613,11 +613,13 @@ export const getUserTokensV9Options: RouteOptions = {
     let ucTable = "";
     if (query.sortBy === "floorAskPrice") {
       ucTable = `
-        SELECT collection_id, uc.contract, floor_sell_value
+        SELECT collection_id, c.*
         FROM user_collections uc
         JOIN collections c ON c.id = uc.collection_id 
         WHERE owner = $/user/
         AND uc.token_count > 0
+        ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
+        ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST
       `;
     }
@@ -652,12 +654,12 @@ export const getUserTokensV9Options: RouteOptions = {
                ) AS on_sale_count
                ${selectAttributes}
         FROM
-            ${ucTable ? `(${ucTable}) AS uc JOIN LATERAL ` : ""} (
+            ${ucTable ? `(${ucTable}) AS c JOIN LATERAL ` : ""} (
             SELECT amount AS token_count, nft_balances.token_id, nft_balances.contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
             ${
               ucTable
-                ? `JOIN tokens t on nft_balances.contract = t.contract and nft_balances.token_id = t.token_id and t.collection_id = uc.collection_id`
+                ? `JOIN tokens t on nft_balances.contract = t.contract and nft_balances.token_id = t.token_id and t.collection_id = c.collection_id`
                 : ""
             }
             WHERE owner = $/user/
@@ -672,16 +674,20 @@ export const getUserTokensV9Options: RouteOptions = {
                   : "TRUE"
               }
               AND amount > 0
-              ${ucTable ? `AND nft_balances.contract = uc.contract` : ""}
+              ${ucTable ? `AND nft_balances.contract = c.contract` : ""}
               ${continuationFilter}
               ${sharedContract || query.excludeSpam || query.excludeNsfw || ucTable ? "" : sorting}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
-            sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
-          }JOIN collections c ON c.id = t.collection_id ${
-        query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
-      }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
+            ucTable
+              ? ""
+              : `${
+                  sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
+                }JOIN collections c ON c.id = t.collection_id ${
+                  query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
+                }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}`
+          }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN contracts con ON b.contract = con.address
           LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
