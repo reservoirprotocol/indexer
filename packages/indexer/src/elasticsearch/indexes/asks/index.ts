@@ -11,6 +11,7 @@ import { buildContinuation, splitContinuation } from "@/common/utils";
 
 import {
   AggregationsAggregate,
+  ErrorCause,
   QueryDslQueryContainer,
   SearchResponse,
   Sort,
@@ -196,6 +197,7 @@ export const initIndex = async (): Promise<void> => {
 export const searchTokenAsks = async (
   params: {
     tokens?: { contract: string; tokenId: string }[];
+    attributes?: { key: string; value: string }[];
     contracts?: string[];
     collections?: string[];
     currencies?: string[];
@@ -295,6 +297,27 @@ export const searchTokenAsks = async (
 
       (esQuery as any).bool.filter.push(tokensFilter);
     }
+  }
+
+  if (params.attributes?.length) {
+    const attributesFilter = { bool: { should: [] } };
+
+    for (const attribute of params.attributes) {
+      (attributesFilter as any).bool.should.push({
+        bool: {
+          must: [
+            {
+              term: { ["token.attributes.key"]: attribute.key },
+            },
+            {
+              term: { ["token.attributes.value"]: attribute.value },
+            },
+          ],
+        },
+      });
+    }
+
+    (esQuery as any).bool.filter.push(attributesFilter);
   }
 
   (esQuery as any).bool.filter.push({
@@ -469,10 +492,15 @@ export const searchTokenAsks = async (
 
     return { asks, continuation };
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception" ||
-      (error as any).meta?.body?.error?.type === "search_phase_execution_exception";
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -556,9 +584,15 @@ export const _search = async (
 
     return esResult;
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -763,30 +797,34 @@ export const updateAsksTokenData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        if (config.chainId === 1) {
-          logger.info(
-            "elasticsearch-asks",
-            JSON.stringify({
-              topic: "updateAsksTokenData",
-              message: `Success. contract=${contract}, tokenId=${tokenId}`,
-              data: {
-                contract,
-                tokenId,
-                tokenData,
-              },
-              bulkParams,
-              bulkParamsJSON: JSON.stringify(bulkParams),
-              response,
-              keepGoing,
-            })
-          );
-        }
+        // logger.info(
+        //   "elasticsearch-asks",
+        //   JSON.stringify({
+        //     topic: "updateAsksTokenData",
+        //     message: `Success. contract=${contract}, tokenId=${tokenId}`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       tokenData,
+        //     },
+        //     bulkParams,
+        //     bulkParamsJSON: JSON.stringify(bulkParams),
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -814,6 +852,171 @@ export const updateAsksTokenData = async (
             contract,
             tokenId,
             tokenData,
+          },
+          error,
+        })
+      );
+
+      throw error;
+    }
+  }
+
+  return keepGoing;
+};
+
+export const updateAsksTokenAttributesData = async (
+  contract: string,
+  tokenId: string,
+  tokenAttributesData: {
+    key: string;
+    value: string;
+  }[]
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
+            contractAndTokenId: `${contract}:${tokenId}`,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
+
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._id, index: hit._index })
+    );
+
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "updateAsksTokenAttributesData",
+        message: `_search. contract=${contract}, tokenId=${tokenId}`,
+        data: {
+          contract,
+          tokenId,
+          tokenAttributesData,
+        },
+        query,
+        pendingUpdateDocuments: pendingUpdateDocuments.length,
+      })
+    );
+
+    if (pendingUpdateDocuments.length) {
+      const bulkParams = {
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source: "ctx._source.token.attributes = params.token_attributes",
+              params: {
+                token_attributes: tokenAttributesData,
+              },
+            },
+          },
+        ]),
+        filter_path: "items.*.error",
+      };
+
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
+
+      if (response?.errors) {
+        keepGoing = response?.items.some((item) => item.update?.status !== 400);
+
+        logger.error(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Errors in response. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateDocuments.length === 1000;
+
+        logger.info(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Success. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+            keepGoing,
+          })
+        );
+      }
+    }
+  } catch (error) {
+    let retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Retryable error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          error,
+        })
+      );
+
+      keepGoing = true;
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Unexpected error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
           },
           error,
         })
@@ -957,9 +1160,15 @@ export const updateAsksCollectionData = async (
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
