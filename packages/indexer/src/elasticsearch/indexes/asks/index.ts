@@ -11,6 +11,7 @@ import { buildContinuation, splitContinuation } from "@/common/utils";
 
 import {
   AggregationsAggregate,
+  ErrorCause,
   QueryDslQueryContainer,
   SearchResponse,
   Sort,
@@ -491,10 +492,15 @@ export const searchTokenAsks = async (
 
     return { asks, continuation };
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception" ||
-      (error as any).meta?.body?.error?.type === "search_phase_execution_exception";
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -578,9 +584,15 @@ export const _search = async (
 
     return esResult;
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -800,28 +812,34 @@ export const updateAsksTokenData = async (
       } else {
         keepGoing = pendingUpdateDocuments.length === 1000;
 
-        logger.info(
-          "elasticsearch-asks",
-          JSON.stringify({
-            topic: "updateAsksTokenData",
-            message: `Success. contract=${contract}, tokenId=${tokenId}`,
-            data: {
-              contract,
-              tokenId,
-              tokenData,
-            },
-            bulkParams,
-            bulkParamsJSON: JSON.stringify(bulkParams),
-            response,
-            keepGoing,
-          })
-        );
+        // logger.info(
+        //   "elasticsearch-asks",
+        //   JSON.stringify({
+        //     topic: "updateAsksTokenData",
+        //     message: `Success. contract=${contract}, tokenId=${tokenId}`,
+        //     data: {
+        //       contract,
+        //       tokenId,
+        //       tokenData,
+        //     },
+        //     bulkParams,
+        //     bulkParamsJSON: JSON.stringify(bulkParams),
+        //     response,
+        //     keepGoing,
+        //   })
+        // );
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -978,9 +996,15 @@ export const updateAsksTokenAttributesData = async (
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -1151,9 +1175,15 @@ export const updateAsksCollectionData = async (
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
