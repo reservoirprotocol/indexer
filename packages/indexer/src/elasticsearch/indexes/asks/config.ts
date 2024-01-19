@@ -105,5 +105,7 @@ export const CONFIG_DEFAULT = {
       getNetworkSettings().elasticsearch?.numberOfShards ||
       1,
     number_of_replicas: 0,
+    max_result_window: 1000000,
+    refresh_interval: "1s",
   },
 };

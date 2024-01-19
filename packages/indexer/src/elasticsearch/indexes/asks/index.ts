@@ -642,74 +642,67 @@ export const updateAsksTokenData = async (
     isSpam: number;
     nsfwStatus: number;
     rarityRank?: number;
-    attributes?: {
-      key: string;
-      value: string;
-    }[];
   }
 ): Promise<boolean> => {
   let keepGoing = false;
 
-  let should: any[] = [];
+  const should: any[] = [
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isFlagged": Boolean(tokenData.isFlagged),
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isSpam": Number(tokenData.isSpam) > 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isNsfw": Number(tokenData.nsfwStatus) > 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: tokenData.rarityRank
+        ? {
+            must_not: [
+              {
+                term: {
+                  "token.rarityRank": tokenData.rarityRank,
+                },
+              },
+            ],
+          }
+        : {
+            must: [
+              {
+                exists: {
+                  field: "token.rarityRank",
+                },
+              },
+            ],
+          },
+    },
+  ];
 
-  if (!tokenData.attributes?.length) {
-    should = [
-      {
-        bool: {
-          must_not: [
-            {
-              term: {
-                "token.isFlagged": Boolean(tokenData.isFlagged),
-              },
-            },
-          ],
-        },
-      },
-      {
-        bool: {
-          must_not: [
-            {
-              term: {
-                "token.isSpam": Number(tokenData.isSpam) > 0,
-              },
-            },
-          ],
-        },
-      },
-      {
-        bool: {
-          must_not: [
-            {
-              term: {
-                "token.isNsfw": Number(tokenData.nsfwStatus) > 0,
-              },
-            },
-          ],
-        },
-      },
-      {
-        bool: tokenData.rarityRank
-          ? {
-              must_not: [
-                {
-                  term: {
-                    "token.rarityRank": tokenData.rarityRank,
-                  },
-                },
-              ],
-            }
-          : {
-              must: [
-                {
-                  exists: {
-                    field: "token.rarityRank",
-                  },
-                },
-              ],
-            },
-      },
-    ];
-  }
   const query = {
     bool: {
       must: [
@@ -771,13 +764,12 @@ export const updateAsksTokenData = async (
           {
             script: {
               source:
-                "ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }; if (params.token_attributes != null) { ctx._source.token.attributes = params.token_attributes }",
+                "ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
               params: {
                 token_is_nsfw: Number(tokenData.nsfwStatus) > 0,
                 token_is_flagged: Boolean(tokenData.isFlagged),
                 token_is_spam: Number(tokenData.isSpam) > 0,
                 token_rarity_rank: tokenData.rarityRank ?? null,
-                token_attributes: tokenData.attributes ?? null,
               },
             },
           },
@@ -857,6 +849,165 @@ export const updateAsksTokenData = async (
             contract,
             tokenId,
             tokenData,
+          },
+          error,
+        })
+      );
+
+      throw error;
+    }
+  }
+
+  return keepGoing;
+};
+
+export const updateAsksTokenAttributesData = async (
+  contract: string,
+  tokenId: string,
+  tokenAttributesData: {
+    key: string;
+    value: string;
+  }[]
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
+            contractAndTokenId: `${contract}:${tokenId}`,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
+
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._id, index: hit._index })
+    );
+
+    logger.info(
+      "elasticsearch-asks",
+      JSON.stringify({
+        topic: "updateAsksTokenAttributesData",
+        message: `_search. contract=${contract}, tokenId=${tokenId}`,
+        data: {
+          contract,
+          tokenId,
+          tokenAttributesData,
+        },
+        query,
+        pendingUpdateDocuments: pendingUpdateDocuments.length,
+      })
+    );
+
+    if (pendingUpdateDocuments.length) {
+      const bulkParams = {
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source: "ctx._source.token.attributes = params.token_attributes",
+              params: {
+                token_attributes: tokenAttributesData,
+              },
+            },
+          },
+        ]),
+        filter_path: "items.*.error",
+      };
+
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
+
+      if (response?.errors) {
+        keepGoing = response?.items.some((item) => item.update?.status !== 400);
+
+        logger.error(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Errors in response. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateDocuments.length === 1000;
+
+        logger.info(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Success. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+            keepGoing,
+          })
+        );
+      }
+    }
+  } catch (error) {
+    const retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Retryable error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          error,
+        })
+      );
+
+      keepGoing = true;
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Unexpected error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
           },
           error,
         })

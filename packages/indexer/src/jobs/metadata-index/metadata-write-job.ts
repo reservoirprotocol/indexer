@@ -18,7 +18,7 @@ import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-at
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { TokenMetadata } from "@/metadata/types";
-import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-job";
+import { refreshAsksTokenAttributesJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-attributes-job";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -530,7 +530,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       ]);
 
       if (result.floor_sell_id) {
-        await refreshAsksTokenJob.addToQueue(contract, tokenId, true);
+        await refreshAsksTokenAttributesJob.addToQueue(contract, tokenId);
       }
     }
 

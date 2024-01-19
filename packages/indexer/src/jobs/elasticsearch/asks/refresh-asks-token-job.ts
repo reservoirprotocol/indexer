@@ -5,14 +5,10 @@ import _ from "lodash";
 import { Tokens } from "@/models/tokens";
 import crypto from "crypto";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { logger } from "@/common/logger";
 
 export type RefreshAsksTokenJobPayload = {
   contract: string;
   tokenId: string;
-  refreshAttributes?: boolean;
 };
 
 export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
@@ -25,46 +21,16 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
   protected async process(payload: RefreshAsksTokenJobPayload) {
     let addToQueue = false;
 
-    const { contract, tokenId, refreshAttributes } = payload;
+    const { contract, tokenId } = payload;
 
     const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
 
     if (!_.isEmpty(tokenData)) {
-      let tokenAttributes;
-
-      if (refreshAttributes) {
-        tokenAttributes = await idb.manyOrNone(
-          `
-            SELECT 
-              ta.key, 
-              ta.value 
-            FROM 
-              token_attributes ta 
-            WHERE 
-              ta.contract = $/contract/ 
-              AND ta.token_id = $/tokenId/ 
-              AND ta.key != ''
-            `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-          }
-        );
-      }
-
-      logger.info(
-        this.queueName,
-        `Refreshing attributes. contract=${contract}, tokenId=${tokenId}, tokenAttributes=${JSON.stringify(
-          tokenAttributes
-        )}`
-      );
-
       const keepGoing = await AsksIndex.updateAsksTokenData(contract, tokenId, {
         isFlagged: tokenData.isFlagged,
         isSpam: tokenData.isSpam,
         nsfwStatus: tokenData.nsfwStatus,
         rarityRank: tokenData.rarityRank,
-        attributes: tokenAttributes,
       });
 
       if (keepGoing) {
@@ -81,17 +47,17 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(contract: string, tokenId: string, refreshAttributes = false) {
+  public async addToQueue(contract: string, tokenId: string) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
     const jobId = crypto
       .createHash("sha256")
-      .update(`${contract.toLowerCase()}:${tokenId}:${refreshAttributes}`)
+      .update(`${contract.toLowerCase()}:${tokenId}`)
       .digest("hex");
 
-    await this.send({ payload: { contract, tokenId, refreshAttributes }, jobId });
+    await this.send({ payload: { contract, tokenId }, jobId });
   }
 }
 
