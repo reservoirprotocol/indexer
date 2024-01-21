@@ -144,7 +144,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
 
   public async addToQueue(
     contract: string,
-    tokenId: number,
+    tokenId: string,
     cursor?: {
       createdAt: string;
       id: string;

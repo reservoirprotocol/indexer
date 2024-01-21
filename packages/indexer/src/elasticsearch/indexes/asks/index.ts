@@ -9,6 +9,9 @@ import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+
 import {
   AggregationsAggregate,
   ErrorCause,
@@ -908,21 +911,6 @@ export const updateAsksTokenAttributesData = async (
       (hit) => ({ id: hit._id, index: hit._index })
     );
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "updateAsksTokenAttributesData",
-        message: `_search. contract=${contract}, tokenId=${tokenId}`,
-        data: {
-          contract,
-          tokenId,
-          tokenAttributesData,
-        },
-        query,
-        pendingUpdateDocuments: pendingUpdateDocuments.length,
-      })
-    );
-
     if (pendingUpdateDocuments.length) {
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
@@ -979,6 +967,26 @@ export const updateAsksTokenAttributesData = async (
           })
         );
       }
+    } else {
+      logger.info(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `No pending documents. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          query,
+        })
+      );
+
+      // Refresh the token floor sell and top bid
+      await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
+
+      // Refresh the token asks
+      await backfillTokenAsksJob.addToQueue(contract, tokenId);
     }
   } catch (error) {
     let retryableError =
