@@ -716,6 +716,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           ...defaultNetworkSettings.mintAddresses,
           "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
           "0x2953399124f0cbb46d2cbacd8a89cf0599974963",
+          "0xc3c7d422809852031b44ab29eec9f1eff2a58756",
         ],
         trendingExcludedContracts: [
           "0x198d38c5f21eab36731d0576560440f70cbd9418", // Yieldnodes
