@@ -34,7 +34,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
 
       query = `
             ${AskCreatedEventHandler.buildBaseQuery(true)}
-            WHERE token_set_id = $/tokenSetId/
+            AND token_set_id = $/tokenSetId/
             ${continuationFilter}
             ORDER BY created_at, id
             LIMIT $/limit/;

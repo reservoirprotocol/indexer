@@ -3,6 +3,7 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
 import { config } from "@/config/index";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
+import { logger } from "@/common/logger";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -25,6 +26,17 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
+
+    if (config.chainId === 137 && kind === EventKind.newSellOrder) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Processing pendingAskEvent. orderId=${data.id}`,
+          topic: "debugMissingAsks",
+          data,
+        })
+      );
+    }
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
 
