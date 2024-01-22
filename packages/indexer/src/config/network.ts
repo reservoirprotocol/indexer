@@ -506,15 +506,16 @@ export const getNetworkSettings = (): NetworkSettings => {
           [
             "0x5ec03c1f7fa7ff05ec476d19e34a22eddb48acdc",
             {
-              contract: '0x5ec03c1f7fa7ff05ec476d19e34a22eddb48acdc',
-              name: 'ZED Token',
-              symbol: 'ZED',
+              contract: "0x5ec03c1f7fa7ff05ec476d19e34a22eddb48acdc",
+              name: "ZED Token",
+              symbol: "ZED",
               decimals: 18,
               metadata: {
-                image: 'https://bafkreidcljrhz7hq4h5rarxgxd63tail24mqawllwhxfrvr3esfv2nvyiy.ipfs.nftstorage.link/',
+                image:
+                  "https://bafkreidcljrhz7hq4h5rarxgxd63tail24mqawllwhxfrvr3esfv2nvyiy.ipfs.nftstorage.link/",
               },
-            }
-          ]
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
