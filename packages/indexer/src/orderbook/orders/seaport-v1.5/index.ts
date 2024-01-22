@@ -43,7 +43,6 @@ export type OrderInfo = {
   isReservoir?: boolean;
   isOpenSea?: boolean;
   isOkx?: boolean;
-  isImtbl?: boolean;
   openSeaOrderParams?: OpenseaOrderParams;
 };
 
@@ -88,7 +87,6 @@ export const save = async (
     isReservoir?: boolean,
     isOpenSea?: boolean,
     isOkx?: boolean,
-    isImtbl?: boolean,
     openSeaOrderParams?: OpenseaOrderParams
   ) => {
     try {
@@ -166,15 +164,7 @@ export const save = async (
           [
             {
               kind: "seaport-v1.5",
-              info: {
-                orderParams,
-                metadata,
-                isReservoir,
-                isOpenSea,
-                isOkx,
-                isImtbl,
-                openSeaOrderParams,
-              },
+              info: { orderParams, metadata, isReservoir, isOpenSea, isOkx, openSeaOrderParams },
               validateBidValue,
               ingestMethod,
               ingestDelay: startTime - currentTime + 5,
@@ -280,16 +270,8 @@ export const save = async (
         });
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (isImtbl && !(orderParams as any).externalId) {
-        return results.push({
-          id,
-          status: "missing-imtbl-order-id",
-        });
-      }
-
       // Check: order has a valid signature
-      if (metadata.fromOnChain || ((isOpenSea || isOkx || isImtbl) && !order.params.signature)) {
+      if (metadata.fromOnChain || ((isOpenSea || isOkx) && !order.params.signature)) {
         // Skip if:
         // - the order was validated on-chain
         // - the order is coming from OpenSea / Okx and it doesn't have a signature
@@ -628,8 +610,6 @@ export const save = async (
         source = await sources.getOrInsert("opensea.io");
       } else if (isOkx) {
         source = await sources.getOrInsert("okx.com");
-      } else if (isImtbl) {
-        source = await sources.getOrInsert("immutable.com");
       }
 
       // If the order is native, override any default source
@@ -895,7 +875,6 @@ export const save = async (
             orderInfo.isReservoir,
             orderInfo.isOpenSea,
             orderInfo.isOkx,
-            orderInfo.isImtbl,
             orderInfo.openSeaOrderParams
           )
         )

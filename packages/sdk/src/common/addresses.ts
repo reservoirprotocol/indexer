@@ -27,7 +27,6 @@ export const Native: ChainIdToAddress = {
   [Network.Ancient8Testnet]: AddressZero,
   [Network.Scroll]: AddressZero,
   [Network.ImmutableZkevmTestnet]: AddressZero,
-  [Network.ImmutableZkevm]: AddressZero,
   [Network.Beam]: AddressZero,
   [Network.BeamTestnet]: AddressZero,
 };
@@ -56,10 +55,9 @@ export const WNative: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9",
   [Network.Ancient8Testnet]: "0x4200000000000000000000000000000000000006",
   [Network.Scroll]: "0x5300000000000000000000000000000000000004",
-  [Network.ImmutableZkevmTestnet]: "0x1CcCa691501174B4A623CeDA58cC8f1a76dc3439",
-  [Network.ImmutableZkevm]: "0x3a0c2ba54d6cbd3121f01b96dfd20e99d1696c9d",
+  [Network.ImmutableZkevmTestnet]: "0xaf7cf5d4af0bfaa85d384d42b8d410762ccbce69",
   [Network.Beam]: "0xd51bfa777609213a653a2cd067c9a0132a2d316a",
-  [Network.BeamTestnet]: "0xf65b6f9c94187276c7d91f4f74134751d248bfea",
+  [Network.BeamTestnet]: "0xf65b6f9c94187276c7d91f4f74134751d248bfea"
 };
 
 export const Usdc: ChainIdToAddressList = {
@@ -103,8 +101,6 @@ export const Usdc: ChainIdToAddressList = {
     "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca", // Bridged
     "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // Native
   ],
-  [Network.Beam]: ["0x76BF5E7d2Bcb06b1444C0a2742780051D8D0E304"],
-  [Network.BeamTestnet]: ["0x007Fdc86FD12924C9116025C7F594843087397E3"],
 };
 
 export const Dai: ChainIdToAddress = {
@@ -142,10 +138,6 @@ export const SwapRouter: ChainIdToAddress = {
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Bsc]: "0xb971ef87ede563556b2ed4b1c0b0019111dd85d2",
   [Network.Base]: "0x2626664c2603336e57b271c5c0b26f421741e481",
-  // [Network.ImmutableZkevmTestnet]: "", // TODO: config
-  // [Network.ImmutableZkevm]: "", // TODO: config
-  [Network.Beam]: "0x965B104e250648d01d4B3b72BaC751Cde809D29E",
-  [Network.BeamTestnet]: "0xB4cFBc4836c5a0Eb27A502B6008f9baF3Bf8b3Ee",
 };
 
 // 1inch's `AggregationRouter`

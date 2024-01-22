@@ -68,30 +68,17 @@ export const postOrdersV1Options: RouteOptions = {
 
       const orderInfos: GenericOrderInfo[] = [];
       for (const { kind, data, originatedAt, source } of orders) {
-        let orderInfoSource;
-        switch (source) {
-          case "opensea":
-            orderInfoSource = "opensea.io";
-            break;
-          case "okx":
-            orderInfoSource = "okx.com";
-            break;
-          case "imtbl-orderbook":
-            orderInfoSource = "immutable.com";
-            break;
-        }
-
         orderInfos.push({
           kind,
           info: {
             orderParams: data,
             metadata: {
               originatedAt,
-              source: orderInfoSource,
+              source:
+                source === "okx" ? "okx.com" : source === "opensea" ? "opensea.io" : undefined,
             },
             isOpenSea: source === "opensea",
             isOkx: source === "okx",
-            isImtbl: source === "imtbl-orderbook",
           },
           validateBidValue: true,
         });

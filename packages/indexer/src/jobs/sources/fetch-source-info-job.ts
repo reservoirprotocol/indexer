@@ -48,10 +48,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     let tokenUrlZksync;
     let tokenUrlPolygonZkevm;
     let tokenUrlScroll;
-    let tokenUrlImmutableZkevm;
     let tokenUrlImmutableZkevmTestnet;
-    let tokenUrlBeam;
-    let tokenUrlBeamTestnet;
 
     if (!_.startsWith(url, "http")) {
       url = `https://${url}`;
@@ -135,9 +132,6 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlPolygonZkevm = this.getTokenUrl(html, url, "polygon-zkevm");
       tokenUrlScroll = this.getTokenUrl(html, url, "scroll");
       tokenUrlImmutableZkevmTestnet = this.getTokenUrl(html, url, "immutable-zkevm-testnet");
-      tokenUrlImmutableZkevm = this.getTokenUrl(html, url, "immutable-zkevm");
-      tokenUrlBeam = this.getTokenUrl(html, url, "beam");
-      tokenUrlBeamTestnet = this.getTokenUrl(html, url, "beam-testnet");
     } catch (error) {
       logger.info(this.queueName, `Get html error. sourceDomain=${sourceDomain}, error=${error}`);
     }
@@ -206,9 +200,6 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
           tokenUrlPolygonZkevm,
           tokenUrlScroll,
           tokenUrlImmutableZkevmTestnet,
-          tokenUrlImmutableZkevm,
-          tokenUrlBeam,
-          tokenUrlBeamTestnet,
         },
       })
     );
@@ -241,9 +232,6 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlPolygonZkevm,
       tokenUrlScroll,
       tokenUrlImmutableZkevmTestnet,
-      tokenUrlImmutableZkevm,
-      tokenUrlBeam,
-      tokenUrlBeamTestnet,
     });
   }
 
