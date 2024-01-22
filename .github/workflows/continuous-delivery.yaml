@@ -2,7 +2,7 @@ name: Continuous Delivery
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, development, DEVO-28_semantic_version]
 
 env:
   NODE_VERSION: "20.x"
