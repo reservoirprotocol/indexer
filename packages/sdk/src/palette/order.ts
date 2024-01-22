@@ -18,7 +18,7 @@ export class Order {
 
   hash() {
     const { params } = this;
-    if (params.kind === "buy") {
+    if (params.side === "buy") {
       return keccak256(
         defaultAbiCoder.encode(
           ["address", "uint160", "uint256", "address", "uint96", "address"],
@@ -60,6 +60,7 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
 
   return {
     kind: order.kind,
+    side: order.side,
     orderbook: lc(order.orderbook),
     collection: lc(order.collection),
     privateBuyer: order.privateBuyer ? lc(order.privateBuyer) : undefined,

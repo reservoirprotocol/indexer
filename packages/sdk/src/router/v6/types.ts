@@ -172,6 +172,10 @@ export type GenericOrder =
   | {
       kind: "payment-processor-v2";
       order: Sdk.PaymentProcessorV2.Order;
+    }
+  | {
+      kind: "palette";
+      order: Sdk.Palette.Order;
     };
 
 // Listings

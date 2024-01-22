@@ -534,6 +534,14 @@ export const generateListingDetailsV6 = async (
       };
     }
 
+    case "palette": {
+      return {
+        kind: "palette",
+        ...common,
+        order: new Sdk.Palette.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -937,6 +945,14 @@ export const generateBidDetailsV6 = async (
             .getRegistryRoyalties(common.contract, common.tokenId)
             .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
         },
+      };
+    }
+
+    case "palette": {
+      return {
+        kind: "palette",
+        ...common,
+        order: new Sdk.Palette.Order(config.chainId, order.rawData),
       };
     }
 

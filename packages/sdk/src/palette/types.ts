@@ -1,5 +1,6 @@
 export type OrderParams = {
-  kind: "buy" | "sell";
+  side: "buy" | "sell";
+  kind: "single-token" | "contract-wide";
   orderbook: string;
   collection: string;
   tokenId?: string;

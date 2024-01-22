@@ -12,8 +12,9 @@ import { AddressZero } from "@ethersproject/constants";
 const getOrderParams = (
   args: Result,
   orderbook: string,
-  kind: "buy" | "sell"
-): Sdk.Pelette.Types.OrderParams => {
+  side: "buy" | "sell",
+  kind: "single-token" | "contract-wide"
+): Sdk.Palette.Types.OrderParams => {
   const tokenId = args["tokenId"] ? args["tokenId"].toString() : undefined;
   const collection = args["collection"].toLowerCase();
   const price = (
@@ -31,6 +32,7 @@ const getOrderParams = (
   const amount = (args["tokenQuantity"] || args["bidQuantity"] || 1).toString();
   return {
     kind,
+    side,
     orderbook,
     collection,
     sellerOrBuyer,
@@ -68,8 +70,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const amount = (args["bidAmt"] || args["tokenQuantity"] || 1).toString();
 
         const orderSide = subKind.includes("filled-order") ? "sell" : "buy";
-
-        const orderParams = getOrderParams(args, orderbook, orderSide);
+        const kind = !subKind.includes("collection-offer") ? "single-token" : "contract-wide";
+        const orderParams = getOrderParams(args, orderbook, orderSide, kind);
 
         const isCollectionOffer = subKind.includes("collection-offer");
         const orderId = getOrderId(orderParams, isCollectionOffer);
@@ -144,7 +146,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const orderSide =
           subKind.includes("specific-bid") || subKind.includes("collection-offer") ? "buy" : "sell";
 
-        const orderParams = getOrderParams(args, orderbook, orderSide);
+        const kind = !subKind.includes("collection-offer") ? "single-token" : "contract-wide";
+        const orderParams = getOrderParams(args, orderbook, orderSide, kind);
 
         onChainData.orders.push({
           kind: "palette",

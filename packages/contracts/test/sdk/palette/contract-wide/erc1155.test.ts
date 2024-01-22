@@ -11,7 +11,7 @@ import { constants } from "ethers";
 import * as Sdk from "@reservoir0x/sdk/src";
 import * as indexerHelper from "../../../indexer-helper";
 import { getChainId, setupNFTs, getCurrentTimestamp } from "../../../utils";
-import { setupPelette } from "../util";
+import { setupPalette } from "../util";
 
 describe("Palette - ContractWide Erc1155", () => {
   const chainId = getChainId();
@@ -32,7 +32,7 @@ describe("Palette - ContractWide Erc1155", () => {
     ({ erc721, erc1155 } = await setupNFTs(deployer));
     const {
       orderbooks
-    } = await setupPelette(deployer, erc721.address, erc1155.address);
+    } = await setupPalette(deployer, erc721.address, erc1155.address);
     if (orderbooks[0]) {
       orderbook721 = orderbooks[0]
     }
@@ -56,6 +56,21 @@ describe("Palette - ContractWide Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     let orderInfo: any  = {};
+
+    const buyOrder = new Sdk.Palette.Order(chainId, {
+      collection: erc1155.address,
+      orderbook: orderbook1155.address,
+      side: "buy",
+      kind: "contract-wide",
+      sellerOrBuyer: buyer.address,
+      price: price.toString(),
+      amount: "1",
+      referrer: constants.AddressZero,
+      feePercentage: 0,
+      hook: constants.AddressZero
+    })
+
+    const exchange = new Sdk.Palette.Exchange(chainId);
 
     await nft.approve(seller, orderbook1155.address);
     {
@@ -116,20 +131,33 @@ describe("Palette - ContractWide Erc1155", () => {
 
     {
 
-      const fillTx = await orderbook1155
-        .connect(seller)
-        .populateTransaction
-        .acceptCollectionOffer(
-          tokenId,
-          [
-            price
-          ],
-          true,
-          '0x',
+      const fillTx = await exchange.acceptERC1155CollectionOffer(
+        seller.address,
+        [
+          buyOrder
+        ],
+        [
           {
-            gasLimit: 1000000
+            tokenId
           }
+        ]
       );
+
+      console.log(fillTx)
+      // const fillTx = await orderbook1155
+      //   .connect(seller)
+      //   .populateTransaction
+      //   .acceptCollectionOffer(
+      //     tokenId,
+      //     [
+      //       price
+      //     ],
+      //     true,
+      //     '0x',
+      //     {
+      //       gasLimit: 1000000
+      //     }
+      // );
 
       const tx = await seller.sendTransaction(fillTx);
       const result = await indexerHelper.doEventParsing(tx.hash, false);
@@ -156,10 +184,11 @@ describe("Palette - ContractWide Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
     let orderInfo: any  = {};
 
-    const buyOrder = new Sdk.Pelette.Order(chainId, {
+    const buyOrder = new Sdk.Palette.Order(chainId, {
       collection: erc721.address,
       orderbook: orderbook1155.address,
-      kind: "buy",
+      side: "buy",
+      kind: "contract-wide",
       sellerOrBuyer: buyer.address,
       price: price.toString(),
       amount: "1",

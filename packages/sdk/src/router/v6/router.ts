@@ -571,6 +571,70 @@ export class Router {
       }
     }
 
+    // We don't have a module for Palette listings
+    if (details.some(({ kind }) => kind === "palette")) {
+      const splittedDetails: ListingDetails[][] = [];
+
+      const allPaletteDetails = details.filter(({ kind }) => kind === "palette");
+
+      // Aggregate by orderbook
+      const orderbookDetails: { [orderbook: string]: ListingDetails[] } = {};
+      for (const detail of allPaletteDetails) {
+        const orderbook = (detail.order as Sdk.Palette.Order).params.orderbook;
+        if (!orderbookDetails[orderbook]) {
+          orderbookDetails[orderbook] = [];
+        }
+        orderbookDetails[orderbook].push(detail);
+      }
+
+      if (Object.keys(orderbookDetails).length) {
+        for (const orderbook of Object.keys(orderbookDetails)) {
+          splittedDetails.push(orderbookDetails[orderbook]);
+        }
+      }
+
+      for (const paletteDetails of splittedDetails) {
+        const exchange = new Sdk.Palette.Exchange(this.chainId);
+        const orders: Sdk.Palette.Order[] = paletteDetails.map((c) => c.order as Sdk.Palette.Order);
+        for (const detail of paletteDetails) {
+          const order = detail.order as Sdk.Palette.Order;
+          if (buyInCurrency !== detail.currency) {
+            swapDetails.push({
+              tokenIn: buyInCurrency,
+              tokenOut: detail.currency,
+              tokenOutAmount: order.params.price,
+              recipient: taker,
+              refundTo: taker,
+              details: [detail],
+              txIndex: txs.length,
+            });
+          }
+        }
+
+        const isERC721 = paletteDetails[0].contractKind == "erc721";
+        txs.push({
+          approvals: [],
+          permits: [],
+          txTags: {
+            listings: { palette: orders.length },
+          },
+          preSignatures: [],
+          txData: isERC721
+            ? exchange.fillERC721ListingsTx(taker, orders, {
+                source: options?.source,
+              })
+            : exchange.fillERC1155ListingsTx(taker, orders, {
+                source: options?.source,
+              }),
+          orderIds: paletteDetails.map((d) => d.orderId),
+        });
+
+        for (const { orderId } of paletteDetails) {
+          success[orderId] = true;
+        }
+      }
+    }
+
     // Detect which contracts block SCs via PaymentProcessor
     const blockedPaymentProcessorDetails: ListingDetails[] = [];
     await Promise.all(
@@ -3734,6 +3798,91 @@ export class Router {
         });
 
         for (const { orderId } of ppv2Details) {
+          success[orderId] = true;
+        }
+      }
+    }
+
+    // Fill Paletee offers directly
+    if (details.some(({ kind }) => kind === "palette")) {
+      const splittedDetails: BidDetails[][] = [];
+
+      const allPaletteDetails = details.filter(({ kind }) => kind === "palette");
+
+      // Aggregate by orderbook and kind
+      const grouppedDetails: { [orderbook: string]: BidDetails[] } = {};
+      for (const detail of allPaletteDetails) {
+        const order = detail.order as Sdk.Palette.Order;
+        const id = `${order.params.orderbook}:${order.params.kind}`;
+        if (!grouppedDetails[id]) {
+          grouppedDetails[id] = [];
+        }
+        grouppedDetails[id].push(detail);
+      }
+
+      if (Object.keys(grouppedDetails).length) {
+        for (const id of Object.keys(grouppedDetails)) {
+          splittedDetails.push(grouppedDetails[id]);
+        }
+      }
+
+      for (const paletteDetails of splittedDetails) {
+        const exchange = new Sdk.Palette.Exchange(this.chainId);
+        const orders: Sdk.Palette.Order[] = paletteDetails.map((c) => c.order as Sdk.Palette.Order);
+        const operator = orders[0].params.orderbook;
+        const approvals: NFTApproval[] = [];
+        const isERC721 = paletteDetails[0].contractKind == "erc721";
+        for (const { orderId, contract } of allPaletteDetails) {
+          approvals.push({
+            orderIds: [orderId],
+            contract: contract,
+            owner: taker,
+            operator,
+            txData: generateNFTApprovalTxData(contract, taker, operator),
+          });
+        }
+
+        txs.push({
+          approvals,
+          txTags: {
+            bids: { palette: orders.length },
+          },
+          preSignatures: [],
+          txData: isERC721
+            ? exchange.acceptERC721BidsTx(
+                taker,
+                orders,
+                orders.map((_, i) => {
+                  return {
+                    taker,
+                    tokenId: paletteDetails[i].tokenId,
+                    amount: paletteDetails[i].amount ?? 1,
+                    ...(paletteDetails[i].extraArgs ?? {}),
+                  };
+                }),
+                {
+                  source: options?.source,
+                }
+              )
+            : exchange.acceptERC1155BidsTx(
+                taker,
+                orders,
+                orders.map((_, i) => {
+                  return {
+                    taker,
+                    tokenId: paletteDetails[i].tokenId,
+                    amount: paletteDetails[i].amount ?? 1,
+                    ...(paletteDetails[i].extraArgs ?? {}),
+                  };
+                }),
+                {
+                  source: options?.source,
+                }
+              ),
+          orderIds: [...new Set(paletteDetails.map((d) => d.orderId))],
+        });
+
+        for (const { orderId } of paletteDetails) {
           success[orderId] = true;
         }
       }

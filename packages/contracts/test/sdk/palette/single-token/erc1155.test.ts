@@ -11,7 +11,7 @@ import { constants } from "ethers";
 import * as Sdk from "@reservoir0x/sdk/src";
 import * as indexerHelper from "../../../indexer-helper";
 import { getChainId, setupNFTs, getCurrentTimestamp } from "../../../utils";
-import { setupPelette } from "../util";
+import { setupPalette } from "../util";
 
 describe("Palette - SingleToken Erc1155", () => {
   const chainId = getChainId();
@@ -32,7 +32,7 @@ describe("Palette - SingleToken Erc1155", () => {
     ({ erc721, erc1155 } = await setupNFTs(deployer));
     const {
       orderbooks
-    } = await setupPelette(deployer, erc1155.address, erc1155.address);
+    } = await setupPalette(deployer, erc1155.address, erc1155.address);
     if (orderbooks[0]) {
       orderbook721 = orderbooks[0]
     }
@@ -265,10 +265,11 @@ describe("Palette - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
     let orderInfo: any  = {};
 
-    const buyOrder = new Sdk.Pelette.Order(chainId, {
+    const buyOrder = new Sdk.Palette.Order(chainId, {
       collection: erc1155.address,
       orderbook: orderbook1155.address,
-      kind: "buy",
+      side: "buy",
+      kind: "single-token",
       sellerOrBuyer: buyer.address,
       price: price.toString(),
       amount: "1",

@@ -6,7 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { ethers } from "hardhat";
 import fs from "fs";
 
-export const setupPelette = async (
+export const setupPalette = async (
   deployer: SignerWithAddress,
   erc721Collection?: string,
   erc1155Collection?: string,

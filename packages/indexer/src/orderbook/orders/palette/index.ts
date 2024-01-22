@@ -41,6 +41,7 @@ export type OrderInfo = {
     hook: string; // hook address
 
     side: "buy" | "sell";
+    kind: "single-token" | "contract-wide";
 
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
