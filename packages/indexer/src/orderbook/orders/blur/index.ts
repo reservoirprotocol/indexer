@@ -785,8 +785,6 @@ export const savePartialBids = async (
         }
 
         if (!skipSaveResult) {
-          logger.info("orders-blur-save", `reprice event. ${JSON.stringify(orderParams)}`);
-
           results.push({
             id,
             status: "success",
