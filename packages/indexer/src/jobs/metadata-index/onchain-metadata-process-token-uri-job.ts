@@ -25,7 +25,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
   protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
     const { contract, tokenId, uri } = payload;
-    let fallbackAllowed = true;
+    const fallbackAllowed = true;
     let fallbackError;
 
     try {
@@ -157,7 +157,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
       }
 
-      fallbackAllowed = !["404"].includes(`${e}`);
+      // fallbackAllowed = !["404"].includes(`${e}`);
       fallbackError = `${e}`;
 
       logger.warn(

@@ -10,6 +10,7 @@ import { ethers } from "ethers";
 import { RequestWasThrottledError, normalizeLink, normalizeMetadata } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
+import { getNetworkName } from "@/config/network";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -170,18 +171,26 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             };
           }
 
-          if (uri.startsWith("https://api.opensea.io/") && uri.endsWith("0x{id}")) {
+          if (uri.endsWith("0x{id}")) {
             logger.info(
               "onchain-fetcher",
               JSON.stringify({
                 topic: "fetchTokensError",
-                message: `Opensea 0x{id} use case. contract=${
-                  idToToken[token.id].contract
-                }, tokenId=${idToToken[token.id].tokenId}, uri=${uri}`,
+                message: `0x{id} use case. contract=${idToToken[token.id].contract}, tokenId=${
+                  idToToken[token.id].tokenId
+                }, uri=${uri}`,
               })
             );
 
-            uri = uri.replace("0x{id}", idToToken[token.id].tokenId);
+            if (uri.startsWith("https://api.opensea.io/")) {
+              uri = uri.replace("0x{id}", idToToken[token.id].tokenId);
+            }
+
+            if (uri.startsWith("ens-metadata-service.appspot.com/")) {
+              uri = `https://metadata.ens.domains/${getNetworkName()}/${
+                idToToken[token.id].contract
+              }/${idToToken[token.id].tokenId}`;
+            }
           }
 
           return {
