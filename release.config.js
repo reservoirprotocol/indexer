@@ -6,6 +6,7 @@ module.exports = {
   'branches': [
     'main',
     { name: 'development', channel: 'dev', prerelease: 'dev' },
+    { name: 'DEVO-28_semantic_version', channel: 'test', prerelease: 'test' },
   ],
   'plugins': [
     '@semantic-release/commit-analyzer',
