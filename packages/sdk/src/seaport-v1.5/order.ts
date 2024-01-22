@@ -21,16 +21,13 @@ import {
   getPrivateListingFulfillments,
   computeDynamicPrice,
 } from "../seaport-base/helpers";
-import { getImmutableConfig, isImmutable } from "../imtbl-orderbook/utils";
 
 export class Order implements IOrder {
   public chainId: number;
   public params: Types.OrderComponents;
-  public externalId: string | undefined;
 
   constructor(chainId: number, params: Types.OrderComponents) {
     this.chainId = chainId;
-    this.externalId = (params as Types.OrderComponents & { externalId?: string }).externalId;
 
     // Normalize
     try {
@@ -42,13 +39,6 @@ export class Order implements IOrder {
     // Detect kind (if missing)
     if (!params.kind) {
       this.params.kind = this.detectKind();
-    }
-
-    // Immutable Orderbook
-    if (isImmutable(this.chainId)) {
-      const imtblConfig = getImmutableConfig(this.chainId);
-      this.params.zone = imtblConfig.zone;
-      this.params.zoneHash = imtblConfig.zoneHash;
     }
 
     // Fix signature

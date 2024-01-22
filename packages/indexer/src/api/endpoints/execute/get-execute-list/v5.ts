@@ -51,7 +51,6 @@ import * as paymentProcessorCheck from "@/orderbook/orders/payment-processor/che
 // PaymentProcessorV2
 import * as paymentProcessorV2SellToken from "@/orderbook/orders/payment-processor-v2/build/sell/token";
 import * as paymentProcessorV2Check from "@/orderbook/orders/payment-processor-v2/check";
-import { isImmutable } from "@reservoir0x/sdk/src/imtbl-orderbook/utils";
 
 const version = "v5";
 
@@ -433,26 +432,24 @@ export const getExecuteListV5Options: RouteOptions = {
           // Handle fees
           // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
           // TODO: Refactor the builders to get rid of the API params naming dependency
-          if (!isImmutable(config.chainId)) {
-            (params as any).fee = [];
-            (params as any).feeRecipient = [];
-            for (const feeData of params.fees ?? []) {
-              const [feeRecipient, fee] = feeData.split(":");
-              (params as any).fee.push(fee);
-              (params as any).feeRecipient.push(feeRecipient);
-            }
-            for (const feeData of params.marketplaceFees ?? []) {
-              const [feeRecipient, fee] = feeData.split(":");
-              (params as any).fee.push(fee);
-              (params as any).feeRecipient.push(feeRecipient);
-              await feeRecipients.create(feeRecipient, "marketplace", source);
-            }
-            for (const feeData of params.customRoyalties ?? []) {
-              const [feeRecipient, fee] = feeData.split(":");
-              (params as any).fee.push(fee);
-              (params as any).feeRecipient.push(feeRecipient);
-              await feeRecipients.create(feeRecipient, "royalty", source);
-            }
+          (params as any).fee = [];
+          (params as any).feeRecipient = [];
+          for (const feeData of params.fees ?? []) {
+            const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+          }
+          for (const feeData of params.marketplaceFees ?? []) {
+            const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "marketplace", source);
+          }
+          for (const feeData of params.customRoyalties ?? []) {
+            const [feeRecipient, fee] = feeData.split(":");
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "royalty", source);
           }
 
           if (params.taker && !["seaport-v1.5", "x2y2"].includes(params.orderKind)) {

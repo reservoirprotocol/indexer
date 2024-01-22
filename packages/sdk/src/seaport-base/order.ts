@@ -7,7 +7,6 @@ import { SeaportBaseExchange } from "../seaport-base/exchange";
 export interface IOrder {
   chainId: number;
   params: Types.OrderComponents;
-  externalId?: string;
 
   exchange(): SeaportBaseExchange;
 

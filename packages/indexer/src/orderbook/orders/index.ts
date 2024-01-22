@@ -74,7 +74,6 @@ export type OrderKind =
   | "decentraland"
   | "nft-trader"
   | "okex"
-  | "imtbl-orderbook"
   | "bend-dao"
   | "superrare"
   | "zeroex-v2"
@@ -188,8 +187,6 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nfttrader.io");
       case "okex":
         return sources.getOrInsert("okx.com");
-      case "imtbl-orderbook":
-        return sources.getOrInsert("immutable.com");
       case "bend-dao":
         return sources.getOrInsert("benddao.xyz");
       case "superrare":
@@ -902,7 +899,7 @@ export const checkBlacklistAndFallback = async (
 
   // Fallback to PaymentProcessor when Seaport is blocked
   if (["seaport-v1.5"].includes(params.orderKind) && ["reservoir"].includes(params.orderbook)) {
-    // FIX: deriveConduit throws incorrect error
+    // FIX: deriveConduit throws incorrect error 
     // const blocked = await checkMarketplaceIsFiltered(collection, [
     //   Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     //   new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(
