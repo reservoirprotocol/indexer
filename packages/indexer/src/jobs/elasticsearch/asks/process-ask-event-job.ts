@@ -33,7 +33,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
         JSON.stringify({
           message: `Processing pendingAskEvent. orderId=${data.id}`,
           topic: "debugMissingAsks",
-          data,
+          payload,
         })
       );
     }
@@ -46,6 +46,18 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
     } else {
       const askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
+
+      if (config.chainId === 137 && kind === EventKind.newSellOrder) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `generateAsk. orderId=${data.id}`,
+            topic: "debugMissingAsks",
+            payload,
+            askDocumentInfo,
+          })
+        );
+      }
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);

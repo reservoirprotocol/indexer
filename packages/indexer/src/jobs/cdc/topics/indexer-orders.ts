@@ -12,7 +12,6 @@ import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { formatStatus } from "@/jobs/websocket-events/utils";
-import { config } from "@/config/index";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -58,17 +57,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       );
 
       if (afterStatus === "active") {
-        if (config.chainId === 137) {
-          logger.info(
-            "IndexerOrdersHandler",
-            JSON.stringify({
-              message: `newSellOrder. orderId=${payload.after.id}`,
-              topic: "debugMissingAsks",
-              payloadAfter: JSON.stringify(payload.after),
-            })
-          );
-        }
-
         await processAskEventJob.addToQueue([
           {
             kind: EventKind.newSellOrder,
@@ -123,17 +111,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         );
 
         if (afterStatus === "active") {
-          if (config.chainId === 137) {
-            logger.info(
-              "IndexerOrdersHandler",
-              JSON.stringify({
-                message: `sellOrderUpdated. orderId=${payload.after.id}`,
-                topic: "debugMissingAsks",
-                payloadAfter: JSON.stringify(payload.after),
-              })
-            );
-          }
-
           await processAskEventJob.addToQueue([
             {
               kind: EventKind.sellOrderUpdated,
@@ -141,17 +118,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             },
           ]);
         } else if (beforeStatus === "active") {
-          if (config.chainId === 137) {
-            logger.info(
-              "IndexerOrdersHandler",
-              JSON.stringify({
-                message: `SellOrderInactive. orderId=${payload.after.id}`,
-                topic: "debugMissingAsks",
-                payloadAfter: JSON.stringify(payload.after),
-              })
-            );
-          }
-
           await processAskEventJob.addToQueue([
             {
               kind: EventKind.SellOrderInactive,

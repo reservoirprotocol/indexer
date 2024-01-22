@@ -425,6 +425,7 @@ export const getTokensV8Options: RouteOptions = {
       query.limit = query.limit - esTokens.length;
       query.excludeEOA = false;
       query.continuation = null;
+      query.sortBy = "tokenId";
     }
 
     // Include attributes
