@@ -116,7 +116,7 @@ export const cosignOrder = async (
 ) => {
   const orderHash = order.hash();
   const consideration = computeReceivedItems(order, matchParams);
-  const expiration = getCurrentTimestamp(300);
+  const expiration = getCurrentTimestamp(90);
 
   const [extraDataComponent, requiredReceivedItemsHash] = await encodeExtraData(
     order.chainId,

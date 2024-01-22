@@ -126,6 +126,8 @@ export const config = {
 
   simplehashApiKey: String(process.env.SIMPLEHASH_API_KEY),
 
+  bloxrouteAuth: String(process.env.BLOXROUTE_AUTH),
+
   soundxyzApiKey: String(process.env.SOUNDXYZ_API_KEY),
   soundxyzUserAgent: String(process.env.SOUNDXYZ_USER_AGENT),
 

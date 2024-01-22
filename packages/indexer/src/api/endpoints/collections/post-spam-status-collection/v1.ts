@@ -6,12 +6,7 @@ import * as Boom from "@hapi/boom";
 import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/models/api-keys";
 import _ from "lodash";
-import { idb } from "@/common/db";
-import {
-  ActionsLogContext,
-  ActionsLogOrigin,
-  actionsLogJob,
-} from "@/jobs/general-tracking/actions-log-job";
+import { Collections } from "@/models/collections";
 
 const version = "v1";
 
@@ -67,7 +62,6 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    let updateResult;
 
     try {
       const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
@@ -86,36 +80,7 @@ export const postSpamStatusCollectionV1Options: RouteOptions = {
 
       const newSpamState = Number(payload.spam) ? 100 : -100;
 
-      updateResult = await idb.manyOrNone(
-        `
-            UPDATE collections
-            SET
-              is_spam = $/spam/,
-              updated_at = now()
-            WHERE id IN ($/ids:list/)
-            AND is_spam IS DISTINCT FROM $/spam/
-            RETURNING id
-          `,
-        {
-          ids: payload.collections,
-          spam: newSpamState,
-        }
-      );
-
-      if (updateResult) {
-        // Track the change
-        await actionsLogJob.addToQueue(
-          updateResult.map((res) => ({
-            context: ActionsLogContext.SpamCollectionUpdate,
-            origin: ActionsLogOrigin.API,
-            actionTakerIdentifier: apiKey.key,
-            collection: res.id,
-            data: {
-              newSpamState,
-            },
-          }))
-        );
-      }
+      await Collections.updateSpam(payload.collections, newSpamState, apiKey.key);
 
       return {
         message: `Update spam status for collections ${JSON.stringify(

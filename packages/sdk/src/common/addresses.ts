@@ -161,6 +161,8 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Ancient8Testnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Scroll]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.FrameTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.Opbnb]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

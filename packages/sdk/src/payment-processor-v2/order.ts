@@ -127,7 +127,7 @@ export class Order {
     const cosignature = {
       signer: this.params.cosigner!,
       taker,
-      expiration: getCurrentTimestamp(300),
+      expiration: getCurrentTimestamp(90),
       v: this.params.v!,
       r: this.params.r!,
       s: this.params.s!,

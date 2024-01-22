@@ -443,10 +443,26 @@ export const syncEventsOnly = async (
     })
   );
 
+  // fetch tx data for logs that we are interested in
+  const txHashes = [...new Set(logs.map((log) => log.transactionHash))];
+  const txData = await Promise.all(
+    txHashes.map(async (txHash) => {
+      const tx = await baseProvider.getTransaction(txHash);
+      if (!tx) {
+        throw new Error(`Transaction ${txHash} not found with RPC provider`);
+      }
+      return tx;
+    })
+  );
+
   let enhancedEvents = logs
     .map((log) => {
       try {
-        const baseEventParams = parseEvent(log, blockTimestamps[log.blockNumber]);
+        const tx = txData.find((tx) => tx.hash === log.transactionHash);
+        if (!tx) {
+          throw new Error(`Transaction ${log.transactionHash} not found with RPC provider`);
+        }
+        const baseEventParams = parseEvent(log, blockTimestamps[log.blockNumber], 1, tx);
         return availableEventData
           .filter(
             ({ addresses, numTopics, topic }) =>
@@ -461,7 +477,7 @@ export const syncEventsOnly = async (
             log,
           }));
       } catch (error) {
-        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events (syncEventsOnly): ${error}`);
         throw error;
       }
     })
@@ -581,12 +597,15 @@ export const syncEvents = async (
   let enhancedEvents = logs
     .map((log) => {
       try {
-        // const baseEventParams = parseEvent(log, blockData.timestamp);
         const block = blockData.find((b) => b.hash === log.blockHash);
         if (!block) {
           throw new Error(`Block ${log.blockHash} not found with RPC provider`);
         }
-        const baseEventParams = parseEvent(log, block.timestamp);
+        const txData = block.transactions.find((tx) => tx.hash === log.transactionHash);
+        if (!txData) {
+          throw new Error(`Transaction ${log.transactionHash} not found in block ${block}`);
+        }
+        const baseEventParams = parseEvent(log, block.timestamp, 1, txData);
         return availableEventData
           .filter(
             ({ addresses, numTopics, topic }) =>
@@ -601,7 +620,7 @@ export const syncEvents = async (
             log,
           }));
       } catch (error) {
-        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events (syncEvents): ${error}`);
         throw error;
       }
     })
@@ -708,8 +727,26 @@ export const checkForOrphanedBlock = async (block: number) => {
 
   // TODO: add block hash to contracts table, and delete contracts / tokens associated to the orphaned block
 
+  //check if we have the orphaned block in redis
+  const blockDataRedis = await redis.get(`block:${block}`);
+  if (blockDataRedis && JSON.parse(blockDataRedis).hash === orphanedBlock.hash) {
+    // if we have the orphaned block in redis, delete it
+    await redis.del(`block:${block}`);
+  }
   // delete the block data
   await blocksModel.deleteBlock(block, orphanedBlock.hash);
+
+  // check if we have the new block in postgres (get block with number = block and hash != orphanedBlock.hash)
+  const newBlock = await blocksModel.getBlockWithNumber(block, orphanedBlock.hash);
+
+  if (!newBlock) {
+    logger.info(
+      "events-sync-catchup",
+      `New block ${block} with hash ${upstreamBlockHash} not found in database, syncing block`
+    );
+    // resync the block
+    await eventsSyncRealtimeJob.addToQueue({ block: block });
+  }
 };
 
 export const checkForMissingBlocks = async (block: number) => {

@@ -9,12 +9,15 @@ export enum ActionsLogOrigin {
   NameSpamCheck = "name-spam-check",
   UrlSpamCheck = "url-spam-check",
   MarkedAsVerified = "marked-as-verified",
+  TransferBurstSpamCheck = "transfer-burst-spam-check",
 }
 
 export enum ActionsLogContext {
   SpamContractUpdate = "spam-contract-update",
   SpamCollectionUpdate = "spam-collection-update",
+  NsfwCollectionUpdate = "nsfw-collection-update",
   SpamTokenUpdate = "spam-token-update",
+  NsfwTokenUpdate = "nsfw-token-update",
   DisableMetadataUpdate = "disable-metadata-update",
   CollectionDataOverride = "collection-data-override",
 }

@@ -10,6 +10,7 @@ import {
 } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
+import * as pendingTxs from "@/utils/pending-txs";
 
 import { GenericOrderInfo } from "@/jobs/orderbook/utils";
 import {
@@ -151,7 +152,10 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
-    await Promise.all([assignSourceToFillEvents(allFillEvents)]);
+    await Promise.all([
+      assignSourceToFillEvents(allFillEvents),
+      pendingTxs.onFillEventsCallback(allFillEvents),
+    ]);
   }
   const endAssignSourceToFillEvents = Date.now();
 

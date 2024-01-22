@@ -30,31 +30,45 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   async _getTokensMetadata(
     tokens: { contract: string; tokenId: string; uri: string }[]
   ): Promise<TokenMetadata[]> {
-    const resolvedMetadata = await Promise.all(
-      tokens.map(async (token: any) => {
-        const [metadata, error] = await this.getTokenMetadataFromURI(
-          token.uri,
-          token.contract,
-          token.tokenId
-        );
-        if (error) {
-          if (error === 429) {
-            throw new RequestWasThrottledError(error.message, 10);
+    try {
+      const resolvedMetadata = await Promise.all(
+        tokens.map(async (token: any) => {
+          const [metadata, error] = await this.getTokenMetadataFromURI(
+            token.uri,
+            token.contract,
+            token.tokenId
+          );
+          if (error) {
+            if (error === 429) {
+              throw new RequestWasThrottledError(error.message, 10);
+            }
+
+            throw error;
           }
 
-          throw error;
-        }
+          return {
+            ...metadata,
+            ...token,
+          };
+        })
+      );
 
-        return {
-          ...metadata,
-          ...token,
-        };
-      })
-    );
+      return resolvedMetadata.map((token) => {
+        return this.parseToken(token);
+      });
+    } catch (error) {
+      logger.warn(
+        "onchain-fetcher",
+        JSON.stringify({
+          topic: "_getTokensMetadata",
+          message: `Could not fetch collection. error=${error}`,
+          tokens,
+          error,
+        })
+      );
 
-    return resolvedMetadata.map((token) => {
-      return this.parseToken(token);
-    });
+      throw error;
+    }
   }
 
   async _getTokensMetadataUri(tokens: { contract: string; tokenId: string }[]): Promise<
@@ -130,7 +144,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     const [batch, error] = await this.sendBatch(encodedTokens);
 
     if (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `fetchTokens sendBatch error. error: ${JSON.stringify(error)}`
       );
@@ -161,7 +175,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             uri,
           };
         } catch (error) {
-          logger.error(
+          logger.warn(
             "onchain-fetcher",
             JSON.stringify({
               topic: "fetchTokensError",
@@ -220,7 +234,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         name: collectionName,
       });
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         JSON.stringify({
           topic: "fetchCollectionError",
@@ -290,6 +304,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         kind: typeof trait.value == "number" ? "number" : "string",
         rank: 1,
       })),
+      decimals: metadata?.decimals ? parseInt(metadata.decimals) : undefined,
     };
   }
 
@@ -329,7 +344,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return "Unknown";
       }
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `detectTokenStandard error. contractAddress:${contractAddress}, error:${error}`
       );
@@ -360,7 +375,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         contract: token.contract,
       };
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `encodeTokenERC721 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
       );
@@ -391,7 +406,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         contract: token.contract,
       };
     } catch (error) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `encodeTokenERC1155 error. contractAddress:${token.contract}, tokenId:${token.tokenId}, error:${error}`
       );
@@ -414,7 +429,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const name = await contract.name();
       return name;
     } catch (e) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `getContractName error. contractAddress:${contractAddress}, error:${e}`
       );
@@ -451,7 +466,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
       return json;
     } catch (e) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         `getContractURI error. contractAddress:${contractAddress}, error:${e}`
       );
@@ -502,7 +517,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = JSON.parse(body);
       return [json, null];
     } catch (e: any) {
-      logger.error("onchain-fetcher", `sendBatch error. error:${JSON.stringify(e)}`);
+      logger.warn("onchain-fetcher", `sendBatch error. error:${JSON.stringify(e)}`);
 
       return [
         null,
@@ -517,6 +532,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   parseIPFSURI(uri: string) {
     if (uri && uri?.includes("ipfs://")) {
       uri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+    }
+
+    if (uri && uri?.includes("gateway.pinata.cloud")) {
+      uri = uri.replace("gateway.pinata.cloud", "ipfs.io");
     }
 
     return uri;
@@ -558,7 +577,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       const json = await response.json();
       return [json, null];
     } catch (e) {
-      logger.error(
+      logger.warn(
         "onchain-fetcher",
         JSON.stringify({
           message: "getTokenMetadataFromURI error",

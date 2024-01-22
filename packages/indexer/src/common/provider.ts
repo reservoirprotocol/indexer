@@ -3,17 +3,18 @@ import Arweave from "arweave";
 import getUuidByString from "uuid-by-string";
 
 import { logger } from "@/common/logger";
+import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 
 // Use a static provider to avoid redundant `eth_chainId` calls
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers: [1, 324].includes(config.chainId)
-      ? {}
-      : {
+    headers: [1].includes(config.chainId)
+      ? {
           "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
-        },
+        }
+      : {},
   },
   config.chainId
 );
@@ -85,4 +86,5 @@ export const arweaveGateway = Arweave.init({
   protocol: "https",
 });
 
-export const getGasFee = async () => baseProvider.getBlock("pending").then((b) => b.baseFeePerGas!);
+export const getGasFee = async () =>
+  baseProvider.getBlock("latest").then((b) => bn(b.baseFeePerGas ?? "0"));

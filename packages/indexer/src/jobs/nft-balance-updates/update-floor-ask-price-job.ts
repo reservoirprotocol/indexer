@@ -56,7 +56,8 @@ export default class NftBalanceUpdateFloorAskJob extends AbstractRabbitMqJobHand
                 )
                 UPDATE nft_balances AS nb
                 SET floor_sell_id = x.floor_sell_id,
-                    floor_sell_value = x.floor_sell_value
+                    floor_sell_value = x.floor_sell_value,
+                    updated_at = now()
                 FROM x
                 WHERE nb.contract = x.contract
                 AND nb.token_id = x.token_id

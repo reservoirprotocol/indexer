@@ -154,6 +154,9 @@ export const getCollectionsV7Options: RouteOptions = {
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as spam."),
+      excludeNsfw: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as nsfw."),
       startTimestamp: Joi.number()
         .when("sortBy", {
           is: "updatedAt",
@@ -206,6 +209,7 @@ export const getCollectionsV7Options: RouteOptions = {
           description: Joi.string().allow("", null),
           metadataDisabled: Joi.boolean().default(false),
           isSpam: Joi.boolean().default(false),
+          isNsfw: Joi.boolean().default(false),
           isMinting: Joi.boolean().default(false),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string().description("Total tokens within the collection."),
@@ -492,6 +496,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
           collections.is_spam,
+          collections.nsfw_status,
           collections.is_minting,
           collections.metadata_disabled,
           ${floorAskSelectQuery}
@@ -585,6 +590,10 @@ export const getCollectionsV7Options: RouteOptions = {
 
       if (query.excludeSpam) {
         conditions.push("(collections.is_spam IS NULL OR collections.is_spam <= 0)");
+      }
+
+      if (query.excludeNsfw) {
+        conditions.push("(collections.nsfw_status IS NULL OR collections.nsfw_status <= 0)");
       }
 
       // Sorting and pagination
@@ -834,6 +843,7 @@ export const getCollectionsV7Options: RouteOptions = {
               description: r.description,
               metadataDisabled: Boolean(Number(r.metadata_disabled)),
               isSpam: Number(r.is_spam) > 0,
+              isNsfw: Number(r.nsfw_status) > 0,
               isMinting: Boolean(r.is_minting),
               sampleImages: Assets.getResizedImageURLs(sampleImages) ?? [],
               tokenCount: String(r.token_count),
@@ -976,7 +986,7 @@ export const getCollectionsV7Options: RouteOptions = {
                         : m.price,
                       pricePerQuantity: m.pricePerQuantity
                         ? await Promise.all(
-                            m.price_per_quantity.map(
+                            m.pricePerQuantity.map(
                               async ({ price, quantity }: { price: string; quantity: number }) => ({
                                 price: await getJoiPriceObject(
                                   { gross: { amount: price } },

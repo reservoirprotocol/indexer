@@ -171,10 +171,12 @@ export const refreshOperatorWhitelist = async (transferValidator: string, id: st
       FROM erc721c_configs
       WHERE erc721c_configs.transfer_validator = $/transferValidator/
         AND erc721c_configs.operator_whitelist_id = $/id/
+        AND erc721c_configs.transfer_security_level IN (1, 2, 3, 4, 5, 6)
       LIMIT 1000
     `,
     {
       transferValidator: toBuffer(transferValidator),
+      id,
     }
   );
 

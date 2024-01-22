@@ -12,7 +12,7 @@ import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { now, regex } from "@/common/utils";
+import { now, regex, bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
@@ -144,6 +144,7 @@ export const getExecuteListV5Options: RouteOptions = {
               }),
               "payment-processor-v2": Joi.object({
                 useOffChainCancellation: Joi.boolean().required(),
+                cosigner: Joi.string().lowercase().optional(),
                 replaceOrderId: Joi.string().when("useOffChainCancellation", {
                   is: true,
                   then: Joi.optional(),
@@ -177,6 +178,11 @@ export const getExecuteListV5Options: RouteOptions = {
               .items(Joi.string().pattern(regex.fee))
               .description(
                 "List of marketplace fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              ),
+            marketplaceFlatFees: Joi.array()
+              .items(Joi.string().pattern(regex.fee))
+              .description(
+                "List of marketplace flat fees (formatted as `feeRecipient:weiAmount`) to be bundled within the order."
               ),
             customRoyalties: Joi.array()
               .items(Joi.string().pattern(regex.fee))
@@ -274,6 +280,7 @@ export const getExecuteListV5Options: RouteOptions = {
       orderbook: string;
       fees?: string[];
       marketplaceFees?: string[];
+      marketplaceFlatFees?: string[];
       customRoyalties?: string[];
       options?: any;
       orderbookApiKey?: string;
@@ -450,6 +457,14 @@ export const getExecuteListV5Options: RouteOptions = {
             (params as any).feeRecipient.push(feeRecipient);
             await feeRecipients.create(feeRecipient, "marketplace", source);
           }
+          for (const feeData of params.marketplaceFlatFees ?? []) {
+            const [feeRecipient, weiAmount] = feeData.split(":");
+            const unitPrice = bn(params.weiPrice).div(params.quantity ?? 1);
+            const fee = bn(weiAmount).mul(10000).div(unitPrice);
+            (params as any).fee.push(fee);
+            (params as any).feeRecipient.push(feeRecipient);
+            await feeRecipients.create(feeRecipient, "marketplace", source);
+          }
           for (const feeData of params.customRoyalties ?? []) {
             const [feeRecipient, fee] = feeData.split(":");
             (params as any).fee.push(fee);
@@ -482,22 +497,46 @@ export const getExecuteListV5Options: RouteOptions = {
                   authToken: blurAuth!.accessToken,
                 });
 
-                // Will be set if an approval is needed before listing
-                const approvalTx = (await commonHelpers.getNftApproval(
-                  contract,
-                  maker,
-                  Sdk.BlurV2.Addresses.Delegate[config.chainId]
-                ))
-                  ? undefined
-                  : new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
-                      maker,
-                      Sdk.BlurV2.Addresses.Delegate[config.chainId]
-                    );
+                let id: string;
+                let approvalTx: TxData | undefined;
 
-                // Blur returns the nonce as a BigNumber object
-                signData.value.nonce = signData.value.nonce.hex ?? signData.value.nonce;
+                // Blur uses Seaport in case the Blur contracts are blocked
+                if (signData.value.conduitKey) {
+                  // Will be set if an approval is needed before listing
+                  approvalTx = (await commonHelpers.getNftApproval(
+                    contract,
+                    maker,
+                    new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+                      signData.value.conduitKey
+                    )
+                  ))
+                    ? undefined
+                    : new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                        maker,
+                        new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+                          signData.value.conduitKey
+                        )
+                      );
 
-                const id = new Sdk.BlurV2.Order(config.chainId, signData.value).hash();
+                  id = new Sdk.SeaportV15.Order(config.chainId, signData.value).hash();
+                } else {
+                  // Will be set if an approval is needed before listing
+                  approvalTx = (await commonHelpers.getNftApproval(
+                    contract,
+                    maker,
+                    Sdk.BlurV2.Addresses.Delegate[config.chainId]
+                  ))
+                    ? undefined
+                    : new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                        maker,
+                        Sdk.BlurV2.Addresses.Delegate[config.chainId]
+                      );
+
+                  // Blur returns the nonce as a BigNumber object
+                  signData.value.nonce = signData.value.nonce.hex ?? signData.value.nonce;
+
+                  id = new Sdk.BlurV2.Order(config.chainId, signData.value).hash();
+                }
 
                 steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
@@ -1061,6 +1100,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   | {
                       useOffChainCancellation?: boolean;
                       replaceOrderId?: string;
+                      cosigner?: string;
                     }
                   | undefined;
 

@@ -98,6 +98,7 @@ export const getTransfersV4Options: RouteOptions = {
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
           isDeleted: Joi.boolean().optional(),
+          isAirdrop: Joi.boolean().optional().allow(null),
           updatedAt: Joi.string().optional().description("Time when last updated in indexer"),
           price: JoiPrice.allow(null),
         })
@@ -126,6 +127,7 @@ export const getTransfersV4Options: RouteOptions = {
           tokens.image,
           tokens.collection_id,
           tokens.image_version,
+          (tokens.metadata ->> 'image_mime_type')::text as image_mime_type,
           collections.name as collection_name,
           nft_transfer_events."from",
           nft_transfer_events."to",
@@ -137,6 +139,7 @@ export const getTransfersV4Options: RouteOptions = {
           nft_transfer_events.batch_index,
           extract(epoch from nft_transfer_events.updated_at) updated_ts,
           nft_transfer_events.is_deleted,
+          nft_transfer_events.kind,
           fe.price,
           fe.currency,
           fe.currency_price
@@ -341,7 +344,7 @@ export const getTransfersV4Options: RouteOptions = {
           contract: fromBuffer(r.address),
           tokenId: r.token_id,
           name: r.name,
-          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version),
+          image: Assets.getResizedImageUrl(r.image, undefined, r.image_version, r.image_mime_type),
           collection: {
             id: r.collection_id,
             name: r.collection_name,
@@ -356,6 +359,8 @@ export const getTransfersV4Options: RouteOptions = {
         batchIndex: r.batch_index,
         timestamp: r.timestamp,
         isDeleted: Boolean(r.is_deleted),
+        isAirdrop: r.kind ? (r.kind === "airdrop" ? true : false) : null,
+
         updatedAt: new Date(r.updated_ts * 1000).toISOString(),
         price: r.price
           ? await getJoiPriceObject(

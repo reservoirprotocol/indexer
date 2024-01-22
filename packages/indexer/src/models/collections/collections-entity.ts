@@ -28,6 +28,7 @@ export type CollectionsEntityUpdateParams = {
   floorSellValue?: number;
   creator?: string;
   isSpam?: number;
+  nsfwStatus?: number;
 };
 
 export type CollectionsMetadata = {
@@ -50,7 +51,7 @@ export type CollectionsEntityParams = {
   slug: string;
   name: string;
   metadata: CollectionsMetadata;
-  imageVersion: number;
+  image_version: number;
   royalties: CollectionsRoyalties[];
   community: string;
   contract: Buffer;
@@ -75,6 +76,7 @@ export type CollectionsEntityParams = {
   floor_sell_value: number;
   creator: Buffer;
   is_spam: number | null;
+  nsfw_status: number | null;
 };
 
 export class CollectionsEntity {
@@ -107,13 +109,14 @@ export class CollectionsEntity {
   floorSellValue: number;
   creator: string;
   isSpam: number;
+  nsfwStatus: number;
 
   constructor(params: CollectionsEntityParams) {
     this.id = params.id;
     this.slug = params.slug;
     this.name = params.name;
     this.metadata = params.metadata;
-    this.imageVersion = params.imageVersion;
+    this.imageVersion = params.image_version;
     this.royalties = params.royalties ? params.royalties : [];
     this.community = params.community;
     this.contract = fromBuffer(params.contract);
@@ -138,5 +141,6 @@ export class CollectionsEntity {
     this.floorSellValue = params.floor_sell_value;
     this.creator = params.creator ? fromBuffer(params.creator) : params.creator;
     this.isSpam = Number(params.is_spam);
+    this.nsfwStatus = Number(params.nsfw_status);
   }
 }

@@ -9,20 +9,19 @@ import { formatEth } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 import * as collectionsIndex from "@/elasticsearch/indexes/collections";
-// import { JoiPrice } from "@/common/joi";
 
 const version = "v1";
 
-export const getAutocompleteCollectionsV1Options: RouteOptions = {
+export const getCollectionSearchV1Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
-  description: "Search collections",
-  tags: ["api", "x-deprecated"],
+  description: "Search Collections (Cross Chain)",
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 3,
     },
   },
   validate: {
@@ -69,12 +68,9 @@ export const getAutocompleteCollectionsV1Options: RouteOptions = {
           openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),
-    }).label(`getAutocompleteCollections${version.toUpperCase()}Response`),
+    }).label(`getCollectionSearch${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(
-        `get-autocomplete-collections-${version}-handler`,
-        `Wrong response schema: ${error}`
-      );
+      logger.error(`get-collection-search-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },

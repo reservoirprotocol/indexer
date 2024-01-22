@@ -76,7 +76,7 @@ export default class OrderRevalidationsJob extends AbstractRabbitMqJobHandler {
             data;
 
           // Process the same contract at most once per 5 minutes
-          const lockKey = `order-revalidations:operator:${contract}:${createdAtContinutation}`;
+          const lockKey = `order-revalidations:operator:${contract}:${data.origin}:${createdAtContinutation}`;
           const lock = await redis.get(lockKey);
           if (lock) {
             return;

@@ -105,12 +105,16 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     let imageUrl = metadata.image_url;
     if (
       metadata?.image_properties?.mime_type === "image/gif" &&
-      metadata?.image_properties?.size > 125000
+      metadata?.image_properties?.size > 1000000 &&
+      metadata?.previews?.image_medium_url
     ) {
       imageUrl = metadata.previews.image_medium_url;
+
       logger.info(
-        this.method,
-        `Detected GIF over 1MB. contract=${metadata.contract_address}, tokenId=${metadata.token_id}, imageUrl=${imageUrl}`
+        "simplehash-fetcher",
+        JSON.stringify({
+          message: `_parseToken. Detected GIF over 1MB. contract=${metadata.contract_address}, tokenId=${metadata.token_id}, imageUrl=${imageUrl}`,
+        })
       );
     }
 

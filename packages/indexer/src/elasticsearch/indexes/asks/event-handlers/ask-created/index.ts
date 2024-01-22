@@ -70,6 +70,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
               (${orderCriteriaSelectQueryPart}) AS order_criteria,
               orders.created_at AS "order_created_at",
               extract(epoch from orders.updated_at) updated_ts,
+              extract(epoch from orders.created_at) created_ts,
               t.*
             FROM orders
             JOIN LATERAL (
@@ -77,15 +78,14 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                         tokens.token_id,
                         tokens.contract,
                         tokens.name AS "token_name",
-                        tokens.image AS "token_image",
-                        tokens.media AS "token_media",
                         tokens.is_flagged AS "token_is_flagged",
                         tokens.is_spam AS "token_is_spam",
+                        tokens.nsfw_status AS "token_nsfw_status",
                         tokens.rarity_rank AS "token_rarity_rank",
                         collections.id AS "collection_id", 
                         collections.name AS "collection_name", 
                         collections.is_spam AS "collection_is_spam",
-                        (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
+                        collections.nsfw_status AS "collection_nsfw_status",
                         (
                         SELECT 
                           array_agg(

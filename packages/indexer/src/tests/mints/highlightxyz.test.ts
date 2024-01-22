@@ -10,7 +10,8 @@ import {
   extractByTx,
 } from "../../orderbook/mints/calldata/detector/highlightxyz";
 import * as utils from "@/events-sync/utils";
-import { getEnhancedEventsFromTx, processEventsBatch } from "@/events-sync/handlers";
+import { processEventsBatch } from "@/events-sync/handlers";
+import { getEnhancedEventsFromTx } from "../utils/events";
 import { extractEventsBatches } from "@/events-sync/index";
 
 jest.setTimeout(60 * 1000);

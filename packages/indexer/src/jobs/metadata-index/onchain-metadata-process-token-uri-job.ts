@@ -28,10 +28,30 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     let fallbackAllowed = true;
     let fallbackError;
 
+    if (contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. contract=${payload.contract}, tokenId=${payload.tokenId}`,
+          payload,
+        })
+      );
+    }
+
     try {
       const metadata = await onchainMetadataProvider.getTokensMetadata([
         { contract, tokenId, uri },
       ]);
+
+      if (contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `getTokensMetadata. contract=${payload.contract}, tokenId=${payload.tokenId}`,
+            metadata,
+          })
+        );
+      }
 
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {
@@ -56,9 +76,47 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               true,
               5
             );
+
             return;
           } else {
             metadata[0].imageUrl = null;
+          }
+        }
+
+        // if missing imageMimeType/mediaMimeTyp, we fallback to simplehash
+        if (
+          (metadata[0].imageUrl && !metadata[0].imageMimeType) ||
+          (metadata[0].mediaUrl && !metadata[0].mediaMimeType)
+        ) {
+          if (config.fallbackMetadataIndexingMethod) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Fallback - Missing Mime Type. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                contract,
+                metadata: JSON.stringify(metadata[0]),
+                reason: "Missing Mime Type",
+              })
+            );
+
+            await metadataIndexFetchJob.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.fallbackMetadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: contract,
+                  },
+                },
+              ],
+              true,
+              5
+            );
+
+            return;
           }
         }
 
@@ -93,6 +151,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               true,
               5
             );
+
             return;
           }
         }

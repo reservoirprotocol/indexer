@@ -353,6 +353,8 @@ export class Router {
       // Use permit instead of approvals (only works for USDC)
       usePermit?: boolean;
       swapProvider?: "uniswap" | "1inch";
+      // Conduit key to use when filling Seaport listings
+      conduitKey?: string;
       // Callback for handling errors
       onError?: (
         kind: string,
@@ -751,7 +753,7 @@ export class Router {
             value: string;
             path: { contract: string; tokenId: string }[];
             errors: { tokenId: string; isUnrecoverable?: boolean; reason: string }[];
-          };
+          }[];
         } = await axios
           .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
             taker,
@@ -766,73 +768,75 @@ export class Router {
           })
           .then((response) => response.data.calldata);
 
-        for (const [contract, data] of Object.entries(result)) {
-          const successfulBlurCompatibleListings: ListingDetails[] = [];
-          for (const { tokenId } of data.path) {
-            const listing = blurCompatibleListings.find(
-              (d) => d.contract === contract && d.tokenId === tokenId
-            );
-            if (listing) {
-              successfulBlurCompatibleListings.push(listing);
-            }
-          }
-
-          // Expose errors
-          for (const { tokenId, isUnrecoverable, reason } of data.errors) {
-            if (options?.onError) {
+        for (const [contract, entries] of Object.entries(result)) {
+          for (const data of entries) {
+            const successfulBlurCompatibleListings: ListingDetails[] = [];
+            for (const { tokenId } of data.path) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (listing) {
-                await options.onError("order-fetcher-blur-listings", new Error(reason), {
-                  isUnrecoverable:
-                    listing.kind === "blur" &&
-                    (["RestrictedContract", "ListingNotFound"].includes(reason) ||
-                      isUnrecoverable) &&
-                    listing.tokenId === tokenId,
-                  orderId: listing.orderId,
-                  additionalInfo: { detail: listing, taker },
-                });
+                successfulBlurCompatibleListings.push(listing);
               }
             }
-          }
 
-          // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
-          if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
-            // Mark the orders handled by Blur as successful
-            const orderIds: string[] = [];
-            for (const d of successfulBlurCompatibleListings) {
-              if (buyInCurrency !== d.currency) {
-                swapDetails.push({
-                  tokenIn: buyInCurrency,
-                  tokenOut: d.currency,
-                  tokenOutAmount: d.price,
-                  recipient: taker,
-                  refundTo: taker,
-                  details: [d],
-                  txIndex: txs.length,
-                });
+            // Expose errors
+            for (const { tokenId, isUnrecoverable, reason } of data.errors) {
+              if (options?.onError) {
+                const listing = blurCompatibleListings.find(
+                  (d) => d.contract === contract && d.tokenId === tokenId
+                );
+                if (listing) {
+                  await options.onError("order-fetcher-blur-listings", new Error(reason), {
+                    isUnrecoverable:
+                      listing.kind === "blur" &&
+                      (["RestrictedContract", "ListingNotFound"].includes(reason) ||
+                        isUnrecoverable) &&
+                      listing.tokenId === tokenId,
+                    orderId: listing.orderId,
+                    additionalInfo: { detail: listing, taker },
+                  });
+                }
               }
-
-              success[d.orderId] = true;
-              orderIds.push(d.orderId);
             }
 
-            txs.push({
-              approvals: [],
-              permits: [],
-              preSignatures: [],
-              txTags: {
-                listings: { blur: orderIds.length },
-              },
-              txData: {
-                from: data.from,
-                to: data.to,
-                data: data.data + generateSourceBytes(options?.source),
-                value: data.value,
-              },
-              orderIds,
-            });
+            // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
+            if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
+              // Mark the orders handled by Blur as successful
+              const orderIds: string[] = [];
+              for (const d of successfulBlurCompatibleListings) {
+                if (buyInCurrency !== d.currency) {
+                  swapDetails.push({
+                    tokenIn: buyInCurrency,
+                    tokenOut: d.currency,
+                    tokenOutAmount: d.price,
+                    recipient: taker,
+                    refundTo: taker,
+                    details: [d],
+                    txIndex: txs.length,
+                  });
+                }
+
+                success[d.orderId] = true;
+                orderIds.push(d.orderId);
+              }
+
+              txs.push({
+                approvals: [],
+                permits: [],
+                preSignatures: [],
+                txTags: {
+                  listings: { blur: orderIds.length },
+                },
+                txData: {
+                  from: data.from,
+                  to: data.to,
+                  data: data.data + generateSourceBytes(options?.source),
+                  value: data.value,
+                },
+                orderIds,
+              });
+            }
           }
         }
       } catch (error) {
@@ -973,7 +977,8 @@ export class Router {
     ) {
       const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
 
-      const conduitKey = (details[0].order as Sdk.SeaportV15.Order).params.conduitKey;
+      const conduitKey =
+        options?.conduitKey ?? (details[0].order as Sdk.SeaportV15.Order).params.conduitKey;
       const conduit = exchange.deriveConduit(conduitKey);
 
       let approval: FTApproval | undefined;
@@ -1066,7 +1071,8 @@ export class Router {
     ) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
 
-      const conduitKey = (details[0].order as Sdk.Alienswap.Order).params.conduitKey;
+      const conduitKey =
+        options?.conduitKey ?? (details[0].order as Sdk.Alienswap.Order).params.conduitKey;
       const conduit = exchange.deriveConduit(conduitKey);
 
       let approval: FTApproval | undefined;
@@ -4804,12 +4810,22 @@ export class Router {
     transferItem: ApprovalProxy.TransferItem,
     sender: string
   ): Promise<TransfersResult> {
-    const useOpenseaTransferHelper = Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId];
+    const openseaTransferHelper = Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId];
+    const openseaConduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId];
+
+    const conduitController = new ConduitController(this.chainId, this.provider);
+    const useOpenseaTransferHelper =
+      openseaTransferHelper &&
+      openseaConduitKey &&
+      (await conduitController.getChannelStatus(
+        conduitController.deriveConduit(openseaConduitKey),
+        openseaTransferHelper
+      ));
 
     const conduitKey = useOpenseaTransferHelper
       ? Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
       : Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId];
-    const conduit = new ConduitController(this.chainId).deriveConduit(conduitKey);
+    const conduit = conduitController.deriveConduit(conduitKey);
 
     const approvals = transferItem.items.map((item) => ({
       orderIds: [],
@@ -4818,6 +4834,7 @@ export class Router {
       operator: conduit,
       txData: generateNFTApprovalTxData(item.token, sender, conduit),
     }));
+
     // Ensure approvals are unique
     const uniqueApprovals = uniqBy(
       approvals,

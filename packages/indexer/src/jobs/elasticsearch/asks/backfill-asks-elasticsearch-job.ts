@@ -63,17 +63,6 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         limit,
       });
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "debugAskIndex",
-          message: `Debug generating ask documents.`,
-          query,
-          payload,
-          rawResults,
-        })
-      );
-
       if (rawResults.length) {
         for (const rawResult of rawResults) {
           try {
@@ -133,24 +122,18 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
           delete: { _index: AskIndex.getIndexName(), _id: askEvent.info.id },
         }));
 
+      let bulkIndexOpsResponse;
+
       if (bulkIndexOps.length) {
-        const response = await elasticsearch.bulk({
+        bulkIndexOpsResponse = await elasticsearch.bulk({
           body: bulkIndexOps,
         });
-
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugAskIndex",
-            message: `Errors in response`,
-            bulkIndexOps,
-            response,
-          })
-        );
       }
 
+      let bulkDeleteOpsResponse;
+
       if (bulkDeleteOps.length) {
-        await elasticsearch.bulk({
+        bulkDeleteOpsResponse = await elasticsearch.bulk({
           body: bulkDeleteOps,
         });
       }
@@ -163,6 +146,10 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
           payload,
           nextCursor,
           indexName: AskIndex.getIndexName(),
+          bulkIndexOpsResponseHasErrors: bulkIndexOpsResponse?.errors,
+          bulkIndexOpsResponse: bulkIndexOpsResponse?.errors ? bulkIndexOpsResponse : undefined,
+          bulkDeleteOpsResponseHasErrors: bulkDeleteOpsResponse?.errors,
+          bulkDeleteOpsResponse: bulkDeleteOpsResponse?.errors ? bulkDeleteOpsResponse : undefined,
         })
       );
 

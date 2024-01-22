@@ -503,6 +503,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0x5ec03c1f7fa7ff05ec476d19e34a22eddb48acdc",
+            {
+              contract: "0x5ec03c1f7fa7ff05ec476d19e34a22eddb48acdc",
+              name: "ZED Token",
+              symbol: "ZED",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://bafkreidcljrhz7hq4h5rarxgxd63tail24mqawllwhxfrvr3esfv2nvyiy.ipfs.nftstorage.link/",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
@@ -511,7 +524,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
-              numberOfShards: 50,
+              numberOfShards: 100,
             },
           },
         },
@@ -715,6 +728,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         mintAddresses: [
           ...defaultNetworkSettings.mintAddresses,
           "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+          "0x2953399124f0cbb46d2cbacd8a89cf0599974963",
         ],
         trendingExcludedContracts: [
           "0x198d38c5f21eab36731d0576560440f70cbd9418", // Yieldnodes
@@ -863,7 +877,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           indexes: {
             activities: {
               ...defaultNetworkSettings.elasticsearch?.indexes?.activities,
-              numberOfShards: 40,
+              numberOfShards: 100,
             },
           },
         },
@@ -1117,6 +1131,24 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0xb501ff1d6303158479c8f7bdf5eee8ef1e3cf63e",
+            {
+              contract: "0xb501FF1d6303158479c8f7BDf5Eee8EF1e3Cf63E",
+              name: "fake USD Coin",
+              symbol: "USDC",
+              decimals: 6,
+            },
+          ],
+          [
+            "0xa6de6c90f2ffd30b54b830359a9f17ed44dd63ac",
+            {
+              contract: "0xA6de6C90f2FFd30B54b830359a9f17Ed44dd63Ac",
+              name: "TetherToken",
+              symbol: "USDT",
+              decimals: 6,
+            },
+          ],
         ]),
         onStartup: async () => {
           // Insert the native currency
@@ -1240,6 +1272,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        customTokenAddresses: ["0x05e986e9ef944ffd425ed07abc2f39e35821d1e0"],
         coingecko: {
           networkId: "arbitrum-nova",
         },

@@ -77,6 +77,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                   block_hash AS "event_block_hash",
                   log_index AS "event_log_index",
                   batch_index AS "event_batch_index",
+                  kind AS "event_transfer_kind",
                   extract(epoch from created_at) AS "created_ts",
                   t.*
                 FROM nft_transfer_events
@@ -90,9 +91,12 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
-                        collections.image_version AS "collection_image_version"
+                        collections.image_version AS "collection_image_version",
+                        collections.is_minting AS "event_collection_is_minting",
+                        collection_mints.price AS "event_collection_mint_price"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
+                    LEFT JOIN collection_mints ON collection_mints.collection_id = collections.id
                     WHERE nft_transfer_events.address = tokens.contract
                     AND nft_transfer_events.token_id = tokens.token_id
                  ) t ON TRUE`;

@@ -315,7 +315,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 Array.from({ length: pp.executableSize }, () => parseEther(pp.price).toString())
               )
               .flat();
-          } else if (order.kind === "sudoswap") {
+          } else if (["sudoswap", "sudoswap-v2"].includes(order.kind)) {
             const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
             poolId = rawData.pair;
             priceList = rawData.extra.prices;
@@ -1398,6 +1398,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          stack: (error as any).stack,
           apiKey,
         })
       );

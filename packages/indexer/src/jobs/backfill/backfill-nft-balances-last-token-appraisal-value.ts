@@ -61,7 +61,7 @@ if (config.doBackgroundWork) {
                     )
                     UPDATE nft_balances AS nb
                     SET
-                        last_token_appraisal_value = x.price
+                        last_token_appraisal_value = x.price, updated_at = now()
                     FROM x
                     WHERE nb.contract = x.contract
                     AND nb.token_id = x.token_id

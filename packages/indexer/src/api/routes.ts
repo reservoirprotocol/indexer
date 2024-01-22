@@ -28,6 +28,7 @@ import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as chainEndpoints from "@/api/endpoints/chain";
 import * as debugEndpoints from "@/api/endpoints/debug";
 import * as currenciesEndpoints from "@/api/endpoints/currencies";
+import * as pendingTxsEndpoints from "@/api/endpoints/pending-txs";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -575,6 +576,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/collections/v4",
+    options: collectionsEndpoints.getUserCollectionsV4Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections/refresh/v1",
     options: collectionsEndpoints.postCollectionsRefreshV1Options,
@@ -636,14 +643,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/collections/nsfw-status/v1",
+    options: collectionsEndpoints.postNsfwStatusCollectionV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/collections/spam-status/v1",
     options: collectionsEndpoints.postSpamStatusCollectionV1Options,
   });
 
   server.route({
     method: "GET",
-    path: "/collections/autocomplete/v1",
-    options: collectionsEndpoints.getAutocompleteCollectionsV1Options,
+    path: "/collections/search/v1",
+    options: collectionsEndpoints.getCollectionSearchV1Options,
   });
 
   // Chain
@@ -921,6 +934,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/management/orders/simulate/v1",
     options: managementEndpoints.postSimulateOrderV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/management/cosigners/v1",
+    options: managementEndpoints.postCosignersV1Options,
   });
 
   // Oracle
@@ -1277,6 +1296,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/tokens/nsfw-status/v1",
+    options: tokensEndpoints.postNsfwStatusTokenV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/tokens/spam-status/v1",
     options: tokensEndpoints.postSpamStatusTokenV1Options,
   });
@@ -1417,6 +1442,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/users/{user}/tokens/v8",
     options: tokensEndpoints.getUserTokensV8Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v9",
+    options: tokensEndpoints.getUserTokensV9Options,
   });
 
   server.route({
@@ -1567,6 +1598,13 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/currencies/conversion/v1",
     options: currenciesEndpoints.getCurrencyConversionV1Options,
+  });
+
+  // Pending transcation
+  server.route({
+    method: "GET",
+    path: "/pending-txs/tokens/v1",
+    options: pendingTxsEndpoints.getPendingTokensV1Options,
   });
 
   // Debug APIs

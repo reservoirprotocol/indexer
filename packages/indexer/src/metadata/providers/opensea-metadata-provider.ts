@@ -167,7 +167,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: {
         contract: data.nft.contract,
         tokenId: data.nft.identifier,
-        isFlagged: data.nft.is_suspicious,
+        isFlagged: data.nft.is_disabled,
       },
     };
   }
@@ -224,7 +224,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: data.nfts.map((asset: any) => ({
         contract: asset.contract,
         tokenId: asset.identifier,
-        isFlagged: asset.is_suspicious,
+        isFlagged: asset.is_disabled,
       })),
       continuation: data.next ?? undefined,
     };
@@ -282,7 +282,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       data: data.nfts.map((asset: any) => ({
         contract: asset.contract,
         tokenId: asset.identifier,
-        isFlagged: asset.is_suspicious,
+        isFlagged: asset.is_disabled,
       })),
       continuation: data.next ?? undefined,
     };
@@ -317,7 +317,7 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
       collection: _.toLower(metadata.contract),
       slug: metadata.collection,
       name: metadata.name,
-      flagged: metadata.is_suspicious,
+      flagged: metadata.is_disabled,
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,

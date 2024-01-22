@@ -9,8 +9,12 @@ import * as CONFIG from "@/elasticsearch/indexes/asks/config";
 import { AskDocument } from "@/elasticsearch/indexes/asks/base";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+
 import {
   AggregationsAggregate,
+  ErrorCause,
   QueryDslQueryContainer,
   SearchResponse,
   Sort,
@@ -193,22 +197,28 @@ export const initIndex = async (): Promise<void> => {
   }
 };
 
-export const searchTokenAsks = async (params: {
-  tokens?: { contract: string; tokenId: string }[];
-  contracts?: string[];
-  collections?: string[];
-  currencies?: string[];
-  orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
-  rarityRank?: { min?: number; max?: number };
-  floorAskPrice?: { min?: number; max?: number };
-  normalizeRoyalties?: boolean;
-  spamTokens?: { operation: "include" | "exclude" };
-  flaggedTokens?: { operation: "include" | "exclude" };
-  sources?: number[];
-  limit?: number;
-  continuation?: string | null;
-  sortDirection?: "asc" | "desc";
-}): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
+export const searchTokenAsks = async (
+  params: {
+    tokens?: { contract: string; tokenId: string }[];
+    attributes?: { key: string; value: string }[];
+    contracts?: string[];
+    collections?: string[];
+    currencies?: string[];
+    orderKinds?: { operation: "include" | "exclude"; kinds: string[] };
+    rarityRank?: { min?: number; max?: number };
+    floorAskPrice?: { min?: number; max?: number };
+    normalizeRoyalties?: boolean;
+    spamTokens?: { operation: "include" | "exclude" };
+    nsfwTokens?: { operation: "include" | "exclude" };
+    flaggedTokens?: { operation: "include" | "exclude" };
+    sources?: number[];
+    limit?: number;
+    continuation?: string | null;
+    sortDirection?: "asc" | "desc";
+  },
+  retries = 0,
+  debug = false
+): Promise<{ asks: AskDocument[]; continuation: string | null }> => {
   const esQuery = {};
 
   (esQuery as any).bool = {
@@ -292,6 +302,27 @@ export const searchTokenAsks = async (params: {
     }
   }
 
+  if (params.attributes?.length) {
+    const attributesFilter = { bool: { should: [] } };
+
+    for (const attribute of params.attributes) {
+      (attributesFilter as any).bool.should.push({
+        bool: {
+          must: [
+            {
+              term: { ["token.attributes.key"]: attribute.key },
+            },
+            {
+              term: { ["token.attributes.value"]: attribute.value },
+            },
+          ],
+        },
+      });
+    }
+
+    (esQuery as any).bool.filter.push(attributesFilter);
+  }
+
   (esQuery as any).bool.filter.push({
     term: { "order.taker": "0x0000000000000000000000000000000000000000" },
   });
@@ -322,6 +353,24 @@ export const searchTokenAsks = async (params: {
       });
       (esQuery as any).bool.filter.push({
         term: { "collection.isSpam": true },
+      });
+    }
+  }
+
+  if (params.nsfwTokens) {
+    if (params.nsfwTokens.operation === "exclude") {
+      (esQuery as any).bool.must_not.push({
+        term: { "token.isNsfw": true },
+      });
+      (esQuery as any).bool.must_not.push({
+        term: { "collection.isNsfw": true },
+      });
+    } else {
+      (esQuery as any).bool.filter.push({
+        term: { "token.isNsfw": true },
+      });
+      (esQuery as any).bool.filter.push({
+        term: { "collection.isNsfw": true },
       });
     }
   }
@@ -360,6 +409,7 @@ export const searchTokenAsks = async (params: {
 
   try {
     const from = params.continuation ? Number(splitContinuation(params.continuation)[0]) : 0;
+    const order = params.sortDirection ?? "asc";
 
     const esSearchParams = {
       index: INDEX_NAME,
@@ -368,17 +418,22 @@ export const searchTokenAsks = async (params: {
         params.normalizeRoyalties
           ? {
               "order.pricing.normalizedValueDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             }
           : {
               "order.pricing.priceDecimal": {
-                order: params.sortDirection ?? "asc",
+                order,
               },
             },
         {
-          contractAndTokenId: {
-            order: params.sortDirection ?? "asc",
+          contract: {
+            order,
+          },
+        },
+        {
+          "token.id": {
+            order,
           },
         },
       ],
@@ -393,15 +448,44 @@ export const searchTokenAsks = async (params: {
 
     const asks: AskDocument[] = esResult.hits.hits.map((hit) => hit._source!);
 
-    logger.info(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "searchTokenAsks",
-        message: "Debug result",
-        esSearchParamsJSON: JSON.stringify(esSearchParams),
-        asks,
-      })
-    );
+    asks.sort((a, b) => {
+      let retVal = 0;
+      const sortDirectionMultiplier = order === "asc" ? 1 : -1;
+
+      if (
+        params.normalizeRoyalties &&
+        a.order.pricing.normalizedValueDecimal !== b.order.pricing.normalizedValueDecimal
+      ) {
+        return retVal;
+      }
+
+      if (a.order.pricing.priceDecimal !== b.order.pricing.priceDecimal) {
+        return retVal;
+      }
+
+      if (a.contract !== b.contract) {
+        retVal = a.contract > b.contract ? 1 : -1;
+      }
+
+      retVal = Number(a.token.id) > Number(b.token.id) ? 1 : -1;
+
+      return retVal * sortDirectionMultiplier;
+    });
+
+    if (retries > 0 || debug) {
+      logger.info(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Debug result",
+          latency: esResult.took,
+          esSearchParams: JSON.stringify(esSearchParams),
+          retries,
+          esResult: debug ? esResult : undefined,
+          params: debug ? params : undefined,
+        })
+      );
+    }
 
     let continuation = null;
 
@@ -411,16 +495,57 @@ export const searchTokenAsks = async (params: {
 
     return { asks, continuation };
   } catch (error) {
-    logger.error(
-      "elasticsearch-asks",
-      JSON.stringify({
-        topic: "searchTokenAsks",
-        data: {
-          params: params,
-        },
-        error,
-      })
-    );
+    let retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Retrying...",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return searchTokenAsks(params, retries, debug);
+      }
+
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Max retries reached.",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "searchTokenAsks",
+          message: "Unexpected error.",
+          params: JSON.stringify(params),
+          error,
+          retries,
+        })
+      );
+    }
 
     throw error;
   }
@@ -462,9 +587,15 @@ export const _search = async (
 
     return esResult;
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
@@ -524,6 +655,7 @@ export const updateAsksTokenData = async (
   tokenData: {
     isFlagged: number;
     isSpam: number;
+    nsfwStatus: number;
     rarityRank?: number;
   }
 ): Promise<boolean> => {
@@ -547,6 +679,17 @@ export const updateAsksTokenData = async (
           {
             term: {
               "token.isSpam": Number(tokenData.isSpam) > 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "token.isNsfw": Number(tokenData.nsfwStatus) > 0,
             },
           },
         ],
@@ -621,8 +764,9 @@ export const updateAsksTokenData = async (
           {
             script: {
               source:
-                "ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
+                "ctx._source.token.isNsfw = params.token_is_nsfw; ctx._source.token.isFlagged = params.token_is_flagged; ctx._source.token.isSpam = params.token_is_spam; if (params.token_rarity_rank == null) { ctx._source.token.remove('rarityRank') } else { ctx._source.token.rarityRank = params.token_rarity_rank }",
               params: {
+                token_is_nsfw: Number(tokenData.nsfwStatus) > 0,
                 token_is_flagged: Boolean(tokenData.isFlagged),
                 token_is_spam: Number(tokenData.isSpam) > 0,
                 token_rarity_rank: tokenData.rarityRank ?? null,
@@ -642,7 +786,7 @@ export const updateAsksTokenData = async (
           "elasticsearch-asks",
           JSON.stringify({
             topic: "updateAsksTokenData",
-            message: `Errors in response`,
+            message: `Errors in response. contract=${contract}, tokenId=${tokenId}`,
             data: {
               contract,
               tokenId,
@@ -660,7 +804,7 @@ export const updateAsksTokenData = async (
         //   "elasticsearch-asks",
         //   JSON.stringify({
         //     topic: "updateAsksTokenData",
-        //     message: `Success`,
+        //     message: `Success. contract=${contract}, tokenId=${tokenId}`,
         //     data: {
         //       contract,
         //       tokenId,
@@ -675,16 +819,22 @@ export const updateAsksTokenData = async (
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
           topic: "updateAsksTokenData",
-          message: `Unexpected error`,
+          message: `Retryable error. contract=${contract}, tokenId=${tokenId}`,
           data: {
             contract,
             tokenId,
@@ -700,7 +850,7 @@ export const updateAsksTokenData = async (
         "elasticsearch-asks",
         JSON.stringify({
           topic: "updateAsksTokenData",
-          message: `Unexpected error`,
+          message: `Unexpected error. contract=${contract}, tokenId=${tokenId}`,
           data: {
             contract,
             tokenId,
@@ -717,10 +867,181 @@ export const updateAsksTokenData = async (
   return keepGoing;
 };
 
+export const updateAsksTokenAttributesData = async (
+  contract: string,
+  tokenId: string,
+  tokenAttributesData: {
+    key: string;
+    value: string;
+  }[]
+): Promise<boolean> => {
+  let keepGoing = false;
+
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "chain.id": config.chainId,
+          },
+        },
+        {
+          term: {
+            contractAndTokenId: `${contract}:${tokenId}`,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const esResult = await _search(
+      {
+        _source: ["id"],
+        // This is needed due to issue with elasticsearch DSL.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        query,
+        size: 1000,
+      },
+      0
+    );
+
+    const pendingUpdateDocuments: { id: string; index: string }[] = esResult.hits.hits.map(
+      (hit) => ({ id: hit._id, index: hit._index })
+    );
+
+    if (pendingUpdateDocuments.length) {
+      const bulkParams = {
+        body: pendingUpdateDocuments.flatMap((document) => [
+          { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
+          {
+            script: {
+              source: "ctx._source.token.attributes = params.token_attributes",
+              params: {
+                token_attributes: tokenAttributesData,
+              },
+            },
+          },
+        ]),
+        filter_path: "items.*.error",
+      };
+
+      const response = await elasticsearch.bulk(bulkParams, { ignore: [404] });
+
+      if (response?.errors) {
+        keepGoing = response?.items.some((item) => item.update?.status !== 400);
+
+        logger.error(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Errors in response. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+          })
+        );
+      } else {
+        keepGoing = pendingUpdateDocuments.length === 1000;
+
+        logger.info(
+          "elasticsearch-asks",
+          JSON.stringify({
+            topic: "updateAsksTokenAttributesData",
+            message: `Success. contract=${contract}, tokenId=${tokenId}`,
+            data: {
+              contract,
+              tokenId,
+              tokenAttributesData,
+            },
+            bulkParams,
+            bulkParamsJSON: JSON.stringify(bulkParams),
+            response,
+            keepGoing,
+          })
+        );
+      }
+    } else {
+      logger.info(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `No pending documents. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          query,
+        })
+      );
+
+      // Refresh the token floor sell and top bid
+      await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
+
+      // Refresh the token asks
+      await backfillTokenAsksJob.addToQueue(contract, tokenId);
+    }
+  } catch (error) {
+    let retryableError =
+      (error as any).meta?.meta?.aborted ||
+      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
+
+    if (retryableError) {
+      logger.warn(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Retryable error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          error,
+        })
+      );
+
+      keepGoing = true;
+    } else {
+      logger.error(
+        "elasticsearch-asks",
+        JSON.stringify({
+          topic: "updateAsksTokenAttributesData",
+          message: `Unexpected error. contract=${contract}, tokenId=${tokenId}`,
+          data: {
+            contract,
+            tokenId,
+            tokenAttributesData,
+          },
+          error,
+        })
+      );
+
+      throw error;
+    }
+  }
+
+  return keepGoing;
+};
+
 export const updateAsksCollectionData = async (
   collectionId: string,
   collectionData: {
     isSpam: number;
+    nsfwStatus: number;
   }
 ): Promise<boolean> => {
   let keepGoing = false;
@@ -732,6 +1053,17 @@ export const updateAsksCollectionData = async (
           {
             term: {
               "collection.isSpam": Number(collectionData.isSpam) > 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      bool: {
+        must_not: [
+          {
+            term: {
+              "collection.isNsfw": Number(collectionData.nsfwStatus) > 0,
             },
           },
         ],
@@ -784,9 +1116,11 @@ export const updateAsksCollectionData = async (
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
-              source: "ctx._source.collection.isSpam = params.collection_is_spam;",
+              source:
+                "ctx._source.collection.isSpam = params.collection_is_spam; ctx._source.collection.isNsfw = params.collection_is_nsfw;",
               params: {
                 collection_is_spam: Number(collectionData.isSpam) > 0,
+                collection_is_nsfw: Number(collectionData.nsfwStatus) > 0,
               },
             },
           },
@@ -834,9 +1168,15 @@ export const updateAsksCollectionData = async (
       }
     }
   } catch (error) {
-    const retryableError =
+    let retryableError =
       (error as any).meta?.meta?.aborted ||
       (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
+
+    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
+
+    if (!retryableError && rootCause?.length) {
+      retryableError = rootCause[0].type === "node_not_connected_exception";
+    }
 
     if (retryableError) {
       logger.warn(

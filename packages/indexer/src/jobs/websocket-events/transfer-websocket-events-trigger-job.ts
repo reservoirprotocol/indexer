@@ -3,6 +3,7 @@ import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import crypto from "crypto";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { DbEvent } from "@/events-sync/storage/nft-transfer-events";
 
 export type TransferWebsocketEventsTriggerQueueJobPayload = {
   data: TransferWebsocketEventInfo;
@@ -40,6 +41,7 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
         txHash: data.after.tx_hash,
         logIndex: data.after.log_index,
         batchIndex: data.after.batch_index,
+        isAirdrop: data.after.kind ? (data.after.kind === "airdrop" ? true : false) : null,
         timestamp: data.after.timestamp,
         createdAt: new Date(data.after.created_at).toISOString(),
         updatedAt: new Date(data.after.updated_at).toISOString(),
@@ -69,18 +71,20 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
                 }
               }
 
-              logger.info(
-                this.queueName,
-                JSON.stringify({
-                  message: `No changes detected for transfer. contract=${data.after.address}, tokenId=${data.after.token_id}`,
-                  data,
-                  beforeJson: JSON.stringify(data.before),
-                  afterJson: JSON.stringify(data.after),
-                  changed,
-                  changedJson: JSON.stringify(changed),
-                  hasChanged: changed.length > 0,
-                })
-              );
+              if (changed.length === 1) {
+                logger.info(
+                  this.queueName,
+                  JSON.stringify({
+                    message: `No changes detected for transfer. contract=${data.after.address}, tokenId=${data.after.token_id}`,
+                    data,
+                    beforeJson: JSON.stringify(data.before),
+                    afterJson: JSON.stringify(data.after),
+                    changed,
+                    changedJson: JSON.stringify(changed),
+                    hasChanged: changed.length > 0,
+                  })
+                );
+              }
             } catch (error) {
               logger.error(
                 this.queueName,
@@ -152,6 +156,7 @@ interface TransferInfo {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  kind: DbEvent["kind"] | null;
 }
 
 export type TransferWebsocketEventInfo = {

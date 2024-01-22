@@ -3,6 +3,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import { collectionNormalizedJob } from "@/jobs/collection-updates/collection-normalized-floor-queue-job";
+import { FloorQueueJobPayload } from "@/jobs/token-updates/token-floor-queue-job";
 
 export type NormalizedFloorQueueJobPayload = {
   kind: string;
@@ -186,8 +187,15 @@ export default class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler 
     }
   }
 
-  public async addToQueue(floorAskInfos: NormalizedFloorQueueJobPayload[]) {
-    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  public async addToQueue(params: FloorQueueJobPayload[]) {
+    await this.sendBatch(
+      params.map((info) => {
+        return {
+          payload: info,
+          // jobId: info.kind !== "revalidation" ? info.tokenSetId : undefined,
+        };
+      })
+    );
   }
 }
 

@@ -8,7 +8,7 @@ import Joi from "joi";
 
 import { redis } from "@/common/redis";
 
-const REDIS_EXPIRATION_MINTS = 1800; // 30 minutes
+const REDIS_EXPIRATION_MINTS = 60 * 60 * 1000; // Assuming an hour, adjust as needed.
 
 import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
@@ -265,7 +265,7 @@ LIMIT 50000;
 
   const result = await redb.manyOrNone<Mint>(baseQuery);
 
-  await redis.set(cacheKey, JSON.stringify(result), "EX", REDIS_EXPIRATION_MINTS);
+  await redis.set(cacheKey, JSON.stringify(result), "PX", REDIS_EXPIRATION_MINTS);
 
   return result;
 }
@@ -295,13 +295,14 @@ async function formatCollections(
       } else if (useNonFlaggedFloorAsk) {
         prefix = "non_flagged_";
       }
-
-      const floorAskId = metadata[(prefix + "floor_sell_id") as MetadataKey];
-      const floorAskValue = metadata[(prefix + "floor_sell_value") as MetadataKey];
-      const floorAskCurrency = metadata[(prefix + "floor_sell_currency") as MetadataKey];
-      const floorAskSource = metadata[(prefix + "floor_sell_source_id_int") as MetadataKey];
+      const floorAskId = metadata[`${prefix}floor_sell_id` as MetadataKey];
+      const floorAskValue = metadata[`${prefix}floor_sell_value` as MetadataKey];
+      const floorAskCurrency = metadata.floor_sell_currency as MetadataKey;
+      const floorAskSource = metadata[`${prefix}floor_sell_source_id_int` as MetadataKey];
       const floorAskCurrencyValue =
-        metadata[(prefix + `${prefix}floor_sell_currency_value`) as MetadataKey];
+        metadata[
+          `${normalizeRoyalties ? "normalized_" : ""}floor_sell_currency_value` as MetadataKey
+        ];
 
       if (metadata) {
         floorAsk = {

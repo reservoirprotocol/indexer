@@ -159,6 +159,9 @@ import { processAskEventsJob } from "@/jobs/elasticsearch/asks/process-ask-event
 import { backfillAsksElasticsearchJob } from "@/jobs/elasticsearch/asks/backfill-asks-elasticsearch-job";
 import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections-refresh-spam-job";
 import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-job";
+import { refreshAsksTokenAttributesJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-attributes-job";
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
+
 import { actionsLogJob } from "@/jobs/general-tracking/actions-log-job";
 import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
@@ -171,16 +174,16 @@ import { updateUserCollectionsJob } from "@/jobs/nft-balance-updates/update-user
 import { resyncUserCollectionsJob } from "@/jobs/nft-balance-updates/reynsc-user-collections-job";
 import { backfillUserCollectionsJob } from "@/jobs/backfill/backfill-user-collections";
 import { tokenReassignedUserCollectionsJob } from "@/jobs/nft-balance-updates/token-reassigned-user-collections-job";
-import { backfillFtBalancesDatesJob } from "@/jobs/backfill/backfill-ft-balances-dates";
-import { backfillFtTransferEventsDatesJob } from "@/jobs/backfill/backfill-ft-transfer-events-dates";
-import { backfillOrderEventsDatesJob } from "@/jobs/backfill/backfill-order-events-dates";
 import { backfillTransactionsDatesJob } from "@/jobs/backfill/backfill-transactions-dates";
-import { backfillTokenSupplyJob } from "@/jobs/backfill/backfill-token-supply";
 import { backfillActiveUserCollectionsJob } from "@/jobs/backfill/backfill-active-user-collections";
-import { backfillAttributesFloorAskJob } from "@/jobs/backfill/backfill-attributes-floor-ask";
+import { backfillAirdropsJob } from "./backfill/backfill-airdrops";
+import { backfillTransferSpamJob } from "./backfill/backfill-transfer-burst-spam";
 import { syncApiKeysJob } from "@/jobs/api-keys/sync-api-keys-job";
 import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-check-spam-job";
-import { backfillCollectionsSpamJob } from "@/jobs/backfill/backfill-collections-spam";
+import { backfillNftBalancesDatesJob } from "@/jobs/backfill/backfill-nft-balances-dates";
+import { pendingTxsJob } from "@/jobs/pending-txs/pending-txs-job";
+import { updateUserCollectionsSpamJob } from "@/jobs/nft-balance-updates/update-user-collections-spam-job";
+import { updateNftBalancesSpamJob } from "@/jobs/nft-balance-updates/update-nft-balances-spam-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -324,8 +327,10 @@ export class RabbitMqJobsConsumer {
       processAskEventJob,
       processAskEventsJob,
       backfillAsksElasticsearchJob,
+      backfillTokenAsksJob,
       collectionRefreshSpamJob,
       refreshAsksTokenJob,
+      refreshAsksTokenAttributesJob,
       actionsLogJob,
       refreshAsksCollectionJob,
       refreshActivitiesTokenJob,
@@ -336,16 +341,16 @@ export class RabbitMqJobsConsumer {
       resyncUserCollectionsJob,
       backfillUserCollectionsJob,
       tokenReassignedUserCollectionsJob,
-      backfillFtBalancesDatesJob,
-      backfillFtTransferEventsDatesJob,
-      backfillOrderEventsDatesJob,
       backfillTransactionsDatesJob,
-      backfillTokenSupplyJob,
       backfillActiveUserCollectionsJob,
-      backfillAttributesFloorAskJob,
+      backfillAirdropsJob,
+      backfillTransferSpamJob,
       syncApiKeysJob,
       collectionCheckSpamJob,
-      backfillCollectionsSpamJob,
+      backfillNftBalancesDatesJob,
+      pendingTxsJob,
+      updateUserCollectionsSpamJob,
+      updateNftBalancesSpamJob,
     ];
   }
 

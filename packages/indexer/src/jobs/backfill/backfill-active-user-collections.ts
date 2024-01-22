@@ -37,16 +37,17 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
 
     let updatedAtFilter = "";
     if (lastUpdatedAt) {
-      updatedAtFilter = `AND updated_at > '${lastUpdatedAt}'`;
+      updatedAtFilter = `AND updated_at < '${lastUpdatedAt}'`;
     }
 
     const query = `
       SELECT nte.to as "owner", updated_at
       FROM nft_transfer_events nte
-      WHERE updated_at > now() - INTERVAL '6 months'
+      WHERE updated_at < now() - INTERVAL '12 months'
+      AND updated_at > now() - INTERVAL '18 months'
       AND nte.to NOT IN ($/AddressZero/, $/deadAddress/)
       ${updatedAtFilter}
-      ORDER BY updated_at
+      ORDER BY updated_at DESC
       LIMIT $/limit/
     `;
 
@@ -82,7 +83,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
           lastUpdatedAt: lastItem.updated_at.toISOString(),
           limit:
             lastItem.updated_at.toISOString() === lastUpdatedAt
-              ? _.min([(values.limit += 1000), 10000])
+              ? _.min([(values.limit += 1000), 15000])
               : undefined,
         },
       };
