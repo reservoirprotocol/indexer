@@ -28,30 +28,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     let fallbackAllowed = true;
     let fallbackError;
 
-    if (contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Start. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-          payload,
-        })
-      );
-    }
-
     try {
       const metadata = await onchainMetadataProvider.getTokensMetadata([
         { contract, tokenId, uri },
       ]);
-
-      if (contract === "0x23581767a106ae21c074b2276d25e5c3e136a68b") {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `getTokensMetadata. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-            metadata,
-          })
-        );
-      }
 
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {

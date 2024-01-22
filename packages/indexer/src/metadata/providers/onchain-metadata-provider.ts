@@ -159,7 +159,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     const resolvedURIs = await Promise.all(
       batch.map(async (token: any) => {
         try {
-          const uri = defaultAbiCoder.decode(["string"], token.result)[0];
+          let uri = defaultAbiCoder.decode(["string"], token.result)[0];
+
           if (!uri || uri === "") {
             return {
               contract: idToToken[token.id].contract,
@@ -167,6 +168,20 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               uri: null,
               error: "Unable to decode tokenURI from contract",
             };
+          }
+
+          if (uri.startsWith("https://api.opensea.io/") && uri.endsWith("0x{id}")) {
+            logger.info(
+              "onchain-fetcher",
+              JSON.stringify({
+                topic: "fetchTokensError",
+                message: `Opensea 0x{id} use case. contract=${
+                  idToToken[token.id].contract
+                }, tokenId=${idToToken[token.id].tokenId}, uri=${uri}`,
+              })
+            );
+
+            uri = uri.replace("0x{id}", idToToken[token.id].tokenId);
           }
 
           return {
