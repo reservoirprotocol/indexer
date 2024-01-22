@@ -143,8 +143,9 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
-    }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
+    config.environment === "dev" ? ".dev" : ""
+  }`;
 };
 
 type NetworkSettings = {

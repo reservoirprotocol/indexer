@@ -50,6 +50,7 @@ import * as PaymentProcessor from "./payment-processor";
 import * as PaymentProcessorV2 from "./payment-processor-v2";
 import * as Seadrop from "./seadrop";
 import * as BlurV2 from "./blur-v2";
+import * as ImtblOrderbook from "./imtbl-orderbook";
 import * as Joepeg from "./joepeg";
 
 export {
@@ -107,5 +108,6 @@ export {
   PaymentProcessorV2,
   Seadrop,
   BlurV2,
+  ImtblOrderbook,
   Joepeg,
 };

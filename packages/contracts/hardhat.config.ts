@@ -61,6 +61,12 @@ const getNetworkConfig = (chainId?: number) => {
       case 534352:
         url = "https://rpc.ankr.com/scroll";
         break;
+      case 4337:
+        url = "https://subnets.avax.network/beam/mainnet/rpc";
+        break;
+      case 13371:
+        url = "https://rpc.immutable.com";
+        break;
       // Testnets
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
@@ -92,8 +98,8 @@ const getNetworkConfig = (chainId?: number) => {
       case 13473:
         url = "https://rpc.testnet.immutable.com/";
         break;
-      case 4337:
-        url = "https://subnets.avax.network/beam/mainnet/rpc"
+      case 13337:
+        url = "https://subnets.avax.network/beam/testnet/rpc";
         break;
       case 13337:
         url = "https://subnets.avax.network/beam/testnet/rpc"
@@ -169,6 +175,8 @@ const config: HardhatUserConfig = {
     linea: getNetworkConfig(59144),
     zora: getNetworkConfig(7777777),
     scroll: getNetworkConfig(534352),
+    immutableZkevm: getNetworkConfig(13371),
+    beam: getNetworkConfig(4337),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
@@ -180,6 +188,7 @@ const config: HardhatUserConfig = {
     sepolia: getNetworkConfig(11155111),
     ancient8Testnet: getNetworkConfig(2863311531),
     immutableZkevmTestnet: getNetworkConfig(13473),
+    beamTestnet: getNetworkConfig(13337),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,

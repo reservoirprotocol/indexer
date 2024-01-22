@@ -4,6 +4,10 @@ export const config = {
   chainId: Number(process.env.CHAIN_ID),
   environment: String(process.env.ENVIRONMENT),
 
+  // custom imtbl-orderbook config
+  imtblOrderbookMakerFeeBps: Number(process.env.IMTBL_ORDERBOOK_MAKER_FEE_BPS),
+  imtblOrderbookMakerFeeRecipient: String(process.env.IMTBL_ORDERBOOK_MAKER_FEE_RECIPIENT),
+
   adminApiKey: String(process.env.ADMIN_API_KEY),
   bullmqAdminPassword: String(process.env.BULLMQ_ADMIN_PASSWORD),
   arweaveRelayerKey: process.env.ARWEAVE_RELAYER_KEY

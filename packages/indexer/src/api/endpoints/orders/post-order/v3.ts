@@ -15,6 +15,7 @@ import * as orders from "@/orderbook/orders";
 
 import { orderbookPostOrderExternalOpenseaJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-job";
 import { orderbookPostOrderExternalJob } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-job";
+import { storeInImtblOrderbook } from "@reservoir0x/sdk/dist/imtbl-orderbook/utils";
 
 const version = "v3";
 
@@ -290,9 +291,26 @@ export const postOrderV3Options: RouteOptions = {
                 throw error;
               }
             } else if (order.kind == "seaport-v1.5") {
+              // ImtblOrderbook custom hook - store in orderbook and get updated fee data from api before sending to reservoir db
+              let updatedOrderParams;
+              try {
+                updatedOrderParams = await storeInImtblOrderbook(
+                  config.chainId,
+                  order.data,
+                  config.imtblOrderbookMakerFeeBps,
+                  config.imtblOrderbookMakerFeeRecipient
+                );
+              } catch (e: any) {
+                const error = Boom.internal("Error storing Seaport order in Imtbl Orderbook");
+                error.output.payload.message = e.message;
+                error.output.payload.orderId = orderId;
+                error.output.payload.orderData = JSON.stringify(order.data, null, 2);
+                throw error;
+              }
+
               const [result] = await orders.seaportV15.save([
                 {
-                  orderParams: order.data,
+                  orderParams: updatedOrderParams,
                   isReservoir: true,
                   metadata: {
                     schema,

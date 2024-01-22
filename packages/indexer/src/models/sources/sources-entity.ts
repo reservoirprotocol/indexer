@@ -38,6 +38,7 @@ export type SourcesMetadata = {
   tokenUrlPolygonZkevm?: string;
   tokenUrlScroll?: string;
   tokenUrlImmutableZkevmTestnet?: string;
+  tokenUrlImmutableZkevm?: string;
   tokenUrlBeam?: string;
   tokenUrlBeamTestnet?: string;
 };
