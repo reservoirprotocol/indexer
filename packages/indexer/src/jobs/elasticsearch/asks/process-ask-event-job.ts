@@ -14,7 +14,7 @@ export enum EventKind {
 export type ProcessAskEventJobPayload = {
   kind: EventKind;
   data: OrderInfo;
-  context?: string;
+  retries?: number;
 };
 
 export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
@@ -26,6 +26,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
+    const retries = payload.retries ?? 0;
 
     if (config.chainId === 137 && kind === EventKind.newSellOrder) {
       logger.info(
@@ -47,30 +48,44 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     } else {
       const askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
 
-      if (config.chainId === 137 && kind === EventKind.newSellOrder) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `generateAsk. orderId=${data.id}`,
-            topic: "debugMissingAsks",
-            payload,
-            askDocumentInfo: JSON.stringify(askDocumentInfo),
-          })
-        );
-      }
-
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
+      } else {
+        if (retries < 5) {
+          if (config.chainId === 137 && kind === EventKind.newSellOrder) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `generateAsk failed - Retrying. orderId=${data.id}`,
+                topic: "debugMissingAsks",
+                payload,
+              })
+            );
+          }
+
+          payload.retries = retries + 1;
+
+          await this.addToQueue([payload], 1000);
+        } else {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk failed - Stop Retrying. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
+        }
       }
     }
   }
 
-  public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
+  public async addToQueue(payloads: ProcessAskEventJobPayload[], delay = 0) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.sendBatch(payloads.map((payload) => ({ payload })));
+    await this.sendBatch(payloads.map((payload) => ({ payload, delay })));
   }
 }
 
