@@ -184,8 +184,15 @@ export default class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(floorAskInfos: FloorQueueJobPayload[]) {
-    await this.sendBatch(floorAskInfos.map((info) => ({ payload: info })));
+  public async addToQueue(params: FloorQueueJobPayload[]) {
+    await this.sendBatch(
+      params.map((info) => {
+        return {
+          payload: info,
+          // jobId: info.kind !== "revalidation" ? info.tokenSetId : undefined,
+        };
+      })
+    );
   }
 }
 

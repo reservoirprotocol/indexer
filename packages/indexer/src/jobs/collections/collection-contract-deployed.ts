@@ -1,18 +1,18 @@
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
+import { logger } from "@/common/logger";
+import { idb } from "@/common/db";
+import { toBuffer } from "@/common/utils";
+import { initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
 import {
   detectTokenStandard,
   getContractDeployer,
   getContractNameAndSymbol,
   getContractOwner,
-} from "./utils";
-import { logger } from "@/common/logger";
-import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-
-import * as registry from "@/utils/royalties/registry";
-import * as royalties from "@/utils/royalties";
+} from "@/jobs/collections/utils";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import * as royalties from "@/utils/royalties";
+import * as registry from "@/utils/royalties/registry";
 
 export type CollectionContractDeployed = {
   contract: string;
@@ -81,27 +81,27 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
     await Promise.all([
       idb.none(
         `
-        INSERT INTO contracts (
-            address,
-            kind,
-            symbol,
-            name,
-            deployed_at,
-            metadata,
-            deployer,
-            owner
-        ) VALUES (
-          $/address/,
-          $/kind/,
-          $/symbol/,
-          $/name/,
-          $/deployed_at/,
-          $/metadata:json/,
-          $/deployer/,
-          $/owner/
-        )
-        ON CONFLICT DO NOTHING
-      `,
+          INSERT INTO contracts (
+              address,
+              kind,
+              symbol,
+              name,
+              deployed_at,
+              metadata,
+              deployer,
+              owner
+          ) VALUES (
+            $/address/,
+            $/kind/,
+            $/symbol/,
+            $/name/,
+            $/deployed_at/,
+            $/metadata:json/,
+            $/deployer/,
+            $/owner/
+          )
+          ON CONFLICT DO NOTHING
+        `,
         {
           address: toBuffer(contract),
           kind: collectionKind.toLowerCase(),
@@ -161,6 +161,20 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
           `Refreshing deployed collection on chain royalties error. collectionId=${contract}, error=${error}`
         );
       }
+    }
+
+    // If there is a `mintConfig` field in the metadata we use that to extract the mint phases
+    if (rawMetadata?.mintConfig) {
+      const onChainData = initOnChainData();
+      onChainData.mints.push({
+        by: "contractMetadata",
+        data: {
+          collection: contract,
+          metadata: rawMetadata,
+        },
+      });
+
+      await processOnChainData(onChainData, false);
     }
   }
 

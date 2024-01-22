@@ -123,20 +123,35 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
           table: "orders",
         }
       );
+
+      let updatedOrderIds = erc20Orders.map(({ id }) => id);
+
       if (values.length) {
-        await idb.none(pgp.helpers.update(values, columns) + " WHERE t.id = v.id");
+        const updateQuery =
+          pgp.helpers.update(values, columns) +
+          " WHERE t.id = v.id AND (" +
+          "t.price IS DISTINCT FROM v.price " +
+          "OR t.value IS DISTINCT FROM v.value " +
+          "OR t.normalized_value IS DISTINCT FROM v.normalized_value" +
+          ") RETURNING t.id";
+
+        const updatedOrders = await idb.manyOrNone(updateQuery);
+
+        updatedOrderIds = updatedOrders.map(({ id }) => id);
       }
 
-      await orderUpdatesByIdJob.addToQueue(
-        erc20Orders.map(
-          ({ id }) =>
-            ({
-              context: `erc20-orders-update-${now}-${id}`,
-              id,
-              trigger: { kind: "reprice" },
-            } as OrderUpdatesByIdJobPayload)
-        )
-      );
+      if (updatedOrderIds.length) {
+        await orderUpdatesByIdJob.addToQueue(
+          updatedOrderIds.map(
+            (id) =>
+              ({
+                context: `erc20-orders-update-${now}-${id}`,
+                id,
+                trigger: { kind: "reprice" },
+              } as OrderUpdatesByIdJobPayload)
+          )
+        );
+      }
 
       if (erc20Orders.length >= limit) {
         await this.addToQueue(
@@ -145,7 +160,7 @@ export default class OrderUpdatesErc20OrderJob extends AbstractRabbitMqJobHandle
         );
       }
     } catch (error) {
-      logger.error(`dynamic-orders-update`, `Failed to handle dynamic orders: ${error}`);
+      logger.error(`erc20-orders-update`, `Failed to handle erc20 orders: ${error}`);
     }
   }
 

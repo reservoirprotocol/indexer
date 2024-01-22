@@ -77,6 +77,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                   block_hash AS "event_block_hash",
                   log_index AS "event_log_index",
                   batch_index AS "event_batch_index",
+                  kind AS "event_transfer_kind",
                   extract(epoch from created_at) AS "created_ts",
                   t.*
                 FROM nft_transfer_events

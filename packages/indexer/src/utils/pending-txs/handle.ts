@@ -1,7 +1,7 @@
 import { redis } from "@/common/redis";
 import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/calldata";
 import * as es from "@/events-sync/storage";
-import { PendingMessage, PendingToken } from "@/utils/pending-txs/types";
+import { PendingItem, PendingMessage, PendingToken } from "@/utils/pending-txs/types";
 
 export const handlePendingMessage = async (message: PendingMessage) => {
   try {
@@ -19,7 +19,7 @@ export const handlePendingMessage = async (message: PendingMessage) => {
       .filter((c) => c.tokenId) as PendingToken[];
 
     if (pendingTokens.length) {
-      await addPendingTokens(pendingTokens, txHash);
+      await addPendingItems(pendingTokens, txHash);
     }
 
     return pendingTokens;
@@ -28,15 +28,22 @@ export const handlePendingMessage = async (message: PendingMessage) => {
   }
 };
 
-export const addPendingTokens = async (tokens: PendingToken[], txHash: string) => {
+export const addPendingItems = async (tokens: PendingToken[], txHash: string) => {
   const pipe = redis.multi();
 
   for (const { contract, tokenId } of tokens) {
-    // Use a set to track pending tokens
-    pipe.sadd(`pending-tokens:${contract}`, tokenId);
+    const pendingItem = {
+      contract,
+      tokenId,
+      txHash,
+    } as PendingItem;
+
+    // Use a set to track pending tokens (globally and per contract)
+    pipe.sadd("pending-items", JSON.stringify(pendingItem));
+    pipe.sadd(`pending-items:${contract}`, JSON.stringify(pendingItem));
 
     // Set a flag to store the status
-    pipe.set(`pending-token:${contract}:${tokenId}`, 1, "EX", 2 * 60);
+    pipe.set(`pending-item:${contract}:${tokenId}:${txHash}`, 1, "EX", 2 * 60);
   }
 
   // Link the transaction to its corresponding pending tokens
@@ -62,9 +69,16 @@ export const setPendingTxsAsComplete = async (txHashes: string[]) => {
       const txHash = txHashes[i];
       if (pendingTokens.length) {
         for (const { contract, tokenId } of pendingTokens) {
-          // Remove any redis state
-          pipe.srem(`pending-tokens:${contract}`, tokenId);
-          pipe.del(`pending-token:${contract}:${tokenId}`);
+          const pendingItem = {
+            contract,
+            tokenId,
+            txHash,
+          } as PendingItem;
+
+          // Remove any Redis state
+          pipe.srem("pending-items", JSON.stringify(pendingItem));
+          pipe.srem(`pending-items:${contract}`, JSON.stringify(pendingItem));
+          pipe.del(`pending-item:${contract}:${tokenId}:${txHash}`);
         }
 
         pipe.del(`pending-tx:${txHash}`);
@@ -86,18 +100,24 @@ export const onFillEventsCallback = async (fillEvents: es.fills.Event[]) => {
   }
 };
 
-export const getContractPendingTokenIds = async (contract: string) => {
-  const contractPendingTokensKey = `pending-tokens:${contract}`;
-  const tokenIds = await redis.smembers(contractPendingTokensKey);
+export const getPendingItems = async (contract?: string) => {
+  const pendingItemsKey = contract ? `pending-items:${contract}` : "pending-items";
 
+  // Get all cached pending items
+  const pendingItems: PendingItem[] = await redis
+    .smembers(pendingItemsKey)
+    .then((rs) => rs.map((r) => JSON.parse(r)));
+
+  // Get the status of the caches pending items
   const pipe = redis.multi();
-  for (const tokenId of tokenIds) {
-    pipe.get(`pending-token:${contract}:${tokenId}`);
+  for (const pendingItem of pendingItems) {
+    pipe.get(`pending-item:${pendingItem.contract}:${pendingItem.tokenId}:${pendingItem.txHash}`);
   }
   const results = await pipe.exec();
 
-  const expiredTokenIds: string[] = [];
-  const pendingTokenIds = tokenIds.filter((tokenId, i) => {
+  // Keep track of expired vs active pending items
+  const expiredPendingItem: PendingItem[] = [];
+  const activePendingItems = pendingItems.filter((pendingItem, i) => {
     if (!results[i]) {
       return false;
     }
@@ -110,15 +130,18 @@ export const getContractPendingTokenIds = async (contract: string) => {
     if (result) {
       return true;
     } else {
-      expiredTokenIds.push(tokenId);
+      expiredPendingItem.push(pendingItem);
       return false;
     }
   });
 
-  if (expiredTokenIds.length) {
+  if (expiredPendingItem.length) {
     // Clean expired items
-    await redis.srem(contractPendingTokensKey, expiredTokenIds);
+    await redis.srem(
+      pendingItemsKey,
+      expiredPendingItem.map((item) => JSON.stringify(item))
+    );
   }
 
-  return pendingTokenIds;
+  return activePendingItems;
 };

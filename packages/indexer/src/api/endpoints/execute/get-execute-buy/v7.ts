@@ -2333,15 +2333,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
               status: "incomplete",
               data: {
                 ...approval.txData,
-                check: {
-                  endpoint: "/execute/status/v1",
-                  method: "POST",
-                  body: {
-                    kind: "transaction",
-                  },
-                },
                 maxFeePerGas,
                 maxPriorityFeePerGas,
+              },
+              check: {
+                endpoint: "/execute/status/v1",
+                method: "POST",
+                body: {
+                  kind: "transaction",
+                },
               },
             });
           }

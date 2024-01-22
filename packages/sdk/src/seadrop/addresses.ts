@@ -10,4 +10,5 @@ export const Seadrop: ChainIdToAddress = {
   [Network.Arbitrum]: "0x00005ea00ac477b1030ce78506496e8c2de24bf5",
   [Network.ArbitrumNova]: "0x00005ea00ac477b1030ce78506496e8c2de24bf5",
   [Network.Mumbai]: "0x00005ea00ac477b1030ce78506496e8c2de24bf5",
+  [Network.Base]: "0x00005ea00ac477b1030ce78506496e8c2de24bf5",
 };

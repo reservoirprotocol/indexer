@@ -29,6 +29,14 @@ export type MintsProcessJobPayload =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         additionalInfo?: any;
       };
+    }
+  | {
+      by: "contractMetadata";
+      data: {
+        collection: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: any;
+      };
     };
 
 export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
@@ -42,6 +50,11 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
 
     try {
       let collectionMints: CollectionMint[] = [];
+
+      // Process new mints knowing the mint configuration in the metadata
+      if (by === "contractMetadata") {
+        collectionMints = await detector.extractByContractMetadata(data.collection, data.metadata);
+      }
 
       // Process new mints knowing a mint transaction
       if (by === "tx") {

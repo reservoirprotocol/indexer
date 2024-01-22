@@ -31,6 +31,7 @@
     "@openchainxyz/abi-guesser": "^1.0.2",
     "@opensea/stream-js": "^0.1.1",
     "@poprank/rankings": "1.1.20",
+    "@reservoir0x/mint-interface": "*",
     "@reservoir0x/sdk": "*",
     "@types/amqplib": "^0.10.1",
     "@types/crypto-js": "^4.1.2",

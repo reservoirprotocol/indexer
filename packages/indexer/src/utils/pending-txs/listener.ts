@@ -11,8 +11,10 @@ const COMPONENT = "pending-txs-listener";
 
 export class PendingTxsListener {
   public ws: Websocket;
+  private useWatchlist: boolean;
 
-  constructor() {
+  constructor(_useWatchlist = false) {
+    this.useWatchlist = _useWatchlist;
     this.ws = new Websocket("wss://api.blxrbdn.com/ws", {
       headers: {
         Authorization: config.bloxrouteAuth,
@@ -29,7 +31,10 @@ export class PendingTxsListener {
   }
 
   subscribe() {
-    const params = {
+    const params: {
+      include: string[];
+      filters?: string;
+    } = {
       include: [
         "tx_hash",
         "tx_contents.input",
@@ -37,8 +42,11 @@ export class PendingTxsListener {
         "tx_contents.from",
         "tx_contents.value",
       ],
-      filters: `{to} IN ${JSON.stringify(watchlist)}`,
     };
+
+    if (this.useWatchlist) {
+      params.filters = `{to} IN ${JSON.stringify(watchlist.filter((c) => c))}`;
+    }
 
     const pendingTxQuuery = {
       jsonrpc: "2.0",

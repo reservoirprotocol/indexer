@@ -23,13 +23,18 @@ export const getPendingTokensV1Options: RouteOptions = {
         .pattern(regex.address)
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        )
-        .required(),
+        ),
     }),
   },
   response: {
     schema: Joi.object({
-      tokenIds: Joi.array().items(Joi.string().pattern(regex.number)),
+      items: Joi.array().items(
+        Joi.object({
+          tokenId: Joi.string().pattern(regex.number),
+          contract: Joi.string(),
+          txHash: Joi.string(),
+        })
+      ),
     }).label(`getPendingTokens${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-pending-tokens-${version}-handler`, `Wrong response schema: ${error}`);
@@ -41,8 +46,8 @@ export const getPendingTokensV1Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const tokenIds = await pendingTxs.getContractPendingTokenIds(query.contract);
-      return { tokenIds };
+      const items = await pendingTxs.getPendingItems(query.contract);
+      return { items };
     } catch (error) {
       logger.error(`get-pending-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;

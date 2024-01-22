@@ -1671,7 +1671,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     }
   }
 
-  let tokens: { contract: string; tokenId: string }[] = [];
+  const tokens: { contract: string; tokenId: string }[] = [];
 
   if (query.tokens) {
     if (!_.isArray(query.tokens)) {
@@ -1688,30 +1688,14 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     }
   }
 
-  if (query.attributes) {
-    const attributes: string[] = [];
+  const attributes: { key: string; value: string }[] = [];
 
+  if (query.attributes) {
     Object.entries(query.attributes).forEach(([key, values]) => {
       (Array.isArray(values) ? values : [values]).forEach((value) =>
-        attributes.push(`('${key}', '${value}')`)
+        attributes.push({ key, value })
       );
     });
-
-    const tokensResult = await redb.manyOrNone(`
-            SELECT contract, token_id
-            FROM token_attributes
-            WHERE collection_id IN ('${collections.join(",")}')
-            AND (key, value) IN (${attributes.join(",")});
-          `);
-
-    if (tokensResult.length === 0) {
-      throw Boom.badRequest(`No tokens for attributes ${query.attributes}`);
-    }
-
-    tokens = _.map(tokensResult, (token) => ({
-      contract: fromBuffer(token.contract),
-      tokenId: token.token_id,
-    }));
   }
 
   if (query.source) {
@@ -1769,6 +1753,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     contracts: query.contract && !_.isArray(query.contract) ? [query.contract] : query.contract,
     collections,
     tokens,
+    attributes,
     rarityRank: { min: query.minRarityRank, max: query.maxRarityRank },
     floorAskPrice: { min: query.minFloorAskPrice, max: query.maxFloorAskPrice },
     flaggedTokens: query.flaggedTokens,

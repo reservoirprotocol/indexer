@@ -15,7 +15,14 @@ export default class TopBidQueueJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(topBidInfos: topBidPayload[]) {
-    await this.sendBatch(topBidInfos.map((info) => ({ payload: info })));
+    await this.sendBatch(
+      topBidInfos.map((info) => {
+        return {
+          payload: info,
+          jobId: info.kind !== "revalidation" ? info.tokenSetId : undefined,
+        };
+      })
+    );
   }
 }
 

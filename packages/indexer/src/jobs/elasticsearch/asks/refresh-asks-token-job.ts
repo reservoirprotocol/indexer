@@ -26,7 +26,12 @@ export default class RefreshAsksTokenJob extends AbstractRabbitMqJobHandler {
     const tokenData = await Tokens.getByContractAndTokenId(contract, tokenId);
 
     if (!_.isEmpty(tokenData)) {
-      const keepGoing = await AsksIndex.updateAsksTokenData(contract, tokenId, tokenData);
+      const keepGoing = await AsksIndex.updateAsksTokenData(contract, tokenId, {
+        isFlagged: tokenData.isFlagged,
+        isSpam: tokenData.isSpam,
+        nsfwStatus: tokenData.nsfwStatus,
+        rarityRank: tokenData.rarityRank,
+      });
 
       if (keepGoing) {
         addToQueue = true;

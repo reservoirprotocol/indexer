@@ -153,6 +153,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
           fillSource: JoiSource.allow(null),
+          isAirdrop: Joi.boolean().allow(null),
           order: JoiActivityOrder,
         })
       ),
@@ -433,6 +434,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
             logIndex: activity.event?.logIndex,
             batchIndex: activity.event?.batchIndex,
             fillSource: fillSource ? getJoiSourceObject(fillSource, false) : undefined,
+            isAirdrop: activity.event?.transferIsAirdrop,
             order,
           },
           tokenMetadata?.metadata_disabled,

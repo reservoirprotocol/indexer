@@ -159,6 +159,9 @@ import { processAskEventsJob } from "@/jobs/elasticsearch/asks/process-ask-event
 import { backfillAsksElasticsearchJob } from "@/jobs/elasticsearch/asks/backfill-asks-elasticsearch-job";
 import { collectionRefreshSpamJob } from "@/jobs/collections-refresh/collections-refresh-spam-job";
 import { refreshAsksTokenJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-job";
+import { refreshAsksTokenAttributesJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-attributes-job";
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
+
 import { actionsLogJob } from "@/jobs/general-tracking/actions-log-job";
 import { refreshAsksCollectionJob } from "@/jobs/elasticsearch/asks/refresh-asks-collection-job";
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
@@ -180,6 +183,7 @@ import { collectionCheckSpamJob } from "@/jobs/collections-refresh/collections-c
 import { backfillNftBalancesDatesJob } from "@/jobs/backfill/backfill-nft-balances-dates";
 import { pendingTxsJob } from "@/jobs/pending-txs/pending-txs-job";
 import { updateUserCollectionsSpamJob } from "@/jobs/nft-balance-updates/update-user-collections-spam-job";
+import { updateNftBalancesSpamJob } from "@/jobs/nft-balance-updates/update-nft-balances-spam-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -323,8 +327,10 @@ export class RabbitMqJobsConsumer {
       processAskEventJob,
       processAskEventsJob,
       backfillAsksElasticsearchJob,
+      backfillTokenAsksJob,
       collectionRefreshSpamJob,
       refreshAsksTokenJob,
+      refreshAsksTokenAttributesJob,
       actionsLogJob,
       refreshAsksCollectionJob,
       refreshActivitiesTokenJob,
@@ -344,6 +350,7 @@ export class RabbitMqJobsConsumer {
       backfillNftBalancesDatesJob,
       pendingTxsJob,
       updateUserCollectionsSpamJob,
+      updateNftBalancesSpamJob,
     ];
   }
 
