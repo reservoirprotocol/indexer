@@ -5,7 +5,7 @@ on:
     branches: [main, development]
 
 env:
-  NODE_VERSION: "18.x"
+  NODE_VERSION: "20.x"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -14,36 +14,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # outputs:
-    #   version: ${{ steps.semantic.outputs.new_release_version }}
+    outputs:
+      version: ${{ steps.semantic.outputs.new_release_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      # - name: Setup node
-      #   uses: actions/setup-node@v3
-      #   with:
-      #     node-version: ${{ env.NODE_VERSION }}
-      #     cache: "yarn"
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
 
-      # - name: Install dependencies
-      #   run: "yarn install"
+      - name: Install dependencies
+        run: "yarn install frozen-lockfile"
 
-      # - name: Get Release Versions
-      #   uses: cycjimmy/semantic-release-action@v3
-      #   id: semantic
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.DEVOPSBOT_TOKEN }}
+      - name: Get Release Versions
+        uses: cycjimmy/semantic-release-action@v4
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEVOPSBOT_TOKEN }}
 
       - name: Set up Docker Buildx
-        # if: steps.semantic.outputs.new_release_version != ''
+        if: steps.semantic.outputs.new_release_version != ''
         id: buildx
         uses: docker/setup-buildx-action@v2
 
       - name: Login to GitHub Container Registry
-        # if: steps.semantic.outputs.new_release_version != ''
+        if: steps.semantic.outputs.new_release_version != ''
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
@@ -51,14 +51,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        # if: steps.semantic.outputs.new_release_version != ''
-        uses: docker/build-push-action@v3
+        if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/build-push-action@v5
         with:
           push: true
           tags: |
             ghcr.io/reservoirprotocol/indexer:latest
             ghcr.io/reservoirprotocol/indexer:${{ github.sha }}
-          # ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
+            ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
           # build-args: |
           #   VERSION=${{ steps.semantic.outputs.new_release_version }}
 

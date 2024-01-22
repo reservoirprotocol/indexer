@@ -1,4 +1,4 @@
-FROM node:18.14
+FROM node:20.11
 
 ARG PORT=80
 
