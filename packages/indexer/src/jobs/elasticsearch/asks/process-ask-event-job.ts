@@ -31,7 +31,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Processing pendingAskEvent. orderId=${data.id}`,
+          message: `Processing askEvent. orderId=${data.id}`,
           topic: "debugMissingAsks",
           payload,
         })
@@ -54,7 +54,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             message: `generateAsk. orderId=${data.id}`,
             topic: "debugMissingAsks",
             payload,
-            askDocumentInfo,
+            askDocumentInfo: JSON.stringify(askDocumentInfo),
           })
         );
       }
