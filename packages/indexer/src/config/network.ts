@@ -418,6 +418,18 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xdaa58a1851672a6490e2bb9fdc8868918cdd86e6",
+            {
+              contract: "0xdaa58a1851672a6490e2bb9fdc8868918cdd86e6",
+              name: "STAR",
+              symbol: "STAR",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/YW5NFVH/STAR.png",
+              },
+            },
+          ],
+          [
             "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
             {
               contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",

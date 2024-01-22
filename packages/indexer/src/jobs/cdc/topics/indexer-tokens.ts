@@ -89,7 +89,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       }
 
       // Update the elasticsearch activities index
-      if (changed.some((value) => ["is_spam"].includes(value))) {
+      if (changed.some((value) => ["is_spam", "nsfw_status"].includes(value))) {
         await refreshActivitiesTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
       }
 

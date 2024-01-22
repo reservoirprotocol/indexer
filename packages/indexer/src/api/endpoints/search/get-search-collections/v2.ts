@@ -48,6 +48,9 @@ export const getSearchCollectionsV2Options: RouteOptions = {
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as spam."),
+      excludeNsfw: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as nsfw."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -113,6 +116,10 @@ export const getSearchCollectionsV2Options: RouteOptions = {
 
     if (query.excludeSpam) {
       conditions.push("(c.is_spam IS NULL OR c.is_spam <= 0)");
+    }
+
+    if (query.excludeNsfw) {
+      conditions.push("(c.nsfw_status IS NULL OR c.nsfw_status <= 0)");
     }
 
     if (conditions.length) {

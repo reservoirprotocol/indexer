@@ -28,6 +28,7 @@ export default class RefreshActivitiesCollectionMetadataJob extends AbstractRabb
 
     const collectionUpdateData = {
       isSpam: Number(collection?.isSpam),
+      nsfwStatus: Number(collection?.nsfwStatus),
     };
 
     if (!_.isEmpty(collectionUpdateData)) {

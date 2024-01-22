@@ -176,9 +176,9 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       }
 
       // Update the elasticsearch activities index
-      if (changed.some((value) => ["is_spam", "nfsw_status"].includes(value))) {
+      if (changed.some((value) => ["is_spam", "nsfw_status"].includes(value))) {
         const spamStatusChanged = payload.before.is_spam > 0 !== payload.after.is_spam > 0;
-        const nsfwStatusChanged = payload.before.nfsw_status > 0 !== payload.after.nfsw_status > 0;
+        const nsfwStatusChanged = payload.before.nsfw_status > 0 !== payload.after.nsfw_status > 0;
 
         if (spamStatusChanged || nsfwStatusChanged) {
           if (spamStatusChanged) {
@@ -197,7 +197,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
             "cdc-indexer-collections",
             JSON.stringify({
               topic: "debugActivitiesErrors",
-              message: `change detected. collectionId=${payload.after.id}, before=${payload.before.is_spam}, after=${payload.after.is_spam}`,
+              message: `change detected. collectionId=${payload.after.id}, is_spam before=${payload.before.is_spam}, after=${payload.after.is_spam}, nsfw_status before=${payload.before.nsfw_status}, after=${payload.after.nsfw_status}`,
               collectionId: payload.after.id,
               spamStatusChanged,
               nsfwStatusChanged,

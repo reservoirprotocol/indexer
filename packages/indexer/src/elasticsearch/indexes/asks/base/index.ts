@@ -31,6 +31,7 @@ export interface AskDocument extends BaseDocument {
     name: string;
     image: string;
     isSpam: boolean;
+    isNsfw: boolean;
   };
   order: {
     id: string;
