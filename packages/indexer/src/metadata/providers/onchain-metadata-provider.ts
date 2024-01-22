@@ -172,16 +172,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           }
 
           if (uri.endsWith("0x{id}")) {
-            logger.info(
-              "onchain-fetcher",
-              JSON.stringify({
-                topic: "fetchTokensError",
-                message: `0x{id} use case. contract=${idToToken[token.id].contract}, tokenId=${
-                  idToToken[token.id].tokenId
-                }, uri=${uri}`,
-              })
-            );
-
             if (uri.startsWith("https://api.opensea.io/")) {
               uri = uri.replace("0x{id}", idToToken[token.id].tokenId);
             }
