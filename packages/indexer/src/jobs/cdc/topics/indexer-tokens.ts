@@ -98,7 +98,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       if (payload.after.floor_sell_id) {
         if (
           changed.some((value) =>
-            ["is_flagged", "is_spam", "rarity_rank", "nsfw_status", "collection_id"].includes(value)
+            ["is_flagged", "is_spam", "rarity_rank", "nsfw_status"].includes(value)
           )
         ) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
