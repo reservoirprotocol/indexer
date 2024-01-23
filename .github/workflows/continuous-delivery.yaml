@@ -107,26 +107,12 @@ jobs:
       - name: Deploy to Dev Environment
         working-directory: k8s-configs
         run: |
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-sepolia ${{ github.sha }} \
             ./dev/platform/indexer-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-sepolia
-          ./utils/version_update.sh \
             ./dev/platform/indexer-worker-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-worker-sepolia
-          ./utils/version_update.sh \
             ./dev/platform/indexer-worker-sepolia-master.yaml \
-            ${{ github.sha }} \
-            indexer-worker-sepolia-master
-          ./utils/version_update.sh \
             ./dev/platform/indexer-websocket-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-sepolia
-          ./utils/version_update.sh \
-            ./dev/platform/indexer-kafka-worker-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-sepolia
+            ./dev/platform/indexer-kafka-worker-sepolia.yaml
 
       - name: Post to Slack
         if: ${{ always() }}
@@ -170,106 +156,39 @@ jobs:
       - name: Deploy to Prod Environment
         working-directory: k8s-configs
         run: |
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-ancient8-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-ancient8-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-ancient8-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-ancient8-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-ancient8-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-ancient8-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-ancient8-testnet
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-ancient8-testnet
+            ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-arbitrum ${{ github.sha }} \
             ./prod/platform/indexer-api-arbitrum.yaml \
-            ${{ github.sha }} \
-            indexer-api-arbitrum
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-arbitrum.yaml \
-            ${{ github.sha }} \
-            indexer-worker-arbitrum
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-arbitrum.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-arbitrum
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-arbitrum.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-arbitrum
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-arbitrum.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-arbitrum
+            ./prod/platform/indexer-kafka-worker-arbitrum.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update.sh indexer-arbitrum-nova ${{ github.sha }} \
             ./prod/platform/indexer-api-arbitrum-nova.yaml \
-            ${{ github.sha }} \
-            indexer-api-arbitrum-nova
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-arbitrum-nova.yaml \
-            ${{ github.sha }} \
-            indexer-worker-arbitrum-nova
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-arbitrum-nova.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-arbitrum-nova
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-arbitrum-nova.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-arbitrum-nova
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-arbitrum-nova.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-arbitrum-nova
+            ./prod/platform/indexer-kafka-worker-arbitrum-nova.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update.sh indexer-avalanche ${{ github.sha }} \
             ./prod/platform/indexer-api-avalanche.yaml \
-            ${{ github.sha }} \
-            indexer-api-avalanche
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-avalanche.yaml \
-            ${{ github.sha }} \
-            indexer-worker-avalanche
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-avalanche.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-avalanche
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-avalanche.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-avalanche
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-avalanche.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-avalanche
+            ./prod/platform/indexer-kafka-worker-avalanche.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update.sh indexer-base ${{ github.sha }} \
             ./prod/platform/indexer-api-base.yaml \
-            ${{ github.sha }} \
-            indexer-api-base
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-base.yaml \
-            ${{ github.sha }} \
-            indexer-worker-base
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-base.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-base
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-base.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-base
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-base.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-base
+            ./prod/platform/indexer-kafka-worker-base.yaml
 
           ./utils/version_update.sh \
             ./prod/platform/indexer-api-base-goerli.yaml \
