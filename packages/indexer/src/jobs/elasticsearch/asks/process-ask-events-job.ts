@@ -8,7 +8,6 @@ import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handle
 import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
 import * as AskIndex from "@/elasticsearch/indexes/asks";
 import { elasticsearch } from "@/common/elasticsearch";
-import { randomUUID } from "crypto";
 
 const BATCH_SIZE = 1000;
 
@@ -27,21 +26,7 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
       try {
         const bulkOps = [];
 
-        const correlationId = randomUUID();
-
         for (const pendingAskEvent of pendingAskEvents) {
-          if (config.chainId === 137) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `Processing pendingAskEvent. orderId=${pendingAskEvent.info.id}, kind=${pendingAskEvent.kind}, correlationId=${correlationId}`,
-                topic: "debugMissingAsks",
-                pendingAskEvent,
-                correlationId,
-              })
-            );
-          }
-
           if (pendingAskEvent.kind === "index") {
             bulkOps.push({
               index: {
@@ -66,21 +51,6 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           body: bulkOps,
           refresh: true,
         });
-
-        if (config.chainId === 137) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `indexed asks. correlationId=${correlationId}`,
-              topic: "debugMissingAsks",
-              data: {
-                bulkOps: JSON.stringify(bulkOps),
-              },
-              response,
-              correlationId,
-            })
-          );
-        }
 
         if (response.errors) {
           logger.error(
@@ -132,10 +102,10 @@ export const processAskEventsJob = new ProcessAskEventsJob();
 
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   cron.schedule(
-    "*/2 * * * * *",
+    "*/1 * * * * *",
     async () =>
       await redlock
-        .acquire([`${processAskEventsJob.queueName}-queue-lock`], 2 * 1000 - 500)
+        .acquire([`${processAskEventsJob.queueName}-queue-lock`], 1000 - 5)
         .then(async () => processAskEventsJob.addToQueue())
         .catch(() => {
           // Skip on any errors

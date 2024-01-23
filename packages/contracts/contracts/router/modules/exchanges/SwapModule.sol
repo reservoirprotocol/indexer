@@ -18,8 +18,13 @@ contract SwapModule is BaseExchangeModule {
     bool toETH;
   }
 
-  struct Swap {
+  struct BuySwap {
     IUniswapV3Router.ExactOutputSingleParams params;
+    TransferDetail[] transfers;
+  }
+
+  struct SellSwap {
+    IUniswapV3Router.ExactInputSingleParams params;
     TransferDetail[] transfers;
   }
 
@@ -51,7 +56,9 @@ contract SwapModule is BaseExchangeModule {
 
     uint256 length = targets.length;
     for (uint256 i = 0; i < length; ) {
-      _sendERC20(targets[i].recipient, targets[i].amount, WETH);
+      // Zero represents "everything"
+      uint256 amount = targets[i].amount == 0 ? WETH.balanceOf(address(this)) : targets[i].amount;
+      _sendERC20(targets[i].recipient, amount, WETH);
 
       unchecked {
         ++i;
@@ -67,7 +74,9 @@ contract SwapModule is BaseExchangeModule {
 
     uint256 length = targets.length;
     for (uint256 i = 0; i < length; ) {
-      _sendETH(targets[i].recipient, targets[i].amount);
+      // Zero represents "everything"
+      uint256 amount = targets[i].amount == 0 ? address(this).balance : targets[i].amount;
+      _sendETH(targets[i].recipient, amount);
 
       unchecked {
         ++i;
@@ -79,13 +88,13 @@ contract SwapModule is BaseExchangeModule {
 
   function ethToExactOutput(
     // Assumes all swaps have the same token in
-    Swap[] calldata swaps,
+    BuySwap[] calldata swaps,
     address refundTo,
     bool revertIfIncomplete
   ) external payable nonReentrant refundETHLeftover(refundTo) {
     uint256 swapsLength = swaps.length;
     for (uint256 i; i < swapsLength; ) {
-      Swap calldata swap = swaps[i];
+      BuySwap calldata swap = swaps[i];
 
       // Execute the swap
       try SWAP_ROUTER.exactOutputSingle{value: swap.params.amountInMaximum}(swap.params) {
@@ -93,14 +102,20 @@ contract SwapModule is BaseExchangeModule {
         for (uint256 j = 0; j < length; ) {
           TransferDetail calldata transferDetail = swap.transfers[j];
           if (transferDetail.toETH) {
-            WETH.withdraw(transferDetail.amount);
-            _sendETH(transferDetail.recipient, transferDetail.amount);
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? WETH.balanceOf(address(this))
+              : transferDetail.amount;
+
+            WETH.withdraw(amount);
+            _sendETH(transferDetail.recipient, amount);
           } else {
-            _sendERC20(
-              transferDetail.recipient,
-              transferDetail.amount,
-              IERC20(swap.params.tokenOut)
-            );
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? IERC20(swap.params.tokenOut).balanceOf(address(this))
+              : transferDetail.amount;
+
+            _sendERC20(transferDetail.recipient, amount, IERC20(swap.params.tokenOut));
           }
 
           unchecked {
@@ -124,13 +139,13 @@ contract SwapModule is BaseExchangeModule {
 
   function erc20ToExactOutput(
     // Assumes all swaps have the same token in
-    Swap[] calldata swaps,
+    BuySwap[] calldata swaps,
     address refundTo,
     bool revertIfIncomplete
   ) external nonReentrant refundERC20Leftover(refundTo, swaps[0].params.tokenIn) {
     uint256 swapsLength = swaps.length;
     for (uint256 i; i < swapsLength; ) {
-      Swap calldata swap = swaps[i];
+      BuySwap calldata swap = swaps[i];
 
       // Approve the router if needed
       _approveERC20IfNeeded(swap.params.tokenIn, address(SWAP_ROUTER), swap.params.amountInMaximum);
@@ -141,14 +156,71 @@ contract SwapModule is BaseExchangeModule {
         for (uint256 j = 0; j < transfersLength; ) {
           TransferDetail calldata transferDetail = swap.transfers[j];
           if (transferDetail.toETH) {
-            WETH.withdraw(transferDetail.amount);
-            _sendETH(transferDetail.recipient, transferDetail.amount);
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? WETH.balanceOf(address(this))
+              : transferDetail.amount;
+
+            WETH.withdraw(amount);
+            _sendETH(transferDetail.recipient, amount);
           } else {
-            _sendERC20(
-              transferDetail.recipient,
-              transferDetail.amount,
-              IERC20(swap.params.tokenOut)
-            );
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? IERC20(swap.params.tokenOut).balanceOf(address(this))
+              : transferDetail.amount;
+
+            _sendERC20(transferDetail.recipient, amount, IERC20(swap.params.tokenOut));
+          }
+
+          unchecked {
+            ++j;
+          }
+        }
+      } catch {
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
+      }
+
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function erc20ToExactInput(
+    // Assumes all swaps have the same token in
+    SellSwap[] calldata swaps,
+    address refundTo,
+    bool revertIfIncomplete
+  ) external nonReentrant refundERC20Leftover(refundTo, swaps[0].params.tokenIn) {
+    uint256 swapsLength = swaps.length;
+    for (uint256 i; i < swapsLength; ) {
+      SellSwap calldata swap = swaps[i];
+
+      // Approve the router if needed
+      _approveERC20IfNeeded(swap.params.tokenIn, address(SWAP_ROUTER), swap.params.amountIn);
+
+      // Execute the swap
+      try SWAP_ROUTER.exactInputSingle(swap.params) {
+        uint256 transfersLength = swap.transfers.length;
+        for (uint256 j = 0; j < transfersLength; ) {
+          TransferDetail calldata transferDetail = swap.transfers[j];
+          if (transferDetail.toETH) {
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? WETH.balanceOf(address(this))
+              : transferDetail.amount;
+
+            WETH.withdraw(amount);
+            _sendETH(transferDetail.recipient, amount);
+          } else {
+            // Zero represents "everything"
+            uint256 amount = transferDetail.amount == 0
+              ? IERC20(swap.params.tokenOut).balanceOf(address(this))
+              : transferDetail.amount;
+
+            _sendERC20(transferDetail.recipient, amount, IERC20(swap.params.tokenOut));
           }
 
           unchecked {

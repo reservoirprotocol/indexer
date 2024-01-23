@@ -27,13 +27,52 @@ const getToken = async (
     : new Token(chainId, address, await contract.decimals());
 };
 
-export const generateSwapExecutions = async (
+export const generateBuyExecutions = async (
   chainId: number,
   provider: Provider,
   fromTokenAddress: string,
   toTokenAddress: string,
-  toTokenAmount: BigNumberish,
+  amount: BigNumberish,
   options: {
+    module: Contract;
+    transfers: TransferDetail[];
+    refundTo: string;
+    revertIfIncomplete: boolean;
+  }
+): Promise<SwapInfo> => {
+  return _generateSwapExecutions(chainId, provider, fromTokenAddress, toTokenAddress, amount, {
+    direction: "buy",
+    ...options,
+  });
+};
+
+export const generateSellExecutions = async (
+  chainId: number,
+  provider: Provider,
+  fromTokenAddress: string,
+  toTokenAddress: string,
+  amount: BigNumberish,
+  options: {
+    module: Contract;
+    transfers: TransferDetail[];
+    refundTo: string;
+    revertIfIncomplete: boolean;
+  }
+): Promise<SwapInfo> => {
+  return _generateSwapExecutions(chainId, provider, fromTokenAddress, toTokenAddress, amount, {
+    direction: "sell",
+    ...options,
+  });
+};
+
+const _generateSwapExecutions = async (
+  chainId: number,
+  provider: Provider,
+  fromTokenAddress: string,
+  toTokenAddress: string,
+  amount: BigNumberish,
+  options: {
+    direction: "sell" | "buy";
     module: Contract;
     transfers: TransferDetail[];
     refundTo: string;
@@ -45,6 +84,8 @@ export const generateSwapExecutions = async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     provider: provider as any,
   });
+
+  const isBuy = options.direction === "buy";
 
   // Uniswap's core SDK doesn't support Native -> WNative conversions on some chains
   // TODO: Updating to the latest version of the core SDK could fix it
@@ -64,9 +105,9 @@ export const generateSwapExecutions = async (
   let route: SwapRoute | null = null;
   try {
     route = await router.route(
-      CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
-      fromToken,
-      TradeType.EXACT_OUTPUT,
+      CurrencyAmount.fromRawAmount(!isBuy ? fromToken : toToken, amount.toString()),
+      !isBuy ? toToken : fromToken,
+      !isBuy ? TradeType.EXACT_INPUT : TradeType.EXACT_OUTPUT,
       {
         type: SwapType.SWAP_ROUTER_02,
         recipient: options.module.address,
@@ -103,23 +144,38 @@ export const generateSwapExecutions = async (
         ) params
       )
     `,
+    `
+      function exactInputSingle(
+        tuple(
+          address tokenIn,
+          address tokenOut,
+          uint24 fee,
+          address recipient,
+          uint256 amountIn,
+          uint256 amountOutMinimum,
+          uint160 sqrtPriceLimitX96
+        ) params
+      )
+    `,
   ]);
 
   let params: Result;
   try {
+    const callMethod = isBuy ? "exactOutputSingle" : "exactInputSingle";
+
     // Properly handle multicall-wrapping
     let calldata = route.methodParameters!.calldata;
     if (calldata.startsWith(iface.getSighash("multicall"))) {
       const decodedMulticall = iface.decodeFunctionData("multicall", calldata);
       for (const data of decodedMulticall.data) {
-        if (data.startsWith(iface.getSighash("exactOutputSingle"))) {
+        if (data.startsWith(iface.getSighash(callMethod))) {
           calldata = data;
           break;
         }
       }
     }
 
-    params = iface.decodeFunctionData("exactOutputSingle", calldata);
+    params = iface.decodeFunctionData(callMethod, calldata);
   } catch {
     throw new Error("Could not generate compatible route");
   }
@@ -128,19 +184,29 @@ export const generateSwapExecutions = async (
   const execution = {
     module: options.module.address,
     data: options.module.interface.encodeFunctionData(
-      fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
+      isBuy ? (fromETH ? "ethToExactOutput" : "erc20ToExactOutput") : "erc20ToExactInput",
       [
         [
           {
-            params: {
-              tokenIn: params.params.tokenIn,
-              tokenOut: params.params.tokenOut,
-              fee: params.params.fee,
-              recipient: options.module.address,
-              amountOut: params.params.amountOut,
-              amountInMaximum: params.params.amountInMaximum,
-              sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
-            },
+            params: isBuy
+              ? {
+                  tokenIn: params.params.tokenIn,
+                  tokenOut: params.params.tokenOut,
+                  fee: params.params.fee,
+                  recipient: options.module.address,
+                  amountOut: params.params.amountOut,
+                  amountInMaximum: params.params.amountInMaximum,
+                  sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
+                }
+              : {
+                  tokenIn: params.params.tokenIn,
+                  tokenOut: params.params.tokenOut,
+                  fee: params.params.fee,
+                  recipient: options.module.address,
+                  amountIn: params.params.amountIn,
+                  amountOutMinimum: params.params.amountOutMinimum,
+                  sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
+                },
             transfers: options.transfers,
           },
         ],
@@ -148,12 +214,13 @@ export const generateSwapExecutions = async (
         options.revertIfIncomplete,
       ]
     ),
-    value: fromETH ? params.params.amountInMaximum : 0,
+    value: isBuy ? (fromETH ? params.params.amountInMaximum : 0) : 0,
   };
 
   return {
     tokenIn: fromTokenAddress,
-    amountIn: params.params.amountInMaximum.toString(),
+    amountIn: isBuy ? params.params.amountInMaximum.toString() : amount,
+    amountOut: isBuy ? amount : params.params.amountOutMinimum.toString(),
     module: options.module,
     execution,
     kind: "swap",

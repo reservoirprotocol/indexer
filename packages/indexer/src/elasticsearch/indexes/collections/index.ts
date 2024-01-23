@@ -189,6 +189,7 @@ export const autocomplete = async (params: {
   chains?: number[];
   communities?: string[];
   excludeSpam?: boolean;
+  excludeNsfw?: boolean;
   limit?: number;
 }): Promise<{ collections: CollectionDocument[] }> => {
   const esQuery = {
@@ -236,6 +237,12 @@ export const autocomplete = async (params: {
   if (params.excludeSpam) {
     (esQuery as any).bool.filter.push({
       term: { isSpam: false },
+    });
+  }
+
+  if (params.excludeNsfw) {
+    (esQuery as any).bool.filter.push({
+      term: { isNsfw: false },
     });
   }
 

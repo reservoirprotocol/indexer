@@ -10,6 +10,7 @@ import { ethers } from "ethers";
 import { RequestWasThrottledError, normalizeLink, normalizeMetadata } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
+import { getNetworkName } from "@/config/network";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -159,7 +160,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     const resolvedURIs = await Promise.all(
       batch.map(async (token: any) => {
         try {
-          const uri = defaultAbiCoder.decode(["string"], token.result)[0];
+          let uri = defaultAbiCoder.decode(["string"], token.result)[0];
+
           if (!uri || uri === "") {
             return {
               contract: idToToken[token.id].contract,
@@ -167,6 +169,18 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               uri: null,
               error: "Unable to decode tokenURI from contract",
             };
+          }
+
+          if (uri.endsWith("0x{id}")) {
+            if (uri.startsWith("https://api.opensea.io/")) {
+              uri = uri.replace("0x{id}", idToToken[token.id].tokenId);
+            }
+
+            if (uri.startsWith("ens-metadata-service.appspot.com/")) {
+              uri = `https://metadata.ens.domains/${getNetworkName()}/${
+                idToToken[token.id].contract
+              }/${idToToken[token.id].tokenId}`;
+            }
           }
 
           return {

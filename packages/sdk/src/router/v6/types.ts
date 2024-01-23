@@ -221,6 +221,8 @@ export type BidFillDetails = {
   contract: string;
   tokenId: string;
   price: string;
+  currency: string;
+  builtInFeeBps?: number;
   source?: string;
   // Relevant for partially-fillable orders
   amount?: number | string;
@@ -243,6 +245,7 @@ export type FillBidsResult = {
   }[];
   txs: {
     approvals: NFTApproval[];
+    ftApprovals: FTApproval[];
     txData: TxData;
     txTags?: TxTags;
     orderIds: string[];
@@ -283,11 +286,7 @@ export type TransfersResult = {
 
 // Swaps
 
-export type PerPoolSwapDetails = {
-  [pool: string]: SwapDetail[];
-};
-
-export type SwapDetail = {
+export type BuySwapDetail = {
   tokenIn: string;
   tokenOut: string;
   tokenOutAmount: BigNumberish;
@@ -296,4 +295,23 @@ export type SwapDetail = {
   details: ListingDetails[];
   txIndex?: number;
   executionIndex?: number;
+};
+
+export type PerPoolBuySwapDetails = {
+  [pool: string]: BuySwapDetail[];
+};
+
+export type SellSwapDetail = {
+  tokenIn: string;
+  tokenOut: string;
+  tokenInAmount: BigNumberish;
+  recipient: string;
+  refundTo: string;
+  details: BidDetails[];
+  txIndex?: number;
+  executionIndex?: number;
+};
+
+export type PerPoolSellSwapDetails = {
+  [pool: string]: SellSwapDetail[];
 };

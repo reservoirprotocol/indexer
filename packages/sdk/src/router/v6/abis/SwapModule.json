@@ -160,6 +160,95 @@
               },
               {
                 "internalType": "uint256",
+                "name": "amountIn",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amountOutMinimum",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint160",
+                "name": "sqrtPriceLimitX96",
+                "type": "uint160"
+              }
+            ],
+            "internalType": "struct IUniswapV3Router.ExactInputSingleParams",
+            "name": "params",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "toETH",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct SwapModule.TransferDetail[]",
+            "name": "transfers",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct SwapModule.SellSwap[]",
+        "name": "swaps",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "address",
+        "name": "refundTo",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "revertIfIncomplete",
+        "type": "bool"
+      }
+    ],
+    "name": "erc20ToExactInput",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "contract IERC20",
+                "name": "tokenIn",
+                "type": "address"
+              },
+              {
+                "internalType": "contract IERC20",
+                "name": "tokenOut",
+                "type": "address"
+              },
+              {
+                "internalType": "uint24",
+                "name": "fee",
+                "type": "uint24"
+              },
+              {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
                 "name": "amountOut",
                 "type": "uint256"
               },
@@ -201,7 +290,7 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct SwapModule.Swap[]",
+        "internalType": "struct SwapModule.BuySwap[]",
         "name": "swaps",
         "type": "tuple[]"
       },
@@ -290,7 +379,7 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct SwapModule.Swap[]",
+        "internalType": "struct SwapModule.BuySwap[]",
         "name": "swaps",
         "type": "tuple[]"
       },

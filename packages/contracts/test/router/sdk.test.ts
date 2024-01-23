@@ -1136,6 +1136,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         contractKind: "erc721",
         contract: erc721.address,
         tokenId: tokenId1.toString(),
+        currency: Sdk.Common.Addresses.WNative[chainId],
         order: buyOrder,
         price: price1.toString(),
       });
@@ -1189,6 +1190,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         orderId: "1",
         kind: "seaport-v1.4",
         contractKind: "erc721",
+        currency: Sdk.Common.Addresses.WNative[chainId],
         contract: erc721.address,
         tokenId: tokenId2.toString(),
         order: buyOrder,
@@ -1291,6 +1293,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         kind: "seaport",
         contractKind: "erc721",
         contract: erc721.address,
+        currency: Sdk.Common.Addresses.WNative[chainId],
         tokenId: tokenId1.toString(),
         order: buyOrder,
         price: price1.toString(),
@@ -1345,6 +1348,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         orderId: "1",
         kind: "seaport-v1.4",
         contractKind: "erc721",
+        currency: Sdk.Common.Addresses.WNative[chainId],
         contract: erc721.address,
         tokenId: tokenId2.toString(),
         order: buyOrder,
@@ -1401,6 +1405,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         kind: "seaport",
         contractKind: "erc721",
         contract: erc721.address,
+        currency: Sdk.Common.Addresses.WNative[chainId],
         tokenId: tokenId3.toString(),
         order: buyOrder,
         price: price3.toString(),
@@ -1526,6 +1531,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         kind: "seaport",
         contractKind: "erc721",
         contract: erc721.address,
+        currency: Sdk.Common.Addresses.WNative[chainId],
         tokenId: tokenId1.toString(),
         order: buyOrder,
         price: price1.toString(),
@@ -3419,6 +3425,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         kind: "seaport-v1.5",
         contractKind: "erc721",
         contract: erc721.address,
+        currency: Sdk.Common.Addresses.Usdc[chainId][0],
         tokenId: tokenId1.toString(),
         order: buyOrder,
         price: price1.toString(),
@@ -3474,6 +3481,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         orderId: "1",
         kind: "seaport-v1.5",
         contractKind: "erc721",
+        currency: Sdk.Common.Addresses.WNative[chainId],
         contract: erc721.address,
         tokenId: tokenId2.toString(),
         order: buyOrder,
@@ -3492,15 +3500,15 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     });
 
     // Trigger permits
-    await seller.sendTransaction(tx.txs[0].txData);
+    await seller.sendTransaction(tx.preTxs[0].txData);
 
     // Trigger approvals
-    for (const approval of tx.txs[1].approvals) {
+    for (const approval of tx.txs[0].approvals) {
       await seller.sendTransaction(approval.txData);
     }
 
     // Trigger sale
-    await seller.sendTransaction(tx.txs[1].txData);
+    await seller.sendTransaction(tx.txs[0].txData);
 
     const token1OwnerAfter = await erc721.ownerOf(tokenId1);
     const token2OwnerAfter = await erc721.ownerOf(tokenId2);
@@ -3633,6 +3641,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         orderId: "0",
         kind: "seaport-v1.5",
         contractKind: "erc721",
+        currency: Sdk.Common.Addresses.Usdc[chainId][0],
         contract: erc721.address,
         tokenId: tokenId1.toString(),
         order: buyOrder,
@@ -3650,19 +3659,251 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     });
 
     // Trigger permits
-    await seller.sendTransaction(tx.txs[0].txData);
+    await seller.sendTransaction(tx.preTxs[0].txData);
 
     // Trigger approvals
-    for (const approval of tx.txs[1].approvals) {
+    for (const approval of tx.txs[0].approvals) {
       await seller.sendTransaction(approval.txData);
     }
 
     // Trigger sale
-    await seller.sendTransaction(tx.txs[1].txData);
+    await seller.sendTransaction(tx.txs[0].txData);
 
     const token1OwnerAfter = await erc721.ownerOf(tokenId1);
 
     expect(token1OwnerAfter).to.eq(buyer1.address);
+
+    // Router is stateless (it shouldn't keep any funds)
+    expect(await ethers.provider.getBalance(router.contracts.router.address)).to.eq(0);
+    expect(await ethers.provider.getBalance(router.contracts.seaportV15Module.address)).to.eq(0);
+    expect(await weth.getBalance(router.contracts.router.address)).to.eq(0);
+    expect(await weth.getBalance(router.contracts.seaportV15Module.address)).to.eq(0);
+  });
+
+  it("Fill multiple bids with permit - to ETH", async () => {
+    const seller = dan;
+
+    const bids: BidDetails[] = [];
+
+    const weth = new Sdk.Common.Helpers.WNative(ethers.provider, chainId);
+    const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
+
+    // Get some USDC
+    const swapExecutions = [
+      {
+        module: router.contracts.swapModule.address,
+        data: router.contracts.swapModule.interface.encodeFunctionData("ethToExactOutput", [
+          [
+            {
+              params: {
+                tokenIn: Sdk.Common.Addresses.WNative[chainId],
+                tokenOut: Sdk.Common.Addresses.Usdc[chainId][0],
+                fee: 500,
+                recipient: router.contracts.swapModule.address,
+                amountOut: parseUnits("50000", 6),
+                amountInMaximum: parseEther("50"),
+                sqrtPriceLimitX96: 0,
+              },
+              transfers: [
+                {
+                  recipient: emily.address,
+                  amount: parseUnits("50000", 6),
+                  toETH: false,
+                },
+              ],
+            },
+          ],
+          emily.address,
+          true,
+        ]),
+        // Anything on top should be refunded
+        value: parseEther("50"),
+      },
+    ];
+
+    await router.contracts.router.connect(emily).execute(swapExecutions, {
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+    });
+
+    const usdc = new Sdk.Common.Helpers.Erc20(
+      ethers.provider,
+      Sdk.Common.Addresses.Usdc[chainId][0]
+    );
+
+    // Order 1: Seaport USDC
+    const buyer1 = alice;
+    const tokenId1 = 0;
+    const price1 = parseUnits("2200", 6);
+    const fee1 = bn(550);
+    {
+      // Issue USDC to the buyer
+      await usdc.transfer(emily, buyer1.address, price1);
+
+      // Generate permit
+      const permitHandler = new PermitHandler(chainId, ethers.provider);
+      const [permit] = await permitHandler.generate(
+        buyer1.address,
+        Sdk.SeaportV15.Addresses.Exchange[chainId],
+        {
+          kind: "no-transfers",
+          token: usdc.contract.address,
+          amount: price1.toString(),
+        },
+        Math.floor(Date.now() / 1000) + 5 * 60
+      );
+
+      // Sign permit
+      const signatureData = await permitHandler.getSignatureData(permit);
+      permit.data.signature = await buyer1._signTypedData(
+        signatureData.domain,
+        signatureData.types,
+        signatureData.value
+      );
+
+      // Mint erc721 to seller
+      await erc721.connect(seller).mint(tokenId1);
+
+      // Approve the exchange
+      await erc721
+        .connect(seller)
+        .setApprovalForAll(Sdk.SeaportV15.Addresses.Exchange[chainId], true);
+
+      // Build sell order
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
+      const buyOrder = builder.build(
+        {
+          side: "buy",
+          tokenKind: "erc721",
+          offerer: buyer1.address,
+          contract: erc721.address,
+          tokenId: tokenId1,
+          paymentToken: Sdk.Common.Addresses.Usdc[chainId][0],
+          price: price1,
+          fees: [
+            {
+              amount: price1.mul(fee1).div(10000),
+              recipient: deployer.address,
+            },
+          ],
+          counter: 0,
+          startTime: await getCurrentTimestamp(ethers.provider),
+          endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+        },
+        Sdk.SeaportV15.Order
+      );
+      await buyOrder.sign(buyer1);
+
+      bids.push({
+        // Irrelevant
+        orderId: "0",
+        kind: "seaport-v1.5",
+        contractKind: "erc721",
+        contract: erc721.address,
+        currency: Sdk.Common.Addresses.Usdc[chainId][0],
+        tokenId: tokenId1.toString(),
+        order: buyOrder,
+        price: price1.toString(),
+        permit,
+        builtInFeeBps: fee1.toNumber(),
+        fees: [],
+      });
+    }
+
+    // Order 2: Seaport V1.5 WETH
+    const buyer2 = bob;
+    const tokenId2 = 1;
+    const price2 = parseEther("1");
+    const fee2 = bn(250);
+    {
+      // Wrap ETH for buyer
+      await weth.deposit(buyer2, price2);
+      await weth.approve(buyer2, Sdk.SeaportV15.Addresses.Exchange[chainId]);
+
+      // Mint erc721 to seller
+      await erc721.connect(seller).mint(tokenId2);
+
+      // Approve the exchange
+      await erc721
+        .connect(seller)
+        .setApprovalForAll(Sdk.SeaportV15.Addresses.Exchange[chainId], true);
+
+      // Build sell order
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
+      const buyOrder = builder.build(
+        {
+          side: "buy",
+          tokenKind: "erc721",
+          offerer: buyer2.address,
+          contract: erc721.address,
+          tokenId: tokenId2,
+          paymentToken: Sdk.Common.Addresses.WNative[chainId],
+          price: price2,
+          fees: [
+            {
+              amount: price2.mul(fee2).div(10000),
+              recipient: deployer.address,
+            },
+          ],
+          counter: 0,
+          startTime: await getCurrentTimestamp(ethers.provider),
+          endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+        },
+        Sdk.SeaportV15.Order
+      );
+      await buyOrder.sign(buyer2);
+
+      bids.push({
+        // Irrelevant
+        orderId: "1",
+        kind: "seaport-v1.5",
+        contractKind: "erc721",
+        currency: Sdk.Common.Addresses.WNative[chainId],
+        contract: erc721.address,
+        tokenId: tokenId2.toString(),
+        order: buyOrder,
+        price: price2.toString(),
+        builtInFeeBps: fee2.toNumber(),
+        fees: [],
+      });
+    }
+
+    const token1OwnerBefore = await erc721.ownerOf(tokenId1);
+    const token2OwnerBefore = await erc721.ownerOf(tokenId2);
+    const balanceBefore = await ethers.provider.getBalance(seller.address);
+
+    expect(token1OwnerBefore).to.eq(seller.address);
+    expect(token2OwnerBefore).to.eq(seller.address);
+
+    const tx = await router.fillBidsTx(bids, seller.address, {
+      sellOutCurrency: Sdk.Common.Addresses.Native[chainId],
+      source: "reservoir.market",
+    });
+
+    // Trigger permits
+    await seller.sendTransaction(tx.preTxs[0].txData);
+
+    for (const currentTx of tx.txs) {
+      // Trigger approvals
+      for (const approval of currentTx.approvals) {
+        await seller.sendTransaction(approval.txData);
+      }
+      for (const approval of currentTx.ftApprovals) {
+        await seller.sendTransaction(approval.txData);
+      }
+
+      // Trigger sale
+      await seller.sendTransaction(currentTx.txData);
+    }
+
+    const balanceAfter = await ethers.provider.getBalance(seller.address);
+    const soldAmount = balanceAfter.sub(balanceBefore);
+
+    const token1OwnerAfter = await erc721.ownerOf(tokenId1);
+    const token2OwnerAfter = await erc721.ownerOf(tokenId2);
+
+    expect(parseFloat(ethers.utils.formatEther(soldAmount))).to.greaterThan(1.5);
+    expect(token1OwnerAfter).to.eq(buyer1.address);
+    expect(token2OwnerAfter).to.eq(buyer2.address);
 
     // Router is stateless (it shouldn't keep any funds)
     expect(await ethers.provider.getBalance(router.contracts.router.address)).to.eq(0);

@@ -242,6 +242,7 @@ export const JoiOrderCriteriaCollection = Joi.object({
   name: Joi.string().allow("", null),
   image: Joi.string().allow("", null),
   isSpam: Joi.boolean().allow("", null),
+  isNsfw: Joi.boolean().allow("", null),
 });
 
 export const JoiOrderCriteria = Joi.alternatives(
@@ -253,6 +254,7 @@ export const JoiOrderCriteria = Joi.alternatives(
         name: Joi.string().allow("", null),
         image: Joi.string().allow("", null),
         isSpam: Joi.boolean().allow("", null),
+        isNsfw: Joi.boolean().allow("", null),
       }),
       collection: JoiOrderCriteriaCollection,
     }),
@@ -1125,6 +1127,14 @@ export const getJoiActivityObject = (
     if (activity.collection?.collectionImage) {
       activity.collection.collectionImage = null;
     }
+  }
+
+  if (activity.token) {
+    activity.token.isNsfw = Boolean(activity.token?.isNsfw);
+  }
+
+  if (activity.collection) {
+    activity.collection.isNsfw = Boolean(activity.collection?.isNsfw);
   }
 
   return activity;

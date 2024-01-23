@@ -22,6 +22,7 @@ export const CONFIG_DEFAULT = {
       community: { type: "keyword" },
       tokenCount: { type: "long" },
       isSpam: { type: "boolean" },
+      isNsfw: { type: "boolean" },
       imageVersion: { type: "date", format: "epoch_second" },
       metadataDisabled: { type: "boolean" },
       createdAt: { type: "date" },

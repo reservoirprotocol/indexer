@@ -23,7 +23,7 @@ const getNetworkConfig = (chainId?: number) => {
     switch (chainId) {
       // Mainnets
       case 1:
-        url = "https://eth.llamarpc.com";
+        url = "https://rpc.mevblocker.io";
         break;
       case 10:
         url = "https://mainnet.optimism.io/";
@@ -32,7 +32,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://bsc.drpc.org";
         break;
       case 137:
-        url = "https://polygon.llamarpc.com";
+        url = "https://rpc-mainnet.matic.quiknode.pro";
         break;
       case 324:
         url = "https://mainnet.era.zksync.io";

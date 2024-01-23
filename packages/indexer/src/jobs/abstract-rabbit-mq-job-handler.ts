@@ -142,11 +142,10 @@ export abstract class AbstractRabbitMqJobHandler {
       if (!this.disableErrorLogs || queueName === this.getDeadLetterQueue()) {
         logger.error(
           this.queueName,
-          `Error handling event: ${JSON.stringify(
-            error
-          )}, queueName=${queueName}, payload=${JSON.stringify(this.rabbitMqMessage)}, retryCount=${
-            this.rabbitMqMessage.retryCount
-          }`
+          JSON.stringify({
+            message: `Error handling event. error=${error}`,
+            rabbitMqMessage: this.rabbitMqMessage,
+          })
         );
       }
 

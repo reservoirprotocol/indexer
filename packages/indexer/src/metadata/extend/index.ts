@@ -52,6 +52,9 @@ export const hasExtendHandler = (contract: string) => extend[`${config.chainId},
 export const hasExtendCollectionHandler = (contract: string) =>
   extendCollection[`${config.chainId},${contract}`];
 
+export const isOpenseaSlugSharedContract = (contract: string) =>
+  extendCollection[`${config.chainId},${contract}`]?.constructor?.name === "ExtendLogic";
+
 export const extendCollectionMetadata = async (metadata: any, tokenId?: string) => {
   if (metadata) {
     if (extendCollection[`${config.chainId},${metadata.id}`]) {

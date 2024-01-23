@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { AddressZero } from "@ethersproject/constants";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
+import { isOpenseaSlugSharedContract } from "@/metadata/extend";
 
 export type MetadataIndexFetchJobPayload =
   | {
@@ -51,22 +52,6 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;
     let refreshTokens: RefreshTokens[] = [];
-
-    if (config.chainId === 10) {
-      const simpleHashCollections = [
-        "0x88d6c36e7aca7a8b011a7ab1fd443d17262dc3a9",
-        "0x9366c837e396c789b385a8cd4deb2addd6d6fbc0",
-        "0xc4e594a3d68174d1e6f0cdd436f88ca00d753437",
-        "0xf2f194282b6f70619c243945617e99a463dd82ba",
-        "0xd4ac3f02071d5f865a8ff34a7961811d3c645dd7",
-        "0x4f61c8ea884597cff82e166be924b8b75bab5f6c",
-        "0xc8c0bd52d9f957657f17a9519066637040ebc49a",
-      ];
-
-      if (_.indexOf(simpleHashCollections, data.collection) !== -1) {
-        data.method = "simplehash";
-      }
-    }
 
     if (
       [
@@ -112,6 +97,10 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         );
       }
     } else if (kind === "single-token") {
+      if (isOpenseaSlugSharedContract(payload.data.contract)) {
+        data.method = "simplehash";
+      }
+
       // Create the single token from the params
       refreshTokens.push({
         collection: data.collection,

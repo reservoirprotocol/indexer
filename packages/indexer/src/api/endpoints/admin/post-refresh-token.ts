@@ -16,6 +16,7 @@ import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-j
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -99,6 +100,9 @@ export const postRefreshTokenOptions: RouteOptions = {
 
       // Recalc supply
       await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }], 0);
+
+      // Refresh the token asks
+      await backfillTokenAsksJob.addToQueue(contract, tokenId);
 
       return { message: "Request accepted" };
     } catch (error) {

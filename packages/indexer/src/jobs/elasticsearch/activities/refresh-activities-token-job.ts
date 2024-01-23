@@ -27,7 +27,8 @@ export default class RefreshActivitiesTokenJob extends AbstractRabbitMqJobHandle
       const keepGoing = await ActivitiesIndex.updateActivitiesToken(
         contract,
         tokenId,
-        tokenData.isSpam
+        tokenData.isSpam,
+        tokenData.nsfwStatus
       );
 
       if (keepGoing) {

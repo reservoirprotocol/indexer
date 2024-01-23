@@ -11,6 +11,7 @@ import * as uniswap from "./uniswap";
 export type SwapInfo = {
   tokenIn: string;
   amountIn: BigNumberish;
+  amountOut?: BigNumberish;
   module: Contract;
   execution: ExecutionInfo;
   kind: "wrap-or-unwrap" | "swap";
@@ -30,6 +31,7 @@ export const generateSwapInfo = async (
   toTokenAddress: string,
   toTokenAmount: BigNumberish,
   options: {
+    direction: "sell" | "buy";
     module: Contract;
     transfers: TransferDetail[];
     refundTo: string;
@@ -63,36 +65,50 @@ export const generateSwapInfo = async (
       kind: "wrap-or-unwrap",
     };
   } else {
-    return swapProvider === "uniswap"
-      ? await uniswap.generateSwapExecutions(
-          chainId,
-          provider,
-          fromTokenAddress,
-          toTokenAddress,
-          toTokenAmount,
-          {
+    if (options.direction === "buy") {
+      return swapProvider === "uniswap"
+        ? uniswap.generateBuyExecutions(
+            chainId,
+            provider,
+            fromTokenAddress,
+            toTokenAddress,
+            toTokenAmount,
+            {
+              module: options.module,
+              transfers: options.transfers,
+              refundTo: options.refundTo,
+              revertIfIncomplete: options.revertIfIncomplete,
+            }
+          )
+        : oneInch.generateBuyExecutions(chainId, fromTokenAddress, toTokenAddress, toTokenAmount, {
             module: options.module,
             transfers: options.transfers,
             refundTo: options.refundTo,
             revertIfIncomplete: options.revertIfIncomplete,
-          }
-        )
-      : await oneInch.generateSwapExecutions(
-          chainId,
-          fromTokenAddress,
-          toTokenAddress,
-          toTokenAmount,
-          {
-            module: options.module,
-            transfers: options.transfers,
-            refundTo: options.refundTo,
-            revertIfIncomplete: options.revertIfIncomplete,
-          }
-        );
+          });
+    } else {
+      return uniswap.generateSellExecutions(
+        chainId,
+        provider,
+        fromTokenAddress,
+        toTokenAddress,
+        toTokenAmount,
+        {
+          module: options.module,
+          transfers: options.transfers,
+          refundTo: options.refundTo,
+          revertIfIncomplete: options.revertIfIncomplete,
+        }
+      );
+    }
   }
 };
 
-export const mergeSwapInfos = (chainId: number, infos: SwapInfo[]): SwapInfo[] => {
+export const mergeSwapInfos = (
+  chainId: number,
+  infos: SwapInfo[],
+  direction: "sell" | "buy"
+): SwapInfo[] => {
   const results: SwapInfo[] = [];
 
   const tokenInToSwapInfos: { [tokenIn: string]: SwapInfo[] } = {};
@@ -114,7 +130,11 @@ export const mergeSwapInfos = (chainId: number, infos: SwapInfo[]): SwapInfo[] =
 
     const decodedExecutionData = infos.map((info) =>
       info.module.interface.decodeFunctionData(
-        fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
+        direction === "buy"
+          ? fromETH
+            ? "ethToExactOutput"
+            : "erc20ToExactOutput"
+          : "erc20ToExactInput",
         info.execution.data
       )
     );
@@ -127,7 +147,11 @@ export const mergeSwapInfos = (chainId: number, infos: SwapInfo[]): SwapInfo[] =
       execution: {
         module: infos[0].execution.module,
         data: infos[0].module.interface.encodeFunctionData(
-          fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
+          direction === "buy"
+            ? fromETH
+              ? "ethToExactOutput"
+              : "erc20ToExactOutput"
+            : "erc20ToExactInput",
           [
             // TODO: Aggregate same token and same recipient transfers
             decodedExecutionData.map((d) => d.swaps).flat(),

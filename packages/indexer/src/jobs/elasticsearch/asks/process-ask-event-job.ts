@@ -14,7 +14,7 @@ export enum EventKind {
 export type ProcessAskEventJobPayload = {
   kind: EventKind;
   data: OrderInfo;
-  context?: string;
+  retries?: number;
 };
 
 export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
@@ -26,17 +26,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
-
-    if (config.chainId === 137 && kind === EventKind.newSellOrder) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Processing pendingAskEvent. orderId=${data.id}`,
-          topic: "debugMissingAsks",
-          data,
-        })
-      );
-    }
+    const retries = payload.retries ?? 0;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
 
@@ -49,16 +39,54 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
+
+        if (retries > 0) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk success. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
+        }
+      } else if (
+        !["element-erc721", "element-erc1155"].includes(data.kind) &&
+        kind === EventKind.newSellOrder
+      ) {
+        if (retries < 5) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk failed - Retrying. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
+
+          payload.retries = retries + 1;
+
+          await this.addToQueue([payload], 1000 * payload.retries);
+        } else {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk failed - Stop Retrying. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
+        }
       }
     }
   }
 
-  public async addToQueue(payloads: ProcessAskEventJobPayload[]) {
+  public async addToQueue(payloads: ProcessAskEventJobPayload[], delay = 0) {
     if (!config.doElasticsearchWork) {
       return;
     }
 
-    await this.sendBatch(payloads.map((payload) => ({ payload })));
+    await this.sendBatch(payloads.map((payload) => ({ payload, delay })));
   }
 }
 
@@ -82,4 +110,5 @@ interface OrderInfo {
   fillability_status: string;
   approval_status: string;
   created_at: string;
+  kind: string;
 }

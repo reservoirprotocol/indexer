@@ -19,6 +19,7 @@ export interface CollectionDocument extends BaseDocument {
   tokenCount: number;
   metadataDisabled: boolean;
   isSpam: boolean;
+  isNsfw: boolean;
   imageVersion: number;
   allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
@@ -45,6 +46,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   token_count: number;
   metadata_disabled: number;
   is_spam: number;
+  nsfw_status: number;
   all_time_volume: string;
   floor_sell_id?: string;
   floor_sell_value?: string;
@@ -97,6 +99,7 @@ export class CollectionDocumentBuilder {
       tokenCount: Number(data.token_count),
       metadataDisabled: Number(data.metadata_disabled) > 0,
       isSpam: Number(data.is_spam) > 0,
+      isNsfw: Number(data.nsfw_status) > 0,
       imageVersion: data.image_version,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),

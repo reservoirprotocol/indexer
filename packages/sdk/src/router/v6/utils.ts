@@ -13,6 +13,9 @@ export const isETH = (chainId: number, address: string) =>
 export const isWETH = (chainId: number, address: string) =>
   address.toLowerCase() === Sdk.Common.Addresses.WNative[chainId];
 
+export const isBETH = (chainId: number, address: string) =>
+  address.toLowerCase() === Sdk.Blur.Addresses.Beth[chainId];
+
 export const generateNFTApprovalTxData = (
   contract: string,
   owner: string,
