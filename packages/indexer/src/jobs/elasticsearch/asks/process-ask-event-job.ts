@@ -4,6 +4,7 @@ import { PendingAskEventsQueue } from "@/elasticsearch/indexes/asks/pending-ask-
 import { config } from "@/config/index";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
 import { logger } from "@/common/logger";
+import { idb } from "@/common/db";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -50,15 +51,19 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             })
           );
         }
-      } else if (
-        !["element-erc721", "element-erc1155"].includes(data.kind) &&
-        kind === EventKind.newSellOrder
-      ) {
-        if (retries < 5) {
+      } else if (!["element-erc721", "element-erc1155"].includes(data.kind)) {
+        const orderExists = await idb.oneOrNone(
+          `SELECT 1 FROM orders WHERE id = $/orderId/ AND orders.side = 'sell' AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved' LIMIT 1;`,
+          {
+            orderId: data.id,
+          }
+        );
+
+        if (orderExists) {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `generateAsk failed - Retrying. orderId=${data.id}`,
+              message: `generateAsk failed but active order exists - Retrying. orderId=${data.id}`,
               topic: "debugMissingAsks",
               payload,
             })
@@ -66,12 +71,12 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
           payload.retries = retries + 1;
 
-          await this.addToQueue([payload], 1000 * payload.retries);
+          await this.addToQueue([payload]);
         } else {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `generateAsk failed - Stop Retrying. orderId=${data.id}`,
+              message: `generateAsk failed due to order missing. orderId=${data.id}`,
               topic: "debugMissingAsks",
               payload,
             })

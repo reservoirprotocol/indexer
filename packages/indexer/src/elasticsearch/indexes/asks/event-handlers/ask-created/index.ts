@@ -133,7 +133,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                 ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
                 : ""
             }
-            AND orders.kind != 'element-erc1155'
+            AND orders.kind != 'element-erc1155' AND orders.kind != 'element-erc721'
                  `;
   }
 
