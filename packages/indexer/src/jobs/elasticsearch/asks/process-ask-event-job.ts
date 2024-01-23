@@ -50,8 +50,11 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             })
           );
         }
-      } else if (data.kind !== "element-erc1155" && kind === EventKind.newSellOrder) {
-        if (retries < 3) {
+      } else if (
+        !["element-erc721", "element-erc1155"].includes(data.kind) &&
+        kind === EventKind.newSellOrder
+      ) {
+        if (retries < 5) {
           logger.info(
             this.queueName,
             JSON.stringify({
@@ -63,7 +66,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
           payload.retries = retries + 1;
 
-          await this.addToQueue([payload], 1000);
+          await this.addToQueue([payload], 1000 * payload.retries);
         } else {
           logger.error(
             this.queueName,

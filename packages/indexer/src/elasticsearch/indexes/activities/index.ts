@@ -492,6 +492,7 @@ export const getTrendingMints = async (params: {
           aggs: collectionAggregation,
         },
       })) as any;
+
       results[period as Period] = esResult?.aggregations?.collections?.buckets?.map(
         (bucket: any) => {
           return {
