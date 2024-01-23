@@ -1,6 +1,14 @@
 import { Interface } from "ethers/lib/utils";
 import { EventData } from ".";
 
+export const mintConfigChanged: EventData = {
+  kind: "metadata-update",
+  subKind: "metadata-update-mint-config-changed",
+  topic: "0xa703f5371c9a5519d27a0ab98ff81ca400a4adb7bf05d607347bfffc0efabe8f",
+  numTopics: 1,
+  abi: new Interface([`event MintConfigChanged()`]),
+};
+
 // https://docs.opensea.io/docs/metadata-standards#metadata-updates
 export const metadataUpdateOpensea: EventData = {
   kind: "metadata-update",

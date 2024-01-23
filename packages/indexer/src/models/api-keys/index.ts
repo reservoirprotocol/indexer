@@ -239,7 +239,10 @@ export class ApiKeyManager {
     };
 
     if (request.payload) {
-      log.payload = request.payload;
+      log.payload = {};
+      for (const [key, value] of Object.entries(request.payload)) {
+        log.payload[key] = Buffer.isBuffer(value) ? fromBuffer(value) : value;
+      }
     }
 
     if (request.params) {
@@ -250,7 +253,10 @@ export class ApiKeyManager {
     }
 
     if (request.query) {
-      log.query = request.query;
+      log.query = {};
+      for (const [key, value] of Object.entries(request.query)) {
+        log.query[key] = Buffer.isBuffer(value) ? fromBuffer(value) : value;
+      }
     }
 
     if (request.headers["user-agent"]) {
