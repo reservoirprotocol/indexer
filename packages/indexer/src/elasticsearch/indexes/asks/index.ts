@@ -14,7 +14,6 @@ import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-j
 
 import {
   AggregationsAggregate,
-  ErrorCause,
   QueryDslQueryContainer,
   SearchResponse,
   Sort,
@@ -22,6 +21,7 @@ import {
 } from "@elastic/elasticsearch/lib/api/types";
 import { acquireLockCrossChain } from "@/common/redis";
 import { config } from "@/config/index";
+import { isRetryableError } from "@/elasticsearch/indexes/utils";
 
 const INDEX_NAME = `asks`;
 
@@ -495,17 +495,7 @@ export const searchTokenAsks = async (
 
     return { asks, continuation };
   } catch (error) {
-    let retryableError =
-      (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
-
-    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
-
-    if (!retryableError && rootCause?.length) {
-      retryableError = rootCause[0].type === "node_not_connected_exception";
-    }
-
-    if (retryableError) {
+    if (isRetryableError(error)) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
@@ -587,17 +577,7 @@ export const _search = async (
 
     return esResult;
   } catch (error) {
-    let retryableError =
-      (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
-
-    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
-
-    if (!retryableError && rootCause?.length) {
-      retryableError = rootCause[0].type === "node_not_connected_exception";
-    }
-
-    if (retryableError) {
+    if (isRetryableError(error)) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
@@ -819,17 +799,7 @@ export const updateAsksTokenData = async (
       }
     }
   } catch (error) {
-    let retryableError =
-      (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
-
-    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
-
-    if (!retryableError && rootCause?.length) {
-      retryableError = rootCause[0].type === "node_not_connected_exception";
-    }
-
-    if (retryableError) {
+    if (isRetryableError(error)) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
@@ -989,17 +959,7 @@ export const updateAsksTokenAttributesData = async (
       await backfillTokenAsksJob.addToQueue(contract, tokenId);
     }
   } catch (error) {
-    let retryableError =
-      (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
-
-    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
-
-    if (!retryableError && rootCause?.length) {
-      retryableError = rootCause[0].type === "node_not_connected_exception";
-    }
-
-    if (retryableError) {
+    if (isRetryableError(error)) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
@@ -1168,17 +1128,7 @@ export const updateAsksCollectionData = async (
       }
     }
   } catch (error) {
-    let retryableError =
-      (error as any).meta?.meta?.aborted ||
-      (error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception";
-
-    const rootCause = (error as any).meta?.body?.error?.root_cause as ErrorCause[];
-
-    if (!retryableError && rootCause?.length) {
-      retryableError = rootCause[0].type === "node_not_connected_exception";
-    }
-
-    if (retryableError) {
+    if (isRetryableError(error)) {
       logger.warn(
         "elasticsearch-asks",
         JSON.stringify({
