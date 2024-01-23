@@ -1096,7 +1096,7 @@ export const getTokensV8Options: RouteOptions = {
           (query as any).contContract = toBuffer(contArr[0]);
           (query as any).contTokenId = contArr[1];
         }
-      } else if (esTokens.length) {
+      } else if (enableElasticsearchAsks) {
         const sortColumn =
           query.nativeSource || query.excludeEOA
             ? "s.floor_sell_value"
