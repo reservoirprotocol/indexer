@@ -5,6 +5,8 @@ import { config } from "@/config/index";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
 import { logger } from "@/common/logger";
 import { idb } from "@/common/db";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export enum EventKind {
   newSellOrder = "newSellOrder",
@@ -27,7 +29,6 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
   protected async process(payload: ProcessAskEventJobPayload) {
     const { kind, data } = payload;
-    const retries = payload.retries ?? 0;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
 
@@ -40,18 +41,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
-
-        if (retries > 0) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `generateAsk success. orderId=${data.id}`,
-              topic: "debugMissingAsks",
-              payload,
-            })
-          );
-        }
       } else if (!["element-erc721", "element-erc1155"].includes(data.kind)) {
+        const [, contract, tokenId] = data.token_set_id.split(":");
+
         const orderExists = await idb.oneOrNone(
           `SELECT 1 FROM orders WHERE id = $/orderId/ AND orders.side = 'sell' AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved' LIMIT 1;`,
           {
@@ -59,26 +51,34 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
           }
         );
 
-        if (orderExists && retries < 5) {
+        if (orderExists) {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `generateAsk failed but active order exists - Retrying. orderId=${data.id}`,
+              message: `generateAsk failed but active order exists - Refreshing Token. orderId=${data.id}, contract=${contract}, tokenId=${tokenId}`,
               topic: "debugMissingAsks",
               payload,
             })
           );
 
-          payload.retries = retries + 1;
+          const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
-          await this.addToQueue([payload]);
+          await metadataIndexFetchJob.addToQueue([
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
+            },
+          ]);
         } else {
-          logger.error(
+          logger.warn(
             this.queueName,
             JSON.stringify({
-              message: `generateAsk failed due to order missing. orderId=${
-                data.id
-              }, orderExists=${!!orderExists}, retries=${retries}`,
+              message: `generateAsk failed due to order missing. orderId=${data.id}, contract=${contract}, tokenId=${tokenId}`,
               topic: "debugMissingAsks",
               payload,
             })
@@ -118,4 +118,5 @@ interface OrderInfo {
   approval_status: string;
   created_at: string;
   kind: string;
+  token_set_id: string;
 }

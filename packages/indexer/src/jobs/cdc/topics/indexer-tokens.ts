@@ -10,6 +10,7 @@ import { logger } from "@/common/logger";
 import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refresh-activities-token-job";
 import _ from "lodash";
 import { ActivitiesTokenCache } from "@/models/activities-token-cache";
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -97,10 +98,14 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       if (payload.after.floor_sell_id) {
         if (
           changed.some((value) =>
-            ["is_flagged", "is_spam", "rarity_rank", "nsfw_status"].includes(value)
+            ["is_flagged", "is_spam", "rarity_rank", "nsfw_status", "collection_id"].includes(value)
           )
         ) {
           await refreshAsksTokenJob.addToQueue(payload.after.contract, payload.after.token_id);
+        }
+
+        if (changed.some((value) => ["collection_id"].includes(value))) {
+          await backfillTokenAsksJob.addToQueue(payload.after.contract, payload.after.tokenId);
         }
       }
 
