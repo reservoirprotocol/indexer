@@ -592,7 +592,7 @@ export const getUserTokensV9Options: RouteOptions = {
       (query as any).tokenId = tokenId;
       query.sortDirection = query.sortDirection || "desc";
       if (query.sortBy === "acquiredAt") {
-        continuationFilter = ` AND (acquired_at, token_id) ${
+        continuationFilter = ` AND (acquired_at, nft_balances.token_id) ${
           query.sortDirection == "desc" ? "<" : ">"
         } (to_timestamp($/sortByValue/), $/tokenId/)`;
       } else if (query.sortBy === "lastAppraisalValue") {

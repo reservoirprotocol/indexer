@@ -1,13 +1,13 @@
 export interface MintConfig {
   maxSupply?: number; // max supply for the collection
-  maxMintPerWallet?: number; // max mint per wallet for the collection
-  maxMintPerTransaction?: number; // max mint per transaction for all phases
+  maxMintsPerWallet?: number; // max mint per wallet for the collection
+  maxMintsPerTransaction?: number; // max mint per transaction for all phases
   phases: MintPhase[]; // the mint phases
 }
 
 export interface MintPhase {
   maxMintsPerWallet?: number; // limit of mint per wallet for this phase
-  maxMintPerTransaction?: number; // max mint per transaction for this phases
+  maxMintsPerTransaction?: number; // max mint per transaction for this phases
   startTime: number | ContractCall; // timestamp, in seconds, for start mint phase
   endTime: number | ContractCall; // timestamp, in seconds, for end mint phase
   price?: string | ContractCall; // in wei

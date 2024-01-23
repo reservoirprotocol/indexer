@@ -11,6 +11,7 @@ import { mintsCheckJob } from "@/jobs/mints/mints-check-job";
 import { mintsRefreshJob } from "@/jobs/mints/mints-refresh-job";
 import { Sources } from "@/models/sources";
 import { CollectionMint, getCollectionMints } from "@/orderbook/mints";
+import { getStatus } from "@/orderbook/mints/calldata/helpers";
 
 import * as artblocks from "@/orderbook/mints/calldata/detector/artblocks";
 import * as createdotfun from "@/orderbook/mints/calldata/detector/createdotfun";
@@ -300,10 +301,20 @@ export const extractByContractMetadata = async (collection: string, contractMeta
     const formatted = phase.format();
 
     // For the moment we only support public mints
-    if (formatted.kind == "public") {
+    if (formatted.kind === "public") {
       collectionMints.push(phase.format());
     }
   }
+
+  // Update the status of each collection mint
+  await Promise.all(
+    collectionMints.map(async (cm) => {
+      await getStatus(cm).then(({ status, reason }) => {
+        cm.status = status;
+        cm.statusReason = reason;
+      });
+    })
+  );
 
   return collectionMints;
 };
