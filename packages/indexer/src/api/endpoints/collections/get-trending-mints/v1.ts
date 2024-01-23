@@ -155,13 +155,20 @@ export const getTrendingMintsV1Options: RouteOptions = {
   },
   handler: async ({ query }: Request, h) => {
     const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
+
     try {
+      const getMintingCollectionsStart = Date.now();
+
       const mintingCollections = await getMintingCollections(type);
+
+      const getMintingCollectionsDelay = Date.now() - getMintingCollectionsStart;
 
       if (mintingCollections.length < 1) {
         const response = h.response({ mints: [] });
         return response;
       }
+
+      const getTrendingMintsStart = Date.now();
 
       const trendingMints = await getTrendingMints({
         contracts: mintingCollections.map(({ collection_id }) => collection_id),
@@ -169,14 +176,26 @@ export const getTrendingMintsV1Options: RouteOptions = {
         limit,
       });
 
+      const getTrendingMintsDelay = Date.now() - getTrendingMintsStart;
+
       if (trendingMints.length < 1) {
         const response = h.response({ mints: [] });
         return response;
       }
 
+      const getCollectionsMetadataStart = Date.now();
+
       const collectionsMetadata = await getCollectionsMetadata(trendingMints);
 
+      const getCollectionsMetadataDelay = Date.now() - getCollectionsMetadataStart;
+
+      const getMintStagesStart = Date.now();
+
       const mintStages = await getMintStages(Object.keys(collectionsMetadata));
+
+      const getMintStagesDelay = Date.now() - getMintStagesStart;
+
+      const formatCollectionsStart = Date.now();
 
       const mints = await formatCollections(
         mintStages,
@@ -185,6 +204,29 @@ export const getTrendingMintsV1Options: RouteOptions = {
         collectionsMetadata,
         normalizeRoyalties,
         useNonFlaggedFloorAsk
+      );
+
+      const formatCollectionsDelay = Date.now() - formatCollectionsStart;
+
+      const totalDelay =
+        getMintingCollectionsDelay +
+        getTrendingMintsDelay +
+        getCollectionsMetadataDelay +
+        getMintStagesDelay +
+        formatCollectionsDelay;
+
+      logger.info(
+        `get-trending-mints-${version}-handler`,
+        JSON.stringify({
+          message: `timing. type=${type}, period=${period}, limit=${limit}, totalDelay=${totalDelay}`,
+          query,
+          getMintingCollectionsDelay,
+          getTrendingMintsDelay,
+          getCollectionsMetadataDelay,
+          getMintStagesDelay,
+          formatCollectionsDelay,
+          totalDelay,
+        })
       );
 
       const response = h.response({ mints });
