@@ -59,7 +59,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
           }
         );
 
-        if (orderExists) {
+        if (orderExists && retries < 5) {
           logger.info(
             this.queueName,
             JSON.stringify({
@@ -76,7 +76,9 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
           logger.error(
             this.queueName,
             JSON.stringify({
-              message: `generateAsk failed due to order missing. orderId=${data.id}`,
+              message: `generateAsk failed due to order missing. orderId=${
+                data.id
+              }, orderExists=${!!orderExists}, retries=${retries}`,
               topic: "debugMissingAsks",
               payload,
             })
