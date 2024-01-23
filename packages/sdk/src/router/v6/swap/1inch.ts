@@ -10,7 +10,7 @@ import { TransferDetail, SwapInfo } from "./index";
 const API_1INCH_ENDPOINT = "https://api.1inch.dev";
 const API_1INCH_KEY = "HcGeL2tXZQ8kNtzn2BYSjIX2rkKNKwN0";
 
-export const generateSwapExecutions = async (
+export const generateBuyExecutions = async (
   chainId: number,
   fromTokenAddress: string,
   toTokenAddress: string,

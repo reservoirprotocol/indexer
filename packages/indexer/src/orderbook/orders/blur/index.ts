@@ -754,6 +754,8 @@ export const savePartialBids = async (
                 valid_between = tstzrange(date_trunc('seconds', now()), 'Infinity', '[]'),
                 expiration = 'Infinity',
                 updated_at = now(),
+                fee_bps = $/feeBps/,
+                fee_breakdown = $/feeBreakdown:json/,
                 raw_data = $/rawData:json/
               WHERE orders.id = $/id/
               AND (
@@ -764,6 +766,8 @@ export const savePartialBids = async (
                 OR currency_value IS DISTINCT FROM $/value/
                 OR quantity_remaining IS DISTINCT FROM $/totalQuantity/
                 OR raw_data IS DISTINCT FROM $/rawData:json/
+                OR fee_bps IS DISTINCT FROM $/feeBps/
+                OR fee_breakdown IS DISTINCT FROM $/feeBreakdown:json/
               )
             `,
             {
@@ -771,6 +775,8 @@ export const savePartialBids = async (
               price,
               value,
               totalQuantity: isAttributeBid ? 1 : totalQuantity,
+              feeBps,
+              feeBreakdown,
               rawData: currentBid,
             }
           );
@@ -778,9 +784,7 @@ export const savePartialBids = async (
           skipSaveResult = rowCount === 0;
         }
 
-        if (skipSaveResult) {
-          // logger.info("orders-blur-save", `Skip reprice event. ${JSON.stringify(orderParams)}`);
-        } else {
+        if (!skipSaveResult) {
           results.push({
             id,
             status: "success",

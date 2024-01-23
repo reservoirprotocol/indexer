@@ -71,14 +71,13 @@ export const PermitProxy: ChainIdToAddress = {
 // Utility modules
 
 export const SwapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.EthereumGoerli]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.EthereumSepolia]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.Polygon]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.Optimism]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.Arbitrum]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.Bsc]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
-  [Network.Base]: "0x34acff419b262f3400d6aa17bd5b99a8c81e9726",
+  [Network.Ethereum]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.EthereumGoerli]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Polygon]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Optimism]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Arbitrum]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Bsc]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Base]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
 };
 
 export const OneInchSwapModule: ChainIdToAddress = {

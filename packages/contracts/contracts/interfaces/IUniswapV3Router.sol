@@ -19,5 +19,21 @@ interface IUniswapV3Router {
     payable
     returns (uint256 amountIn);
 
+  
+  struct ExactInputSingleParams {
+    IERC20 tokenIn;
+    IERC20 tokenOut;
+    uint24 fee;
+    address recipient;
+    uint256 amountIn;
+    uint256 amountOutMinimum;
+    uint160 sqrtPriceLimitX96;
+  }
+
+  function exactInputSingle(ExactInputSingleParams calldata params) 
+    external
+    payable
+    returns (uint256 amountOut);
+
   function refundETH() external;
 }

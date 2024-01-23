@@ -31,6 +31,7 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
+import * as onChainData from "@/utils/on-chain-data";
 import { getPersistentPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
@@ -412,6 +413,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               kind: order.kind,
               unitPrice: order.price,
               rawData: order.rawData,
+              currency: order.currency,
               source: source || undefined,
               fees: additionalFees,
               builtInFeeBps: builtInFees.map(({ bps }) => bps).reduce((a, b) => a + b, 0),
@@ -983,6 +985,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "currency-approval",
+          action: "Approve currency",
+          description: "Each currency you want to swap requires a one-time approval transaction",
+          kind: "transaction",
+          items: [],
+        },
+        {
           id: "pre-signatures",
           action: "Sign data",
           description: "Some exchanges require signing additional data before filling",
@@ -1128,7 +1137,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           }
 
           // Force the client to poll
-          steps[2].items.push({
+          steps[3].items.push({
             status: "incomplete",
             tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
@@ -1224,7 +1233,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       }
 
       for (const preTx of preTxs) {
-        steps[3].items.push({
+        steps[4].items.push({
           status: "incomplete",
           orderIds: preTx.orderIds,
           data: {
@@ -1246,6 +1255,25 @@ export const getExecuteSellV7Options: RouteOptions = {
           steps[1].items.push({
             status: "incomplete",
             orderIds: approval.orderIds,
+            data: {
+              ...approval.txData,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+            },
+          });
+        }
+      }
+
+      const ftApprovals = txs.map(({ ftApprovals }) => ftApprovals ?? []).flat();
+      for (const approval of ftApprovals) {
+        const approvedAmount = await onChainData
+          .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator)
+          .then((a) => a.value);
+
+        const isApproved = bn(approvedAmount).gte(approval.amount);
+        if (!isApproved) {
+          steps[3].items.push({
+            status: "incomplete",
             data: {
               ...approval.txData,
               maxFeePerGas,
@@ -1277,7 +1305,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               continue;
             }
 
-            steps[2].items.push({
+            steps[3].items.push({
               status: "incomplete",
               data: {
                 sign: preSignature.data,
@@ -1293,15 +1321,15 @@ export const getExecuteSellV7Options: RouteOptions = {
           }
         }
 
-        if (signaturesPaymentProcessor.length && !steps[2].items.length) {
+        if (signaturesPaymentProcessor.length && !steps[3].items.length) {
           const exchange = new Sdk.PaymentProcessor.Exchange(config.chainId);
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        steps[4].items.push({
+        steps[5].items.push({
           status: "incomplete",
           orderIds,
-          data: !steps[2].items.length
+          data: !steps[3].items.length
             ? {
                 ...txData,
                 maxFeePerGas,
