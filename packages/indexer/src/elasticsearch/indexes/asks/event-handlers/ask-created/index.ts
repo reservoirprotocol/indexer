@@ -31,12 +31,20 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
       return { id, document };
     }
 
-    if (config.chainId === 137) {
+    if (config.chainId === 1) {
+      const orderResult = await idb.oneOrNone(
+        `SELECT * FROM orders WHERE id = $/orderId/ LIMIT 1;`,
+        {
+          orderId: this.orderId,
+        }
+      );
+
       logger.info(
         "AskCreatedEventHandler",
         JSON.stringify({
           message: `generateAsk. orderId=${this.orderId}`,
           topic: "debugMissingAsks",
+          orderResult: JSON.stringify(orderResult),
         })
       );
     }
