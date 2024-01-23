@@ -28,17 +28,6 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const { kind, data } = payload;
     const retries = payload.retries ?? 0;
 
-    if (config.chainId === 137 && kind === EventKind.newSellOrder) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Processing askEvent. orderId=${data.id}`,
-          topic: "debugMissingAsks",
-          payload,
-        })
-      );
-    }
-
     const pendingAskEventsQueue = new PendingAskEventsQueue();
 
     if (kind === EventKind.SellOrderInactive) {
@@ -50,18 +39,27 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
-      } else {
-        if (retries < 5) {
-          if (config.chainId === 137 && kind === EventKind.newSellOrder) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `generateAsk failed - Retrying. orderId=${data.id}`,
-                topic: "debugMissingAsks",
-                payload,
-              })
-            );
-          }
+
+        if (retries > 0) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk success. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
+        }
+      } else if (data.kind !== "element-erc1155" && kind === EventKind.newSellOrder) {
+        if (retries < 3) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `generateAsk failed - Retrying. orderId=${data.id}`,
+              topic: "debugMissingAsks",
+              payload,
+            })
+          );
 
           payload.retries = retries + 1;
 
@@ -109,4 +107,5 @@ interface OrderInfo {
   fillability_status: string;
   approval_status: string;
   created_at: string;
+  kind: string;
 }

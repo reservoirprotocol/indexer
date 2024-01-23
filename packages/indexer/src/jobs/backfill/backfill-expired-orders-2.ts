@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
             expiration = x.expiration,
             updated_at = now()
           FROM x
-          WHERE orders.id = x.id
+          WHERE orders.id = x.id AND orders.fillability_status != 'expired'
           RETURNING orders.id
         `,
         { timestamp: from }
