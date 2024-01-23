@@ -257,14 +257,14 @@ export const getUserTokensV9Options: RouteOptions = {
 
     const tokensCollectionFilters: string[] = [];
     const nftBalanceCollectionFilters: string[] = [];
-    let sharedContract = false;
+    const collections: string[] = [];
+    let listBasedContract = false;
 
     const addCollectionToFilter = (id: string) => {
       const i = nftBalanceCollectionFilters.length;
+      collections.push(id);
 
       if (id.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
-        // Range based collection
-        sharedContract = true;
         const [contract, startTokenId, endTokenId] = id.split(":");
 
         (query as any)[`contract${i}`] = toBuffer(contract);
@@ -278,7 +278,7 @@ export const getUserTokensV9Options: RouteOptions = {
         `);
       } else if (id.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
         // List based collections
-        sharedContract = true;
+        listBasedContract = true;
         const collectionParts = id.split(":");
 
         (query as any)[`collection${i}`] = id;
@@ -295,10 +295,6 @@ export const getUserTokensV9Options: RouteOptions = {
         (query as any)[`collection${i}`] = id;
 
         nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
-
-        tokensCollectionFilters.push(`
-          collection_id = $/collection${i}/
-        `);
       }
     };
 
@@ -596,7 +592,7 @@ export const getUserTokensV9Options: RouteOptions = {
       (query as any).tokenId = tokenId;
       query.sortDirection = query.sortDirection || "desc";
       if (query.sortBy === "acquiredAt") {
-        continuationFilter = ` AND (acquired_at, token_id) ${
+        continuationFilter = ` AND (acquired_at, nft_balances.token_id) ${
           query.sortDirection == "desc" ? "<" : ">"
         } (to_timestamp($/sortByValue/), $/tokenId/)`;
       } else if (query.sortBy === "lastAppraisalValue") {
@@ -611,13 +607,14 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     let ucTable = "";
-    if (query.sortBy === "floorAskPrice") {
+    if (query.sortBy === "floorAskPrice" || !_.isEmpty(collections)) {
       ucTable = `
         SELECT collection_id, c.*
         FROM user_collections uc
         JOIN collections c ON c.id = uc.collection_id 
         WHERE owner = $/user/
         AND uc.token_count > 0
+        ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
         ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST
@@ -676,14 +673,18 @@ export const getUserTokensV9Options: RouteOptions = {
               AND amount > 0
               ${ucTable ? `AND nft_balances.contract = c.contract` : ""}
               ${continuationFilter}
-              ${sharedContract || query.excludeSpam || query.excludeNsfw || ucTable ? "" : sorting}
+              ${
+                listBasedContract || query.excludeSpam || query.excludeNsfw || ucTable
+                  ? ""
+                  : sorting
+              }
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
             ucTable
               ? ""
               : `${
-                  sharedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
+                  listBasedContract || query.excludeSpam || query.excludeNsfw ? "" : "LEFT "
                 }JOIN collections c ON c.id = t.collection_id ${
                   query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
                 }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}`
@@ -709,10 +710,10 @@ export const getUserTokensV9Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
-          ${sharedContract || query.excludeSpam || query.excludeNsfw || ucTable ? sorting : ""}
+          ${listBasedContract || query.excludeSpam || query.excludeNsfw || ucTable ? sorting : ""}
       `;
 
-      const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
+      const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params, collections });
 
       let continuation = null;
       if (userTokens.length === query.limit) {

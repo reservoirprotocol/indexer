@@ -144,7 +144,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     });
   }
 
-  public getIndexingMethod(community: string | null) {
+  public getIndexingMethod(community?: string | null) {
     switch (community) {
       case "sound.xyz":
         return "soundxyz";

@@ -31,12 +31,20 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
       return { id, document };
     }
 
-    if (config.chainId === 137) {
+    if (config.chainId === 1) {
+      const orderResult = await idb.oneOrNone(
+        `SELECT * FROM orders WHERE id = $/orderId/ LIMIT 1;`,
+        {
+          orderId: this.orderId,
+        }
+      );
+
       logger.info(
         "AskCreatedEventHandler",
         JSON.stringify({
           message: `generateAsk. orderId=${this.orderId}`,
           topic: "debugMissingAsks",
+          orderResult: JSON.stringify(orderResult),
         })
       );
     }
@@ -125,7 +133,7 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                 ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
                 : ""
             }
-            AND orders.kind != 'element-erc1155'
+            AND orders.kind != 'element-erc1155' AND orders.kind != 'element-erc721'
                  `;
   }
 

@@ -169,372 +169,144 @@ jobs:
             ./prod/platform/indexer-websocket-arbitrum.yaml \
             ./prod/platform/indexer-kafka-worker-arbitrum.yaml
 
-          ./utils/version_update.sh indexer-arbitrum-nova ${{ github.sha }} \
+          ./utils/version_update_batch.sh indexer-arbitrum-nova ${{ github.sha }} \
             ./prod/platform/indexer-api-arbitrum-nova.yaml \
             ./prod/platform/indexer-worker-arbitrum-nova.yaml \
             ./prod/platform/indexer-worker-master-arbitrum-nova.yaml \
             ./prod/platform/indexer-websocket-arbitrum-nova.yaml \
             ./prod/platform/indexer-kafka-worker-arbitrum-nova.yaml
 
-          ./utils/version_update.sh indexer-avalanche ${{ github.sha }} \
+          ./utils/version_update_batch.sh indexer-avalanche ${{ github.sha }} \
             ./prod/platform/indexer-api-avalanche.yaml \
             ./prod/platform/indexer-worker-avalanche.yaml \
             ./prod/platform/indexer-worker-master-avalanche.yaml \
             ./prod/platform/indexer-websocket-avalanche.yaml \
             ./prod/platform/indexer-kafka-worker-avalanche.yaml
 
-          ./utils/version_update.sh indexer-base ${{ github.sha }} \
+          ./utils/version_update_batch.sh indexer-base ${{ github.sha }} \
             ./prod/platform/indexer-api-base.yaml \
             ./prod/platform/indexer-worker-base.yaml \
             ./prod/platform/indexer-worker-master-base.yaml \
             ./prod/platform/indexer-websocket-base.yaml \
             ./prod/platform/indexer-kafka-worker-base.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-base-goerli ${{ github.sha }} \
             ./prod/platform/indexer-api-base-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-api-base-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-base-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-base-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-base-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-base-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-base-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-base-goerli
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-base-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-base-goerli
+            ./prod/platform/indexer-kafka-worker-base-goerli.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-bsc ${{ github.sha }} \
             ./prod/platform/indexer-api-bsc.yaml \
-            ${{ github.sha }} \
-            indexer-api-bsc
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-bsc.yaml \
-            ${{ github.sha }} \
-            indexer-worker-bsc
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-bsc.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-bsc
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-bsc.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-bsc
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-bsc.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-bsc
+            ./prod/platform/indexer-kafka-worker-bsc.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-frame-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-frame-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-api-frame-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-frame-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-frame-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-frame-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-frame-testnet
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-frame-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-frame-testnet
+            ./prod/platform/indexer-kafka-worker-frame-testnet.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-goerli ${{ github.sha }} \
             ./prod/platform/indexer-api-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-api-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-goerli
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-goerli
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-goerli.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-goerli
+            ./prod/platform/indexer-kafka-worker-goerli.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-immutable-zkevm-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-immutable-zkevm-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-api-immutable-zkevm-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-immutable-zkevm-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-immutable-zkevm-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-immutable-zkevm-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-immutable-zkevm-testnet
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-immutable-zkevm-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-immutable-zkevm-testnet
+            ./prod/platform/indexer-kafka-worker-immutable-zkevm-testnet.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-linea ${{ github.sha }} \
             ./prod/platform/indexer-api-linea.yaml \
-            ${{ github.sha }} \
-            indexer-api-linea
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-linea.yaml \
-            ${{ github.sha }} \
-            indexer-worker-linea
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-linea.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-linea
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-linea.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-linea
+            ./prod/platform/indexer-kafka-worker-linea.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-mainnet ${{ github.sha }} \
             ./prod/platform/indexer-api-mainnet.yaml \
-            ${{ github.sha }} \
-            indexer-api-mainnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-mainnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-mainnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-mainnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-mainnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-ethereum
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-mainnet.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-mainnet
+            ./prod/platform/indexer-kafka-worker-mainnet.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-mumbai ${{ github.sha }} \
             ./prod/platform/indexer-api-mumbai.yaml \
-            ${{ github.sha }} \
-            indexer-api-mumbai
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-mumbai.yaml \
-            ${{ github.sha }} \
-            indexer-worker-mumbai
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-mumbai.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-mumbai
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-mumbai.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-mumbai
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-mumbai.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-mumbai
+            ./prod/platform/indexer-kafka-worker-mumbai.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-opbnb ${{ github.sha }} \
             ./prod/platform/indexer-api-opbnb.yaml \
-            ${{ github.sha }} \
-            indexer-api-opbnb
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-opbnb.yaml \
-            ${{ github.sha }} \
-            indexer-worker-opbnb
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-opbnb.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-opbnb
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-opbnb.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-opbnb
+            ./prod/platform/indexer-kafka-worker-opbnb.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-optimism ${{ github.sha }} \
             ./prod/platform/indexer-api-optimism.yaml \
-            ${{ github.sha }} \
-            indexer-api-optimism
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-optimism.yaml \
-            ${{ github.sha }} \
-            indexer-worker-optimism
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-optimism.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-optimism
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-optimism.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-optimism
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-optimism.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-optimism
+            ./prod/platform/indexer-kafka-worker-optimism.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-polygon ${{ github.sha }} \
             ./prod/platform/indexer-api-polygon.yaml \
-            ${{ github.sha }} \
-            indexer-api-polygon
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-polygon.yaml \
-            ${{ github.sha }} \
-            indexer-worker-polygon
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-polygon.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-polygon
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-polygon.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-polygon
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-polygon.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-polygon
+            ./prod/platform/indexer-kafka-worker-polygon.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-polygon-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-api-polygon-zkevm.yaml \
-            ${{ github.sha }} \
-            indexer-api-polygon-zkevm
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-polygon-zkevm.yaml \
-            ${{ github.sha }} \
-            indexer-worker-polygon-zkevm
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-polygon-zkevm.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-polygon-zkevm
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-polygon-zkevm.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-polygon-zkevm
+            ./prod/platform/indexer-kafka-worker-polygon-zkevm.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-scroll ${{ github.sha }} \
             ./prod/platform/indexer-api-scroll.yaml \
-            ${{ github.sha }} \
-            indexer-api-scroll
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-scroll.yaml \
-            ${{ github.sha }} \
-            indexer-worker-scroll
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-scroll.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-scroll
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-scroll.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-scroll
+            ./prod/platform/indexer-kafka-worker-scroll.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-scroll-alpha ${{ github.sha }} \
             ./prod/platform/indexer-api-scroll-alpha.yaml \
-            ${{ github.sha }} \
-            indexer-api-scroll-alpha
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-scroll-alpha.yaml \
-            ${{ github.sha }} \
-            indexer-worker-scroll-alpha
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-scroll-alpha.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-scroll-alpha
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-scroll-alpha.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-scroll-alpha
+            ./prod/platform/indexer-kafka-worker-scroll-alpha.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-sepolia ${{ github.sha }} \
             ./prod/platform/indexer-api-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-api-sepolia
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-worker-sepolia
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-sepolia
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-sepolia
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-sepolia.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-sepolia
+            ./prod/platform/indexer-kafka-worker-sepolia.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-zksync ${{ github.sha }} \
             ./prod/platform/indexer-api-zksync.yaml \
-            ${{ github.sha }} \
-            indexer-api-zksync
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-zksync.yaml \
-            ${{ github.sha }} \
-            indexer-worker-zksync
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-zksync.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-zksync
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-zksync.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-zksync
+            ./prod/platform/indexer-kafka-worker-zksync.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-zora ${{ github.sha }} \
             ./prod/platform/indexer-api-zora.yaml \
-            ${{ github.sha }} \
-            indexer-api-zora
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-zora.yaml \
-            ${{ github.sha }} \
-            indexer-worker-zora
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-zora.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-zora
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-zora.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-zora
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-zora.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-zora
+            ./prod/platform/indexer-kafka-worker-zora.yaml
 
-          ./utils/version_update.sh \
+          ./utils/version_update_batch.sh indexer-zora-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-zora-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-api-zora-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-zora-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-zora-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-worker-master-zora-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-worker-master-zora-testnet
-          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-zora-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-websocket-zora-testnet
-          ./utils/version_update.sh \
-            ./prod/platform/indexer-kafka-worker-zora-testnet.yaml \
-            ${{ github.sha }} \
-            indexer-kafka-worker-zora-testnet
+            ./prod/platform/indexer-kafka-worker-zora-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}

@@ -301,6 +301,7 @@ export type EventSubKind =
   | "metadata-update-uri-opensea"
   | "metadata-update-contract-uri-thirdweb"
   | "metadata-update-zora"
+  | "metadata-update-mint-config-changed"
   | "soundxyz-range-edition-mint-created"
   | "soundxyz-merkle-drop-mint-created"
   | "createdotfun-configuration-updated"
@@ -537,6 +538,7 @@ const allEventData = [
   metadataUpdate.metadataUpdateURIOpensea,
   metadataUpdate.contractURIUpdateThirdweb,
   metadataUpdate.metadataUpdateURIZora,
+  metadataUpdate.mintConfigChanged,
   soundxyz.rangeEditionMintCreated,
   soundxyz.merkleDropMintCreated,
   createdotfun.configurationUpdated,

@@ -9,18 +9,18 @@ export class Phase {
 
   parent: Builder;
 
-  globalMaxMintPerWallet: number;
-  globalMaxMintPerTransaction: number;
+  globalMaxMintsPerWallet: number;
+  globalMaxMintsPerTransaction: number;
 
   constructor(
     phase: MintPhase,
-    globalMaxMintPerWallet: number,
-    globalMaxMintPerTransaction: number,
+    globalMaxMintsPerWallet: number,
+    globalMaxMintsPerTransaction: number,
     parent: Builder
   ) {
     this.phase = phase;
-    this.globalMaxMintPerWallet = globalMaxMintPerWallet;
-    this.globalMaxMintPerTransaction = globalMaxMintPerTransaction;
+    this.globalMaxMintsPerWallet = globalMaxMintsPerWallet;
+    this.globalMaxMintsPerTransaction = globalMaxMintsPerTransaction;
     this.parent = parent;
   }
 
@@ -33,11 +33,11 @@ export class Phase {
   }
 
   get maxMintsPerWallet(): number {
-    return this.phase.maxMintsPerWallet ?? this.globalMaxMintPerWallet ?? undefined;
+    return this.phase.maxMintsPerWallet ?? this.globalMaxMintsPerWallet ?? undefined;
   }
 
   get maxMintPerTransaction(): number {
-    return this.phase.maxMintPerTransaction ?? this.globalMaxMintPerTransaction ?? undefined;
+    return this.phase.maxMintsPerTransaction ?? this.globalMaxMintsPerTransaction ?? undefined;
   }
 
   get price(): string | null {
@@ -50,11 +50,6 @@ export class Phase {
 
   get currency(): string | null {
     return this.phase.currency ?? null;
-  }
-
-  get isOpen() {
-    const timestamp = ~~(Date.now() / 1000);
-    return this.startTime <= timestamp && (this.endTime >= timestamp || this.endTime === 0);
   }
 
   hasRecipient() {
@@ -70,13 +65,12 @@ export class Phase {
   }
 
   maxMint() {
-    const max =
-      this.phase.maxMintPerTransaction ??
+    return (
+      this.phase.maxMintsPerTransaction ??
       this.phase.maxMintsPerWallet ??
-      this.globalMaxMintPerTransaction ??
-      this.globalMaxMintPerWallet;
-
-    return max ?? 0;
+      this.globalMaxMintsPerTransaction ??
+      this.globalMaxMintsPerWallet
+    );
   }
 
   getParams(): TxParam[] {
@@ -184,7 +178,7 @@ export class Phase {
       contract: collection,
       stage: `${kind}-sale`,
       kind,
-      status: this.isOpen ? "open" : "closed",
+      status: "open",
       standard: "unknown",
       details: {
         tx: {

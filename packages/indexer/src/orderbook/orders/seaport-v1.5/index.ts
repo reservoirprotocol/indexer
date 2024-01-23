@@ -553,13 +553,26 @@ export const save = async (
               .toNumber();
         feeBps += bps;
 
-        // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
+        let kind: "marketplace" | "royalty" = feeRecipients.getByAddress(
           recipient.toLowerCase(),
           "marketplace"
         )
           ? "marketplace"
           : "royalty";
+
+        // For opensea orders only the known addresses can be marketplace and all other can be only royalty
+        if (
+          isOpenSea &&
+          kind === "marketplace" &&
+          !_.includes(openSeaFeeRecipients, recipient.toLowerCase())
+        ) {
+          logger.info(
+            "orders-seaport-v1.5-save",
+            `orderId=${id}, ${recipient.toLowerCase()} forced to be a royalty`
+          );
+
+          kind = "royalty";
+        }
 
         // Check for unknown fees
         knownFee =

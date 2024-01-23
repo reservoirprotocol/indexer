@@ -1,6 +1,6 @@
 import { Contract } from "@ethersproject/contracts";
 
-import { Phase } from "./phase.js";
+import { Phase } from "./phase";
 import { BuilderConfig, ContractCall, MintConfig } from "./types.d";
 
 export const TxParamKind = ["RECIPIENT", "QUANTITY", "MAPPING_RECIPIENT", "REFERRAL"];
@@ -30,13 +30,12 @@ export class Builder {
   }
 
   async load() {
-    const maxMintPerWallet = await this.valueOrContractCall(this.mintConfig.maxMintPerWallet ?? 0);
-
-    const maxMintPerTransaction = await this.valueOrContractCall(
-      this.mintConfig.maxMintPerTransaction ?? 0
+    const maxMintsPerWallet = await this.valueOrContractCall(this.mintConfig.maxMintsPerWallet);
+    const maxMintsPerTransaction = await this.valueOrContractCall(
+      this.mintConfig.maxMintsPerTransaction
     );
 
-    this.maxSupply = await this.valueOrContractCall(this.mintConfig.maxSupply ?? 0);
+    this.maxSupply = await this.valueOrContractCall(this.mintConfig.maxSupply);
 
     // Go through all phases
     const phases = [];
@@ -61,7 +60,7 @@ export class Builder {
         }
       }
 
-      const phaseO = new Phase(phase, maxMintPerWallet, maxMintPerTransaction, this);
+      const phaseO = new Phase(phase, maxMintsPerWallet, maxMintsPerTransaction, this);
       phases.push(phaseO);
     }
 
