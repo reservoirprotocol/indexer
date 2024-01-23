@@ -423,11 +423,10 @@ export const getTopSellingCollections = async (params: {
 };
 
 export const getTrendingMints = async (params: {
-  contracts: string[];
   period: Period;
   limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { contracts, period, limit } = params;
+  const { period, limit } = params;
 
   const results: Partial<Record<Period, ElasticMintResult[]>> = {};
 
@@ -452,8 +451,8 @@ export const getTrendingMints = async (params: {
               },
             },
             {
-              terms: {
-                "collection.id": contracts,
+              term: {
+                ["event.collectionIsMinting"]: true,
               },
             },
           ],

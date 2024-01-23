@@ -6,10 +6,6 @@ import { formatEth, regex } from "@/common/utils";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redis } from "@/common/redis";
-
-const REDIS_EXPIRATION_MINTS = 60 * 60 * 1000; // Assuming an hour, adjust as needed.
-
 import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
 import { getCollectionsMetadata } from "@/api/endpoints/collections/get-trending-collections/v1";
@@ -22,6 +18,10 @@ import {
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import {
+  MintingCollectionData,
+  TrendingMintsMintingCollectionCache,
+} from "@/models/trending-mints-minting-collection-cache";
 
 const version = "v1";
 
@@ -157,21 +157,9 @@ export const getTrendingMintsV1Options: RouteOptions = {
     const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
 
     try {
-      const getMintingCollectionsStart = Date.now();
-
-      const mintingCollections = await getMintingCollections(type);
-
-      const getMintingCollectionsDelay = Date.now() - getMintingCollectionsStart;
-
-      if (mintingCollections.length < 1) {
-        const response = h.response({ mints: [] });
-        return response;
-      }
-
       const getTrendingMintsStart = Date.now();
 
       const trendingMints = await getTrendingMints({
-        contracts: mintingCollections.map(({ collection_id }) => collection_id),
         period,
         limit,
       });
@@ -199,7 +187,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
 
       const mints = await formatCollections(
         mintStages,
-        mintingCollections,
         trendingMints,
         collectionsMetadata,
         normalizeRoyalties,
@@ -209,7 +196,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
       const formatCollectionsDelay = Date.now() - formatCollectionsStart;
 
       const totalDelay =
-        getMintingCollectionsDelay +
         getTrendingMintsDelay +
         getCollectionsMetadataDelay +
         getMintStagesDelay +
@@ -220,7 +206,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
         JSON.stringify({
           message: `timing. type=${type}, period=${period}, limit=${limit}, totalDelay=${totalDelay}`,
           query,
-          getMintingCollectionsDelay,
           getTrendingMintsDelay,
           getCollectionsMetadataDelay,
           getMintStagesDelay,
@@ -270,51 +255,8 @@ async function getMintStages(contracts: string[]): Promise<Record<string, Mint["
   return data;
 }
 
-async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
-  const cacheKey = `minting-collection-cache:v1:${type}`;
-
-  const cachedResult = await redis.get(cacheKey);
-  if (cachedResult) {
-    return JSON.parse(cachedResult);
-  }
-
-  const conditions: string[] = [];
-  conditions.push(`kind = 'public'`, `status = 'open'`);
-  type && type !== "any" && conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
-
-  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  const baseQuery = `
-  SELECT 
-    mints.collection_id, 
-    start_time, 
-    end_time, 
-    created_at, 
-    updated_at, 
-    max_supply, 
-    max_mints_per_wallet, 
-    price, 
-    standard
-FROM 
-    collection_mints mints 
-LEFT JOIN 
-    collection_mint_standards 
-ON 
-    collection_mint_standards.collection_id = mints.collection_id
-${whereClause} 
-LIMIT 50000;
-  `;
-
-  const result = await redb.manyOrNone<Mint>(baseQuery);
-
-  await redis.set(cacheKey, JSON.stringify(result), "PX", REDIS_EXPIRATION_MINTS);
-
-  return result;
-}
-
 async function formatCollections(
   mintStages: Record<string, Mint["mint_stages"]>,
-  mintingCollections: Mint[],
   collectionsResult: ElasticMintResult[],
   collectionsMetadata: Record<string, Metadata>,
   normalizeRoyalties: boolean,
@@ -322,12 +264,18 @@ async function formatCollections(
 ): Promise<any[]> {
   const sources = await Sources.getInstance();
 
+  const mintingCollections: MintingCollectionData[] =
+    await TrendingMintsMintingCollectionCache.getMintingCollections(
+      collectionsResult.map((r) => r.id)
+    );
+
   const collections = await Promise.all(
     collectionsResult.map(async (r) => {
       const mintData = {
         ...mintingCollections.find((c) => c.collection_id == r.id),
         mint_stages: mintStages[r.id],
       };
+
       const metadata = collectionsMetadata[r.id];
       let floorAsk;
       let prefix = "";
