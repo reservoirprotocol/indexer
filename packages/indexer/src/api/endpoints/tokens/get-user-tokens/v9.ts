@@ -671,17 +671,20 @@ export const getUserTokensV9Options: RouteOptions = {
             }
             WHERE owner = $/user/
               AND ${
-                nftBalanceCollectionFilters.length
-                  ? "(" + nftBalanceCollectionFilters.join(" OR ") + ")"
-                  : "TRUE"
-              }
-              AND ${
                 tokensFilter.length
                   ? "(nft_balances.contract, nft_balances.token_id) IN ($/tokensFilter:raw/)"
                   : "TRUE"
               }
               AND amount > 0
-              ${ucTable ? `AND nft_balances.contract = c.contract` : ""}
+              ${
+                ucTable
+                  ? `AND nft_balances.contract = c.contract`
+                  : `AND ${
+                      nftBalanceCollectionFilters.length
+                        ? "(" + nftBalanceCollectionFilters.join(" OR ") + ")"
+                        : "TRUE"
+                    }`
+              }
               ${continuationFilter}
               ${sortFullQuery ? "" : sorting}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
