@@ -190,13 +190,6 @@ jobs:
             ./prod/platform/indexer-websocket-base.yaml \
             ./prod/platform/indexer-kafka-worker-base.yaml
 
-          ./utils/version_update_batch.sh indexer-base-goerli ${{ github.sha }} \
-            ./prod/platform/indexer-api-base-goerli.yaml \
-            ./prod/platform/indexer-worker-base-goerli.yaml \
-            ./prod/platform/indexer-worker-master-base-goerli.yaml \
-            ./prod/platform/indexer-websocket-base-goerli.yaml \
-            ./prod/platform/indexer-kafka-worker-base-goerli.yaml
-
           ./utils/version_update_batch.sh indexer-bsc ${{ github.sha }} \
             ./prod/platform/indexer-api-bsc.yaml \
             ./prod/platform/indexer-worker-bsc.yaml \
@@ -275,12 +268,6 @@ jobs:
             ./prod/platform/indexer-worker-master-scroll.yaml \
             ./prod/platform/indexer-kafka-worker-scroll.yaml
 
-          ./utils/version_update_batch.sh indexer-scroll-alpha ${{ github.sha }} \
-            ./prod/platform/indexer-api-scroll-alpha.yaml \
-            ./prod/platform/indexer-worker-scroll-alpha.yaml \
-            ./prod/platform/indexer-worker-master-scroll-alpha.yaml \
-            ./prod/platform/indexer-kafka-worker-scroll-alpha.yaml
-
           ./utils/version_update_batch.sh indexer-sepolia ${{ github.sha }} \
             ./prod/platform/indexer-api-sepolia.yaml \
             ./prod/platform/indexer-worker-sepolia.yaml \
@@ -300,13 +287,6 @@ jobs:
             ./prod/platform/indexer-worker-master-zora.yaml \
             ./prod/platform/indexer-websocket-zora.yaml \
             ./prod/platform/indexer-kafka-worker-zora.yaml
-
-          ./utils/version_update_batch.sh indexer-zora-testnet ${{ github.sha }} \
-            ./prod/platform/indexer-api-zora-testnet.yaml \
-            ./prod/platform/indexer-worker-zora-testnet.yaml \
-            ./prod/platform/indexer-worker-master-zora-testnet.yaml \
-            ./prod/platform/indexer-websocket-zora-testnet.yaml \
-            ./prod/platform/indexer-kafka-worker-zora-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}

@@ -27,6 +27,7 @@ import { backfillActivitiesElasticsearchJob } from "@/jobs/elasticsearch/activit
 import * as CONFIG from "@/elasticsearch/indexes/activities/config";
 import { ElasticMintResult } from "@/api/endpoints/collections/get-trending-mints/interfaces";
 import { Period, getStartTime } from "@/models/top-selling-collections/top-selling-collections";
+import { config } from "@/config/index";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -228,11 +229,6 @@ export const getTopTraders = async (params: {
         size: limit,
       },
       aggs: {
-        total_sales: {
-          value_count: {
-            field: "id",
-          },
-        },
         total_volume: {
           sum: {
             field: "pricing.priceDecimal",
@@ -243,7 +239,7 @@ export const getTopTraders = async (params: {
   };
 
   const esResult = (await elasticsearch.search({
-    index: INDEX_NAME,
+    index: config.chainId === 137 ? `${INDEX_NAME}-1702050564025` : INDEX_NAME,
     size: 0,
     body: {
       query: salesQuery,
@@ -253,8 +249,8 @@ export const getTopTraders = async (params: {
 
   return esResult?.aggregations?.collections?.buckets?.map((bucket: any) => {
     return {
-      volume: bucket?.total_volume?.value,
-      count: bucket?.total_sales.value,
+      volume: bucket.total_volume?.value,
+      count: bucket.doc_count,
       address: bucket.key,
     };
   });
