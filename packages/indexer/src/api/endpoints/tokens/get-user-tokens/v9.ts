@@ -609,7 +609,7 @@ export const getUserTokensV9Options: RouteOptions = {
     let ucTable = "";
     if (query.sortBy === "floorAskPrice" || !_.isEmpty(collections)) {
       ucTable = `
-        SELECT collection_id, c.*
+        SELECT collection_id, COALESCE(c.token_set_id != CONCAT('contract:', collection_id), true) AS "shared_contract", c.*
         FROM user_collections uc
         JOIN collections c ON c.id = uc.collection_id 
         WHERE owner = $/user/
@@ -635,7 +635,7 @@ export const getUserTokensV9Options: RouteOptions = {
                c.image_version AS "collection_image_version",
                ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
                 date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
-                coalesce(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
+                COALESCE(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
                ot.source_id_int as floor_sell_source_id_int, ot.id as floor_sell_id,
                ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
@@ -656,7 +656,7 @@ export const getUserTokensV9Options: RouteOptions = {
             FROM nft_balances
             ${
               ucTable
-                ? `JOIN tokens t on nft_balances.contract = t.contract and nft_balances.token_id = t.token_id and t.collection_id = c.collection_id`
+                ? `JOIN tokens t on nft_balances.contract = t.contract AND nft_balances.token_id = t.token_id AND CASE WHEN c.shared_contract IS TRUE THEN c.collection_id = t.collection_id ELSE true END`
                 : ""
             }
             WHERE owner = $/user/

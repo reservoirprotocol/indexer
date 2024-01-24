@@ -147,6 +147,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           "If passed, all fills will be executed through the trusted trusted forwarder (where possible)"
         )
         .optional(),
+      currency: Joi.string().lowercase().description("Currency to be received when selling."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description(
@@ -1208,6 +1209,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
+          sellOutCurrency: payload.currency,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({
