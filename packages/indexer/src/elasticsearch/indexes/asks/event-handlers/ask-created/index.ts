@@ -10,7 +10,6 @@ import {
   AskDocumentInfo,
   BaseAskEventHandler,
 } from "@/elasticsearch/indexes/asks/event-handlers/base";
-import { config } from "@/config/index";
 
 export class AskCreatedEventHandler extends BaseAskEventHandler {
   async generateAsk(): Promise<AskDocumentInfo | null> {
@@ -29,24 +28,6 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
       const document = this.buildDocument(data);
 
       return { id, document };
-    }
-
-    if (config.chainId === 1) {
-      const orderResult = await idb.oneOrNone(
-        `SELECT * FROM orders WHERE id = $/orderId/ LIMIT 1;`,
-        {
-          orderId: this.orderId,
-        }
-      );
-
-      logger.info(
-        "AskCreatedEventHandler",
-        JSON.stringify({
-          message: `generateAsk. orderId=${this.orderId}`,
-          topic: "debugMissingAsks",
-          orderResult: JSON.stringify(orderResult),
-        })
-      );
     }
 
     return null;

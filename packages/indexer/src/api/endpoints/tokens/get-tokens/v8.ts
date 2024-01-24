@@ -401,31 +401,39 @@ export const getTokensV8Options: RouteOptions = {
     if (enableElasticsearchAsks && query.continuation) {
       const contArr = splitContinuation(query.continuation);
 
-      enableElasticsearchAsks = !isNaN(Number(contArr));
+      enableElasticsearchAsks = contArr[0].startsWith("es_");
     }
 
     if (enableElasticsearchAsks) {
-      logger.info(
-        `get-tokens-${version}-handler`,
-        JSON.stringify({
-          topic: "debugAskIndex",
-          message: "Using Elasticsearch for asks",
-          query,
-        })
-      );
+      if (query.continuation) {
+        const contArr = splitContinuation(query.continuation);
 
-      const listedTokens = await getListedTokensFromES(query, true);
-
-      if (listedTokens.continuation || query.source || query.nativeSource) {
-        return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
+        enableElasticsearchAsks = !isNaN(Number(contArr));
       }
 
-      esTokens = listedTokens.tokens;
+      if (enableElasticsearchAsks) {
+        logger.info(
+          `get-tokens-${version}-handler`,
+          JSON.stringify({
+            topic: "debugAskIndex",
+            message: "Using Elasticsearch for asks",
+            query,
+          })
+        );
 
-      query.limit = query.limit - esTokens.length;
+        const listedTokens = await getListedTokensFromES(query, true);
+
+        if (listedTokens.continuation || query.source || query.nativeSource) {
+          return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
+        }
+
+        esTokens = listedTokens.tokens;
+        query.limit = query.limit - esTokens.length;
+        query.continuation = null;
+      }
+
       query.excludeEOA = false;
-      query.continuation = null;
-      query.sortBy = "tokenId";
+      query.sortBy = "notListedTokens";
     }
 
     // Include attributes
@@ -980,7 +988,35 @@ export const getTokensV8Options: RouteOptions = {
       const contractSort = !(query.collection || (query.contract && query.contract.length == 1));
 
       // Continue with the next page, this depends on the sorting used
-      if (query.continuation && !query.token) {
+      if (query.sortBy === "notListedTokens") {
+        if (query.continuation) {
+          let contArr = splitContinuation(
+            query.continuation,
+            /^(es_(([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
+          );
+
+          if (contArr.length === 1 && contArr[0].includes("_")) {
+            contArr = splitContinuation(contArr[0]);
+          }
+
+          if (contArr.length !== 3) {
+            throw Boom.badRequest("Invalid continuation string used");
+          }
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
+          (query as any).contContract = toBuffer(contArr[1]);
+          (query as any).contTokenId = contArr[2];
+        }
+
+        const sortColumn =
+          query.nativeSource || query.excludeEOA
+            ? "s.floor_sell_value"
+            : query.normalizeRoyalties
+            ? "t.normalized_floor_sell_value"
+            : "t.floor_sell_value";
+
+        conditions.push(`${sortColumn} is null`);
+      } else if (query.continuation && !query.token) {
         let contArr = splitContinuation(
           query.continuation,
           /^((([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
@@ -1096,15 +1132,6 @@ export const getTokensV8Options: RouteOptions = {
           (query as any).contContract = toBuffer(contArr[0]);
           (query as any).contTokenId = contArr[1];
         }
-      } else if (enableElasticsearchAsks) {
-        const sortColumn =
-          query.nativeSource || query.excludeEOA
-            ? "s.floor_sell_value"
-            : query.normalizeRoyalties
-            ? "t.normalized_floor_sell_value"
-            : "t.floor_sell_value";
-
-        conditions.push(`${sortColumn} is null`);
       }
 
       if (query.sortBy === "floorAskPrice" && query.sortDirection === "desc") {
@@ -1119,6 +1146,7 @@ export const getTokensV8Options: RouteOptions = {
 
       const getSort = function (sortBy: string, union: boolean) {
         const sortDirection = query.sortDirection || "asc";
+
         switch (sortBy) {
           case "rarity": {
             return ` ORDER BY ${union ? "" : "t."}rarity_rank ${sortDirection} NULLS ${
@@ -1127,6 +1155,7 @@ export const getTokensV8Options: RouteOptions = {
               sortDirection === "asc" ? "desc" : "asc"
             }`;
           }
+          case "notListedTokens":
           case "tokenId": {
             return ` ORDER BY t_contract ${sortDirection}, t_token_id ${sortDirection}`;
           }
@@ -1285,6 +1314,9 @@ export const getTokensV8Options: RouteOptions = {
           query.sortBy === "updatedAt"
         ) {
           switch (query.sortBy) {
+            case "notListedTokens":
+              continuation = "es";
+              break;
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
               break;

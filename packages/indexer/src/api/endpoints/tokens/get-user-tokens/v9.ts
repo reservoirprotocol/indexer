@@ -617,9 +617,19 @@ export const getUserTokensV9Options: RouteOptions = {
         ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
         ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
-        ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST
+        ${
+          query.sortBy === "floorAskPrice"
+            ? `ORDER BY floor_sell_value ${query.sortDirection} NULLS LAST`
+            : ""
+        }
       `;
     }
+
+    const sortFullQuery =
+      query.sortBy === "floorAskPrice" ||
+      listBasedContract ||
+      query.excludeSpam ||
+      query.excludeNsfw;
 
     try {
       const baseQuery = `
@@ -673,11 +683,7 @@ export const getUserTokensV9Options: RouteOptions = {
               AND amount > 0
               ${ucTable ? `AND nft_balances.contract = c.contract` : ""}
               ${continuationFilter}
-              ${
-                listBasedContract || query.excludeSpam || query.excludeNsfw || ucTable
-                  ? ""
-                  : sorting
-              }
+              ${sortFullQuery ? "" : sorting}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
@@ -710,7 +716,7 @@ export const getUserTokensV9Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
-          ${listBasedContract || query.excludeSpam || query.excludeNsfw || ucTable ? sorting : ""}
+          ${sortFullQuery ? sorting : ""}
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params, collections });
