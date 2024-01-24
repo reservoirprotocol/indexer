@@ -160,6 +160,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
       const getTrendingMintsStart = Date.now();
 
       const trendingMints = await getTrendingMints({
+        type,
         period,
         limit,
       });

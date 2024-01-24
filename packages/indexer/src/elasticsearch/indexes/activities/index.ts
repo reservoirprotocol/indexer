@@ -423,10 +423,11 @@ export const getTopSellingCollections = async (params: {
 };
 
 export const getTrendingMints = async (params: {
+  type?: "free" | "paid" | "any";
   period: Period;
   limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { period, limit } = params;
+  const { type, period, limit } = params;
 
   const results: Partial<Record<Period, ElasticMintResult[]>> = {};
 
@@ -458,6 +459,14 @@ export const getTrendingMints = async (params: {
           ],
         },
       } as any;
+
+      if (type != null && type != "any") {
+        salesQuery.bool.filter.push({
+          term: {
+            ["event.collectionMintType"]: type,
+          },
+        });
+      }
 
       const collectionAggregation = {
         collections: {
