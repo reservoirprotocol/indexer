@@ -683,7 +683,7 @@ export const getUserTokensV9Options: RouteOptions = {
               AND amount > 0
               ${ucTable ? `AND nft_balances.contract = c.contract` : ""}
               ${continuationFilter}
-              ${sortFullQuery ? `LIMIT 20000` : sorting}
+              ${sortFullQuery ? "" : sorting}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
