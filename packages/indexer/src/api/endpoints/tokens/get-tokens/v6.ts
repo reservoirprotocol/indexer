@@ -420,7 +420,7 @@ export const getTokensV6Options: RouteOptions = {
           })
         );
 
-        const listedTokens = await getListedTokensFromES(query, true);
+        const listedTokens = await getListedTokensFromES(query);
 
         if (listedTokens.continuation || query.source || query.nativeSource) {
           return { tokens: listedTokens.tokens, continuation: listedTokens.continuation };
