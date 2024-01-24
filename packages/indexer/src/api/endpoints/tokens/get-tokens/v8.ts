@@ -401,7 +401,7 @@ export const getTokensV8Options: RouteOptions = {
     if (enableElasticsearchAsks && query.continuation) {
       const contArr = splitContinuation(query.continuation);
 
-      enableElasticsearchAsks = contArr[0].startsWith("es_");
+      enableElasticsearchAsks = !isNaN(Number(contArr)) || contArr[0].startsWith("es_");
     }
 
     if (enableElasticsearchAsks) {
