@@ -94,7 +94,7 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image",
                         collections.image_version AS "collection_image_version",
-                        collections.is_minting AS "event_collection_is_minting",
+                        (CASE WHEN collection_mints.kind = 'public' AND collection_mints.status = 'open' THEN TRUE ELSE FALSE END) AS "event_collection_is_minting",
                         collection_mints.price AS "event_collection_mint_price"
                     FROM tokens
                     JOIN collections on collections.id = tokens.collection_id
