@@ -271,7 +271,8 @@ class OpenseaMetadataProvider extends AbstractBaseMetadataProvider {
           JSON.stringify({
             message: `_getTokensFlagStatusByCollectionPaginationViaContract error. contract:${contract}, continuation:${continuation}, error:${error}`,
             url,
-            error,
+            errorResponseStatus: error.response?.status,
+            errorResponseData: error.response?.data,
           })
         );
 

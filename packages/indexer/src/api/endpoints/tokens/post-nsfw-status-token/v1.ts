@@ -84,7 +84,7 @@ export const postNsfwStatusTokenV1Options: RouteOptions = {
 
       const query = `
         UPDATE tokens
-        SET nsfw_status = $/nsfwStatus/
+        SET nsfw_status = $/nsfwStatus/, updated_at = NOW()
         WHERE (contract, token_id) IN (${pgp.helpers.values(
           payload.tokens.map((t: string) => ({
             contract: toBuffer(t.split(":")[0]),
