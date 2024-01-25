@@ -62,7 +62,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         "onchain-fetcher",
         JSON.stringify({
           topic: "_getTokensMetadata",
-          message: `Could not fetch collection. error=${error}`,
+          message: `Could not fetch tokens. error=${error}`,
           tokens,
           error,
         })
