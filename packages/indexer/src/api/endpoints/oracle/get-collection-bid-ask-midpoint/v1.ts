@@ -276,16 +276,16 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
             { name: "chainId", type: "uint256" },
           ],
         },
-        ContractWideCollectionPrice: {
-          ContractWideCollectionPrice: [
+        ContractWideCollectionMidpointPrice: {
+          ContractWideCollectionMidpointPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "contract", type: "address" },
             { name: "onlyNonFlaggedTokens", type: "bool" },
           ],
         },
-        TokenRangeCollectionPrice: {
-          TokenRangeCollectionPrice: [
+        TokenRangeCollectionMidpointPrice: {
+          TokenRangeCollectionMidpointPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "startTokenId", type: "uint256" },
@@ -293,8 +293,8 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
             { name: "onlyNonFlaggedTokens", type: "bool" },
           ],
         },
-        CollectionPriceByToken: {
-          CollectionPriceByToken: [
+        CollectionMidpointPriceByToken: {
+          CollectionMidpointPriceByToken: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "token", type: "address" },
@@ -308,8 +308,8 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
       if (query.token) {
         const [token, tokenId] = query.token.split(":");
         id = _TypedDataEncoder.hashStruct(
-          "CollectionPriceByToken",
-          EIP712_TYPES.CollectionPriceByToken,
+          "CollectionMidpointPriceByToken",
+          EIP712_TYPES.CollectionMidpointPriceByToken,
           {
             kind,
             twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
@@ -321,8 +321,8 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
       } else if (query.collection.includes(":")) {
         const [contract, startTokenId, endTokenId] = query.collection.split(":");
         id = _TypedDataEncoder.hashStruct(
-          "TokenRangeCollectionPrice",
-          EIP712_TYPES.TokenRangeCollectionPrice,
+          "TokenRangeCollectionMidpointPrice",
+          EIP712_TYPES.TokenRangeCollectionMidpointPrice,
           {
             kind,
             twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
@@ -334,8 +334,8 @@ export const getCollectionBidAskMidpointOracleV1Options: RouteOptions = {
         );
       } else {
         id = _TypedDataEncoder.hashStruct(
-          "ContractWideCollectionPrice",
-          EIP712_TYPES.ContractWideCollectionPrice,
+          "ContractWideCollectionMidpointPrice",
+          EIP712_TYPES.ContractWideCollectionMidpointPrice,
           {
             kind,
             twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
