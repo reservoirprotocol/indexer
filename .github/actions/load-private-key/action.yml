@@ -1,0 +1,20 @@
+name: "Load Private Key"
+description: "Load the private key for remote connection purposes"
+
+inputs:
+  ssh-private-key:
+    description: "SSH private key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup SSH keys
+      run: |
+        mkdir -p /home/runner/.ssh
+        echo "${{ inputs.ssh-private-key }}" > /home/runner/.ssh/id_rsa
+        chmod 600 /home/runner/.ssh/id_rsa
+      shell: bash
+      env:
+        SSH_PRIVATE_KEY: ${{ inputs.ssh-private-key }}
+

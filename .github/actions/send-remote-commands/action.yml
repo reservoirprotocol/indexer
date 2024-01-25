@@ -1,0 +1,36 @@
+name: "Execute Commands Remotely"
+description: "Send commands and run them remotely"
+
+inputs:
+  ssh-jump-host:
+    description: "SSH jump host"
+    required: true
+  ssh-jump-username:
+    description: "SSH jump username"
+    required: true
+  ssh-jump-port:
+    description: "SSH jump port"
+    default: "22"
+    required: false
+  
+  ssh-username:
+    description: "SSH username"
+    required: true
+  ssh-host:
+    description: "SSH host"
+    required: true
+  ssh-port:
+    description: "SSH port"
+    default: "22"
+    required: false
+  ssh-command:
+    description: "SSH command"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Send remote commands
+      run: ssh -o StrictHostKeyChecking=no -p ${{ inputs.ssh-jump-port }} -J ${{ inputs.ssh-jump-username }}@${{ inputs.ssh-jump-host }} ${{ inputs.ssh-username }}@${{ inputs.ssh-host }} "${{ inputs.ssh-command }}"
+      shell: bash
+

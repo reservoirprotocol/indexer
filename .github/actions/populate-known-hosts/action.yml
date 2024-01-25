@@ -1,0 +1,33 @@
+name: "Populate Known Host"
+description: "Store remote host SSH key in known_hosts"
+
+inputs:
+  ssh-jump-host:
+    description: "SSH jump host"
+    required: true
+  ssh-jump-username:
+    description: "SSH jump username"
+    required: true
+  ssh-jump-port:
+    description: "SSH jump port"
+    default: "22"
+    required: false
+  
+  ssh-username:
+    description: "SSH username"
+    required: true
+  ssh-host:
+    description: "SSH host"
+    required: true
+  ssh-port:
+    description: "SSH port"
+    default: "22"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Add remote host SSH key
+      run: ssh -o StrictHostKeyChecking=no -p ${{ inputs.ssh-jump-port }} ${{ inputs.ssh-jump-username }}@${{ inputs.ssh-jump-host }} "ssh-keyscan ${{ inputs.ssh-host }} | tee -a ~/.ssh/known_hosts"
+      shell: bash
+
