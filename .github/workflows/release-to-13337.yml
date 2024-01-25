@@ -5,18 +5,19 @@ on:
 
 run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
 
-env:
-  SSH_JUMPHOST: ${{ secrets.SSH_JUMPHOST }}
-  SSH_JUMP_USERNAME: ${{ secrets.SSH_JUMP_USERNAME }}
-  SSH_JUMP_PORT: ${{ secrets.SSH_JUMP_PORT }}
-  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
 
 jobs:
   release-to-13337-reservoir-main:
     runs-on: ubuntu-latest
+    environment: Production
+    env:
+      SSH_JUMPHOST: ${{ secrets.SSH_JUMPHOST }}
+      SSH_JUMP_USERNAME: ${{ secrets.SSH_JUMP_USERNAME }}
+      SSH_JUMP_PORT: ${{ secrets.SSH_JUMP_PORT }}
+      SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
     strategy:
       matrix:
-        nodes: [BEAM-13337-RESERVOIR-MAIN, BEAM-13337-RESERVOIR-SECONDARY]
+        node: [BEAM_13337_RESERVOIR_MAIN, BEAM_13337_RESERVOIR_SECONDARY]
 
     steps:
       - name: Checkout
@@ -35,7 +36,7 @@ jobs:
           ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
 
           ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-host: ${{ secrets[matrix.nodes.host] }}
+          ssh-host: ${{ secrets[matrix.node] }}
 
       - name: Get working commit hash
         id: get-commit-hash
@@ -46,7 +47,7 @@ jobs:
           ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
 
           ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-host: ${{ secrets[matrix.nodes.host] }}
+          ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: sudo git -C /home/ubuntu/beam-reservoir rev-parse origin/main
 
       - name: Execute deployment steps
@@ -58,7 +59,7 @@ jobs:
           ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
 
           ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-host: ${{ secrets[matrix.nodes.host] }}
+          ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: |
             sudo systemctl stop reservoir
             sudo git -C /home/ubuntu/beam-reservoir pull origin main
@@ -76,7 +77,7 @@ jobs:
           ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
 
           ssh-username: ${{ secrets.SSH_USERNAME }}
-          ssh-host: ${{ secrets[matrix.nodes.host] }}
+          ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: |
             sudo systemctl stop reservoir
             sudo git -C /home/ubuntu/beam-reservoir reset --hard ${{ steps.get-commit-hash.outputs.result }}
