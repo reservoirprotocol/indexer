@@ -61,11 +61,11 @@ jobs:
           ssh-username: ${{ secrets.SSH_USERNAME }}
           ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: |
-            sudo systemctl stop reservoir
-            sudo git -C /home/ubuntu/beam-reservoir pull origin main
-            cd /home/ubuntu/beam-reservoir
-            sudo git checkout main
-            sudo yarn && sudo yarn build
+            sudo systemctl stop reservoir &&
+            sudo git -C /home/ubuntu/beam-reservoir pull origin main &&
+            cd /home/ubuntu/beam-reservoir &&
+            sudo git checkout main &&
+            sudo yarn && sudo yarn build &&
             sudo systemctl start reservoir
 
       - name: Revert on failure
@@ -82,5 +82,5 @@ jobs:
             sudo systemctl stop reservoir
             sudo git -C /home/ubuntu/beam-reservoir reset --hard ${{ steps.get-commit-hash.outputs.result }}
             cd /home/ubuntu/beam-reservoir
-            sugo yarn && sudo yarn build
+            sudo yarn && sudo yarn build
             sudo systemctl start reservoir
