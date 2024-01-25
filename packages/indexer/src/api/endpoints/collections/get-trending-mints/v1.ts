@@ -156,71 +156,29 @@ export const getTrendingMintsV1Options: RouteOptions = {
   handler: async ({ query }: Request, h) => {
     const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
 
-    try {
-      const getTrendingMintsStart = Date.now();
+    const trendingMints = await getTrendingMints({
+      type,
+      period,
+      limit,
+    });
 
-      const trendingMints = await getTrendingMints({
-        type,
-        period,
-        limit,
-      });
-
-      const getTrendingMintsDelay = Date.now() - getTrendingMintsStart;
-
-      if (trendingMints.length < 1) {
-        const response = h.response({ mints: [] });
-        return response;
-      }
-
-      const getCollectionsMetadataStart = Date.now();
-
-      const collectionsMetadata = await getCollectionsMetadata(trendingMints);
-
-      const getCollectionsMetadataDelay = Date.now() - getCollectionsMetadataStart;
-
-      const getMintStagesStart = Date.now();
-
-      const mintStages = await getMintStages(Object.keys(collectionsMetadata));
-
-      const getMintStagesDelay = Date.now() - getMintStagesStart;
-
-      const formatCollectionsStart = Date.now();
-
-      const mints = await formatCollections(
-        mintStages,
-        trendingMints,
-        collectionsMetadata,
-        normalizeRoyalties,
-        useNonFlaggedFloorAsk
-      );
-
-      const formatCollectionsDelay = Date.now() - formatCollectionsStart;
-
-      const totalDelay =
-        getTrendingMintsDelay +
-        getCollectionsMetadataDelay +
-        getMintStagesDelay +
-        formatCollectionsDelay;
-
-      logger.info(
-        `get-trending-mints-${version}-handler`,
-        JSON.stringify({
-          message: `timing. type=${type}, period=${period}, limit=${limit}, totalDelay=${totalDelay}`,
-          query,
-          getTrendingMintsDelay,
-          getCollectionsMetadataDelay,
-          getMintStagesDelay,
-          formatCollectionsDelay,
-          totalDelay,
-        })
-      );
-
-      const response = h.response({ mints });
+    if (trendingMints.length < 1) {
+      const response = h.response({ mints: [] });
       return response;
-    } catch (error) {
-      logger.error(`get-trending-mints-${version}-handler`, `Handler failure: ${error}`);
-      throw error;
     }
+
+    const collectionsMetadata = await getCollectionsMetadata(trendingMints);
+    const mintStages = await getMintStages(Object.keys(collectionsMetadata));
+
+    const mints = await formatCollections(
+      mintStages,
+      trendingMints,
+      collectionsMetadata,
+      normalizeRoyalties,
+      useNonFlaggedFloorAsk
+    );
+
+    return h.response({ mints });
   },
 };
 
