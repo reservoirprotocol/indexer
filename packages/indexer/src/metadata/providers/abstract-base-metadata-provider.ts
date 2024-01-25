@@ -124,6 +124,18 @@ export abstract class AbstractBaseMetadataProvider {
 
         const imageMimeTypesPrefixes = ["image/", "application/octet-stream"];
 
+        if (metadata.contract === "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a") {
+          logger.info(
+            "getTokensMetadata",
+            JSON.stringify({
+              topic: "debugMimeType",
+              message: `artblocks. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
+              metadata: JSON.stringify(metadata),
+              method: this.method,
+            })
+          );
+        }
+
         // if the imageMimeType is not an "image" mime type, we want to set imageUrl to null and mediaUrl to imageUrl
         if (
           metadata.imageUrl &&
@@ -132,6 +144,18 @@ export abstract class AbstractBaseMetadataProvider {
             metadata.imageMimeType.startsWith(imageMimeTypesPrefix)
           )
         ) {
+          if (metadata.contract === "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a") {
+            logger.info(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "debugMimeType",
+                message: `artblocks2. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
+                metadata: JSON.stringify(metadata),
+                method: this.method,
+              })
+            );
+          }
+
           metadata.mediaUrl = metadata.imageUrl;
           metadata.mediaMimeType = metadata.imageMimeType;
           metadata.imageUrl = null;
