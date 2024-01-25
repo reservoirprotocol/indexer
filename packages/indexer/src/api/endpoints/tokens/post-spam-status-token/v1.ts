@@ -84,7 +84,7 @@ export const postSpamStatusTokenV1Options: RouteOptions = {
 
       const query = `
         UPDATE tokens
-        SET is_spam = $/spam/
+        SET is_spam = $/spam/, updated_at = NOW()
         WHERE (contract, token_id) IN (${pgp.helpers.values(
           payload.tokens.map((t: string) => ({
             contract: toBuffer(t.split(":")[0]),

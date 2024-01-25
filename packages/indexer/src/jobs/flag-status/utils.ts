@@ -2,9 +2,9 @@ import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { openseaMetadataProvider } from "@/metadata/providers/opensea-metadata-provider";
 import { CollectionNotFoundError } from "@/metadata/providers/utils";
 import { collectionMetadataQueueJob } from "../collection-updates/collection-metadata-queue-job";
-import { logger } from "ethers";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
+import { logger } from "@/common/logger";
 
 export const getTokenFlagStatus = async (
   contract: string,
@@ -39,6 +39,14 @@ export const getTokensFlagStatusForCollectionBySlug = async (
     parsedTokens = result.data;
     nextContinuation = result.continuation;
   } catch (error) {
+    logger.error(
+      "getTokensFlagStatusForCollectionBySlug",
+      JSON.stringify({
+        message: `_getTokensFlagStatusByCollectionPaginationViaSlug error. contract:${contract}, continuation:${continuation}, error:${error}`,
+        error,
+      })
+    );
+
     if (error instanceof CollectionNotFoundError && contract) {
       // refresh the collection slug, ours might be wrong.
 
@@ -66,9 +74,10 @@ export const getTokensFlagStatusForCollectionBySlug = async (
       } else {
         // if its a shared collection, we need to only refresh the tokens that are in the collection
         logger.info(
-          "getCollectionTokensAndAddToFlagStatusTokenRefresh",
+          "getTokensFlagStatusForCollectionBySlug",
           "Shared collection, not refreshing tokens"
         );
+
         return { tokens: [], nextContinuation: null };
       }
     } else throw error;
@@ -99,7 +108,7 @@ export const getTokensFlagStatusForCollectionByContract = async (
     // if its a shared collection, we need to only refresh the tokens that are in the collection
     // for now, just log that we are refreshing all tokens
     logger.info(
-      "getTokensFlagStatusForCollection",
+      "getTokensFlagStatusForCollectionByContract",
       `Shared contract, stopping processing for now. contract=${contract}`
     );
 

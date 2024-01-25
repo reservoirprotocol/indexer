@@ -6,10 +6,6 @@ import { formatEth, regex } from "@/common/utils";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redis } from "@/common/redis";
-
-const REDIS_EXPIRATION_MINTS = 60 * 60 * 1000; // Assuming an hour, adjust as needed.
-
 import { getTrendingMints } from "@/elasticsearch/indexes/activities";
 
 import { getCollectionsMetadata } from "@/api/endpoints/collections/get-trending-collections/v1";
@@ -22,6 +18,10 @@ import {
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import {
+  MintingCollectionData,
+  TrendingMintsMintingCollectionCache,
+} from "@/models/trending-mints-minting-collection-cache";
 
 const version = "v1";
 
@@ -105,7 +105,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
           },
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
-
+          isMinting: Joi.boolean(),
           createdAt: Joi.date().allow("", null),
           startDate: Joi.date().allow("", null),
           endDate: Joi.date().allow("", null),
@@ -156,85 +156,29 @@ export const getTrendingMintsV1Options: RouteOptions = {
   handler: async ({ query }: Request, h) => {
     const { normalizeRoyalties, useNonFlaggedFloorAsk, type, period, limit } = query;
 
-    try {
-      const getMintingCollectionsStart = Date.now();
+    const trendingMints = await getTrendingMints({
+      type,
+      period,
+      limit,
+    });
 
-      const mintingCollections = await getMintingCollections(type);
-
-      const getMintingCollectionsDelay = Date.now() - getMintingCollectionsStart;
-
-      if (mintingCollections.length < 1) {
-        const response = h.response({ mints: [] });
-        return response;
-      }
-
-      const getTrendingMintsStart = Date.now();
-
-      const trendingMints = await getTrendingMints({
-        contracts: mintingCollections.map(({ collection_id }) => collection_id),
-        period,
-        limit,
-      });
-
-      const getTrendingMintsDelay = Date.now() - getTrendingMintsStart;
-
-      if (trendingMints.length < 1) {
-        const response = h.response({ mints: [] });
-        return response;
-      }
-
-      const getCollectionsMetadataStart = Date.now();
-
-      const collectionsMetadata = await getCollectionsMetadata(trendingMints);
-
-      const getCollectionsMetadataDelay = Date.now() - getCollectionsMetadataStart;
-
-      const getMintStagesStart = Date.now();
-
-      const mintStages = await getMintStages(Object.keys(collectionsMetadata));
-
-      const getMintStagesDelay = Date.now() - getMintStagesStart;
-
-      const formatCollectionsStart = Date.now();
-
-      const mints = await formatCollections(
-        mintStages,
-        mintingCollections,
-        trendingMints,
-        collectionsMetadata,
-        normalizeRoyalties,
-        useNonFlaggedFloorAsk
-      );
-
-      const formatCollectionsDelay = Date.now() - formatCollectionsStart;
-
-      const totalDelay =
-        getMintingCollectionsDelay +
-        getTrendingMintsDelay +
-        getCollectionsMetadataDelay +
-        getMintStagesDelay +
-        formatCollectionsDelay;
-
-      logger.info(
-        `get-trending-mints-${version}-handler`,
-        JSON.stringify({
-          message: `timing. type=${type}, period=${period}, limit=${limit}, totalDelay=${totalDelay}`,
-          query,
-          getMintingCollectionsDelay,
-          getTrendingMintsDelay,
-          getCollectionsMetadataDelay,
-          getMintStagesDelay,
-          formatCollectionsDelay,
-          totalDelay,
-        })
-      );
-
-      const response = h.response({ mints });
+    if (trendingMints.length < 1) {
+      const response = h.response({ mints: [] });
       return response;
-    } catch (error) {
-      logger.error(`get-trending-mints-${version}-handler`, `Handler failure: ${error}`);
-      throw error;
     }
+
+    const collectionsMetadata = await getCollectionsMetadata(trendingMints);
+    const mintStages = await getMintStages(Object.keys(collectionsMetadata));
+
+    const mints = await formatCollections(
+      mintStages,
+      trendingMints,
+      collectionsMetadata,
+      normalizeRoyalties,
+      useNonFlaggedFloorAsk
+    );
+
+    return h.response({ mints });
   },
 };
 
@@ -270,51 +214,8 @@ async function getMintStages(contracts: string[]): Promise<Record<string, Mint["
   return data;
 }
 
-async function getMintingCollections(type: "paid" | "free" | "any"): Promise<Mint[]> {
-  const cacheKey = `minting-collection-cache:v1:${type}`;
-
-  const cachedResult = await redis.get(cacheKey);
-  if (cachedResult) {
-    return JSON.parse(cachedResult);
-  }
-
-  const conditions: string[] = [];
-  conditions.push(`kind = 'public'`, `status = 'open'`);
-  type && type !== "any" && conditions.push(`price ${type === "free" ? "= 0" : "> 0"}`);
-
-  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  const baseQuery = `
-  SELECT 
-    mints.collection_id, 
-    start_time, 
-    end_time, 
-    created_at, 
-    updated_at, 
-    max_supply, 
-    max_mints_per_wallet, 
-    price, 
-    standard
-FROM 
-    collection_mints mints 
-LEFT JOIN 
-    collection_mint_standards 
-ON 
-    collection_mint_standards.collection_id = mints.collection_id
-${whereClause} 
-LIMIT 50000;
-  `;
-
-  const result = await redb.manyOrNone<Mint>(baseQuery);
-
-  await redis.set(cacheKey, JSON.stringify(result), "PX", REDIS_EXPIRATION_MINTS);
-
-  return result;
-}
-
 async function formatCollections(
   mintStages: Record<string, Mint["mint_stages"]>,
-  mintingCollections: Mint[],
   collectionsResult: ElasticMintResult[],
   collectionsMetadata: Record<string, Metadata>,
   normalizeRoyalties: boolean,
@@ -322,12 +223,18 @@ async function formatCollections(
 ): Promise<any[]> {
   const sources = await Sources.getInstance();
 
+  const mintingCollections: MintingCollectionData[] =
+    await TrendingMintsMintingCollectionCache.getMintingCollections(
+      collectionsResult.map((r) => r.id)
+    );
+
   const collections = await Promise.all(
     collectionsResult.map(async (r) => {
       const mintData = {
         ...mintingCollections.find((c) => c.collection_id == r.id),
         mint_stages: mintStages[r.id],
       };
+
       const metadata = collectionsMetadata[r.id];
       let floorAsk;
       let prefix = "";
@@ -374,10 +281,9 @@ async function formatCollections(
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
         description: metadata?.metadata ? metadata.metadata?.description : null,
-
         isSpam: Number(metadata.is_spam) > 0,
+        isMinting: mintData.kind === "public" && mintData.status === "open",
         onSaleCount: Number(metadata.on_sale_count) || 0,
-
         volumeChange: {
           "1day": Number(metadata.day1_volume_change),
           "7day": Number(metadata.day7_volume_change),
@@ -389,7 +295,6 @@ async function formatCollections(
           "30day": metadata.day30_volume ? formatEth(metadata.day30_volume) : null,
           allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
         },
-
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
         sampleImages:
@@ -428,7 +333,6 @@ async function formatCollections(
                 })
               )
             : [],
-
         floorAsk,
       };
     })

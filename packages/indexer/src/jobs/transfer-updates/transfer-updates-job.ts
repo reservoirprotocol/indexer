@@ -20,14 +20,14 @@ export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
       await idb.none(
         `
           UPDATE nft_balances
-          SET last_token_appraisal_value = x.last_token_appraisal_value, is_spam = x.is_spam, updated_at = now()
+          SET last_token_appraisal_value = x.last_token_appraisal_value, updated_at = now()
           FROM (
-            SELECT last_token_appraisal_value, is_spam
+            SELECT last_token_appraisal_value
             FROM nft_balances
             WHERE contract = $/contract/
             AND token_id = $/tokenId/
             AND owner = $/from/
-            AND (last_token_appraisal_value IS NOT NULL OR (is_spam IS NOT NULL AND (is_spam > 0 OR is_spam < 0)))
+            AND last_token_appraisal_value IS NOT NULL
           ) AS x
           WHERE contract = $/contract/
           AND token_id = $/tokenId/

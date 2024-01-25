@@ -227,6 +227,9 @@ export const getTopTraders = async (params: {
       terms: {
         field: "toAddress",
         size: limit,
+        order: {
+          total_volume: "desc",
+        },
       },
       aggs: {
         total_volume: {
@@ -243,6 +246,8 @@ export const getTopTraders = async (params: {
     size: 0,
     body: {
       query: salesQuery,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       aggs: collectionAggregation,
     },
   })) as any;
@@ -419,11 +424,11 @@ export const getTopSellingCollections = async (params: {
 };
 
 export const getTrendingMints = async (params: {
-  contracts: string[];
+  type?: "free" | "paid" | "any";
   period: Period;
   limit: number;
 }): Promise<ElasticMintResult[]> => {
-  const { contracts, period, limit } = params;
+  const { type, period, limit } = params;
 
   const results: Partial<Record<Period, ElasticMintResult[]>> = {};
 
@@ -448,13 +453,21 @@ export const getTrendingMints = async (params: {
               },
             },
             {
-              terms: {
-                "collection.id": contracts,
+              term: {
+                ["event.collectionIsMinting"]: true,
               },
             },
           ],
         },
       } as any;
+
+      if (type != null && type != "any") {
+        salesQuery.bool.filter.push({
+          term: {
+            ["event.collectionMintType"]: type,
+          },
+        });
+      }
 
       const collectionAggregation = {
         collections: {
