@@ -382,4 +382,3 @@ async function formatCollections(
 
   return collections;
 }
-3;
