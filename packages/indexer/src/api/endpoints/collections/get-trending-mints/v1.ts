@@ -324,7 +324,7 @@ async function formatCollections(
         name: metadata ? metadata?.name : "",
         description: metadata?.metadata ? metadata.metadata?.description : null,
         isSpam: Number(metadata.is_spam) > 0,
-        isMinting: metadata.kind === "public" && metadata.status === "open",
+        isMinting: mintData.kind === "public" && mintData.status === "open",
         onSaleCount: Number(metadata.on_sale_count) || 0,
         volumeChange: {
           "1day": Number(metadata.day1_volume_change),

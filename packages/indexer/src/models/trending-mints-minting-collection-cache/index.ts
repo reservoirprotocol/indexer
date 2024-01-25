@@ -15,6 +15,8 @@ export interface MintingCollectionData {
   max_mints_per_wallet: number;
   price: string;
   standard: CollectionMintStandard;
+  kind: string;
+  status: string;
 }
 
 export class TrendingMintsMintingCollectionCache {
@@ -104,7 +106,7 @@ export class TrendingMintsMintingCollectionCache {
 
           for (const collectionResult of collectionsResult) {
             await redisMulti.set(
-              `${TrendingMintsMintingCollectionCache.prefix}:${collectionResult.id}`,
+              `${TrendingMintsMintingCollectionCache.prefix}:${collectionResult.collection_id}`,
               JSON.stringify({
                 collection_id: collectionResult.collection_id,
                 start_time: collectionResult.start_time,
@@ -121,7 +123,7 @@ export class TrendingMintsMintingCollectionCache {
             );
 
             await redisMulti.expire(
-              `${TrendingMintsMintingCollectionCache.prefix}:${collectionResult.id}`,
+              `${TrendingMintsMintingCollectionCache.prefix}:${collectionResult.collection_id}`,
               60 * 60
             );
           }

@@ -227,6 +227,9 @@ export const getTopTraders = async (params: {
       terms: {
         field: "toAddress",
         size: limit,
+        order: {
+          total_volume: "desc",
+        },
       },
       aggs: {
         total_volume: {
@@ -243,6 +246,8 @@ export const getTopTraders = async (params: {
     size: 0,
     body: {
       query: salesQuery,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       aggs: collectionAggregation,
     },
   })) as any;
