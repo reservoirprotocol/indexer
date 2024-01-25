@@ -202,9 +202,7 @@ const simulateMintTxData = async (
       // Network.Arbitrum,
       Network.Bsc,
       Network.Zora,
-      Network.ZoraTestnet,
       Network.Base,
-      Network.BaseGoerli,
       Network.Ancient8Testnet,
     ].includes(config.chainId)
   ) {

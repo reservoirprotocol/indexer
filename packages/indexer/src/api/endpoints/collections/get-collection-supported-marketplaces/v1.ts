@@ -325,8 +325,6 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           case 7777777:
           case 11155111:
           case 80001:
-          case 84531:
-          case 999:
           case 137: {
             supportedOrderbooks = ["reservoir", "opensea"];
             break;

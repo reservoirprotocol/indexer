@@ -78,9 +78,6 @@ export const generateOpenApiSpec = async () => {
         url: "https://api-base.reservoir.tools",
       },
       {
-        url: "https://api-base-goerli.reservoir.tools",
-      },
-      {
         url: "https://api-scroll-alpha.reservoir.tools",
       },
       {

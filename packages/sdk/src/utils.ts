@@ -140,12 +140,9 @@ export enum Network {
   Opbnb = 204,
   // Testnets
   EthereumGoerli = 5,
-  ZoraTestnet = 999,
   MantleTestnet = 5001,
   LineaTestnet = 59140,
   Mumbai = 80001,
-  BaseGoerli = 84531,
-  ScrollAlpha = 534353,
   EthereumSepolia = 11155111,
   Zksync = 324,
   Ancient8Testnet = 2863311531,

@@ -11,6 +11,4 @@ export const Exchange: ChainIdToAddress = {
   // Testnets
   [Network.EthereumGoerli]: "0x04e9cdd3e98c50d352c84db785fd8d5a5d986c44",
   [Network.EthereumSepolia]: "0x9763de988cb65a8389e68179c2d7e0350b937841",
-  [Network.ZoraTestnet]: "0xde156c9efead2c0364643d5c5878b358ccdff0b5",
-  [Network.BaseGoerli]: "0x79abbfdf20fc6dd0c51693bf9a481f7351a70fd2",
 };
