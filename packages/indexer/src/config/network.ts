@@ -574,6 +574,17 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Uniswap V3: Positions NFT
           "0xc36442b4a4522e871399cd717abdd847ab11fe88",
         ],
+        whitelistedCurrencies: new Map([
+          [
+            "0x551e6d200256f3cfcf31829e30b342e0ee55b02b",
+            {
+              contract: "0x551e6d200256f3cfcf31829e30b342e0ee55b02b",
+              name: "Matthew Coin",
+              symbol: "MC",
+              decimals: 18,
+            },
+          ],
+        ]),
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
@@ -691,6 +702,17 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         headBlockDelay: 10,
+        whitelistedCurrencies: new Map([
+          [
+            "0x5b1f874d0b0c5ee17a495cbb70ab8bf64107a3bd",
+            {
+              contract: "0x5b1f874d0b0c5ee17a495cbb70ab8bf64107a3bd",
+              name: "BinaryX",
+              symbol: "BNX",
+              decimals: 18,
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "binance-smart-chain",
         },
