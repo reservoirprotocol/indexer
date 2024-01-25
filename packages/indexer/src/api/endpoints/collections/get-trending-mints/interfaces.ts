@@ -54,6 +54,8 @@ export interface Metadata {
   on_sale_count: number;
   name: string;
   is_spam: number | null;
+  kind: string;
+  status: string;
   contract: {
     type: string;
     data: number[];

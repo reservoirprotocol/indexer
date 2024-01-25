@@ -105,7 +105,7 @@ export const getTrendingMintsV1Options: RouteOptions = {
           },
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
-
+          isMinting: Joi.boolean(),
           createdAt: Joi.date().allow("", null),
           startDate: Joi.date().allow("", null),
           endDate: Joi.date().allow("", null),
@@ -323,10 +323,9 @@ async function formatCollections(
         banner: metadata?.metadata ? metadata.metadata?.bannerImageUrl : null,
         name: metadata ? metadata?.name : "",
         description: metadata?.metadata ? metadata.metadata?.description : null,
-
         isSpam: Number(metadata.is_spam) > 0,
+        isMinting: metadata.kind === "public" && metadata.status === "open",
         onSaleCount: Number(metadata.on_sale_count) || 0,
-
         volumeChange: {
           "1day": Number(metadata.day1_volume_change),
           "7day": Number(metadata.day7_volume_change),
@@ -338,7 +337,6 @@ async function formatCollections(
           "30day": metadata.day30_volume ? formatEth(metadata.day30_volume) : null,
           allTime: metadata.all_time_volume ? formatEth(metadata.all_time_volume) : null,
         },
-
         tokenCount: Number(metadata.token_count || 0),
         ownerCount: Number(metadata.owner_count || 0),
         sampleImages:
@@ -377,7 +375,6 @@ async function formatCollections(
                 })
               )
             : [],
-
         floorAsk,
       };
     })
@@ -385,3 +382,4 @@ async function formatCollections(
 
   return collections;
 }
+3;

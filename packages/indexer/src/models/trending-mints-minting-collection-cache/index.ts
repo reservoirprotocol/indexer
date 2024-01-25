@@ -72,7 +72,9 @@ export class TrendingMintsMintingCollectionCache {
               max_supply, 
               max_mints_per_wallet, 
               price, 
-              standard 
+              standard,
+              kind,
+              status 
             FROM 
               collection_mints mints 
               LEFT JOIN collection_mint_standards ON collection_mint_standards.collection_id = mints.collection_id
@@ -93,6 +95,8 @@ export class TrendingMintsMintingCollectionCache {
               max_mints_per_wallet: result.max_mints_per_wallet,
               price: result.price,
               standard: result.standard,
+              kind: result.kind,
+              status: result.status,
             }))
           );
 
@@ -111,12 +115,14 @@ export class TrendingMintsMintingCollectionCache {
                 max_mints_per_wallet: collectionResult.max_mints_per_wallet,
                 price: collectionResult.price,
                 standard: collectionResult.standard,
+                kind: collectionResult.kind,
+                status: collectionResult.status,
               })
             );
 
             await redisMulti.expire(
               `${TrendingMintsMintingCollectionCache.prefix}:${collectionResult.id}`,
-              60 * 60 * 24
+              60 * 60
             );
           }
 
