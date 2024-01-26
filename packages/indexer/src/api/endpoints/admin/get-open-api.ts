@@ -78,13 +78,7 @@ export const generateOpenApiSpec = async () => {
         url: "https://api-base.reservoir.tools",
       },
       {
-        url: "https://api-scroll-alpha.reservoir.tools",
-      },
-      {
         url: "https://api-zora.reservoir.tools",
-      },
-      {
-        url: "https://api-zora-testnet.reservoir.tools",
       },
       {
         url: "https://api-linea.reservoir.tools",
