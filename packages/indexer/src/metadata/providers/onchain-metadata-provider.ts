@@ -608,7 +608,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           headers: {
             "Content-Type": "application/json",
           },
-          timeout: 2000,
         })
         .then((res) => {
           if (res.data !== null && typeof res.data === "object") {
