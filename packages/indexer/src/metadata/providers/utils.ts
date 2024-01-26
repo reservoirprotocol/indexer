@@ -196,6 +196,22 @@ export class RequestWasThrottledError extends Error {
   }
 }
 
+export class TokenUriRequestTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    Object.setPrototypeOf(this, TokenUriRequestTimeoutError.prototype);
+  }
+}
+
+export class TokenUriNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    Object.setPrototypeOf(this, TokenUriNotFoundError.prototype);
+  }
+}
+
 export class CollectionNotFoundError extends Error {
   constructor(message: string) {
     super(message);

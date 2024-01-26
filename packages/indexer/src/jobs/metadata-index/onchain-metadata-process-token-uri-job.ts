@@ -4,7 +4,11 @@ import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
-import { RequestWasThrottledError } from "@/metadata/providers/utils";
+import {
+  RequestWasThrottledError,
+  TokenUriNotFoundError,
+  TokenUriRequestTimeoutError,
+} from "@/metadata/providers/utils";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type OnchainMetadataProcessTokenUriJobPayload = {
@@ -15,23 +19,31 @@ export type OnchainMetadataProcessTokenUriJobPayload = {
 
 export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-process-token-uri-queue";
-  maxRetries = 3;
+  maxRetries = 10;
   concurrency = 15;
   timeout = 5 * 60 * 1000;
   backoff = {
-    type: "exponential",
-    delay: 20000,
+    type: "fixed",
+    delay: 5000,
   } as BackoffStrategy;
 
   protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
     const { contract, tokenId, uri } = payload;
-    const fallbackAllowed = true;
+    const retryCount = Number(this.rabbitMqMessage?.retryCount);
+
     let fallbackError;
 
     try {
       const metadata = await onchainMetadataProvider.getTokensMetadata([
         { contract, tokenId, uri },
       ]);
+
+      if (retryCount > 0) {
+        logger.info(
+          this.queueName,
+          `Retry success. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}`
+        );
+      }
 
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {
@@ -144,21 +156,24 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           `No metadata found. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
         );
       }
-    } catch (e) {
-      if (e instanceof RequestWasThrottledError) {
+    } catch (error) {
+      if (
+        error instanceof RequestWasThrottledError ||
+        error instanceof TokenUriRequestTimeoutError ||
+        error instanceof TokenUriNotFoundError
+      ) {
         logger.warn(
           this.queueName,
-          `Request was throttled. contract=${contract}, tokenId=${tokenId}, uri=${uri}`
+          `Retrying. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}. error=${error}`
         );
 
         // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
-        if (Number(this.rabbitMqMessage?.retryCount) < this.maxRetries) {
-          throw e; // throw to retry
+        if (retryCount < this.maxRetries) {
+          throw error; // throw to retry
         }
       }
 
-      // fallbackAllowed = !["404"].includes(`${e}`);
-      fallbackError = `${e}`;
+      fallbackError = `${error}`;
 
       logger.warn(
         this.queueName,
@@ -166,13 +181,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${e}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
-          fallbackAllowed,
-          error: `${e}`,
+          error: `${error}`,
         })
       );
     }
 
-    if (!fallbackAllowed || !config.fallbackMetadataIndexingMethod) {
+    if (!config.fallbackMetadataIndexingMethod) {
       return;
     }
 
