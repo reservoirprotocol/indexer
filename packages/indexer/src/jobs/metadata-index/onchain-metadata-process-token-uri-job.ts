@@ -26,6 +26,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     type: "fixed",
     delay: 5000,
   } as BackoffStrategy;
+  disableErrorLogs = true;
 
   protected async process(payload: OnchainMetadataProcessTokenUriJobPayload) {
     const { contract, tokenId, uri } = payload;
@@ -48,7 +49,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {
           if (config.fallbackMetadataIndexingMethod) {
-            logger.info(
+            logger.warn(
               this.queueName,
               `Fallback - Image Encoding. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
             );
@@ -81,7 +82,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           (metadata[0].mediaUrl && !metadata[0].mediaMimeType)
         ) {
           if (config.fallbackMetadataIndexingMethod) {
-            logger.info(
+            logger.warn(
               this.queueName,
               JSON.stringify({
                 topic: "simpleHashFallbackDebug",
@@ -118,7 +119,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           metadata[0].mediaMimeType === "image/gif"
         ) {
           if (config.fallbackMetadataIndexingMethod) {
-            logger.info(
+            logger.warn(
               this.queueName,
               JSON.stringify({
                 topic: "simpleHashFallbackDebug",
@@ -162,7 +163,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         error instanceof TokenUriRequestTimeoutError ||
         error instanceof TokenUriNotFoundError
       ) {
-        logger.warn(
+        logger.info(
           this.queueName,
           `Retrying. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}. error=${error}`
         );
@@ -190,7 +191,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       return;
     }
 
-    logger.info(
+    logger.error(
       this.queueName,
       JSON.stringify({
         topic: "simpleHashFallbackDebug",
