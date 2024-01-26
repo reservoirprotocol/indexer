@@ -12,26 +12,106 @@ run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_nam
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: Production
     strategy:
       fail-fast: false
       matrix:
-        nodes:
-          - 13337-reservoir-main
-          - 13337-reservoir-read-01
-          - zkevm-testnet-reservoir-main
-          - zkevm-testnet-reservoir-read-01
-          - beam-reservoir-test-acceu
-          - beam-reservoir-test-acceu-readonly
+        node: [
+          BEAM_13337_RESERVOIR_MAIN, BEAM_13337_RESERVOIR_SECONDARY,
+          
+          BEAM_4337_RESERVOIR_MAIN,
+          BEAM_4337_RESERVOIR_SECONDARY,
+          
+          IMX_13473_RESERVOIR_MAIN,
+          IMX_13473_RESERVOIR_SECONDARY,
+
+          IMX_13371_RESERVOIR_MAIN,
+          IMX_13371_RESERVOIR_SECONDARY,
+          ]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Reload reservoir processes on all nodes
-        uses: ./.github/actions/remote-commands
+      - name: Setup SSH keys
+        uses: ./.github/actions/load-private-key
         with:
-          ssh-host: ${{ secrets.HOST_PROD }}
-          ssh-username: ${{ secrets.SSH_USERNAME }}
           ssh-private-key: ${{ secrets.SSH_PRIVKEY }}
-          ssh-port: ${{ secrets.SSH_PORT }}
+
+      - name: Load remote host keys
+        uses: ./.github/actions/populate-known-hosts
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+
+      - name: Get working commit hash
+        id: get-commit-hash
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: sudo git -C /home/ubuntu/beam-reservoir rev-parse origin/main
+
+      - name: Stop reservoir
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: |
-            ansible-playbook -v /home/ubuntu/playbooks/release.yml -l ${{ matrix.nodes }}
+            sudo systemctl stop reservoir
+
+      - name: Checkout latest code
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
+            sudo git -C /home/ubuntu/beam-reservoir pull origin main
+            cd /home/ubuntu/beam-reservoir
+            sudo git checkout main 
+            sudo yarn && sudo yarn build
+
+      - name: Start reservoir
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
+            sudo systemctl start reservoir
+
+      - name: Revert on failure
+        if: failure()
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
+            sudo systemctl stop reservoir
+            sudo git -C /home/ubuntu/beam-reservoir reset --hard ${{ steps.get-commit-hash.outputs.result }}
+            cd /home/ubuntu/beam-reservoir
+            sudo yarn && sudo yarn build
+            sudo systemctl start reservoir
