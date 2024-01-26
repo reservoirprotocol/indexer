@@ -163,15 +163,15 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         error instanceof TokenUriRequestTimeoutError ||
         error instanceof TokenUriNotFoundError
       ) {
-        logger.info(
-          this.queueName,
-          `Retrying. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}. error=${error}`
-        );
-
         // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
         if (retryCount < this.maxRetries) {
           throw error; // throw to retry
         }
+
+        logger.info(
+          this.queueName,
+          `Max retries reached. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}. error=${error}`
+        );
       }
 
       fallbackError = `${error}`;
