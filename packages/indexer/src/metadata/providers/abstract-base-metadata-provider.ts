@@ -159,15 +159,16 @@ export abstract class AbstractBaseMetadataProvider {
     if (url.endsWith(".mp4")) {
       return "video/mp4";
     }
+    if (!url.startsWith("http")) {
+      return "";
+    }
 
     let imageMimeType = await redis.get(`imageMimeType:${url}`);
 
     if (!imageMimeType) {
       // use fetch
       imageMimeType = await axios
-        .head(url, {
-          method: "HEAD",
-        })
+        .head(url)
         .then((res) => res.headers["content-type"])
         .catch((error) => {
           logger.warn(
