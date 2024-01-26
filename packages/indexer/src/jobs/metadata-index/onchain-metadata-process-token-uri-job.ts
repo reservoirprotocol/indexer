@@ -39,13 +39,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         { contract, tokenId, uri },
       ]);
 
-      if (retryCount > 0) {
-        logger.info(
-          this.queueName,
-          `Retry success. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}`
-        );
-      }
-
       if (metadata.length) {
         if (metadata[0].imageUrl?.startsWith("data:")) {
           if (config.fallbackMetadataIndexingMethod) {
@@ -67,7 +60,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                 },
               ],
               true,
-              5
+              10
             );
 
             return;
@@ -106,7 +99,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                 },
               ],
               true,
-              5
+              10
             );
 
             return;
@@ -142,7 +135,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                 },
               ],
               true,
-              5
+              10
             );
 
             return;
@@ -167,11 +160,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         if (retryCount < this.maxRetries) {
           throw error; // throw to retry
         }
-
-        logger.info(
-          this.queueName,
-          `Max retries reached. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}. error=${error}`
-        );
       }
 
       fallbackError = `${error}`;
@@ -179,7 +167,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       logger.warn(
         this.queueName,
         JSON.stringify({
-          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
           error: `${error}`,
@@ -194,11 +182,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     logger.error(
       this.queueName,
       JSON.stringify({
-        topic: "simpleHashFallbackDebug",
-        message: `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-        contract,
+        message: `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+        payload,
         reason: "Get Metadata Error",
         error: fallbackError,
+        retryCount,
+        maxRetriesReached: retryCount >= this.maxRetries,
       })
     );
 
@@ -215,8 +204,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           },
         },
       ],
-      true,
-      5
+      true
     );
   }
 
