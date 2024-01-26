@@ -26,6 +26,8 @@ export const Router: ChainIdToAddress = {
   [Network.Zksync]: "0x952a21a21079d09d31b0dbf8a1702ea6004919ab",
   [Network.Ancient8Testnet]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
   [Network.Scroll]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
+  [Network.Beam]: "0x2a7d84d8da1885fbdf941e06773a8bd31d0040b3",
+  [Network.BeamTestnet]: "0xf13a722df27220f881484fd6682a713ea039bc05",
 };
 
 // Approval proxy
@@ -52,6 +54,8 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.PolygonZkevm]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Ancient8Testnet]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
   [Network.Scroll]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
+  [Network.Beam]: "0x9b42ed5570c4a58a42d1b1cf550ecf42f5252620",
+  [Network.BeamTestnet]: "0xada2b8a1985f13587bb560e94e7daead91a3b746",
 };
 
 // Permit proxy
