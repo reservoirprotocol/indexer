@@ -5,9 +5,8 @@ on:
 
 run-name: ${{ github.workflow }} by @${{ github.actor }} from ${{ github.ref_name }}
 
-
 jobs:
-  release-to-13337-reservoir-main:
+  release-to-13337-nodes:
     runs-on: ubuntu-latest
     environment: Production
     env:
@@ -16,6 +15,7 @@ jobs:
       SSH_JUMP_PORT: ${{ secrets.SSH_JUMP_PORT }}
       SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
     strategy:
+      fail-fast: false
       matrix:
         node: [BEAM_13337_RESERVOIR_MAIN, BEAM_13337_RESERVOIR_SECONDARY]
 
@@ -50,8 +50,7 @@ jobs:
           ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: sudo git -C /home/ubuntu/beam-reservoir rev-parse origin/main
 
-      - name: Execute deployment steps
-        id: execute-deployment
+      - name: Stop reservoir
         uses: ./.github/actions/send-remote-commands
         with:
           ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
@@ -61,15 +60,37 @@ jobs:
           ssh-username: ${{ secrets.SSH_USERNAME }}
           ssh-host: ${{ secrets[matrix.node] }}
           ssh-command: |
-            sudo systemctl stop reservoir &&
-            sudo git -C /home/ubuntu/beam-reservoir pull origin main &&
-            cd /home/ubuntu/beam-reservoir &&
-            sudo git checkout main &&
-            sudo yarn && sudo yarn build &&
+            sudo systemctl stop reservoir
+
+      - name: Checkout latest code
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
+            sudo git -C /home/ubuntu/beam-reservoir pull origin main
+            cd /home/ubuntu/beam-reservoir
+            sudo git checkout main 
+            sudo yarn && sudo yarn build
+
+      - name: Start reservoir
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
             sudo systemctl start reservoir
 
       - name: Revert on failure
-        if: failure() && steps.execute-deployment.outcome == 'failure'
+        if: failure()
         uses: ./.github/actions/send-remote-commands
         with:
           ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
