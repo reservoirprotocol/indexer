@@ -603,8 +603,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, "Invalid URI"];
       }
 
-      return [null, 504];
-
       return axios
         .get(uri, {
           headers: {
