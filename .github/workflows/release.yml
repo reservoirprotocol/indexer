@@ -87,6 +87,20 @@ jobs:
             sudo git checkout main 
             sudo yarn && sudo yarn build
 
+      - name: Rebuild reservoir
+        uses: ./.github/actions/send-remote-commands
+        with:
+          ssh-jump-host: ${{ secrets.SSH_JUMPHOST }}
+          ssh-jump-username: ${{ secrets.SSH_JUMP_USERNAME }}
+          ssh-jump-port: ${{ secrets.SSH_JUMP_PORT }}
+
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-host: ${{ secrets[matrix.node] }}
+          ssh-command: |
+            cd /home/ubuntu/beam-reservoir
+            sudo git checkout main 
+            sudo yarn && sudo yarn build
+
       - name: Start reservoir
         uses: ./.github/actions/send-remote-commands
         with:
