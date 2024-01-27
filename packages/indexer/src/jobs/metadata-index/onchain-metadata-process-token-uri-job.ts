@@ -81,10 +81,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
         // if missing imageMimeType/mediaMimeTyp, we fallback to simplehash
         if (
-          // skip bored ape yacht club for now
-          contract.toLowerCase() !== "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d" &&
-          ((metadata[0].imageUrl && !metadata[0].imageMimeType) ||
-            (metadata[0].mediaUrl && !metadata[0].mediaMimeType))
+          (metadata[0].imageUrl && !metadata[0].imageMimeType) ||
+          (metadata[0].mediaUrl && !metadata[0].mediaMimeType)
         ) {
           if (config.fallbackMetadataIndexingMethod) {
             logger.warn(
