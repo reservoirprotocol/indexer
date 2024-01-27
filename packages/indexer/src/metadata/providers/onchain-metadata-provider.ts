@@ -647,7 +647,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           logger.warn(
             "onchain-fetcher",
             JSON.stringify({
-              message: "getTokenMetadataFromURI axios error",
+              message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
               contract,
               tokenId,
               uri,
@@ -657,7 +657,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             })
           );
 
-          return [null, error.response?.status];
+          return [null, error.response?.status || `${error}`];
         });
     } catch (error) {
       logger.warn(
