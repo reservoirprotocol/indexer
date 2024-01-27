@@ -144,6 +144,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
         kind: typeof trait.value == "number" ? "number" : "string",
         rank: 1,
       })),
+      imageMimeType: metadata.image_properties?.mime_type ?? null,
     };
   }
 

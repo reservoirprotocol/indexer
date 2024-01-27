@@ -90,7 +90,11 @@ export abstract class AbstractBaseMetadataProvider {
     // get mimetype for each image/media/metadata url
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
-        if (metadata.imageUrl && !metadata.imageUrl.startsWith("data:")) {
+        if (
+          metadata.imageUrl &&
+          !metadata.imageUrl.startsWith("data:") &&
+          !metadata.imageMimeType
+        ) {
           metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
 
           if (!metadata.imageMimeType) {
@@ -106,7 +110,11 @@ export abstract class AbstractBaseMetadataProvider {
           }
         }
 
-        if (metadata.mediaUrl && !metadata.mediaUrl.startsWith("data:")) {
+        if (
+          metadata.mediaUrl &&
+          !metadata.mediaUrl.startsWith("data:") &&
+          !metadata.mediaMimeType
+        ) {
           metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
 
           if (!metadata.mediaMimeType) {
