@@ -48,7 +48,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (payload.kind === "single-token") {
+    if (payload.context === "onchain-fallback" && payload.kind === "single-token") {
       logger.info(
         this.queueName,
         JSON.stringify({

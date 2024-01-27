@@ -11,8 +11,8 @@ import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refre
 import _ from "lodash";
 import { ActivitiesTokenCache } from "@/models/activities-token-cache";
 import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
-// import { Collections } from "@/models/collections";
-// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -151,26 +151,26 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           })
         );
 
-        // const collection = await Collections.getByContractAndTokenId(
-        //   payload.after.contract,
-        //   payload.after.token_id
-        // );
-        //
-        // await metadataIndexFetchJob.addToQueue(
-        //   [
-        //     {
-        //       kind: "single-token",
-        //       data: {
-        //         method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
-        //         contract: payload.after.contract,
-        //         tokenId: payload.after.token_id,
-        //         collection: collection?.id || payload.after.contract,
-        //       },
-        //       context: "IndexerTokensHandler",
-        //     },
-        //   ],
-        //   true
-        // );
+        const collection = await Collections.getByContractAndTokenId(
+          payload.after.contract,
+          payload.after.token_id
+        );
+
+        await metadataIndexFetchJob.addToQueue(
+          [
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                contract: payload.after.contract,
+                tokenId: payload.after.token_id,
+                collection: collection?.id || payload.after.contract,
+              },
+              context: "IndexerTokensHandler",
+            },
+          ],
+          true
+        );
       }
     } catch (error) {
       logger.error(
