@@ -135,6 +135,16 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           })
         );
       }
+
+      if (payload.before.image !== null && payload.after.image === null) {
+        logger.error(
+          "IndexerTokensHandler",
+          JSON.stringify({
+            message: `token image missing.`,
+            payload,
+          })
+        );
+      }
     } catch (error) {
       logger.error(
         "kafka-event-handler",

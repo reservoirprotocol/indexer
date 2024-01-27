@@ -79,8 +79,30 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
+        if (metadata.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
+          logger.info(
+            "debugBayc",
+            JSON.stringify({
+              message: `Debug1. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
+              metadata,
+            })
+          );
+        }
+
         if (hasExtendHandler(metadata.contract)) {
           const result = await extendMetadata(metadata);
+
+          if (metadata.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
+            logger.info(
+              "debugBayc",
+              JSON.stringify({
+                message: `Debug2. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
+                metadata,
+                result,
+              })
+            );
+          }
+
           return result;
         }
         return metadata;
@@ -90,6 +112,16 @@ export abstract class AbstractBaseMetadataProvider {
     // get mimetype for each image/media/metadata url
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
+        if (metadata.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
+          logger.info(
+            "debugBayc",
+            JSON.stringify({
+              message: `Debug3. contract=${metadata.contract}, tokenId=${metadata.tokenId}`,
+              metadata,
+            })
+          );
+        }
+
         if (
           metadata.imageUrl &&
           !metadata.imageUrl.startsWith("data:") &&
