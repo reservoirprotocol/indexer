@@ -144,17 +144,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           }
         }
 
-        if (payload.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `metadataIndexWriteJob. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-              payload,
-              metadata,
-            })
-          );
-        }
-
         await metadataIndexWriteJob.addToQueue(metadata);
         return;
       } else {

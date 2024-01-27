@@ -47,19 +47,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             token.tokenId
           );
 
-          if (token.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
-            logger.info(
-              "debugBayc",
-              JSON.stringify({
-                message: `Debug5. contract=${token.contract}, tokenId=${token.tokenId}`,
-                token,
-                metadata,
-                error,
-              })
-            );
-          }
-
-          if (error) {
+          if (!metadata) {
             if (error === 429) {
               throw new RequestWasThrottledError("Request was throttled", 10);
             }
@@ -69,10 +57,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             }
 
             if (error === 404) {
-              throw new TokenUriNotFoundError("Request timed out");
+              throw new TokenUriNotFoundError("Not found");
             }
 
-            throw new Error(error);
+            throw new Error(error || "Unknown error");
           }
 
           return {
@@ -624,19 +612,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           },
         })
         .then((res) => {
-          if (contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
-            logger.info(
-              "debugBayc",
-              JSON.stringify({
-                message: `Debug4. contract=${contract}, tokenId=${tokenId}`,
-                contract,
-                tokenId,
-                uri,
-                resData: res.data,
-              })
-            );
-          }
-
           if (res.data !== null && typeof res.data === "object") {
             return [res.data, null];
           }

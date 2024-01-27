@@ -65,17 +65,6 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
 
   protected async process(payload: MetadataIndexWriteJobPayload) {
-    // const startTime = Date.now();
-    if (payload.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Start. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-          payload,
-        })
-      );
-    }
-
     const tokenAttributeCounter = {};
 
     const {
