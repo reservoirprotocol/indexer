@@ -612,6 +612,19 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           },
         })
         .then((res) => {
+          if (contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
+            logger.info(
+              "debugBayc",
+              JSON.stringify({
+                message: `Debug1. contract=${contract}, tokenId=${tokenId}`,
+                contract,
+                tokenId,
+                uri,
+                resData: res.data,
+              })
+            );
+          }
+
           if (res.data !== null && typeof res.data === "object") {
             return [res.data, null];
           }
