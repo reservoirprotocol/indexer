@@ -48,6 +48,16 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
+    if (payload.context === "onchain-fallback" && payload.kind === "single-token") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. contract=${payload.data.contract}, tokenId=${payload.data.tokenId}`,
+          payload,
+        })
+      );
+    }
+
     const { kind, data } = payload;
     const prioritized = !_.isUndefined(this.rabbitMqMessage?.prioritized);
     const limit = 1000;

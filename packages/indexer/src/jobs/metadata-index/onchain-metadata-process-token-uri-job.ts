@@ -32,16 +32,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    if (payload.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Start. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-          payload,
-        })
-      );
-    }
-
     let fallbackError;
 
     try {
@@ -106,10 +96,11 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     tokenId,
                     collection: contract,
                   },
+                  context: "onchain-fallback",
                 },
               ],
               true,
-              10
+              5
             );
 
             return;
@@ -142,10 +133,11 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     tokenId,
                     collection: contract,
                   },
+                  context: "onchain-fallback",
                 },
               ],
               true,
-              10
+              5
             );
 
             return;
@@ -223,9 +215,11 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             tokenId,
             collection: contract,
           },
+          context: "onchain-fallback",
         },
       ],
-      true
+      true,
+      5
     );
   }
 
