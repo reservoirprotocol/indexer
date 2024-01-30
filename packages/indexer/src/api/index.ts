@@ -133,6 +133,9 @@ export const start = async (): Promise<void> => {
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",
+        cache: {
+          expiresIn: 7 * 24 * 60 * 60 * 1000,
+        },
         sortEndpoints: "ordered",
         info: {
           title: "Reservoir API",
