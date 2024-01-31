@@ -241,8 +241,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       const saleId = crypto
         .createHash("sha256")
         .update(
-          `${event.baseEventParams.txHash}${toBuffer(event.baseEventParams.from)}${toBuffer(
-            event.baseEventParams.to!
+          `${event.baseEventParams.txHash}${toBuffer(event.maker)}${toBuffer(
+            event.taker
           )}${toBuffer(event.baseEventParams.address)}${event.tokenId}${event.price}`
         )
         .digest("hex");
@@ -255,8 +255,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
           saleId,
           saleTimestamp: event.baseEventParams.timestamp,
           txHash: event.baseEventParams.txHash,
-          maker: event.baseEventParams.from,
-          taker: event.baseEventParams.to,
+          maker: event.maker,
+          taker: event.taker,
           contract: event.baseEventParams.address,
           tokenId: event.tokenId,
           price: event.price,
