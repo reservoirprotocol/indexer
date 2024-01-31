@@ -181,7 +181,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         tags.orderSource = result.orderSource;
       }
 
-      if (config.chainId === 1 && data.trigger === "insert") {
+      if ([1, 11155111].includes(config.chainId) && data.trigger === "insert") {
         logger.info(
           this.queueName,
           JSON.stringify({

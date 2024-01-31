@@ -237,7 +237,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   // Process fill activities
   const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
-    if (config.chainId) {
+    if ([1, 11155111].includes(config.chainId)) {
       const saleId = crypto
         .createHash("sha256")
         .update(
