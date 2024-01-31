@@ -78,7 +78,10 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     }
 
     if (kind === "full-collection") {
-      logger.info(this.queueName, `Full collection. data=${JSON.stringify(data)}`);
+      logger.info(
+        this.queueName,
+        `Full collection. collectionId=${data.collection}, data=${JSON.stringify(data)}`
+      );
 
       // Get batch of tokens for the collection
       const [contract, tokenId] = data.continuation

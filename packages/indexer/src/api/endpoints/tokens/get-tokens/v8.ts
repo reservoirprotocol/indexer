@@ -394,9 +394,11 @@ export const getTokensV8Options: RouteOptions = {
 
     let esTokens: any[] = [];
 
-    let enableElasticsearchAsks =
-      query.sortBy === "floorAskPrice" &&
-      !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+    let enableElasticsearchAsks = false;
+
+    // let enableElasticsearchAsks =
+    //     query.sortBy === "floorAskPrice" &&
+    //     !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks && query.continuation) {
       const contArr = splitContinuation(query.continuation);
