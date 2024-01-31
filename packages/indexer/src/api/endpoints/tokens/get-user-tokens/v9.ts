@@ -131,6 +131,9 @@ export const getUserTokensV9Options: RouteOptions = {
       excludeNsfw: Joi.boolean()
         .default(false)
         .description("If true, will filter any tokens marked as nsfw."),
+      onlyListed: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any tokens that are not listed"),
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description("If true, will return the collection non flagged floor ask."),
@@ -420,9 +423,6 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     if (query.tokenName) {
-      (query as any).tokenNameAsId = query.tokenName;
-      query.tokenName = `%${query.tokenName}%`;
-
       if (isNaN(query.tokenName)) {
         tokensConditions.push(`t.name ILIKE $/tokenName/`);
       } else {
@@ -433,6 +433,13 @@ export const getUserTokensV9Options: RouteOptions = {
             END
           `);
       }
+
+      (query as any).tokenNameAsId = query.tokenName;
+      query.tokenName = `%${query.tokenName}%`;
+    }
+
+    if (query.onlyListed) {
+      tokensConditions.push(`t.floor_sell_value IS NOT NULL`);
     }
 
     let tokensJoin = `
@@ -662,11 +669,14 @@ export const getUserTokensV9Options: RouteOptions = {
       `;
     }
 
+    // When filtering tokens based on data which doesn't exist in the nft_balances we need to sort on the full results set
     const sortFullQuery =
       query.sortBy === "floorAskPrice" ||
       listBasedContract ||
       query.excludeSpam ||
-      query.excludeNsfw;
+      query.excludeNsfw ||
+      query.tokenName ||
+      query.onlyListed;
 
     try {
       const baseQuery = `
@@ -737,7 +747,9 @@ export const getUserTokensV9Options: RouteOptions = {
           }
           LEFT JOIN orders o ON o.id = c.floor_sell_id
           LEFT JOIN contracts con ON b.contract = con.address
-          LEFT JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
+          ${
+            query.onlyListed ? "" : "LEFT"
+          } JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
             SELECT 
               id 
             FROM 

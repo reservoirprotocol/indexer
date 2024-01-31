@@ -940,9 +940,6 @@ export const getTokensV8Options: RouteOptions = {
       }
 
       if (query.tokenName) {
-        (query as any).tokenNameAsId = query.tokenName;
-        query.tokenName = `%${query.tokenName}%`;
-
         if (isNaN(query.tokenName)) {
           conditions.push(`t.name ILIKE $/tokenName/`);
         } else {
@@ -953,6 +950,9 @@ export const getTokensV8Options: RouteOptions = {
             END
           `);
         }
+
+        (query as any).tokenNameAsId = query.tokenName;
+        query.tokenName = `%${query.tokenName}%`;
       }
 
       if (query.tokenSetId) {
