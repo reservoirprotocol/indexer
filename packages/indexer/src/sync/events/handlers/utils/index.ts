@@ -2,7 +2,7 @@ import { Log } from "@ethersproject/abstract-provider";
 import { AddressZero } from "@ethersproject/constants";
 import _ from "lodash";
 
-import { concat } from "@/common/utils";
+import { concat, toBuffer } from "@/common/utils";
 import { EventKind, EventSubKind } from "@/events-sync/data";
 import {
   assignMintCommentToFillEvents,
@@ -40,6 +40,9 @@ import {
   permitUpdatesJob,
   PermitUpdatesJobPayload,
 } from "@/jobs/permit-updates/permit-updates-job";
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import crypto from "crypto";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -234,6 +237,33 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   // Process fill activities
   const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
+    if (config.chainId) {
+      const saleId = crypto
+        .createHash("sha256")
+        .update(
+          `${event.baseEventParams.txHash}${toBuffer(event.baseEventParams.from)}${toBuffer(
+            event.baseEventParams.to!
+          )}${toBuffer(event.baseEventParams.address)}${event.tokenId}${event.price}`
+        )
+        .digest("hex");
+
+      logger.info(
+        "processOnChainData",
+        JSON.stringify({
+          topic: "debugMissingSaleWsEvents",
+          message: `fillActivityInfos. saleId=${saleId}`,
+          saleId,
+          saleTimestamp: event.baseEventParams.timestamp,
+          txHash: event.baseEventParams.txHash,
+          maker: event.baseEventParams.from,
+          taker: event.baseEventParams.to,
+          contract: event.baseEventParams.address,
+          tokenId: event.tokenId,
+          price: event.price,
+        })
+      );
+    }
+
     return {
       kind: ProcessActivityEventKind.fillEvent,
       data: {
