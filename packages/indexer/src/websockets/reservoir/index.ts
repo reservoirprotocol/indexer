@@ -29,41 +29,41 @@ if (
         message: "WebSocket connection established",
       })
     );
-  });
 
-  ws.on("message", (data: WebSocket.Data) => {
-    const message = data.toString();
-    const messageJson = JSON.parse(message);
-
-    logger.info(
-      "reservoir-websocket",
-      JSON.stringify({
-        topic: "debugMissingSaleWsEvents",
-        message: `Received message: ${message}`,
-      })
-    );
-
-    if (messageJson.status === "ready") {
-      ws.send(
-        JSON.stringify({
-          type: "subscribe",
-          event: "sale.created",
-        })
-      );
-    } else if (messageJson.event === "sale.created") {
-      const eventData = messageJson.data;
+    ws.on("message", (data: WebSocket.Data) => {
+      const message = data.toString();
+      const messageJson = JSON.parse(message);
 
       logger.info(
         "reservoir-websocket",
         JSON.stringify({
           topic: "debugMissingSaleWsEvents",
-          message: `publishWebsocketEvent. saleId=${eventData.id}`,
-          saleId: eventData.id,
-          saleTimestamp: eventData.timestamp,
-          txHash: eventData.txHash,
+          message: `Received message: ${message}`,
         })
       );
-    }
+
+      if (messageJson.status === "ready") {
+        ws.send(
+          JSON.stringify({
+            type: "subscribe",
+            event: "sale.created",
+          })
+        );
+      } else if (messageJson.event === "sale.created") {
+        const eventData = messageJson.data;
+
+        logger.info(
+          "reservoir-websocket",
+          JSON.stringify({
+            topic: "debugMissingSaleWsEvents",
+            message: `publishWebsocketEvent. saleId=${eventData.id}`,
+            saleId: eventData.id,
+            saleTimestamp: eventData.timestamp,
+            txHash: eventData.txHash,
+          })
+        );
+      }
+    });
   });
 
   ws.on("close", (code: number, reason: string) => {
