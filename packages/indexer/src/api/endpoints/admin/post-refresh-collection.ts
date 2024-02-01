@@ -168,7 +168,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
         }
 
         // Refresh the collection tokens metadata
-        await metadataIndexFetchJob.addToQueue([metadataIndexInfo], true);
+        await metadataIndexFetchJob.addToQueue([metadataIndexInfo]);
 
         if (collection.slug) {
           await PendingFlagStatusSyncCollectionSlugs.add([
