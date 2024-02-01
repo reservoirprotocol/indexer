@@ -48,14 +48,11 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (
-      (payload.context === "onchain-fallback" || payload.context === "IndexerTokensHandler") &&
-      payload.kind === "single-token"
-    ) {
+    if (payload.data.collection === "0x4b15a9c28034dc83db40cd810001427d3bd7163d") {
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Start. contract=${payload.data.contract}, tokenId=${payload.data.tokenId}`,
+          message: `Start. collection=${payload.data.collection}`,
           payload,
         })
       );
