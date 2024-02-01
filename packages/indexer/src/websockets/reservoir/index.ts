@@ -7,11 +7,11 @@ if (
   config.doWebsocketWork &&
   config.debugApiKeys.length
 ) {
-  const ws = new WebSocket(
-    `wss://ws${config.chainId === 1 ? "" : ".dev"}.reservoir.tools?api_key=${
-      config.debugApiKeys[0]
-    }`
-  );
+  const wsUrl = `wss://ws${config.chainId === 1 ? "" : ".dev"}.reservoir.tools?api_key=${
+    config.debugApiKeys[0]
+  }`;
+
+  const ws = new WebSocket(wsUrl);
 
   logger.info(
     "reservoir-websocket",
@@ -71,7 +71,7 @@ if (
       "reservoir-websocket",
       JSON.stringify({
         topic: "debugMissingSaleWsEvents",
-        message: `WebSocket connection closed with code ${code} and reason: ${reason}`,
+        message: `WebSocket connection closed. code=${code}, reason=${reason}, wsUrl=${wsUrl}`,
       })
     );
   });
@@ -81,7 +81,7 @@ if (
       "reservoir-websocket",
       JSON.stringify({
         topic: "debugMissingSaleWsEvents",
-        message: `WebSocket error: ${error.message}`,
+        message: `WebSocket error. error=${error.message}, wsUrl=${wsUrl}`,
       })
     );
   });
