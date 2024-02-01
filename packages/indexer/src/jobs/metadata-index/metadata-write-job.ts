@@ -89,6 +89,17 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
+    if (collection === "0x4b15a9c28034dc83db40cd810001427d3bd7163d") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Start. collection=${collection}`,
+          payload,
+          metadataMethod,
+        })
+      );
+    }
+
     // Update the token's metadata
     const result = await idb.oneOrNone(
       `
