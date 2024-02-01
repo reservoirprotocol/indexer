@@ -79,7 +79,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         this.queueName,
         JSON.stringify({
           message: `Full collection. collection=${payload.data.collection}`,
-          payload,
+          data,
           prioritized,
         })
       );
