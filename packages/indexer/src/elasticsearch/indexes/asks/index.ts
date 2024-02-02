@@ -303,10 +303,8 @@ export const searchTokenAsks = async (
   }
 
   if (params.attributes?.length) {
-    const attributesFilter = { bool: { should: [] } };
-
     for (const attribute of params.attributes) {
-      (attributesFilter as any).bool.should.push({
+      (esQuery as any).bool.filter.push({
         bool: {
           must: [
             {
@@ -319,8 +317,6 @@ export const searchTokenAsks = async (
         },
       });
     }
-
-    (esQuery as any).bool.filter.push(attributesFilter);
   }
 
   (esQuery as any).bool.filter.push({
