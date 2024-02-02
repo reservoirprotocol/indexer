@@ -32,7 +32,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    if (contract === "0x4b15a9c28034dc83db40cd810001427d3bd7163d") {
+    if (contract === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
       logger.info(
         this.queueName,
         JSON.stringify({

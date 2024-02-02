@@ -7,9 +7,9 @@ if (
   config.doWebsocketWork &&
   config.debugApiKeys.length
 ) {
-  const wsUrl = `wss://ws${config.environment === "dev" ? ".dev" : ""}.reservoir.tools?api_key=${
-    config.debugApiKeys[0]
-  }`;
+  const wsUrl = `wss://ws${
+    config.environment === "dev" ? ".dev" : config.chainId === 11155111 ? "-sepolia" : ""
+  }.reservoir.tools?api_key=${config.debugApiKeys[0]}`;
 
   const ws = new WebSocket(wsUrl);
 

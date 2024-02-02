@@ -89,7 +89,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    if (collection === "0x4b15a9c28034dc83db40cd810001427d3bd7163d") {
+    if (collection === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
       logger.info(
         this.queueName,
         JSON.stringify({

@@ -157,7 +157,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
           context: "post-refresh-collection",
         };
 
-        if (collection.id === "0x4b15a9c28034dc83db40cd810001427d3bd7163d") {
+        if (collection.id === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
           logger.info(
             `post-collections-refresh-handler`,
             JSON.stringify({
