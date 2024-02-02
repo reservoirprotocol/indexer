@@ -34,13 +34,13 @@ if (
       const message = data.toString();
       const messageJson = JSON.parse(message);
 
-      logger.info(
-        "reservoir-websocket",
-        JSON.stringify({
-          topic: "debugMissingSaleWsEvents",
-          message: `Received message: ${message}`,
-        })
-      );
+      // logger.info(
+      //   "reservoir-websocket",
+      //   JSON.stringify({
+      //     topic: "debugMissingSaleWsEvents",
+      //     message: `Received message: ${message}`,
+      //   })
+      // );
 
       if (messageJson.status === "ready") {
         ws.send(
@@ -65,15 +65,19 @@ if (
             saleId: eventData.id,
             saleTimestamp: eventData.timestamp,
             txHash: eventData.txHash,
-            ts2: ts2.toISOString(),
-            ts3: ts3.toISOString(),
-            ts4: ts4.toISOString(),
-            ts5: ts5.toISOString(),
-            ts2ts3LatencyMs: ts3.getTime() - ts2.getTime(),
-            ts3ts4LatencyMs: ts4.getTime() - ts3.getTime(),
-            ts4ts5LatencyMs: ts5.getTime() - ts4.getTime(),
-            ts3ts5LatencyMs: ts5.getTime() - ts3.getTime(),
-            totalLatencyMs: ts5.getTime() - ts2.getTime(),
+            timestamps: {
+              ts2: ts2.toISOString(),
+              ts3: ts3.toISOString(),
+              ts4: ts4.toISOString(),
+              ts5: ts5.toISOString(),
+            },
+            latencies: {
+              ts2ts3LatencyMs: ts3.getTime() - ts2.getTime(),
+              ts3ts4LatencyMs: ts4.getTime() - ts3.getTime(),
+              ts4ts5LatencyMs: ts5.getTime() - ts4.getTime(),
+              ts3ts5LatencyMs: ts5.getTime() - ts3.getTime(),
+              ts2ts5LatencyMs: ts5.getTime() - ts2.getTime(),
+            },
           })
         );
       }
