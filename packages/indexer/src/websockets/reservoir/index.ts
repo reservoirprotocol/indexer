@@ -7,7 +7,7 @@ if (
   config.doWebsocketWork &&
   config.debugApiKeys.length
 ) {
-  const wsUrl = `wss://ws${config.chainId === 1 ? "" : ".dev"}.reservoir.tools?api_key=${
+  const wsUrl = `wss://ws${config.environment === "dev" ? ".dev" : ""}.reservoir.tools?api_key=${
     config.debugApiKeys[0]
   }`;
 
@@ -52,14 +52,28 @@ if (
       } else if (messageJson.event === "sale.created") {
         const eventData = messageJson.data;
 
+        const ts2 = new Date(eventData.timestamp * 1000);
+        const ts3 = new Date(eventData.createdAt);
+        const ts4 = new Date(messageJson.published_at);
+        const ts5 = new Date();
+
         logger.info(
           "reservoir-websocket",
           JSON.stringify({
             topic: "debugMissingSaleWsEvents",
-            message: `publishWebsocketEvent. saleId=${eventData.id}`,
+            message: `receivedSaleEvent. saleId=${eventData.id}`,
             saleId: eventData.id,
             saleTimestamp: eventData.timestamp,
             txHash: eventData.txHash,
+            ts2: ts2.toISOString(),
+            ts3: ts3.toISOString(),
+            ts4: ts4.toISOString(),
+            ts5: ts5.toISOString(),
+            ts2ts3LatencyMs: ts3.getTime() - ts2.getTime(),
+            ts3ts4LatencyMs: ts4.getTime() - ts3.getTime(),
+            ts4ts5LatencyMs: ts5.getTime() - ts4.getTime(),
+            ts3ts5LatencyMs: ts5.getTime() - ts3.getTime(),
+            totalLatencyMs: ts5.getTime() - ts2.getTime(),
           })
         );
       }
