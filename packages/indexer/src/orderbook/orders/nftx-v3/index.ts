@@ -360,8 +360,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 `,
                 {
                   id,
-                  price,
-                  value,
+                  price: price.toString(),
+                  value: value.toString(),
                   rawData: sdkOrder.params,
                   quantityRemaining: prices.length.toString(),
                   missingRoyalties: missingRoyalties,
@@ -639,8 +639,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       `,
                       {
                         id,
-                        price,
-                        value,
+                        price: price.toString(),
+                        value: value.toString(),
                         rawData: sdkOrder.params,
                         missingRoyalties: missingRoyalties,
                         normalizedValue: normalizedValue.toString(),
