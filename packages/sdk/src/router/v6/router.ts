@@ -1,6 +1,6 @@
 import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero, HashZero, MaxUint256 } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
@@ -59,6 +59,7 @@ import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
 import NFTXModuleAbi from "./abis/NFTXModule.json";
 import NFTXZeroExModuleAbi from "./abis/NFTXZeroExModule.json";
+import NFTXV3ModuleAbi from "./abis/NFTXV3Module.json";
 import RaribleModuleAbi from "./abis/RaribleModule.json";
 import SeaportModuleAbi from "./abis/SeaportModule.json";
 import SeaportV14ModuleAbi from "./abis/SeaportV14Module.json";
@@ -85,6 +86,7 @@ type SetupOptions = {
   x2y2ApiKey?: string;
   openseaApiKey?: string;
   cbApiKey?: string;
+  nftxApiKey?: string;
   zeroExApiKey?: string;
   orderFetcherBaseUrl?: string;
   orderFetcherMetadata?: object;
@@ -190,6 +192,11 @@ export class Router {
       nftxZeroExModule: new Contract(
         Addresses.NFTXZeroExModule[chainId] ?? AddressZero,
         NFTXZeroExModuleAbi,
+        provider
+      ),
+      nftxV3Module: new Contract(
+        Addresses.NFTXV3Module[chainId] ?? AddressZero,
+        NFTXV3ModuleAbi,
         provider
       ),
       raribleModule: new Contract(
@@ -1169,6 +1176,7 @@ export class Router {
     const x2y2Details: ListingDetails[] = [];
     const zoraDetails: ListingDetails[] = [];
     const nftxDetails: ListingDetails[] = [];
+    const nftxV3Details: ListingDetails[] = [];
     const raribleDetails: ListingDetails[] = [];
     const superRareDetails: ListingDetails[] = [];
     const cryptoPunksDetails: ListingDetails[] = [];
@@ -1277,6 +1285,11 @@ export class Router {
 
         case "nftx": {
           detailsRef = nftxDetails;
+          break;
+        }
+
+        case "nftx-v3": {
+          detailsRef = nftxV3Details;
           break;
         }
 
@@ -2456,6 +2469,98 @@ export class Router {
 
       // Mark the listings as successfully handled
       for (const { orderId } of nftxDetails) {
+        success[orderId] = true;
+      }
+    }
+
+    // Handle NFTX V3 listings
+    if (nftxV3Details.length) {
+      const module = this.contracts.nftxV3Module;
+
+      // Aggregate same-vaultId orders
+      const perVaultIdOrders: { [vaultId: string]: Sdk.NftxV3.Order[] } = {};
+      for (const details of nftxV3Details) {
+        try {
+          const order = details.order as Sdk.NftxV3.Order;
+
+          if (!perVaultIdOrders[order.params.vaultId]) {
+            perVaultIdOrders[order.params.vaultId] = [];
+          }
+
+          // Attach the Execute Swap calldata
+          const { executeCallData, price } = await order.getQuote(
+            5,
+            this.provider,
+            this.options!.nftxApiKey!
+          );
+          order.params.executeCallData = executeCallData;
+          order.params.price = price.toString();
+
+          perVaultIdOrders[order.params.vaultId].push(order);
+        } catch (error) {
+          if (options?.onError) {
+            await options.onError("nftx-v3-listing", error, {
+              orderId: details.orderId,
+              additionalInfo: { detail: details, taker },
+            });
+          }
+
+          if (!options?.partial) {
+            throw new Error(getErrorMessage(error));
+          }
+        }
+      }
+
+      const aggregatedOrders = Object.entries(perVaultIdOrders).map(([vaultId, orders]) => ({
+        vaultId: perVaultIdOrders[vaultId][0].params.vaultId,
+        collection: perVaultIdOrders[vaultId][0].params.collection,
+        idsOut: perVaultIdOrders[vaultId].map((o) => o.params.idsOut![0]),
+        vTokenPremiumLimit: MaxUint256.toString(),
+        deductRoyalty: false,
+        // Need to use the price and swap calldata of the last order
+        executeCallData: perVaultIdOrders[vaultId][orders.length - 1].params.executeCallData,
+        price: perVaultIdOrders[vaultId][orders.length - 1].params.price,
+      }));
+
+      // Consider the updated prices (fetched above from NFTX API)
+      const fees = getFees(nftxV3Details);
+      const price = aggregatedOrders.map((order) => order.price).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        info: {
+          module: module.address,
+          data: module.interface.encodeFunctionData("buyWithETH", [
+            aggregatedOrders,
+            {
+              fillTo: taker,
+              refundTo: relayer,
+              revertIfIncomplete: Boolean(!options?.partial),
+              amount: price,
+            },
+            fees,
+          ]),
+          value: totalPrice,
+        },
+        orderIds: nftxV3Details.map((d) => d.orderId),
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Native[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: nftxV3Details,
+        executionIndex: executions.length - 1,
+      });
+
+      addRouterTags("nftx-v3", nftxV3Details.length, fees.length);
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of nftxV3Details) {
         success[orderId] = true;
       }
     }
@@ -4551,6 +4656,36 @@ export class Router {
           order.params.path = order.params.path.length
             ? order.params.path
             : [order.params.pool, Sdk.Common.Addresses.WNative[this.chainId]];
+
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                [order.params],
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
+          });
+
+          success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "nftx-v3": {
+          const order = detail.order as Sdk.NftxV3.Order;
+
+          const module = this.contracts.nftxV3Module;
+
+          const tokenId = detail.tokenId;
+          order.params.idsIn = [tokenId];
 
           executionsWithDetails.push({
             detail,

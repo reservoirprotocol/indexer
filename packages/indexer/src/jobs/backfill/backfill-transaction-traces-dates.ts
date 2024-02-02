@@ -20,7 +20,7 @@ export class BackfillTransactionTracesDatesJob extends AbstractRabbitMqJobHandle
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillTransactionTracesDatesJobCursorInfo) {
+  public async process(payload: BackfillTransactionTracesDatesJobCursorInfo) {
     const { hash } = payload;
     const values: {
       limit: number;

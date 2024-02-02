@@ -31,7 +31,7 @@ export class ProcessActivityEventsJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   persistent = true;
 
-  protected async process(payload: ProcessActivityEventsJobPayload) {
+  public async process(payload: ProcessActivityEventsJobPayload) {
     const { eventKind } = payload;
 
     let addToQueue = false;

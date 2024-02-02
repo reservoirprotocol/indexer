@@ -64,6 +64,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 68840142:
         url = "https://rpc.testnet.frame.xyz/http";
         break;
+      case 888888888:
+        url = "https://rpc.ancient8.gg/";
+        break;
       // Testnets
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
@@ -91,6 +94,9 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 204:
         url = "https://opbnb-mainnet-rpc.bnbchain.org";
+        break;
+      case 84532:
+        url = "https://sepolia.base.org";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -137,7 +143,7 @@ const config: HardhatUserConfig = {
       chainId: networkConfig.chainId,
       forking: {
         url: networkConfig.url,
-        blockNumber: Number(process.env.BLOCK_NUMBER),
+        blockNumber: process.env.BLOCK_NUMBER ? Number(process.env.BLOCK_NUMBER) : undefined,
       },
       accounts: {
         // Custom mnemonic so that the wallets have no initial state
@@ -164,6 +170,7 @@ const config: HardhatUserConfig = {
     scroll: getNetworkConfig(534352),
     zora: getNetworkConfig(7777777),
     opBnb: getNetworkConfig(204),
+    ancient8: getNetworkConfig(888888888),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
@@ -174,6 +181,7 @@ const config: HardhatUserConfig = {
     sepolia: getNetworkConfig(11155111),
     frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(28122024),
+    baseSepolia: getNetworkConfig(84532),
   },
   etherscan: {
     apiKey: {
@@ -191,6 +199,7 @@ const config: HardhatUserConfig = {
       linea: process.env.ETHERSCAN_API_KEY_LINEA ?? "",
       scroll: process.env.ETHERSCAN_API_KEY_SCROLL ?? "",
       zora: "0x",
+      ancient8: "0x",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
       zoraTestnet: "0x",
@@ -201,6 +210,7 @@ const config: HardhatUserConfig = {
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       frameTestnet: "0x",
       ancient8Testnet: "0x",
+      baseSepolia: "G3S7U2BHWAFPNV9GHHSC1YURSWW3DGN275",
     },
     customChains: [
       // Mainnets
@@ -268,6 +278,14 @@ const config: HardhatUserConfig = {
           browserURL: "https://explorer.zora.energy",
         },
       },
+      {
+        network: "ancient8",
+        chainId: 888888888,
+        urls: {
+          apiURL: "https://scan.ancient8.gg/api",
+          browserURL: "https://scan.ancient8.gg",
+        },
+      },
       // Testnets
       {
         network: "zoraTestnet",
@@ -326,13 +344,21 @@ const config: HardhatUserConfig = {
           browserURL: "https://scanv2-testnet.ancient8.gg/",
         },
       },
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org/",
+        },
+      },
     ],
   },
   gasReporter: {
     enabled: Boolean(Number(process.env.REPORT_GAS)),
   },
   mocha: {
-    timeout: 60000 * 10,
+    timeout: 1000000,
   },
 };
 

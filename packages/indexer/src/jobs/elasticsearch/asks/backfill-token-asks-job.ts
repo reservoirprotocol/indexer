@@ -16,7 +16,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
   concurrency = 5;
   persistent = true;
 
-  protected async process(payload: BackfillTokenAsksJobPayload) {
+  public async process(payload: BackfillTokenAsksJobPayload) {
     let nextCursor;
     let query;
 

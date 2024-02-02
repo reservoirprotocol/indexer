@@ -24,4 +24,6 @@ export const Exchange: ChainIdToAddress = {
   [Network.ImmutableZkevmTestnet]: "0x7fb7da6de152597830ed16361633e362a2f59410",
   [Network.FrameTestnet]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.Opbnb]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
+  [Network.Ancient8]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
+  [Network.BaseSepolia]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
 };

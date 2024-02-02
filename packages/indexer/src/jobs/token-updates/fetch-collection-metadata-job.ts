@@ -30,7 +30,7 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: FetchCollectionMetadataJobPayload) {
+  public async process(payload: FetchCollectionMetadataJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
     try {

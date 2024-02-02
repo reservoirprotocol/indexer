@@ -14,6 +14,7 @@ import * as looksRare from "@/events-sync/data/looks-rare";
 import * as manifold from "@/events-sync/data/manifold";
 import * as nftTrader from "@/events-sync/data/nft-trader";
 import * as nftx from "@/events-sync/data/nftx";
+import * as nftxV3 from "@/events-sync/data/nftx-v3";
 import * as nouns from "@/events-sync/data/nouns";
 import * as okex from "@/events-sync/data/okex";
 import * as quixotic from "@/events-sync/data/quixotic";
@@ -74,6 +75,7 @@ export type EventKind =
   | "manifold"
   | "nft-trader"
   | "nftx"
+  | "nftx-v3"
   | "nouns"
   | "okex"
   | "quixotic"
@@ -216,6 +218,17 @@ export type EventSubKind =
   | "nftx-eligibility-deployed"
   | "nftx-enable-mint-updated"
   | "nftx-enable-target-redeem-updated"
+  | "nftx-v3-redeemed"
+  | "nftx-v3-minted"
+  | "nftx-v3-user-staked"
+  | "nftx-v3-swapped"
+  | "nftx-v3-swap"
+  | "nftx-v3-vault-init"
+  | "nftx-v3-vault-shutdown"
+  | "nftx-v3-eligibility-deployed"
+  | "nftx-v3-enable-mint-updated"
+  | "nftx-v3-enable-redeem-updated"
+  | "nftx-v3-enable-swap-updated"
   | "blur-orders-matched"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
@@ -462,6 +475,16 @@ const allEventData = [
   nftx.eligibilityDeployed,
   nftx.enableMintUpdated,
   nftx.enableTargetRedeemUpdated,
+  nftxV3.minted,
+  nftxV3.redeemed,
+  nftxV3.swapped,
+  nftxV3.swap,
+  nftxV3.vaultInit,
+  nftxV3.vaultShutdown,
+  nftxV3.eligibilityDeployed,
+  nftxV3.enableMintUpdated,
+  nftxV3.enableRedeemUpdated,
+  nftxV3.enableSwapUpdated,
   blur.ordersMatched,
   blur.orderCancelled,
   blur.nonceIncremented,

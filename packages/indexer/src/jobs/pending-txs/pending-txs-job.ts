@@ -11,7 +11,7 @@ export default class PendingTxsJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: pendingTxs.PendingMessage) {
+  public async process(payload: pendingTxs.PendingMessage) {
     try {
       const results = await pendingTxs.handlePendingMessage(payload);
       if (results && results.length) {

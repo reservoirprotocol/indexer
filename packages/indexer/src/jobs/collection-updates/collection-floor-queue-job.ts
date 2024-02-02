@@ -23,7 +23,7 @@ export class CollectionFloorJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: CollectionFloorJobPayload) {
+  public async process(payload: CollectionFloorJobPayload) {
     const { kind, contract, tokenId, txHash, txTimestamp } = payload;
 
     // First, retrieve the token's associated collection

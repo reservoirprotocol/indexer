@@ -16,6 +16,7 @@ export * as zora from "@/orderbook/orders/zora";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
+export * as nftxV3 from "@/orderbook/orders/nftx-v3";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
@@ -68,6 +69,7 @@ export type OrderKind =
   | "cryptopunks"
   | "sudoswap"
   | "nftx"
+  | "nftx-v3"
   | "blur"
   | "manifold"
   | "tofu-nft"
@@ -187,7 +189,9 @@ export const getOrderSourceByOrderKind = async (
       case "caviar-v1":
         return sources.getOrInsert("caviar.sh");
       case "nftx":
-        return sources.getOrInsert("nftx.io");
+        return sources.getOrInsert("v2.nftx.io");
+      case "nftx-v3":
+        return sources.getOrInsert("v3.nftx.io");
       case "blur":
       case "blur-v2":
       case "blend":
@@ -453,6 +457,14 @@ export const generateListingDetailsV6 = async (
         kind: "nftx",
         ...common,
         order: new Sdk.Nftx.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "nftx-v3": {
+      return {
+        kind: "nftx-v3",
+        ...common,
+        order: new Sdk.NftxV3.Order(config.chainId, order.rawData.pool, taker, order.rawData),
       };
     }
 
@@ -809,6 +821,20 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Nftx.Order(config.chainId, order.rawData);
       return {
         kind: "nftx",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "nftx-v3": {
+      const sdkOrder = new Sdk.NftxV3.Order(
+        config.chainId,
+        order.rawData.pool,
+        taker,
+        order.rawData
+      );
+      return {
+        kind: "nftx-v3",
         ...common,
         order: sdkOrder,
       };

@@ -11,7 +11,7 @@ export class TransferUpdatesJob extends AbstractRabbitMqJobHandler {
   concurrency = [137].includes(config.chainId) ? 1 : 5;
   timeout = 60000;
 
-  protected async process(payload: Event) {
+  public async process(payload: Event) {
     const { from, to, tokenId } = payload;
     const { address } = payload.baseEventParams;
 

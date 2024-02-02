@@ -15,7 +15,7 @@ export default class FlagStatusUpdateJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 20;
 
-  protected async process(payload: FlagStatusUpdateJobPayload) {
+  public async process(payload: FlagStatusUpdateJobPayload) {
     const { contract, tokenId, isFlagged } = payload;
 
     const result = await idb.oneOrNone(

@@ -18,7 +18,7 @@ export default class EventsSyncFtTransfersWriteBufferJob extends AbstractRabbitM
     delay: 5000,
   } as BackoffStrategy;
 
-  protected async process(payload: EventsSyncFtTransfersWriteBufferPayload) {
+  public async process(payload: EventsSyncFtTransfersWriteBufferPayload) {
     const { query } = payload;
 
     try {

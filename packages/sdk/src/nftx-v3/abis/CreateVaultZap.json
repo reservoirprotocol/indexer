@@ -1,0 +1,368 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "contract INFTXRouter",
+        "name": "nftxRouter_",
+        "type": "address"
+      },
+      {
+        "internalType": "contract IUniswapV3Factory",
+        "name": "ammFactory_",
+        "type": "address"
+      },
+      {
+        "internalType": "contract INFTXInventoryStakingV3",
+        "name": "inventoryStaking_",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientETHSent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientVTokensMinted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotNFTOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "R",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "T",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnableToSendETH",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WETH",
+    "outputs": [
+      {
+        "internalType": "contract IWETH9",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ammFactory",
+    "outputs": [
+      {
+        "internalType": "contract IUniswapV3Factory",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "assetAddress",
+                "type": "address"
+              },
+              {
+                "internalType": "bool",
+                "name": "is1155",
+                "type": "bool"
+              },
+              {
+                "internalType": "bool",
+                "name": "allowAllItems",
+                "type": "bool"
+              },
+              {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "symbol",
+                "type": "string"
+              }
+            ],
+            "internalType": "struct CreateVaultZap.VaultInfo",
+            "name": "vaultInfo",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "moduleIndex",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bytes",
+                "name": "initData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct CreateVaultZap.VaultEligibilityStorage",
+            "name": "eligibilityStorage",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "nftAmounts",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "vaultFeaturesFlag",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "mintFee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "redeemFee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "swapFee",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct CreateVaultZap.VaultFees",
+            "name": "vaultFees",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "lowerNFTPriceInETH",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "upperNFTPriceInETH",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint24",
+                "name": "fee",
+                "type": "uint24"
+              },
+              {
+                "internalType": "uint256",
+                "name": "currentNFTPriceInETH",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "vTokenMin",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "wethMin",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "deadline",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct CreateVaultZap.LiquidityParams",
+            "name": "liquidityParams",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct CreateVaultZap.CreateVaultParams",
+        "name": "params",
+        "type": "tuple"
+      }
+    ],
+    "name": "createVault",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "vaultId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "inventoryStaking",
+    "outputs": [
+      {
+        "internalType": "contract INFTXInventoryStakingV3",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nftxRouter",
+    "outputs": [
+      {
+        "internalType": "contract INFTXRouter",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "name": "onERC1155BatchReceived",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "name": "onERC1155Received",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultFactory",
+    "outputs": [
+      {
+        "internalType": "contract INFTXVaultFactoryV3",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+]

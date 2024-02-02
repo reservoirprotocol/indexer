@@ -18,7 +18,7 @@ export class BackfillCollectionsSpamJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillCollectionsSpamJobCursorInfo) {
+  public async process(payload: BackfillCollectionsSpamJobCursorInfo) {
     const { collectionId } = payload;
     const values: {
       limit: number;

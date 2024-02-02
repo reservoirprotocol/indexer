@@ -1076,7 +1076,10 @@ export const getCollectionsV7Options: RouteOptions = {
         continuation: continuation ? continuation : undefined,
       };
     } catch (error) {
-      logger.error(`get-collections-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `get-collections-${version}-handler`,
+        `Handler failure: ${JSON.stringify(error)}`
+      );
       throw error;
     }
   },

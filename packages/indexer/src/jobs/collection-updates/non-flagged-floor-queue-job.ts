@@ -22,7 +22,7 @@ export default class NonFlaggedFloorQueueJob extends AbstractRabbitMqJobHandler 
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: NonFlaggedFloorQueueJobPayload) {
+  public async process(payload: NonFlaggedFloorQueueJobPayload) {
     // First, retrieve the token's associated collection.
     const collectionResult = await idb.oneOrNone(
       `

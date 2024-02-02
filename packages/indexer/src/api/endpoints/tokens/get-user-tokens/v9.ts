@@ -605,22 +605,16 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     // Sorting
-    let sorting = "";
+    let nftBalanceSorting = "";
+    let userCollectionsSorting = "";
+    const limit = `LIMIT $/limit/`;
+
     if (query.sortBy === "acquiredAt") {
-      sorting = `
-        ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
+      nftBalanceSorting = `ORDER BY acquired_at ${query.sortDirection}, token_id ${query.sortDirection}`;
     } else if (query.sortBy === "lastAppraisalValue") {
-      sorting = `
-        ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
-        LIMIT $/limit/
-      `;
+      nftBalanceSorting = `ORDER BY last_token_appraisal_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}`;
     } else if (query.sortBy === "floorAskPrice") {
-      sorting = `
-          ORDER BY c.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}
-          LIMIT $/limit/
-        `;
+      userCollectionsSorting = `ORDER BY c.floor_sell_value ${query.sortDirection} NULLS LAST, token_id ${query.sortDirection}`;
     }
 
     // Continuation
@@ -670,7 +664,7 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     // When filtering tokens based on data which doesn't exist in the nft_balances we need to sort on the full results set
-    const sortFullQuery =
+    const limitFullResultsSet =
       query.sortBy === "floorAskPrice" ||
       listBasedContract ||
       query.excludeSpam ||
@@ -733,7 +727,8 @@ export const getUserTokensV9Options: RouteOptions = {
                     }`
               }
               ${continuationFilter}
-              ${sortFullQuery ? "" : sorting}
+              ${nftBalanceSorting}
+              ${limitFullResultsSet ? "" : limit}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
           ${
@@ -768,7 +763,8 @@ export const getUserTokensV9Options: RouteOptions = {
             LIMIT 
               1
           ) ELSE t.floor_sell_id END
-          ${sortFullQuery ? sorting : ""}
+          ${userCollectionsSorting}
+          ${limitFullResultsSet ? limit : ""}
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params, collections });

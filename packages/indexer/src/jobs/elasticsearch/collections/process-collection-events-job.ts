@@ -17,7 +17,7 @@ export default class ProcessCollectionEventsJob extends AbstractRabbitMqJobHandl
   concurrency = 1;
   persistent = true;
 
-  protected async process() {
+  public async process() {
     const pendingCollectionEventsQueue = new PendingCollectionEventsQueue();
     const pendingCollectionEvents = await pendingCollectionEventsQueue.get(BATCH_SIZE);
 

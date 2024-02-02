@@ -288,6 +288,17 @@ jobs:
             ./prod/platform/indexer-websocket-zora.yaml \
             ./prod/platform/indexer-kafka-worker-zora.yaml
 
+          ./utils/version_update_batch.sh indexer-ancient8 ${{ github.sha }} \
+            ./prod/platform/indexer-api-ancient8.yaml \
+            ./prod/platform/indexer-worker-ancient8.yaml \
+            ./prod/platform/indexer-worker-master-ancient8.yaml \
+            ./prod/platform/indexer-kafka-worker-ancient8.yaml
+
+          ./utils/version_update_batch.sh indexer-base-sepolia ${{ github.sha }} \
+            ./prod/platform/indexer-api-base-sepolia.yaml \
+            ./prod/platform/indexer-worker-base-sepolia.yaml \
+            ./prod/platform/indexer-kafka-worker-base-sepolia.yaml
+
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

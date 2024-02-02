@@ -23,7 +23,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: MetadataIndexProcessJobPayload) {
+  public async process(payload: MetadataIndexProcessJobPayload) {
     const { method } = payload;
 
     let count = 20; // Default number of tokens to fetch

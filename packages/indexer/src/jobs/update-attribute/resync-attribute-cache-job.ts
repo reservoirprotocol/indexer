@@ -12,7 +12,7 @@ export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler 
   maxRetries = 10;
   concurrency = 3;
 
-  protected async process(payload: ResyncAttributeCacheJobPayload) {
+  public async process(payload: ResyncAttributeCacheJobPayload) {
     const { contract, tokenId } = payload;
 
     const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 15000);

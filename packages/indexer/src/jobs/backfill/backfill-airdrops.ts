@@ -16,7 +16,7 @@ export class BackfillAirdropsJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillAirdropsJobPayload) {
+  public async process(payload: BackfillAirdropsJobPayload) {
     const { offset = 0 } = payload;
     const routers = await getRouters();
 

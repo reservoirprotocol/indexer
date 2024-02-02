@@ -21,7 +21,7 @@ export default class NormalizedFloorQueueJob extends AbstractRabbitMqJobHandler 
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: NormalizedFloorQueueJobPayload) {
+  public async process(payload: NormalizedFloorQueueJobPayload) {
     const { kind, tokenSetId, txHash, txTimestamp } = payload;
 
     try {

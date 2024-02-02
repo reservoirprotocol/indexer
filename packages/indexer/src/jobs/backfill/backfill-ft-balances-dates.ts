@@ -20,7 +20,7 @@ export class BackfillFtBalancesDatesJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillFtBalancesDatesJobCursorInfo) {
+  public async process(payload: BackfillFtBalancesDatesJobCursorInfo) {
     const { owner, contract } = payload;
     const values: {
       limit: number;

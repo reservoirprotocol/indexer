@@ -44,7 +44,7 @@ export default class MintsProcessJob extends AbstractRabbitMqJobHandler {
   maxRetries = 3;
   concurrency = 30;
 
-  protected async process(payload: MintsProcessJobPayload) {
+  public async process(payload: MintsProcessJobPayload) {
     const { by, data } = payload;
 
     try {

@@ -37,7 +37,7 @@ export class ActionsLogJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 10;
 
-  protected async process(payload: ActionsLogJobPayload) {
+  public async process(payload: ActionsLogJobPayload) {
     const { context, origin, actionTakerIdentifier, contract, collection, tokenId, data } = payload;
 
     await idb.none(

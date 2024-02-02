@@ -2,6 +2,10 @@ import { redis } from "@/common/redis";
 import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/calldata";
 import * as es from "@/events-sync/storage";
 import { PendingItem, PendingMessage, PendingToken } from "@/utils/pending-txs/types";
+import {
+  pendingTxWebsocketEventsTriggerQueueJob,
+  PendingTxWebsocketEventsTriggerQueueJobPayload,
+} from "@/jobs/websocket-events/pending-tx-websocket-events-trigger-job";
 
 export const handlePendingMessage = async (message: PendingMessage) => {
   try {
@@ -30,7 +34,7 @@ export const handlePendingMessage = async (message: PendingMessage) => {
 
 export const addPendingItems = async (tokens: PendingToken[], txHash: string) => {
   const pipe = redis.multi();
-
+  const events: PendingTxWebsocketEventsTriggerQueueJobPayload[] = [];
   for (const { contract, tokenId } of tokens) {
     const pendingItem = {
       contract,
@@ -44,16 +48,24 @@ export const addPendingItems = async (tokens: PendingToken[], txHash: string) =>
 
     // Set a flag to store the status
     pipe.set(`pending-item:${contract}:${tokenId}:${txHash}`, 1, "EX", 2 * 60);
+
+    events.push({
+      data: {
+        trigger: "created",
+        item: pendingItem,
+      },
+    });
   }
 
   // Link the transaction to its corresponding pending tokens
   pipe.set(`pending-tx:${txHash}`, JSON.stringify(tokens), "EX", 5 * 60);
 
-  await pipe.exec();
+  await Promise.all([pendingTxWebsocketEventsTriggerQueueJob.addToQueue(events), pipe.exec()]);
 };
 
 export const setPendingTxsAsComplete = async (txHashes: string[]) => {
   try {
+    const events: PendingTxWebsocketEventsTriggerQueueJobPayload[] = [];
     const pendingTokensKeys = txHashes.map((txHash) => `pending-tx:${txHash}`);
     const allPendingTokens = await redis
       .mget(pendingTokensKeys)
@@ -79,13 +91,19 @@ export const setPendingTxsAsComplete = async (txHashes: string[]) => {
           pipe.srem("pending-items", JSON.stringify(pendingItem));
           pipe.srem(`pending-items:${contract}`, JSON.stringify(pendingItem));
           pipe.del(`pending-item:${contract}:${tokenId}:${txHash}`);
+          events.push({
+            data: {
+              trigger: "deleted",
+              item: pendingItem,
+            },
+          });
         }
 
         pipe.del(`pending-tx:${txHash}`);
       }
     }
 
-    await pipe.exec();
+    await Promise.all([pendingTxWebsocketEventsTriggerQueueJob.addToQueue(events), pipe.exec()]);
   } catch {
     // Skip errors
   }

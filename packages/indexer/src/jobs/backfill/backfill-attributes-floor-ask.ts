@@ -16,7 +16,7 @@ export class BackfillAttributesFloorAskJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process() {
+  public async process() {
     const limit = 10;
 
     const results = await redb.manyOrNone(

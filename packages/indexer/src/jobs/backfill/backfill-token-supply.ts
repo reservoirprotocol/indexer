@@ -14,7 +14,7 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process() {
+  public async process() {
     const values = {
       limit: 250,
     };

@@ -21,7 +21,7 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
     delay: 1000,
   } as BackoffStrategy;
 
-  protected async process(payload: EventsSyncRealtimeJobPayload) {
+  public async process(payload: EventsSyncRealtimeJobPayload) {
     const { block } = payload;
     try {
       // Update the latest block synced

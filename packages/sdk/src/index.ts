@@ -20,6 +20,7 @@ import * as LooksRare from "./looks-rare";
 import * as Manifold from "./manifold";
 import * as NftTrader from "./nft-trader";
 import * as Nftx from "./nftx";
+import * as NftxV3 from "./nftx-v3";
 import * as Nouns from "./nouns";
 import * as Okex from "./okex";
 import * as Quixotic from "./quixotic";
@@ -78,6 +79,7 @@ export {
   Manifold,
   NftTrader,
   Nftx,
+  NftxV3,
   Nouns,
   Okex,
   Quixotic,

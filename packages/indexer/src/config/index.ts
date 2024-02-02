@@ -137,6 +137,7 @@ export const config = {
   privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
   imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
 
+  nftxApiKey: String(process.env.NFTX_API_KEY),
   zeroExApiKey: process.env.ZEROEX_API_KEY,
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),

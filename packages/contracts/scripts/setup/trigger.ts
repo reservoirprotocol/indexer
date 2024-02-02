@@ -207,6 +207,12 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Nftx.Addresses.ZeroExMarketplaceZap[chainId],
       ]),
+    NFTXV3Module: async (chainId: number) =>
+      dv("NFTXV3Module", "v1", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.NftxV3.Addresses.MarketplaceZap[chainId],
+      ]),
     RaribleModule: async (chainId: number) =>
       dv("RaribleModule", "v3", [
         DEPLOYER,

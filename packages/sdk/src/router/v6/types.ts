@@ -150,6 +150,10 @@ export type GenericOrder =
       order: Sdk.Nftx.Order;
     }
   | {
+      kind: "nftx-v3";
+      order: Sdk.NftxV3.Order;
+    }
+  | {
       kind: "superrare";
       order: Sdk.SuperRare.Order;
     }

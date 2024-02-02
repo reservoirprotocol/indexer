@@ -48,14 +48,7 @@ if (config.doBackgroundWork) {
         );
 
         for (const { block } of results) {
-          await eventsSyncBackfillJob.addToQueue(
-            block,
-            block + 10,
-            {},
-            {
-              prioritized: 1,
-            }
-          );
+          await eventsSyncBackfillJob.addToQueue(block, block + 10, {});
         }
 
         if (results.length == limit) {

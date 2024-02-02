@@ -16,7 +16,7 @@ export default class RefreshAsksCollectionJob extends AbstractRabbitMqJobHandler
   concurrency = 2;
   persistent = true;
 
-  protected async process(payload: RefreshAsksCollectionJobPayload) {
+  public async process(payload: RefreshAsksCollectionJobPayload) {
     let addToQueue = false;
 
     const { collectionId } = payload;

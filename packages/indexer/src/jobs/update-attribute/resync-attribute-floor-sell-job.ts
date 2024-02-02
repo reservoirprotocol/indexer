@@ -14,7 +14,7 @@ export default class ResyncAttributeFloorSellJob extends AbstractRabbitMqJobHand
   concurrency = 4;
   useSharedChannel = true;
 
-  protected async process(payload: ResyncAttributeFloorSellJobPayload) {
+  public async process(payload: ResyncAttributeFloorSellJobPayload) {
     const { continuation } = payload;
     const limit = 500;
     let continuationFilter = "";

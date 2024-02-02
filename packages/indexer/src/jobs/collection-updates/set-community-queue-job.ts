@@ -13,7 +13,7 @@ export default class SetCommunityQueueJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 5;
 
-  protected async process(payload: SetCommunityQueueJobPayload) {
+  public async process(payload: SetCommunityQueueJobPayload) {
     const { collection, community, attempts } = payload;
 
     const collectionData = await Collections.getById(payload.collection);

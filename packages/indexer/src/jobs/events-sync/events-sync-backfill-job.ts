@@ -18,7 +18,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: EventSyncBackfillJobPayload) {
+  public async process(payload: EventSyncBackfillJobPayload) {
     const { fromBlock, toBlock, syncOptions } = payload;
 
     // to stop the job from running into issues or taking too long, we dont want to sync a large amount of blocks in one job
@@ -76,7 +76,6 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
     toBlock: number,
     syncOptions: SyncBlockOptions,
     options?: {
-      prioritized?: number;
       delay?: number;
     }
   ) {
@@ -88,8 +87,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
           syncOptions,
         },
       },
-      options?.delay || 0,
-      options?.prioritized || 1
+      options?.delay || 0
     );
   }
 }

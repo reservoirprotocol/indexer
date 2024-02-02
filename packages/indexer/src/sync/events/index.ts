@@ -116,6 +116,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         data: kindToEvents.get("nftx") ?? [],
       },
       {
+        kind: "nftx-v3",
+        data: kindToEvents.get("nftx-v3") ?? [],
+      },
+      {
         kind: "nouns",
         data: kindToEvents.get("nouns") ?? [],
       },

@@ -3,11 +3,11 @@ import { config } from "@/config/index";
 import crypto from "crypto";
 import { getJoiSaleObject } from "@/common/joi";
 
-import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { OrderKind } from "@/orderbook/orders";
+import { getTokenMetadata } from "./utils";
 
 export type SaleWebsocketEventsTriggerQueueJobPayload = {
   data: SaleWebsocketEventInfo;
@@ -32,28 +32,11 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
     delay: 1000,
   } as BackoffStrategy;
 
-  protected async process(payload: SaleWebsocketEventsTriggerQueueJobPayload) {
+  public async process(payload: SaleWebsocketEventsTriggerQueueJobPayload) {
     const { data } = payload;
 
     try {
-      const r = await idb.oneOrNone(
-        `
-        SELECT
-          tokens.name,
-          tokens.image,
-          tokens.collection_id,
-          collections.name AS collection_name
-        FROM tokens
-        LEFT JOIN collections 
-          ON tokens.collection_id = collections.id
-        WHERE tokens.contract = $/contract/ AND tokens.token_id = $/token_id/
-      `,
-        {
-          token_id: data.after.token_id,
-          contract: toBuffer(data.after.contract),
-        }
-      );
-
+      const r = await getTokenMetadata(data.after.token_id, data.after.contract);
       const result = await getJoiSaleObject({
         prices: {
           gross: {

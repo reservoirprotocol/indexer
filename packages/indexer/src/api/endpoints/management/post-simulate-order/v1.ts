@@ -216,7 +216,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           // Skip errors
         }
       }
-      if (["nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)) {
+      if (
+        ["nftx", "nftx-v3", "sudoswap", "sudoswap-v2", "payment-processor"].includes(
+          orderResult.kind
+        )
+      ) {
         return { message: "Order not simulatable" };
       }
       if (orderResult.kind === "blur" && orderResult.side === "buy") {

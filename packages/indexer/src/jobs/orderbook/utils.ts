@@ -111,6 +111,13 @@ export type GenericOrderInfo =
       ingestDelay?: number;
     }
   | {
+      kind: "nftx-v3";
+      info: orders.nftxV3.OrderInfo;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+      ingestDelay?: number;
+    }
+  | {
       kind: "superrare";
       info: orders.superrare.OrderInfo;
       validateBidValue?: boolean;
@@ -224,6 +231,11 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
 
       case "nftx": {
         result = await orders.nftx.save([info]);
+        break;
+      }
+
+      case "nftx-v3": {
+        result = await orders.nftxV3.save([info]);
         break;
       }
 

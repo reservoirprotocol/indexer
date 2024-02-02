@@ -24,7 +24,7 @@ export class TopBidWebSocketEventsTriggerJob extends AbstractRabbitMqJobHandler 
   maxRetries = 5;
   concurrency = 20;
 
-  protected async process(payload: TopBidWebSocketEventsTriggerJobPayload) {
+  public async process(payload: TopBidWebSocketEventsTriggerJobPayload) {
     const { data } = payload;
 
     try {

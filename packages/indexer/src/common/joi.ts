@@ -13,7 +13,7 @@ import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { OrderKind } from "@/orderbook/orders";
-import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
+import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import {
   getUSDAndCurrencyPrices,
@@ -416,7 +416,7 @@ export const getJoiDynamicPricingObject = async (
         ),
       },
     };
-  } else if (kind === "nftx" || kind === "caviar-v1") {
+  } else if (kind === "nftx" || kind === "nftx-v3" || kind === "caviar-v1") {
     // Pool orders
     return {
       kind: "pool",
@@ -478,7 +478,8 @@ export const getJoiOrderDepthObject = async (
     }
 
     case "caviar-v1":
-    case "nftx": {
+    case "nftx":
+    case "nftx-v3": {
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({

@@ -42,7 +42,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: MetadataIndexFetchJobPayload) {
+  public async process(payload: MetadataIndexFetchJobPayload) {
     // Do nothing if the indexer is running in liquidity-only mode
     if (config.liquidityOnly) {
       return;
@@ -100,7 +100,15 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       if (_.size(refreshTokens) == limit) {
         const lastToken = refreshTokens[limit - 1];
         const continuation = `${lastToken.contract}:${lastToken.tokenId}`;
-        logger.info(this.queueName, `Trigger token sync continuation: ${continuation}`);
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Trigger token sync continuation. collection=${payload.data.collection}, continuation=${continuation}`,
+            data,
+            prioritized,
+          })
+        );
 
         await this.addToQueue(
           [

@@ -16,7 +16,7 @@ export default class CollectionRefreshSpamJob extends AbstractRabbitMqJobHandler
   concurrency = 1;
   useSharedChannel = true;
 
-  protected async process() {
+  public async process() {
     // Get contracts marked as spam from Alchemy
     const alchemySpamContracts = await AlchemyApi.getSpamContracts();
 
