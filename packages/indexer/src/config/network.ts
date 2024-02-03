@@ -1169,6 +1169,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 6,
             },
           ],
+          [
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            {
+              contract: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+              name: "USDC",
+              symbol: "USDC",
+              decimals: 6,
+            },
+          ],
         ]),
         onStartup: async () => {
           // Insert the native currency

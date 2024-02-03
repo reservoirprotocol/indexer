@@ -505,7 +505,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "nftx-minted":
       case "nftx-v3-swap": {
         const ftPool = await nftxV3Utils.getFtPoolDetails(baseEventParams.address, true, "nftx-v3");
         if (ftPool) {

@@ -159,15 +159,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           if (priceList.length) {
             // Get the price of buying this specific token id
-            const { price, executeCallData } = await Sdk.NftxV3.Helpers.getPoolQuoteFromAPI({
-              provider: baseProvider,
-              vault: orderParams.pool,
-              side: "sell",
-              slippage,
-              tokenIds: [orderParams.tokenId],
-              userAddress,
-              nftxApiKey: config.nftxApiKey,
-            });
+            const { price, executeCallData } = orderParams.tokenId
+              ? await Sdk.NftxV3.Helpers.getPoolQuoteFromAPI({
+                  provider: baseProvider,
+                  vault: orderParams.pool,
+                  side: "sell",
+                  slippage,
+                  tokenIds: [orderParams.tokenId],
+                  userAddress,
+                  nftxApiKey: config.nftxApiKey,
+                })
+              : await Sdk.NftxV3.Helpers.getPoolPriceFromAPI({
+                  nftxApiKey: config.nftxApiKey,
+                  provider: baseProvider,
+                  vault: orderParams.pool,
+                  side: "sell",
+                  slippage,
+                  tokenIds: ["-1"],
+                });
             const value = bn(price).toString();
 
             // Get the price impact of buying 1-50 items
@@ -360,8 +369,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 `,
                 {
                   id,
-                  price,
-                  value,
+                  price: price.toString(),
+                  value: value.toString(),
                   rawData: sdkOrder.params,
                   quantityRemaining: prices.length.toString(),
                   missingRoyalties: missingRoyalties,
@@ -639,8 +648,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       `,
                       {
                         id,
-                        price,
-                        value,
+                        price: price.toString(),
+                        value: value.toString(),
                         rawData: sdkOrder.params,
                         missingRoyalties: missingRoyalties,
                         normalizedValue: normalizedValue.toString(),

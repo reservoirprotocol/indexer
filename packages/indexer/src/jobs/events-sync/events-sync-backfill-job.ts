@@ -1,6 +1,7 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import { SyncBlockOptions, syncEvents, syncEventsOnly } from "@/events-sync/index";
+import _ from "lodash";
 
 export type EventSyncBackfillJobPayload = {
   fromBlock: number;
@@ -33,13 +34,15 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
       for (let i = fromBlock; i < toBlock; i += splitSize) {
         splitJobs.push({
           fromBlock: i,
-          toBlock: Math.min(i + splitSize, toBlock),
+          toBlock: Math.min(i + splitSize - 1, toBlock),
           syncOptions,
         });
       }
-      await Promise.all(
-        splitJobs.map((job) => this.addToQueue(job.fromBlock, job.toBlock, job.syncOptions))
-      );
+
+      for (const chunk of _.chunk(splitJobs, 1000)) {
+        await this.addToQueueBatch(chunk);
+      }
+
       return;
     }
 
@@ -88,6 +91,22 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
         },
       },
       options?.delay || 0
+    );
+  }
+
+  public async addToQueueBatch(
+    jobs: { fromBlock: number; toBlock: number; syncOptions: SyncBlockOptions }[],
+    options?: {
+      delay?: number;
+    }
+  ) {
+    await this.sendBatch(
+      jobs.map((job) => {
+        return {
+          payload: job,
+          delay: options?.delay || 0,
+        };
+      })
     );
   }
 }

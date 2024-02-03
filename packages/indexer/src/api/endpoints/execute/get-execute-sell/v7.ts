@@ -213,6 +213,11 @@ export const getExecuteSellV7Options: RouteOptions = {
           // Net price (without fees on top) = price - builtInFees
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          sellOutCurrency: Joi.string().lowercase().pattern(regex.address),
+          sellOutCurrencySymbol: Joi.string().optional().allow(null),
+          sellOutCurrencyDecimals: Joi.number().optional().allow(null),
+          sellOutQuote: Joi.number().unsafe(),
+          sellOutRawQuote: Joi.string().pattern(regex.number),
           // Total price (with fees on top) = price + feesOnTop
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
@@ -256,6 +261,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         currencyDecimals?: number;
         quote: number;
         rawQuote: string;
+        sellOutCurrency?: string;
+        sellOutCurrencySymbol?: string;
+        sellOutCurrencyDecimals?: number;
+        sellOutQuote?: number;
+        sellOutRawQuote?: string;
         totalPrice: number;
         totalRawPrice: string;
         builtInFees: ExecuteFee[];
@@ -954,6 +964,32 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
+      const sellOutCurrency = payload.currency;
+
+      // Add the quotes in the "sell-out" currency to the path items
+      for (const item of path) {
+        if (sellOutCurrency && item.currency !== sellOutCurrency) {
+          const sellOutPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            sellOutCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (sellOutPrices.currencyPrice) {
+            const c = await getCurrency(sellOutCurrency);
+            item.sellOutCurrency = c.contract;
+            item.sellOutCurrencyDecimals = c.decimals;
+            item.sellOutCurrencySymbol = c.symbol;
+            item.sellOutQuote = formatPrice(sellOutPrices.currencyPrice, c.decimals, true);
+            item.sellOutRawQuote = sellOutPrices.currencyPrice;
+          }
+        }
+      }
+
       if (payload.onlyPath) {
         return { path };
       }
@@ -1212,7 +1248,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          sellOutCurrency: payload.currency,
+          sellOutCurrency,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({

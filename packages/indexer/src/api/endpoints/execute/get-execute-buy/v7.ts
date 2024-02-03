@@ -1907,6 +1907,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         item.quote = formatPrice(cost);
         item.rawQuote = cost.toString();
         item.gasCost = data.relayerFee.toString();
+        item.fromChainId = payload.currencyChainId;
 
         // Better approach
         // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);

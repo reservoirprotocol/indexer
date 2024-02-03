@@ -1,5 +1,6 @@
 import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
+import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero, HashZero, MaxUint256 } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
@@ -2487,15 +2488,6 @@ export class Router {
             perVaultIdOrders[order.params.vaultId] = [];
           }
 
-          // Attach the Execute Swap calldata
-          const { executeCallData, price } = await order.getQuote(
-            5,
-            this.provider,
-            this.options!.nftxApiKey!
-          );
-          order.params.executeCallData = executeCallData;
-          order.params.price = price.toString();
-
           perVaultIdOrders[order.params.vaultId].push(order);
         } catch (error) {
           if (options?.onError) {
@@ -2511,16 +2503,40 @@ export class Router {
         }
       }
 
-      const aggregatedOrders = Object.entries(perVaultIdOrders).map(([vaultId, orders]) => ({
-        vaultId: perVaultIdOrders[vaultId][0].params.vaultId,
-        collection: perVaultIdOrders[vaultId][0].params.collection,
-        idsOut: perVaultIdOrders[vaultId].map((o) => o.params.idsOut![0]),
-        vTokenPremiumLimit: MaxUint256.toString(),
-        deductRoyalty: false,
-        // Need to use the price and swap calldata of the last order
-        executeCallData: perVaultIdOrders[vaultId][orders.length - 1].params.executeCallData,
-        price: perVaultIdOrders[vaultId][orders.length - 1].params.price,
-      }));
+      const aggregatedOrders: {
+        vaultId: string;
+        collection: string;
+        idsOut: string[];
+        amounts: string[];
+        vTokenPremiumLimit: string;
+        deductRoyalty: boolean;
+        executeCallData: string;
+        price: BigNumber;
+      }[] = [];
+
+      for (const [vaultId, orders] of Object.entries(perVaultIdOrders)) {
+        const [order] = orders;
+        const idsOut = orders.flatMap((o) => o.params.idsOut || []);
+        const amounts = orders.flatMap((o) => o.params.amounts || []);
+        order.params.idsOut = idsOut;
+        order.params.amounts = amounts;
+        const { executeCallData, price } = await order.getQuote(
+          5,
+          this.provider,
+          this.options!.nftxApiKey!
+        );
+
+        aggregatedOrders.push({
+          vaultId,
+          collection: orders[0].params.collection,
+          idsOut,
+          amounts,
+          vTokenPremiumLimit: MaxUint256.toString(),
+          deductRoyalty: false,
+          executeCallData,
+          price,
+        });
+      }
 
       // Consider the updated prices (fetched above from NFTX API)
       const fees = getFees(nftxV3Details);
