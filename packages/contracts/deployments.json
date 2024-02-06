@@ -412,5 +412,18 @@
       "5": "0x06500263e56116e7d4b18f78be62558a8caa93eb",
       "11155111": "0x06500263e56116e7d4b18f78be62558a8caa93eb"
     }
+  },
+  "TrustedForwarder": {
+    "v1": {
+      "1": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "10": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "56": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "137": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "1101": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "8453": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "42161": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "43114": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9",
+      "11155111": "0xb233e3602bb06aa2c2db0982bbaf33c2b15184c9"
+    }
   }
 }

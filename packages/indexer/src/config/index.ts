@@ -182,4 +182,6 @@ export const config = {
   coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
 
   spamNames: process.env.SPAM_NAMES ? String(process.env.SPAM_NAMES).split(",") : [],
+
+  thirdWebSecret: process.env.THIRD_WEB_SECRET ? String(process.env.THIRD_WEB_SECRET) : undefined,
 };

@@ -571,6 +571,9 @@ export const getExecuteBidV5Options: RouteOptions = {
 
       const feeRecipients = await FeeRecipients.getInstance();
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+
       const errors: { message: string; orderIndex: number }[] = [];
       await Promise.all(
         params.map(async (params, i) => {
@@ -1366,6 +1369,17 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                if (params.fees && params.fees?.length > 1) {
+                  logger.error(
+                    `payment-processor-multiple-fees`,
+                    JSON.stringify({
+                      request: payload,
+                      apiKey,
+                    })
+                  );
+                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                }
+
                 let order: Sdk.PaymentProcessor.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
@@ -1464,6 +1478,17 @@ export const getExecuteBidV5Options: RouteOptions = {
                     message: "Unsupported orderbook",
                     orderIndex: i,
                   });
+                }
+
+                if (params.fees && params.fees?.length > 1) {
+                  logger.error(
+                    `payment-processor-v2-multiple-fees`,
+                    JSON.stringify({
+                      request: payload,
+                      apiKey,
+                    })
+                  );
+                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const options = params.options?.[params.orderKind] as
@@ -1810,8 +1835,6 @@ export const getExecuteBidV5Options: RouteOptions = {
 
       await executionsBuffer.flush();
 
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
         `get-execute-bid-${version}-handler`,
         JSON.stringify({

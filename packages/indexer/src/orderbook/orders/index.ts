@@ -535,6 +535,9 @@ export const generateListingDetailsV6 = async (
 
       if (options?.ppV2TrustedChannel) {
         extraArgs.trustedChannel = options.ppV2TrustedChannel;
+      } else {
+        extraArgs.trustedChannel =
+          Sdk.PaymentProcessorV2.Addresses.ReservoirTrustedForwarder[config.chainId];
       }
 
       return {
@@ -953,6 +956,9 @@ export const generateBidDetailsV6 = async (
 
       if (options?.ppV2TrustedChannel) {
         extraArgs.trustedChannel = options?.ppV2TrustedChannel;
+      } else {
+        extraArgs.trustedChannel =
+          Sdk.PaymentProcessorV2.Addresses.ReservoirTrustedForwarder[config.chainId];
       }
 
       return {

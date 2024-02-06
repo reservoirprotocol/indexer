@@ -5,12 +5,12 @@ import * as Sdk from "../../index";
 import { MaxUint256, TxData } from "../../utils";
 import { TxTags } from "./types";
 
-export const isETH = (chainId: number, address: string) =>
+export const isNative = (chainId: number, address: string) =>
   [Sdk.Common.Addresses.Native[chainId], Sdk.ZeroExV4.Addresses.Native[chainId]].includes(
     address.toLowerCase()
   );
 
-export const isWETH = (chainId: number, address: string) =>
+export const isWNative = (chainId: number, address: string) =>
   address.toLowerCase() === Sdk.Common.Addresses.WNative[chainId];
 
 export const isBETH = (chainId: number, address: string) =>

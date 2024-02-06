@@ -421,6 +421,9 @@ export const getExecuteListV5Options: RouteOptions = {
 
       const feeRecipients = await FeeRecipients.getInstance();
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+
       const errors: { message: string; orderIndex: number }[] = [];
       await Promise.all(
         params.map(async (params, i) => {
@@ -1014,6 +1017,17 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
+                if (params.fees && params.fees?.length > 1) {
+                  logger.error(
+                    `payment-processor-multiple-fees`,
+                    JSON.stringify({
+                      request: payload,
+                      apiKey,
+                    })
+                  );
+                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                }
+
                 const order = await paymentProcessorSellToken.build({
                   ...params,
                   maker,
@@ -1093,6 +1107,17 @@ export const getExecuteListV5Options: RouteOptions = {
               case "payment-processor-v2": {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
+                }
+
+                if (params.fees && params.fees?.length > 1) {
+                  logger.error(
+                    `payment-processor-v2-multiple-fees`,
+                    JSON.stringify({
+                      request: payload,
+                      apiKey,
+                    })
+                  );
+                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const options = (params.options?.["payment-processor-v2"] ??
@@ -1370,8 +1395,6 @@ export const getExecuteListV5Options: RouteOptions = {
         })
       );
 
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
         `get-execute-list-${version}-handler`,
         JSON.stringify({

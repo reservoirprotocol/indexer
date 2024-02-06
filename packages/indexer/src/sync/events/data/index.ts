@@ -308,11 +308,11 @@ export type EventSubKind =
   | "erc721c-verified-eoa-signature"
   | "erc721c-added-to-allowlist"
   | "erc721c-removed-from-allowlist"
-  | "joepeg-taker-ask"
-  | "joepeg-taker-bid"
   | "erc721c-set-allowlist"
   | "erc721c-set-transfer-security-level"
   | "erc721c-transfer-validator-updated"
+  | "joepeg-taker-ask"
+  | "joepeg-taker-bid"
   | "metadata-update-single-token-opensea"
   | "metadata-update-batch-tokens-opensea"
   | "metadata-update-uri-opensea"
@@ -329,7 +329,6 @@ export type EventSubKind =
   | "payment-processor-v2-master-nonce-invalidated"
   | "payment-processor-v2-nonce-invalidated"
   | "payment-processor-v2-order-digest-invalidated"
-  | "titlesxyz-edition-published"
   | "payment-processor-v2-payment-method-added-to-whitelist"
   | "payment-processor-v2-payment-method-removed-from-whitelist"
   | "payment-processor-v2-updated-collection-level-pricing-boundaries"
@@ -339,6 +338,7 @@ export type EventSubKind =
   | "payment-processor-v2-trusted-channel-added-for-collection"
   | "payment-processor-v2-banned-account-removed-for-collection"
   | "payment-processor-v2-banned-account-added-for-collection"
+  | "titlesxyz-edition-published"
   | "artblocks-project-updated"
   | "artblocks-minter-registered"
   | "artblocks-minter-removed"
@@ -350,6 +350,8 @@ export type EventSubKind =
   | "erc721c-v2-removed-account-from-list"
   | "erc721c-v2-removed-code-hash-from-list"
   | "erc721c-v2-applied-list-to-collection"
+  | "erc721c-v2-set-transfer-security-level"
+  | "erc721c-v2-transfer-validator-updated"
   | "ditto-pool-initialized"
   | "mooar-order-filled"
   | "highlightxyz-edition-vector-created"
@@ -580,7 +582,6 @@ const allEventData = [
   paymentProcessorV2.masterNonceInvalidated,
   paymentProcessorV2.nonceInvalidated,
   paymentProcessorV2.orderDigestInvalidated,
-  titlesxyz.editionPublished,
   paymentProcessorV2.paymentMethodAddedToWhitelist,
   paymentProcessorV2.paymentMethodRemovedFromWhitelist,
   paymentProcessorV2.updatedTokenLevelPricingBoundaries,
@@ -590,6 +591,7 @@ const allEventData = [
   paymentProcessorV2.trustedChannelRemovedForCollection,
   paymentProcessorV2.bannedAccountAddedForCollection,
   paymentProcessorV2.bannedAccountRemovedForCollection,
+  titlesxyz.editionPublished,
   artblocks.projectUpdated,
   artblocks.projectMinterRegistered,
   artblocks.projectMinterRemoved,
@@ -601,6 +603,8 @@ const allEventData = [
   erc721cV2.removedAccountFromList,
   erc721cV2.removedCodeHashFromList,
   erc721cV2.appliedListToCollection,
+  erc721cV2.setTransferSecurityLevel,
+  erc721cV2.transferValidatorUpdated,
   highlightxyz.editonVectorCreated,
   highlightxyz.seriesVectorCreated,
   highlightxyz.vectorUpdated,

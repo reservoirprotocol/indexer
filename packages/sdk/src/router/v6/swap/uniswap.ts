@@ -6,7 +6,7 @@ import { Protocol } from "@uniswap/router-sdk";
 import { Currency, CurrencyAmount, Ether, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { AlphaRouter, SwapRoute, SwapType } from "@uniswap/smart-order-router";
 
-import { isETH } from "../utils";
+import { isNative } from "../utils";
 import { WNative } from "../../../common/addresses";
 import { Network } from "../../../utils";
 import { TransferDetail, SwapInfo } from "./index";
@@ -22,7 +22,7 @@ const getToken = async (
     provider
   );
 
-  return isETH(chainId, address)
+  return isNative(chainId, address)
     ? Ether.onChain(chainId)
     : new Token(chainId, address, await contract.decimals());
 };
@@ -94,10 +94,10 @@ const _generateSwapExecutions = async (
   let fromToken = await getToken(chainId, provider, fromTokenAddress);
   let toToken = await getToken(chainId, provider, toTokenAddress);
   if ([Network.Polygon, Network.Mumbai, Network.EthereumSepolia].includes(chainId)) {
-    if (isETH(chainId, fromTokenAddress)) {
+    if (isNative(chainId, fromTokenAddress)) {
       fromToken = await getToken(chainId, provider, WNative[chainId]);
     }
-    if (isETH(chainId, toTokenAddress)) {
+    if (isNative(chainId, toTokenAddress)) {
       toToken = await getToken(chainId, provider, WNative[chainId]);
     }
   }
@@ -180,7 +180,7 @@ const _generateSwapExecutions = async (
     throw new Error("Could not generate compatible route");
   }
 
-  const fromETH = isETH(chainId, fromTokenAddress);
+  const fromETH = isNative(chainId, fromTokenAddress);
   const execution = {
     module: options.module.address,
     data: options.module.interface.encodeFunctionData(
