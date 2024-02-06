@@ -647,7 +647,10 @@ export const savePartialBids = async (
 
         if (fullUpdate) {
           // Assume `JSON.stringify` is deterministic
-          if (JSON.stringify(currentBid.pricePoints) === JSON.stringify(bidUpdates.pricePoints)) {
+          if (
+            !isFiltered &&
+            JSON.stringify(currentBid.pricePoints) === JSON.stringify(bidUpdates.pricePoints)
+          ) {
             return results.push({
               id,
               status: "redundant",
