@@ -236,6 +236,7 @@ export class ApiKeyManager {
     const log: any = {
       route: request.route.path,
       method: request.route.method,
+      latency: new Date().getTime() - request.info.received,
     };
 
     if (request.payload) {
@@ -314,6 +315,8 @@ export class ApiKeyManager {
           log.apiKey = {};
           log.apiKey.appName = key;
         }
+
+        log.debugApiKey = config.debugApiKeys.includes(key);
       } catch (e: any) {
         logger.info("api-key", e.message);
       }

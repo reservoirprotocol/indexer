@@ -22,6 +22,7 @@ export const CONFIG_DEFAULT = {
           name: { type: "keyword" },
           image: { type: "keyword" },
           attributes: { type: "flattened" },
+          attributesV2: { type: "flattened" },
           isFlagged: { type: "boolean" },
           rarityRank: { type: "integer" },
           isSpam: { type: "boolean" },
