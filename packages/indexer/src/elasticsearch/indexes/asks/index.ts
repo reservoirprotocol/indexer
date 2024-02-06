@@ -885,14 +885,24 @@ export const updateAsksTokenAttributesData = async (
     );
 
     if (pendingUpdateDocuments.length) {
+      const tokenAttributesDataV2: any = {};
+
+      if (tokenAttributesData.length) {
+        for (const tokenAttribute of tokenAttributesData) {
+          tokenAttributesDataV2[tokenAttribute["key"]] = tokenAttribute["value"];
+        }
+      }
+
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
-              source: "ctx._source.token.attributes = params.token_attributes",
+              source:
+                "ctx._source.token.attributes = params.token_attributes; ctx._source.token.attributesV2 = params.token_attributes_v2",
               params: {
                 token_attributes: tokenAttributesData,
+                token_attributes_v2: tokenAttributesDataV2,
               },
             },
           },

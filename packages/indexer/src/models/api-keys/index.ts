@@ -236,7 +236,7 @@ export class ApiKeyManager {
     const log: any = {
       route: request.route.path,
       method: request.route.method,
-      latency: new Date().getTime() - request.info.received,
+      latencyMS: new Date().getTime() - request.info.received,
     };
 
     if (request.payload) {
