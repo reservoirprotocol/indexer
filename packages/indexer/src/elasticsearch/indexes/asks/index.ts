@@ -22,6 +22,7 @@ import {
 import { acquireLockCrossChain } from "@/common/redis";
 import { config } from "@/config/index";
 import { isRetryableError } from "@/elasticsearch/indexes/utils";
+import _ from "lodash";
 
 const INDEX_NAME = `asks`;
 
@@ -303,19 +304,25 @@ export const searchTokenAsks = async (
   }
 
   if (params.attributes?.length) {
-    for (const attribute of params.attributes) {
-      (esQuery as any).bool.filter.push({
+    const attributes = _.groupBy(params.attributes, (attribute) => attribute.key);
+
+    for (const attribute in attributes) {
+      const attributeValues = attributes[attribute].map((attribute) => attribute.value);
+
+      const attributeFilter = {
         bool: {
           must: [
             {
-              term: { ["token.attributes.key"]: attribute.key },
+              term: { ["token.attributes.key"]: attribute },
             },
             {
-              term: { ["token.attributes.value"]: attribute.value },
+              terms: { ["token.attributes.value"]: attributeValues },
             },
           ],
         },
-      });
+      };
+
+      (esQuery as any).bool.filter.push(attributeFilter);
     }
   }
 
