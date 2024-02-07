@@ -309,20 +309,9 @@ export const searchTokenAsks = async (
     for (const attribute in attributes) {
       const attributeValues = attributes[attribute].map((attribute) => attribute.value);
 
-      const attributeFilter = {
-        bool: {
-          must: [
-            {
-              term: { ["token.attributes.key"]: attribute },
-            },
-            {
-              terms: { ["token.attributes.value"]: attributeValues },
-            },
-          ],
-        },
-      };
-
-      (esQuery as any).bool.filter.push(attributeFilter);
+      (esQuery as any).bool.filter.push({
+        terms: { [`token.attributesV2.${attribute}`]: attributeValues },
+      });
     }
   }
 
