@@ -244,12 +244,8 @@ export class ApiKeyManager {
       method: request.route.method,
       latencyMS: new Date().getTime() - request.info.received,
       requestReceivedAt: new Date(request.info.received).toISOString(),
-      requestReceived: request.info.received,
-      requestCompleted: request.info.completed,
-      requestCompletedAt: new Date(request.info.completed).toISOString(),
-      requestResponded: request.info.responded,
-      requestRespondedAt: new Date(request.info.responded).toISOString(),
       responseStatusCode,
+      responseLatencyMs: new Date().getTime() - request.info.received,
     };
 
     if (request.payload) {
