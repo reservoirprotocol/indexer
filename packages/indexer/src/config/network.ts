@@ -1132,7 +1132,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: false,
+        enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1168,15 +1168,6 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0xA6de6C90f2FFd30B54b830359a9f17Ed44dd63Ac",
               name: "TetherToken",
               symbol: "USDT",
-              decimals: 6,
-            },
-          ],
-          [
-            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
-            {
-              contract: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
-              name: "USDC",
-              symbol: "USDC",
               decimals: 6,
             },
           ],
