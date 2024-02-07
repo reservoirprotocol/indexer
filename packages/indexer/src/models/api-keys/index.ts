@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import _ from "lodash";
-import { Request } from "@hapi/hapi";
+import Hapi, { Request } from "@hapi/hapi";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -233,10 +233,23 @@ export class ApiKeyManager {
   static async getBaseLog(request: Request) {
     const key = request.headers["x-api-key"];
 
+    let responseStatusCode = (request.response as Hapi.ResponseObject).statusCode;
+
+    if ("output" in request.response) {
+      responseStatusCode = request.response["output"]["statusCode"];
+    }
+
     const log: any = {
       route: request.route.path,
       method: request.route.method,
       latencyMS: new Date().getTime() - request.info.received,
+      requestReceivedAt: new Date(request.info.received).toISOString(),
+      requestReceived: request.info.received,
+      requestCompleted: request.info.completed,
+      requestCompletedAt: new Date(request.info.completed).toISOString(),
+      requestResponded: request.info.responded,
+      requestRespondedAt: new Date(request.info.responded).toISOString(),
+      responseStatusCode,
     };
 
     if (request.payload) {
@@ -330,6 +343,7 @@ export class ApiKeyManager {
   }
   public static async logRequest(request: Request) {
     const log: any = await ApiKeyManager.getBaseLog(request);
+
     logger.info("metrics", JSON.stringify(log));
 
     // Add request params to Datadog trace
