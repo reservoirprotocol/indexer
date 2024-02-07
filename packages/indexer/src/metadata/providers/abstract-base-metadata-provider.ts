@@ -119,17 +119,17 @@ export abstract class AbstractBaseMetadataProvider {
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
         try {
+          const debugMissingTokenImages = await redis.sismember(
+            "missing-token-image-contracts",
+            metadata.contract
+          );
+
           if (
             metadata.imageUrl &&
             !metadata.imageUrl.startsWith("data:") &&
             !metadata.imageMimeType
           ) {
             metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
-
-            const debugMissingTokenImages = await redis.sismember(
-              "missing-token-image-contracts",
-              metadata.contract
-            );
 
             if (debugMissingTokenImages) {
               logger.info(

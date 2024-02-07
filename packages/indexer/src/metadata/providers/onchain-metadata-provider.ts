@@ -683,7 +683,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       logger.warn(
         "onchain-fetcher",
         JSON.stringify({
-          topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
           message: `getTokenMetadataFromURI error. contract=${contract}, tokenId=${tokenId}`,
           contract,
           tokenId,
