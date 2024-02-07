@@ -79,8 +79,36 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
+        const debugMissingTokenImages = await redis.sismember(
+          "missing-token-image-contracts",
+          metadata.contract
+        );
+
+        if (debugMissingTokenImages) {
+          logger.info(
+            "getTokensMetadata",
+            JSON.stringify({
+              topic: "debugMissingTokenImages",
+              message: `_getTokensMetadata. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}`,
+              metadata: JSON.stringify(metadata),
+            })
+          );
+        }
+
         if (hasExtendHandler(metadata.contract)) {
           const result = await extendMetadata(metadata);
+
+          if (debugMissingTokenImages) {
+            logger.info(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "debugMissingTokenImages",
+                message: `extendMetadata. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}`,
+                result: JSON.stringify(result),
+              })
+            );
+          }
+
           return result;
         }
         return metadata;
@@ -98,6 +126,22 @@ export abstract class AbstractBaseMetadataProvider {
           ) {
             metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
 
+            const debugMissingTokenImages = await redis.sismember(
+              "missing-token-image-contracts",
+              metadata.contract
+            );
+
+            if (debugMissingTokenImages) {
+              logger.info(
+                "getTokensMetadata",
+                JSON.stringify({
+                  topic: "debugMissingTokenImages",
+                  message: `_getImageMimeType. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}, imageMimeType=${metadata.imageMimeType}`,
+                  metadata: JSON.stringify(metadata),
+                })
+              );
+            }
+
             if (metadata.contract === "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d") {
               metadata.imageMimeType = "image/png";
             }
@@ -106,7 +150,7 @@ export abstract class AbstractBaseMetadataProvider {
               logger.warn(
                 "getTokensMetadata",
                 JSON.stringify({
-                  topic: "debugMimeType",
+                  topic: "debugMissingTokenImages",
                   message: `Missing image mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageUrl=${metadata.imageUrl}`,
                   metadata: JSON.stringify(metadata),
                   method: this.method,
@@ -126,7 +170,7 @@ export abstract class AbstractBaseMetadataProvider {
               logger.warn(
                 "getTokensMetadata",
                 JSON.stringify({
-                  topic: "debugMimeType",
+                  topic: "debugMissingTokenImages",
                   message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
                   metadata: JSON.stringify(metadata),
                   method: this.method,
@@ -154,6 +198,7 @@ export abstract class AbstractBaseMetadataProvider {
           logger.error(
             "getTokensMetadata",
             JSON.stringify({
+              topic: "debugMissingTokenImages",
               message: `extendedMetadata error. contract=${metadata.contract}, tokenId=${metadata.tokenId}, error=${error}`,
               metadata,
               error,

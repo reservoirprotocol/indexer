@@ -9,6 +9,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 import { isOpenseaSlugSharedContract } from "@/metadata/extend";
+import { redis } from "@/common/redis";
 
 export type MetadataIndexFetchJobPayload =
   | {
@@ -48,10 +49,16 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (payload.data.collection === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
+    const debugMissingTokenImages = await redis.sismember(
+      "missing-token-image-contracts",
+      payload.data.collection
+    );
+
+    if (debugMissingTokenImages) {
       logger.info(
         this.queueName,
         JSON.stringify({
+          topic: "debugMissingTokenImages",
           message: `Start. collection=${payload.data.collection}`,
           payload,
         })

@@ -10,6 +10,7 @@ import {
   TokenUriRequestTimeoutError,
 } from "@/metadata/providers/utils";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { redis } from "@/common/redis";
 
 export type OnchainMetadataProcessTokenUriJobPayload = {
   contract: string;
@@ -32,11 +33,17 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    if (contract === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
+    const debugMissingTokenImages = await redis.sismember(
+      "missing-token-image-contracts",
+      contract
+    );
+
+    if (debugMissingTokenImages) {
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Start. contract=${contract}`,
+          topic: "debugMissingTokenImages",
+          message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
           payload,
         })
       );
@@ -50,11 +57,26 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ]);
 
       if (metadata.length) {
+        if (debugMissingTokenImages) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugMissingTokenImages",
+              message: `getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
+              payload,
+              metadata: JSON.stringify(metadata),
+            })
+          );
+        }
+
         if (metadata[0].imageUrl?.startsWith("data:")) {
           if (config.fallbackMetadataIndexingMethod) {
             logger.warn(
               this.queueName,
-              `Fallback - Image Encoding. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`
+              JSON.stringify({
+                topic: debugMissingTokenImages ? "simpleHashFallbackDebug" : undefined,
+                message: `Fallback - Image Encoding. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              })
             );
 
             await metadataIndexFetchJob.addToQueue(
@@ -88,7 +110,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             logger.warn(
               this.queueName,
               JSON.stringify({
-                topic: "simpleHashFallbackDebug",
+                topic: debugMissingTokenImages ? "simpleHashFallbackDebug" : undefined,
                 message: `Fallback - Missing Mime Type. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
                 contract,
                 metadata: JSON.stringify(metadata[0]),
@@ -126,7 +148,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             logger.warn(
               this.queueName,
               JSON.stringify({
-                topic: "simpleHashFallbackDebug",
+                topic: debugMissingTokenImages ? "simpleHashFallbackDebug" : undefined,
                 message: `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
                 contract,
                 reason: "GIF",
@@ -179,6 +201,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       logger.warn(
         this.queueName,
         JSON.stringify({
+          topic: debugMissingTokenImages ? "simpleHashFallbackDebug" : undefined,
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
@@ -194,6 +217,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     logger.error(
       this.queueName,
       JSON.stringify({
+        topic: debugMissingTokenImages ? "simpleHashFallbackDebug" : undefined,
         message: `Fallback - Get Metadata Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
         payload,
         reason: "Get Metadata Error",
