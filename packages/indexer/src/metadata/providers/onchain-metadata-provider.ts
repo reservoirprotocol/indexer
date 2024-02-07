@@ -666,7 +666,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           logger.warn(
             "onchain-fetcher",
             JSON.stringify({
-              topic: "debugMissingTokenImages",
+              topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
               message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
               contract,
               tokenId,
@@ -683,7 +683,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       logger.warn(
         "onchain-fetcher",
         JSON.stringify({
-          topic: "debugMissingTokenImages",
+          topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
           message: `getTokenMetadataFromURI error. contract=${contract}, tokenId=${tokenId}`,
           contract,
           tokenId,
