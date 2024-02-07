@@ -122,6 +122,14 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       }
 
       if (config.fallbackMetadataIndexingMethod) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "simpleHashFallbackDebug",
+            message: `metadataIndexFetchJob. fallbackToken=${fallbackTokens.length}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          })
+        );
+
         for (const fallbackToken of fallbackTokens) {
           await metadataIndexFetchJob.addToQueue(
             [
@@ -134,9 +142,9 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
                   collection: fallbackToken.collection,
                 },
               },
-            ],
-            true,
-            5
+            ]
+            // true,
+            // 5
           );
         }
       }
