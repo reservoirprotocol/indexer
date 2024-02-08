@@ -1733,6 +1733,14 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     });
   }
 
+  let currencies: string[] = [];
+
+  if (query.currencies && !_.isArray(query.currencies)) {
+    currencies = [query.currencies];
+  } else if (query.currencies) {
+    currencies = query.currencies;
+  }
+
   if (query.source) {
     const sources = await Sources.getInstance();
     let source = sources.getByName(query.source, false);
@@ -1789,6 +1797,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     collections,
     tokens,
     attributes,
+    currencies,
     rarityRank: { min: query.minRarityRank, max: query.maxRarityRank },
     floorAskPrice: { min: query.minFloorAskPrice, max: query.maxFloorAskPrice },
     flaggedTokens: query.flaggedTokens,
