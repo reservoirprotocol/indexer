@@ -121,7 +121,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
-      if (config.fallbackMetadataIndexingMethod) {
+      if (config.fallbackMetadataIndexingMethod && fallbackTokens.length) {
         logger.info(
           this.queueName,
           JSON.stringify({
@@ -130,23 +130,19 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           })
         );
 
-        for (const fallbackToken of fallbackTokens) {
-          await metadataIndexFetchJob.addToQueue(
-            [
-              {
-                kind: "single-token",
-                data: {
-                  method: config.fallbackMetadataIndexingMethod!,
-                  contract: fallbackToken.contract,
-                  tokenId: fallbackToken.tokenId,
-                  collection: fallbackToken.collection,
-                },
-              },
-            ]
-            // true,
-            // 5
-          );
-        }
+        await metadataIndexFetchJob.addToQueue(
+          fallbackTokens.map((fallbackToken) => ({
+            kind: "single-token",
+            data: {
+              method: config.fallbackMetadataIndexingMethod!,
+              contract: fallbackToken.contract,
+              tokenId: fallbackToken.tokenId,
+              collection: fallbackToken.collection,
+            },
+          })),
+          true,
+          5
+        );
       }
     }
 

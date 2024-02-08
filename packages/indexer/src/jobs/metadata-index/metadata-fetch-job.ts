@@ -81,6 +81,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         "0xa28d6a8eb65a41f3958f1de62cbfca20b817e66a",
         "0xb660c6dc8b18e7541a493a9014d0525575184bd7",
         "0x9e9fbde7c7a83c43913bddc8779158f1368f0413",
+        "0xba5e05cb26b78eda3a2f8e3b3814726305dcac83",
       ].includes(payload.data.collection)
     ) {
       data.method = "simplehash";

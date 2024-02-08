@@ -298,7 +298,7 @@ export class RabbitMq {
         await channel.bindQueue(
           queue.getPriorityQueue(),
           RabbitMq.delayedExchangeName,
-          queue.getQueue()
+          queue.getPriorityQueue()
         );
       }
 
