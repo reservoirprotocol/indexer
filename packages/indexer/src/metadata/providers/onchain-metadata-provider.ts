@@ -79,7 +79,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               throw new TokenUriNotFoundError("Not found");
             }
 
-            if (error === 403) {
+            if (error === 403 || error === "ECONNREFUSED") {
               throw new TokenUriRequestForbiddenError("Not Allowed");
             }
 
@@ -682,7 +682,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             })
           );
 
-          return [null, error.response?.status || `${error}`];
+          return [null, error.response?.status || error.code || `${error}`];
         });
     } catch (error) {
       logger.warn(
