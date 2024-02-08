@@ -186,7 +186,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
   getSimplehashNetworkName(): string {
     const network = getNetworkName();
     if (!network) {
-      throw new Error("Unsupported chain id");
+      throw new Error("Unsupported chain");
     }
 
     if (network == "mainnet") {
