@@ -116,7 +116,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     }
 
     const normalizedImageUrl =
-      normalizeLink(metadata?.image_url) || normalizeLink(metadata?.image_original_url) || null;
+      normalizeLink(metadata?.image_url) || normalizeLink(image_original_url) || null;
 
     if (imageUrl !== normalizedImageUrl) {
       logger.info(
