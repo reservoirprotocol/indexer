@@ -503,6 +503,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         currency_price: currencyPrice,
         currency_value: currencyValue,
         needs_conversion: needsConversion,
+        quantity_remaining: order.params.amount,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: orderNonce,
         source_id_int: source?.id,
