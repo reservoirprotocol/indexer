@@ -139,6 +139,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
               tokenId: fallbackToken.tokenId,
               collection: fallbackToken.collection,
             },
+            context: this.queueName,
           })),
           true,
           5

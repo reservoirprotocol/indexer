@@ -245,6 +245,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
               tokenId,
               collection,
             },
+            context: this.queueName,
           },
         ],
         false,

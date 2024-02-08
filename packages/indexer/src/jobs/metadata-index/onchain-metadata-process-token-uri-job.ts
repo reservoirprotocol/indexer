@@ -184,8 +184,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           logger.info(
             this.queueName,
             JSON.stringify({
-              topic: "metadataIndexWriteJob",
-              message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              topic: "debugMissingTokenImages",
+              message: `metadataIndexWriteJob. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
               metadata: JSON.stringify(metadata),
             })
           );
