@@ -59,7 +59,9 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         this.queueName,
         JSON.stringify({
           topic: "debugMissingTokenImages",
-          message: `Start. collection=${payload.data.collection}`,
+          message: `Start. collection=${payload.data.collection}, tokenId=${
+            payload.kind === "single-token" ? payload.data.tokenId : ""
+          }`,
           payload,
         })
       );

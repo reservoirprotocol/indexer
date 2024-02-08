@@ -58,7 +58,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               "_getTokensMetadata",
               JSON.stringify({
                 topic: "debugMissingTokenImages",
-                message: `getTokenMetadataFromURI. contract=${token.contract}, contract=${token.tokenId}, uri=${token.uri}`,
+                message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
                 metadata: JSON.stringify(metadata),
                 error,
               })

@@ -109,11 +109,11 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
             })
           );
 
-          fallbackTokens.push({
-            collection: result.contract,
-            contract: result.contract,
-            tokenId: result.tokenId,
-          });
+          // fallbackTokens.push({
+          //   collection: result.contract,
+          //   contract: result.contract,
+          //   tokenId: result.tokenId,
+          // });
         }
       });
 
