@@ -18,6 +18,7 @@ import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
 import { getNetworkName } from "@/config/network";
 import axios from "axios";
+import { redis } from "@/common/redis";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -46,6 +47,23 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             token.contract,
             token.tokenId
           );
+
+          const debugMissingTokenImages = await redis.sismember(
+            "missing-token-image-contracts",
+            token.contract
+          );
+
+          if (debugMissingTokenImages) {
+            logger.info(
+              "_getTokensMetadata",
+              JSON.stringify({
+                topic: "debugMissingTokenImages",
+                message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
+                metadata: JSON.stringify(metadata),
+                error,
+              })
+            );
+          }
 
           if (!metadata) {
             if (error === 429) {
@@ -583,6 +601,21 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
+      const debugMissingTokenImages = await redis.sismember(
+        "missing-token-image-contracts",
+        contract
+      );
+
+      if (debugMissingTokenImages) {
+        logger.info(
+          "getTokenMetadataFromURI",
+          JSON.stringify({
+            topic: "debugMissingTokenImages",
+            message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
+          })
+        );
+      }
+
       if (uri.startsWith("json:")) {
         uri = uri.replace("json:\n", "");
       }
@@ -612,6 +645,17 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           },
         })
         .then((res) => {
+          if (debugMissingTokenImages) {
+            logger.info(
+              "getTokenMetadataFromURI",
+              JSON.stringify({
+                topic: "debugMissingTokenImages",
+                message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
+                resData: res.data,
+              })
+            );
+          }
+
           if (res.data !== null && typeof res.data === "object") {
             return [res.data, null];
           }
@@ -622,6 +666,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           logger.warn(
             "onchain-fetcher",
             JSON.stringify({
+              topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
               message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
               contract,
               tokenId,
@@ -638,7 +683,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       logger.warn(
         "onchain-fetcher",
         JSON.stringify({
-          message: "getTokenMetadataFromURI error",
+          message: `getTokenMetadataFromURI error. contract=${contract}, tokenId=${tokenId}`,
           contract,
           tokenId,
           uri,

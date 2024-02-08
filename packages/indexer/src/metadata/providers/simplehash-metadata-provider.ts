@@ -6,7 +6,7 @@ import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
 import axios from "axios";
-import { RequestWasThrottledError, normalizeMetadata } from "./utils";
+import { RequestWasThrottledError, normalizeMetadata, normalizeLink } from "./utils";
 import _ from "lodash";
 import { getNetworkName } from "@/config/network";
 import { baseProvider } from "@/common/provider";
@@ -103,6 +103,32 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
     } = metadata.extra_metadata;
 
     let imageUrl = metadata.image_url;
+
+    if (!imageUrl) {
+      logger.info(
+        "simplehash-fetcher",
+        JSON.stringify({
+          topic: "debugMissingTokenImages",
+          message: `_parseToken. contract=${metadata.contract_address}, tokenId=${metadata.token_id}`,
+          metadata: JSON.stringify(metadata),
+        })
+      );
+    }
+
+    const normalizedImageUrl =
+      normalizeLink(metadata?.image_url) || normalizeLink(image_original_url) || null;
+
+    if (imageUrl !== normalizedImageUrl) {
+      logger.info(
+        "simplehash-fetcher",
+        JSON.stringify({
+          topic: "debugMissingTokenImages",
+          message: `normalizeLink. contract=${metadata.contract_address}, tokenId=${metadata.token_id}, imageUrl=${imageUrl}, normalizedImageUrl=${normalizedImageUrl}`,
+          metadata: JSON.stringify(metadata),
+        })
+      );
+    }
+
     if (
       metadata?.image_properties?.mime_type === "image/gif" &&
       metadata?.image_properties?.size > 1000000 &&
