@@ -13,9 +13,9 @@ import { refreshActivitiesTokenJob } from "@/jobs/elasticsearch/activities/refre
 import _ from "lodash";
 import { ActivitiesTokenCache } from "@/models/activities-token-cache";
 import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
-// import { Collections } from "@/models/collections";
-// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-// import { config } from "@/config/index";
+import { Collections } from "@/models/collections";
+import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+import { config } from "@/config/index";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -152,31 +152,33 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           "IndexerTokensHandler",
           JSON.stringify({
             topic: "debugMissingTokenImages",
-            message: `token image missing. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            message: `token image missing. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
             payload,
           })
         );
 
-        // const collection = await Collections.getByContractAndTokenId(
-        //   payload.after.contract,
-        //   payload.after.token_id
-        // );
-        //
-        // await metadataIndexFetchJob.addToQueue(
-        //   [
-        //     {
-        //       kind: "single-token",
-        //       data: {
-        //         method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
-        //         contract: payload.after.contract,
-        //         tokenId: payload.after.token_id,
-        //         collection: collection?.id || payload.after.contract,
-        //       },
-        //       context: "IndexerTokensHandler",
-        //     },
-        //   ],
-        //   true, 5
-        // );
+        if (config.fallbackMetadataIndexingMethod) {
+          const collection = await Collections.getByContractAndTokenId(
+            payload.after.contract,
+            payload.after.token_id
+          );
+
+          await metadataIndexFetchJob.addToQueue(
+            [
+              {
+                kind: "single-token",
+                data: {
+                  method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                  contract: payload.after.contract,
+                  tokenId: payload.after.token_id,
+                  collection: collection?.id || payload.after.contract,
+                },
+                context: "IndexerTokensHandler",
+              },
+            ],
+            true
+          );
+        }
       }
     } catch (error) {
       logger.error(

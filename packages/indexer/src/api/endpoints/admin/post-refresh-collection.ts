@@ -157,16 +157,6 @@ export const postRefreshCollectionOptions: RouteOptions = {
           context: "post-refresh-collection",
         };
 
-        if (collection.id === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
-          logger.info(
-            `post-collections-refresh-handler`,
-            JSON.stringify({
-              message: `metadataIndexFetchJob. collection=${collection.id}`,
-              payload,
-            })
-          );
-        }
-
         // Refresh the collection tokens metadata
         await metadataIndexFetchJob.addToQueue([metadataIndexInfo]);
 
