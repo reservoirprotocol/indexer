@@ -38,6 +38,10 @@ export const postExecuteCallV1Options: RouteOptions = {
       originChainId: Joi.number()
         .required()
         .description("Origination chain id (where solver needs to get paid)"),
+      source: Joi.string()
+        .lowercase()
+        .pattern(regex.domain)
+        .description("Filling source used for attribution. Example: `reservoir.market`"),
     }),
   },
   response: {
