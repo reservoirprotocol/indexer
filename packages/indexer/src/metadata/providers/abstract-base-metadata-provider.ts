@@ -89,7 +89,7 @@ export abstract class AbstractBaseMetadataProvider {
             "getTokensMetadata",
             JSON.stringify({
               topic: "debugMissingTokenImages",
-              message: `_getTokensMetadata. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}`,
+              message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
               metadata: JSON.stringify(metadata),
             })
           );
@@ -103,7 +103,7 @@ export abstract class AbstractBaseMetadataProvider {
               "getTokensMetadata",
               JSON.stringify({
                 topic: "debugMissingTokenImages",
-                message: `extendMetadata. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}`,
+                message: `extendMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
                 result: JSON.stringify(result),
               })
             );
@@ -136,7 +136,7 @@ export abstract class AbstractBaseMetadataProvider {
                 "getTokensMetadata",
                 JSON.stringify({
                   topic: "debugMissingTokenImages",
-                  message: `_getImageMimeType. contract=${metadata.contract}, contract=${metadata.tokenId}, method=${this.method}, imageMimeType=${metadata.imageMimeType}`,
+                  message: `_getImageMimeType. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}, imageMimeType=${metadata.imageMimeType}`,
                   metadata: JSON.stringify(metadata),
                 })
               );
