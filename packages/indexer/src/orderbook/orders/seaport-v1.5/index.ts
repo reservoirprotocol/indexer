@@ -517,6 +517,13 @@ export const save = async (
         value = bn(price).sub(feeAmount);
       }
 
+      if (price.lt(0) || value.lt(0)) {
+        return results.push({
+          id,
+          status: "negative-price",
+        });
+      }
+
       // The price, value and fee are for a single item
       if (bn(info.amount).gt(1)) {
         price = price.div(info.amount);

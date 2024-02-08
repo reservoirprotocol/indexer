@@ -1,9 +1,9 @@
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
-import { PendingItem } from "@/utils/pending-txs";
-
+import { redis } from "@/common/redis";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
+import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { PendingItem } from "@/utils/pending-txs";
 
 export type PendingTxWebsocketEventsTriggerQueueJobPayload = {
   data: PendingTxWebsocketEventInfo;
@@ -23,20 +23,26 @@ export class PendingTxWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJob
     const { data } = payload;
 
     try {
-      let eventType = "";
-      if (data.trigger === "created") {
-        eventType = "pending-tx.created";
-      } else if (data.trigger === "deleted") {
-        eventType = "pending-tx.deleted";
+      const lockKey = `${this.queueName}:duplicates-lock:${data.item.contract}-${data.item.tokenId}-${data.item.txHash}-${data.trigger}`;
+      const lock = await redis.get(lockKey);
+      if (!lock) {
+        await redis.set(lockKey, "locked", "EX", 30);
+
+        let eventType = "";
+        if (data.trigger === "created") {
+          eventType = "pending-tx.created";
+        } else if (data.trigger === "deleted") {
+          eventType = "pending-tx.deleted";
+        }
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            contract: data.item.contract,
+          },
+          changed: [],
+          data: data.item,
+        });
       }
-      await publishWebsocketEvent({
-        event: eventType,
-        tags: {
-          contract: data.item.contract,
-        },
-        changed: [],
-        data: data.item,
-      });
     } catch (error) {
       logger.error(
         this.queueName,
@@ -56,6 +62,7 @@ export class PendingTxWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJob
     await this.sendBatch(
       events.map((event) => ({
         payload: event,
+        jobId: `${event.data.item.contract}-${event.data.item.tokenId}-${event.data.item.txHash}-${event.data.trigger}`,
       }))
     );
   }

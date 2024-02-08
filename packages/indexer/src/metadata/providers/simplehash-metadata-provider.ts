@@ -6,7 +6,7 @@ import { logger } from "@/common/logger";
 import { Contract } from "ethers";
 import { Interface } from "ethers/lib/utils";
 import axios from "axios";
-import { RequestWasThrottledError, normalizeMetadata } from "./utils";
+import { RequestWasThrottledError, normalizeMetadata, normalizeLink } from "./utils";
 import _ from "lodash";
 import { getNetworkName } from "@/config/network";
 import { baseProvider } from "@/common/provider";
@@ -102,7 +102,19 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       ...original_metadata
     } = metadata.extra_metadata;
 
-    let imageUrl = metadata.image_url;
+    let imageUrl = metadata.image_url || image_original_url;
+
+    if (!imageUrl) {
+      logger.info(
+        "simplehash-fetcher",
+        JSON.stringify({
+          topic: "debugMissingTokenImages",
+          message: `_parseToken. contract=${metadata.contract_address}, tokenId=${metadata.token_id}`,
+          metadata: JSON.stringify(metadata),
+        })
+      );
+    }
+
     if (
       metadata?.image_properties?.mime_type === "image/gif" &&
       metadata?.image_properties?.size > 1000000 &&
@@ -132,7 +144,7 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description,
       originalMetadata: original_metadata,
-      imageUrl: imageUrl,
+      imageUrl: normalizeLink(imageUrl) || null,
       imageOriginalUrl: image_original_url,
       animationOriginalUrl: animation_original_url,
       metadataOriginalUrl: metadata_original_url,

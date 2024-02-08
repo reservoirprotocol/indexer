@@ -312,17 +312,23 @@ export const start = async (): Promise<void> => {
     });
 
     server.ext("onPreHandler", async (request, h) => {
-      try {
-        ApiKeyManager.logRequest(request).catch();
-      } catch {
-        // Ignore errors
-      }
+      // try {
+      //   ApiKeyManager.logRequest(request).catch();
+      // } catch {
+      //   // Ignore errors
+      // }
 
       return h.continue;
     });
 
     server.ext("onPreResponse", (request, reply) => {
       const response = request.response;
+
+      try {
+        ApiKeyManager.logRequest(request).catch();
+      } catch {
+        // Ignore errors
+      }
 
       // Set custom response in case of timeout
       if ("isBoom" in response && "output" in response) {

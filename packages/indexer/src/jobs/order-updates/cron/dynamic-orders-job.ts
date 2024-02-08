@@ -93,22 +93,32 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
             });
           }
         } else if (kind === "nftx-v3") {
-          const order = new Sdk.NftxV3.Order(
-            config.chainId,
-            fromBuffer(maker),
-            fromBuffer(taker),
-            raw_data
-          );
-          const { price, premiumPrice } = await order.getPrice(baseProvider, config.nftxApiKey);
+          try {
+            const order = new Sdk.NftxV3.Order(
+              config.chainId,
+              fromBuffer(maker),
+              fromBuffer(taker),
+              raw_data
+            );
+            const { price, premiumPrice } = await order.getPrice(baseProvider, config.nftxApiKey);
 
-          values.push({
-            id,
-            price: price.toString(),
-            currency_price: price.toString(),
-            value: price.toString(),
-            currency_value: price.toString(),
-            dynamic: premiumPrice.gt(0),
-          });
+            values.push({
+              id,
+              price: price.toString(),
+              currency_price: price.toString(),
+              value: price.toString(),
+              currency_value: price.toString(),
+              dynamic: premiumPrice.gt(0),
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } catch (error: any) {
+            logger.error(
+              this.queueName,
+              `Failed to update dynamic nftx-v3 order: ${error} (${JSON.stringify(
+                error.response?.data
+              )}) (${JSON.stringify(raw_data, null, 2)})`
+            );
+          }
         }
       }
 
@@ -145,8 +155,9 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
       if (dynamicOrders.length >= limit) {
         await this.addToQueue(dynamicOrders[dynamicOrders.length - 1].id);
       }
-    } catch (error) {
-      logger.error(this.queueName, `Failed to handle dynamic orders: ${error}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      logger.error(this.queueName, `Failed to handle dynamic orders: ${error} (${error.stack})`);
     }
   }
 

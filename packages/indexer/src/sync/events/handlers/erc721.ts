@@ -2,9 +2,9 @@ import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
+import { handleMints } from "@/events-sync/handlers/utils/erc721";
 import { BaseEventParams } from "@/events-sync/parser";
 import { processConsecutiveTransferJob } from "@/jobs/events-sync/process-consecutive-transfer";
-import { handleMints } from "@/events-sync/handlers/utils/erc721";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For handling mints as sales

@@ -212,6 +212,14 @@ export class TokenUriNotFoundError extends Error {
   }
 }
 
+export class TokenUriRequestForbiddenError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    Object.setPrototypeOf(this, TokenUriRequestForbiddenError.prototype);
+  }
+}
+
 export class CollectionNotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -235,20 +243,6 @@ export function limitFieldSize(
     } else {
       size = new TextEncoder().encode(JSON.stringify(value)).length;
     }
-
-    // if (size > 0.001 * 1024 * 1024) {
-    //   logger.info(
-    //     "limitFieldSize-2",
-    //     JSON.stringify({
-    //       size: new TextEncoder().encode(value).length,
-    //       key: key,
-    //       contract: contract,
-    //       tokenId: tokenId,
-    //       method: method,
-    //       value: value,
-    //     })
-    //   );
-    // }
 
     if (size > config.metadataMaxFieldSizeMB * 1024 * 1024) {
       logger.info(
