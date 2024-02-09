@@ -242,7 +242,6 @@ export class ApiKeyManager {
     const log: any = {
       route: request.route.path,
       method: request.route.method,
-      latencyMS: new Date().getTime() - request.info.received,
       requestReceivedAt: new Date(request.info.received).toISOString(),
       responseStatusCode,
       responseLatencyMs: new Date().getTime() - request.info.received,
