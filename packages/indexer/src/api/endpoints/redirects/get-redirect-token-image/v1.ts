@@ -63,7 +63,9 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
 
       delete request.query.imageSize;
       const imageWithQueryParams = Assets.addImageParams(imageUrl, request.query);
-      return response.redirect(imageWithQueryParams).header("cache-control", `max-age=60, must-revalidate, public`);
+      return response
+        .redirect(imageWithQueryParams)
+        .header("cache-control", `max-age=60, must-revalidate, public`);
     } catch (error) {
       logger.error(`get-redirect-token-image-${version}-handler`, `Handler failure: ${error}`);
       throw error;

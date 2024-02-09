@@ -168,7 +168,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
               {
                 kind: "single-token",
                 data: {
-                  method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                  method: config.fallbackMetadataIndexingMethod,
                   contract: payload.after.contract,
                   tokenId: payload.after.token_id,
                   collection: collection?.id || payload.after.contract,
