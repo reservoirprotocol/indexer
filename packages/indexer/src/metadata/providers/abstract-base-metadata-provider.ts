@@ -16,7 +16,7 @@ import { limitFieldSize } from "./utils";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import axios from "axios";
-import { config } from "@/config/index";
+// import { config } from "@/config/index";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -258,38 +258,38 @@ export abstract class AbstractBaseMetadataProvider {
             })
           );
 
-          const fallbackToIpfsGateway =
-            contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" &&
-            url.includes("ipfs.io") &&
-            config.ipfsGatewayDomain;
-
-          if (fallbackToIpfsGateway) {
-            const ipfsGatewayUrl = url.replace("ipfs.io", config.ipfsGatewayDomain);
-
-            logger.info(
-              "_getImageMimeType",
-              JSON.stringify({
-                topic: "debugMissingTokenImages",
-                message: `Fallback To Ipfs Gateway. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}`,
-                error,
-              })
-            );
-
-            return axios
-              .head(ipfsGatewayUrl)
-              .then((res) => res.headers["content-type"])
-              .catch((fallbackError) => {
-                logger.warn(
-                  "_getImageMimeType",
-                  JSON.stringify({
-                    topic: "debugMissingTokenImages",
-                    message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
-                    error,
-                    fallbackError,
-                  })
-                );
-              });
-          }
+          // const fallbackToIpfsGateway =
+          //   contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" &&
+          //   url.includes("ipfs.io") &&
+          //   config.ipfsGatewayDomain;
+          //
+          // if (fallbackToIpfsGateway) {
+          //   const ipfsGatewayUrl = url.replace("ipfs.io", config.ipfsGatewayDomain);
+          //
+          //   logger.info(
+          //     "_getImageMimeType",
+          //     JSON.stringify({
+          //       topic: "debugMissingTokenImages",
+          //       message: `Fallback To Ipfs Gateway. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}`,
+          //       error,
+          //     })
+          //   );
+          //
+          //   return axios
+          //     .head(ipfsGatewayUrl)
+          //     .then((res) => res.headers["content-type"])
+          //     .catch((fallbackError) => {
+          //       logger.warn(
+          //         "_getImageMimeType",
+          //         JSON.stringify({
+          //           topic: "debugMissingTokenImages",
+          //           message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
+          //           error,
+          //           fallbackError,
+          //         })
+          //       );
+          //     });
+          // }
         });
 
       if (imageMimeType) {
