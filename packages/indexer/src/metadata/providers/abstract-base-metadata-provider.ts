@@ -222,11 +222,6 @@ export abstract class AbstractBaseMetadataProvider {
   }
 
   async _getImageMimeType(url: string, contract: string, tokenId: string): Promise<string> {
-    const debugMissingTokenImages = await redis.sismember(
-      "missing-token-image-contracts",
-      contract
-    );
-
     if (url.endsWith(".png")) {
       return "image/png";
     }
@@ -257,7 +252,7 @@ export abstract class AbstractBaseMetadataProvider {
           logger.warn(
             "_getImageMimeType",
             JSON.stringify({
-              topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+              topic: "debugMissingTokenImages",
               message: `Error. contract=${contract}, tokenId=${tokenId}, url=${url}, error=${error}`,
               error,
             })
@@ -274,7 +269,7 @@ export abstract class AbstractBaseMetadataProvider {
             logger.info(
               "_getImageMimeType",
               JSON.stringify({
-                topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                topic: "debugMissingTokenImages",
                 message: `Fallback To Ipfs Gateway. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}`,
                 error,
               })
@@ -287,7 +282,7 @@ export abstract class AbstractBaseMetadataProvider {
                 logger.warn(
                   "_getImageMimeType",
                   JSON.stringify({
-                    topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                    topic: "debugMissingTokenImages",
                     message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
                     error,
                     fallbackError,
