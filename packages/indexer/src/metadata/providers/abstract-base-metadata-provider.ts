@@ -16,6 +16,7 @@ import { limitFieldSize } from "./utils";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import axios from "axios";
+import { config } from "@/config/index";
 
 export abstract class AbstractBaseMetadataProvider {
   abstract method: string;
@@ -129,7 +130,11 @@ export abstract class AbstractBaseMetadataProvider {
             !metadata.imageUrl.startsWith("data:") &&
             !metadata.imageMimeType
           ) {
-            metadata.imageMimeType = await this._getImageMimeType(metadata.imageUrl);
+            metadata.imageMimeType = await this._getImageMimeType(
+              metadata.imageUrl,
+              metadata.contract,
+              metadata.tokenId
+            );
 
             if (debugMissingTokenImages) {
               logger.info(
@@ -164,7 +169,11 @@ export abstract class AbstractBaseMetadataProvider {
             !metadata.mediaUrl.startsWith("data:") &&
             !metadata.mediaMimeType
           ) {
-            metadata.mediaMimeType = await this._getImageMimeType(metadata.mediaUrl);
+            metadata.mediaMimeType = await this._getImageMimeType(
+              metadata.mediaUrl,
+              metadata.contract,
+              metadata.tokenId
+            );
 
             if (!metadata.mediaMimeType) {
               logger.warn(
@@ -212,7 +221,12 @@ export abstract class AbstractBaseMetadataProvider {
     return extendedMetadata;
   }
 
-  async _getImageMimeType(url: string): Promise<string> {
+  async _getImageMimeType(url: string, contract: string, tokenId: string): Promise<string> {
+    const debugMissingTokenImages = await redis.sismember(
+      "missing-token-image-contracts",
+      contract
+    );
+
     if (url.endsWith(".png")) {
       return "image/png";
     }
@@ -243,11 +257,44 @@ export abstract class AbstractBaseMetadataProvider {
           logger.warn(
             "_getImageMimeType",
             JSON.stringify({
-              topic: "debugMimeType",
-              message: `Error. url=${url}, error=${error}`,
+              topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+              message: `Error. contract=${contract}, tokenId=${tokenId}, url=${url}, error=${error}`,
               error,
             })
           );
+
+          const fallbackToIpfsGateway =
+            contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" &&
+            url.includes("ipfs.io") &&
+            config.ipfsGatewayDomain;
+
+          if (fallbackToIpfsGateway) {
+            const ipfsGatewayUrl = url.replace("ipfs.io", config.ipfsGatewayDomain);
+
+            logger.info(
+              "_getImageMimeType",
+              JSON.stringify({
+                topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                message: `Fallback To Ipfs Gateway. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}`,
+                error,
+              })
+            );
+
+            return axios
+              .head(ipfsGatewayUrl)
+              .then((res) => res.headers["content-type"])
+              .catch((fallbackError) => {
+                logger.warn(
+                  "_getImageMimeType",
+                  JSON.stringify({
+                    topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                    message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
+                    error,
+                    fallbackError,
+                  })
+                );
+              });
+          }
         });
 
       if (imageMimeType) {
