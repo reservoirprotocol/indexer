@@ -13,6 +13,7 @@ import {
   normalizeMetadata,
   TokenUriNotFoundError,
   TokenUriRequestTimeoutError,
+  TokenUriRequestForbiddenError,
 } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
@@ -76,6 +77,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
             if (error === 404) {
               throw new TokenUriNotFoundError("Not found");
+            }
+
+            if (error === 403 || error === "ECONNREFUSED") {
+              throw new TokenUriRequestForbiddenError("Not Allowed");
             }
 
             throw new Error(error || "Unknown error");
@@ -677,7 +682,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             })
           );
 
-          return [null, error.response?.status || `${error}`];
+          return [null, error.response?.status || error.code || `${error}`];
         });
     } catch (error) {
       logger.warn(

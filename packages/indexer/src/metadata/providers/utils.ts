@@ -212,6 +212,14 @@ export class TokenUriNotFoundError extends Error {
   }
 }
 
+export class TokenUriRequestForbiddenError extends Error {
+  constructor(message: string) {
+    super(message);
+
+    Object.setPrototypeOf(this, TokenUriRequestForbiddenError.prototype);
+  }
+}
+
 export class CollectionNotFoundError extends Error {
   constructor(message: string) {
     super(message);

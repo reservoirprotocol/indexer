@@ -39,7 +39,7 @@ export const getAssetV1Options: RouteOptions = {
 
       return response
         .redirect(imageWithQueryParams)
-        .header("cache-control", `${1000 * 60 * 60 * 24 * 30}`);
+        .header("cache-control", `max-age=${60 * 60 * 24 * 30}, must-revalidate, public`);
     } catch (error) {
       logger.error(
         `get-asset-${version}-handler`,
@@ -47,7 +47,7 @@ export const getAssetV1Options: RouteOptions = {
       );
 
       const err = Boom.notFound(`Asset not found`);
-      err.output.headers["cache-control"] = `${1000 * 60 * 60 * 24}`;
+      err.output.headers["cache-control"] = `max-age=${60 * 60 * 24}, must-revalidate, public`;
       throw err;
     }
   },

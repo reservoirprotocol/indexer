@@ -7,6 +7,7 @@ import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-p
 import {
   RequestWasThrottledError,
   TokenUriNotFoundError,
+  TokenUriRequestForbiddenError,
   TokenUriRequestTimeoutError,
 } from "@/metadata/providers/utils";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
@@ -203,7 +204,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       if (
         error instanceof RequestWasThrottledError ||
         error instanceof TokenUriRequestTimeoutError ||
-        error instanceof TokenUriNotFoundError
+        error instanceof TokenUriNotFoundError ||
+        error instanceof TokenUriRequestForbiddenError
       ) {
         // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
         if (retryCount < this.maxRetries) {
