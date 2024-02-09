@@ -82,20 +82,35 @@ export abstract class SeaportBaseExchange {
         info = info as BaseOrderInfo;
         const counterOrder = order.constructPrivateListingCounterOrder(taker);
         const fulfillments = order.getPrivateListingFulfillments();
-        const orderWith = {
+
+        const advancedOrder = {
           parameters: {
             ...order.params,
             totalOriginalConsiderationItems: order.params.consideration.length,
           },
           signature: order.params.signature,
+          numerator: matchParams.amount ?? 1,
+          denominator: info.amount,
+          extraData: matchParams.extraData ?? order.params.extraData ?? "0x",
         };
+
         return {
           from: taker,
           to: this.contract.address,
           data:
-            this.contract.interface.encodeFunctionData("matchOrders", [
-              [orderWith, counterOrder],
+            this.contract.interface.encodeFunctionData("matchAdvancedOrders", [
+              [
+                advancedOrder,
+                {
+                  ...counterOrder,
+                  numerator: matchParams.amount ?? 1,
+                  denominator: info.amount,
+                  extraData: "0x",
+                },
+              ],
+              [],
               fulfillments,
+              taker,
             ]) + generateSourceBytes(options?.source),
           value:
             info.paymentToken === CommonAddresses.Native[this.chainId]

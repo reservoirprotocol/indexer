@@ -81,7 +81,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.goerli.linea.build/";
         break;
       case 80001:
-        url = "https://endpoints.omniatech.io/v1/matic/mumbai/public";
+        url = "https://rpc-mumbai.maticvigil.com";
         break;
       case 84531:
         url = "https://goerli.base.org";
@@ -205,7 +205,7 @@ const config: HardhatUserConfig = {
       zoraTestnet: "0x",
       mantleTestnet: "0x",
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
-      polygonMumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
+      mumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
       baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       frameTestnet: "0x",
