@@ -395,10 +395,10 @@ export const getUserTokensV9Options: RouteOptions = {
       includeRoyaltyBreakdownQuery = `
         LEFT JOIN LATERAL (
         SELECT
-          fe.timestamp AS last_sale_timestamp,          
+          fe.timestamp AS last_sale_timestamp,
           fe.currency AS last_sale_currency,
-          fe.currency_price AS last_sale_currency_price,            
-          fe.price AS last_sale_price,    
+          fe.currency_price AS last_sale_currency_price,
+          fe.price AS last_sale_price,
           fe.usd_price AS last_sale_usd_price,
           fe.marketplace_fee_bps AS last_sale_marketplace_fee_bps,
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
@@ -444,7 +444,7 @@ export const getUserTokensV9Options: RouteOptions = {
 
     let tokensJoin = `
       JOIN LATERAL (
-        SELECT 
+        SELECT
           t.token_id,
           t.name,
           t.image,
@@ -496,7 +496,7 @@ export const getUserTokensV9Options: RouteOptions = {
     if (query.includeTopBid) {
       tokensJoin = `
         JOIN LATERAL (
-          SELECT 
+          SELECT
             t.token_id,
             t.name,
             t.image,
@@ -539,7 +539,7 @@ export const getUserTokensV9Options: RouteOptions = {
           }
         ) t ON TRUE
         LEFT JOIN LATERAL (
-          SELECT 
+          SELECT
             o.id AS "top_bid_id",
             o.price AS "top_bid_price",
             o.value AS "top_bid_value",
@@ -649,7 +649,7 @@ export const getUserTokensV9Options: RouteOptions = {
       ucTable = `
         SELECT collection_id, COALESCE(c.token_set_id != CONCAT('contract:', collection_id), true) AS "shared_contract", c.*
         FROM user_collections uc
-        JOIN collections c ON c.id = uc.collection_id 
+        JOIN collections c ON c.id = uc.collection_id
         WHERE owner = $/user/
         AND uc.token_count > 0
         ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
@@ -745,22 +745,22 @@ export const getUserTokensV9Options: RouteOptions = {
           ${
             query.onlyListed ? "" : "LEFT"
           } JOIN orders ot ON ot.id = CASE WHEN con.kind = 'erc1155' THEN (
-            SELECT 
-              id 
-            FROM 
-              orders 
-              JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id 
-            WHERE 
-              con.kind = 'erc1155' 
-              AND token_sets_tokens.contract = b.contract 
-              AND token_sets_tokens.token_id = b.token_id 
-              AND orders.side = 'sell' 
-              AND orders.fillability_status = 'fillable' 
-              AND orders.approval_status = 'approved' 
-              AND orders.maker = $/user/ 
-            ORDER BY 
-              orders.value ASC 
-            LIMIT 
+            SELECT
+              id
+            FROM
+              orders
+              JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE
+              con.kind = 'erc1155'
+              AND token_sets_tokens.contract = b.contract
+              AND token_sets_tokens.token_id = b.token_id
+              AND orders.side = 'sell'
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+              AND orders.maker = $/user/
+            ORDER BY
+              orders.value ASC
+            LIMIT
               1
           ) ELSE t.floor_sell_id END
           ${userCollectionsSorting}
@@ -1017,9 +1017,9 @@ export const getUserTokensV9Options: RouteOptions = {
         };
       });
 
-      let cacheControl = 1000;
+      let cacheControl = 1;
       if (query.includeTopBid || query.includeAttributes) {
-        cacheControl = 1000 * 60;
+        cacheControl = 60;
       }
 
       return response
@@ -1027,7 +1027,7 @@ export const getUserTokensV9Options: RouteOptions = {
           tokens: await Promise.all(result),
           continuation,
         })
-        .header("cache-control", `${cacheControl}`);
+        .header("cache-control", `max-age=${cacheControl}, must-revalidate, public`);
     } catch (error) {
       logger.error(`get-user-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;

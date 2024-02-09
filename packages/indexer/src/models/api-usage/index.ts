@@ -4,7 +4,7 @@ import _ from "lodash";
 import { format } from "date-fns";
 
 export class ApiUsage {
-  public static async clearOldHourlyCounts(hoursCount = 336) {
+  public static async clearOldHourlyCounts(hoursCount = 1488) {
     const query = `
       DELETE FROM hourly_api_usage
       WHERE hour < NOW() - INTERVAL '${hoursCount} HOURS'

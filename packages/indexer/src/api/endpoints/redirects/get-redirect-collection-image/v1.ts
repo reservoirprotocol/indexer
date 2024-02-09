@@ -47,6 +47,6 @@ export const getRedirectCollectionImageV1Options: RouteOptions = {
       request.query
     );
 
-    return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
+    return response.redirect(imageWithQueryParams).header("cache-control", `max-age=60, must-revalidate, public`);
   },
 };
