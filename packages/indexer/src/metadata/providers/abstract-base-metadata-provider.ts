@@ -258,10 +258,7 @@ export abstract class AbstractBaseMetadataProvider {
             })
           );
 
-          const fallbackToIpfsGateway =
-            contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" &&
-            url.includes("ipfs.io") &&
-            config.ipfsGatewayDomain;
+          const fallbackToIpfsGateway = config.ipfsGatewayDomain && url.includes("ipfs.io");
 
           if (fallbackToIpfsGateway) {
             const ipfsGatewayUrl = url.replace("ipfs.io", config.ipfsGatewayDomain);

@@ -643,10 +643,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, "Invalid URI"];
       }
 
-      if (contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" && config.ipfsGatewayDomain) {
-        if (uri && uri?.includes("ipfs.io")) {
-          uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
-        }
+      if (uri && uri?.includes("ipfs.io") && config.ipfsGatewayDomain) {
+        uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
       }
 
       return axios
