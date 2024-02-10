@@ -140,6 +140,7 @@ export const constructPrivateListingCounterOrder = (
     parameters: {
       ...params,
       zone: AddressZero,
+      orderType: 0,
       offerer: privateSaleRecipient,
       offer: [
         {

@@ -164,24 +164,6 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         tags.orderSource = result.orderSource;
       }
 
-      if ([1, 11155111].includes(config.chainId) && data.trigger === "insert") {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "debugMissingSaleWsEvents",
-            message: `publishWebsocketEvent. saleId=${result.id}`,
-            saleId: result.id,
-            saleTimestamp: data.after.timestamp,
-            txHash: data.after.tx_hash,
-            maker: data.after.maker,
-            taker: data.after.taker,
-            contract: data.after.contract,
-            tokenId: data.after.token_id,
-            price: data.after.price,
-          })
-        );
-      }
-
       await publishWebsocketEvent({
         event: eventType,
         tags,

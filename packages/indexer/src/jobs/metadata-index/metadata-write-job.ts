@@ -19,6 +19,7 @@ import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribu
 import { tokenWebsocketEventsTriggerJob } from "@/jobs/websocket-events/token-websocket-events-trigger-job";
 import { TokenMetadata } from "@/metadata/types";
 import { refreshAsksTokenAttributesJob } from "@/jobs/elasticsearch/asks/refresh-asks-token-attributes-job";
+import { redis } from "@/common/redis";
 
 export type MetadataIndexWriteJobPayload = {
   collection: string;
@@ -89,11 +90,17 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    if (collection === "0xe22575fad77781d730c6ed5d24dd1908d6d5b730") {
+    const debugMissingTokenImages = await redis.sismember(
+      "missing-token-image-contracts",
+      contract
+    );
+
+    if (debugMissingTokenImages) {
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Start. collection=${collection}`,
+          topic: "debugMissingTokenImages",
+          message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
           payload,
           metadataMethod,
         })
@@ -238,6 +245,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
               tokenId,
               collection,
             },
+            context: this.queueName,
           },
         ],
         false,

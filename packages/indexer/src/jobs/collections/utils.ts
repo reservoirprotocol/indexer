@@ -1,7 +1,5 @@
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { config } from "@/config/index";
-import { Network } from "@reservoir0x/sdk/dist/utils";
 import { ethers } from "ethers";
 
 const erc721Interface = new ethers.utils.Interface([
@@ -23,15 +21,6 @@ export async function detectTokenStandard(contractAddress: string) {
   );
 
   try {
-    if (config.chainId === Network.Optimism) {
-      logger.info(
-        "onchain-fetcher-contract-deployed",
-        JSON.stringify({
-          topic: "debugTokenStandard",
-          message: `Start. contractAddress=${contractAddress}`,
-        })
-      );
-    }
     const erc721Supported = await contract.supportsInterface("0x80ac58cd");
     const erc1155Supported = await contract.supportsInterface("0xd9b67a26");
 

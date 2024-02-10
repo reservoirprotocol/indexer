@@ -6,15 +6,24 @@ import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 
+const getBaseProviderHeaders = () => {
+  const headers: { [key: string]: string } = {};
+  if ([1].includes(config.chainId)) {
+    headers["x-session-hash"] = getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`);
+  }
+
+  if (config.thirdWebSecret) {
+    headers["x-secret-key"] = config.thirdWebSecret;
+  }
+
+  return headers;
+};
+
 // Use a static provider to avoid redundant `eth_chainId` calls
 export const baseProvider = new StaticJsonRpcProvider(
   {
     url: config.baseNetworkHttpUrl,
-    headers: [1].includes(config.chainId)
-      ? {
-          "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`),
-        }
-      : {},
+    headers: getBaseProviderHeaders(),
   },
   config.chainId
 );

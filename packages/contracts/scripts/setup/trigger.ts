@@ -314,6 +314,32 @@ export const trigger = {
   },
   // Utilities
   Utilities: {
+    PPV2TrustedForwarder: async (chainId: number) => {
+      const version = "v1";
+
+      const [deployer] = await ethers.getSigners();
+
+      const factory = new Contract(
+        Sdk.PaymentProcessorV2.Addresses.TrustedForwarderFactory[chainId],
+        new Interface([
+          "function cloneTrustedForwarder(address admin, address appSigner, bytes32 salt) external returns (address)",
+        ]),
+        deployer
+      );
+
+      // ASCII for "reservoir.tools"
+      const salt = "0x7265736572766f69722e746f6f6c73".padEnd(66, "0");
+      const trustedForwarderAddress = await factory.callStatic
+        .cloneTrustedForwarder(deployer.address, AddressZero, salt)
+        .then((a: string) => a.toLowerCase());
+      const code = await ethers.provider.getCode(trustedForwarderAddress);
+      if (code === "0x") {
+        const tx = await factory.cloneTrustedForwarder(deployer.address, AddressZero, salt);
+        await tx.wait();
+
+        await writeDeployment(trustedForwarderAddress, "TrustedForwarder", version, chainId);
+      }
+    },
     OffChainCancellationZone: async (chainId: number) => {
       const version = "v1";
 

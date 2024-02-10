@@ -4,7 +4,7 @@ import { Provider } from "@ethersproject/abstract-provider";
 
 import { bn } from "../../../utils";
 import { ExecutionInfo } from "../types";
-import { isETH, isWETH } from "../utils";
+import { isNative, isWNative } from "../utils";
 import * as oneInch from "./1inch";
 import * as uniswap from "./uniswap";
 
@@ -38,7 +38,7 @@ export const generateSwapInfo = async (
     revertIfIncomplete: boolean;
   }
 ): Promise<SwapInfo> => {
-  if (isETH(chainId, fromTokenAddress) && isWETH(chainId, toTokenAddress)) {
+  if (isNative(chainId, fromTokenAddress) && isWNative(chainId, toTokenAddress)) {
     // We need to wrap ETH
     return {
       tokenIn: fromTokenAddress,
@@ -51,7 +51,7 @@ export const generateSwapInfo = async (
       },
       kind: "wrap-or-unwrap",
     };
-  } else if (isWETH(chainId, fromTokenAddress) && isETH(chainId, toTokenAddress)) {
+  } else if (isWNative(chainId, fromTokenAddress) && isNative(chainId, toTokenAddress)) {
     // We need to unwrap WETH
     return {
       tokenIn: fromTokenAddress,
@@ -126,7 +126,7 @@ export const mergeSwapInfos = (
 
   // Anything else (eg. `swap` executions) needs to be merged together
   for (const [tokenIn, infos] of Object.entries(tokenInToSwapInfos)) {
-    const fromETH = isETH(chainId, tokenIn);
+    const fromETH = isNative(chainId, tokenIn);
 
     const decodedExecutionData = infos.map((info) =>
       info.module.interface.decodeFunctionData(

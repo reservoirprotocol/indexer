@@ -69,11 +69,11 @@ export const getExternalCosigner = async (
   const result = await idb.oneOrNone(
     `
       SELECT
-        cosign_keys.signer,
-        cosign_keys.endpoint,
-        cosign_keys.api_key
-      FROM cosign_keys
-      WHERE cosign_keys.signer = $/signer/
+        cosigners.signer,
+        cosigners.endpoint,
+        cosigners.api_key
+      FROM cosigners
+      WHERE cosigners.signer = $/signer/
     `,
     {
       signer: toBuffer(signer),

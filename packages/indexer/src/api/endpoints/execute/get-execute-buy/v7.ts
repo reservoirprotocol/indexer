@@ -2074,7 +2074,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             ) {
               const transferValidator = (configV1 ?? configV2)!.transferValidator;
 
-              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
+              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.taker);
               if (!isVerified) {
                 unverifiedERC721CTransferValidators.push(transferValidator);
               }

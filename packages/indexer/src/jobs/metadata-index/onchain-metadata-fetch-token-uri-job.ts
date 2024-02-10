@@ -102,19 +102,20 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
             this.queueName,
             JSON.stringify({
               topic: "simpleHashFallbackDebug",
-              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${undefined}`,
+              message: `No uri found. contract=${result.contract}, tokenId=${result.tokenId}, error=${result.error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
               contract: result.contract,
               error: result.error,
               reason: "No uri found",
             })
           );
 
-          // DISABLED FOR NOW
-          // fallbackTokens.push({
-          //   collection: result.contract,
-          //   contract: result.contract,
-          //   tokenId: result.tokenId,
-          // });
+          if (result.error === "Unable to decode tokenURI from contract") {
+            fallbackTokens.push({
+              collection: result.contract,
+              contract: result.contract,
+              tokenId: result.tokenId,
+            });
+          }
         }
       });
 
@@ -122,24 +123,29 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
-      if (config.fallbackMetadataIndexingMethod) {
-        for (const fallbackToken of fallbackTokens) {
-          await metadataIndexFetchJob.addToQueue(
-            [
-              {
-                kind: "single-token",
-                data: {
-                  method: config.fallbackMetadataIndexingMethod!,
-                  contract: fallbackToken.contract,
-                  tokenId: fallbackToken.tokenId,
-                  collection: fallbackToken.collection,
-                },
-              },
-            ],
-            true,
-            5
-          );
-        }
+      if (config.fallbackMetadataIndexingMethod && fallbackTokens.length) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "simpleHashFallbackDebug",
+            message: `metadataIndexFetchJob. fallbackToken=${fallbackTokens.length}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          })
+        );
+
+        await metadataIndexFetchJob.addToQueue(
+          fallbackTokens.map((fallbackToken) => ({
+            kind: "single-token",
+            data: {
+              method: config.fallbackMetadataIndexingMethod!,
+              contract: fallbackToken.contract,
+              tokenId: fallbackToken.tokenId,
+              collection: fallbackToken.collection,
+            },
+            context: this.queueName,
+          })),
+          true,
+          5
+        );
       }
     }
 

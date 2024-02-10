@@ -207,7 +207,7 @@ export abstract class AbstractRabbitMqJobHandler {
   }
 
   public getQueue(): string {
-    return `quorum-${this.queueName}`;
+    return `${this.queueName}`;
   }
 
   public getPriorityQueue(): string {

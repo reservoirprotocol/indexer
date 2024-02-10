@@ -204,7 +204,7 @@ export class Exchange {
       from: sender,
       to: this.contract.address,
       value: passValue ? fillValue.toString() : "0",
-      data: data + generateSourceBytes(options?.source),
+      data: data + (options?.trustedChannel ? "" : generateSourceBytes(options?.source)),
     };
 
     if (options?.trustedChannel) {
@@ -315,7 +315,7 @@ export class Exchange {
       tx = {
         from: sender,
         to: this.contract.address,
-        data: data + generateSourceBytes(options?.source),
+        data: data + (options?.trustedChannel ? "" : generateSourceBytes(options?.source)),
       };
     } else {
       const saleDetails = orders.map((order, i) => {
@@ -388,7 +388,7 @@ export class Exchange {
         from: sender,
         to: this.contract.address,
         value: price.toString(),
-        data: data + generateSourceBytes(options?.source),
+        data: data + (options?.trustedChannel ? "" : generateSourceBytes(options?.source)),
       };
     }
 
@@ -466,7 +466,7 @@ export class Exchange {
       from: sender,
       to: this.contract.address,
       value: price.toString(),
-      data: data + generateSourceBytes(options?.source),
+      data: data + (options?.trustedChannel ? "" : generateSourceBytes(options?.source)),
     };
 
     if (options?.trustedChannel) {

@@ -35,29 +35,34 @@ export const getConfig = async (contract: string): Promise<ERC721CV2Config | und
   try {
     const token = new Contract(
       contract,
+      new Interface(["function getTransferValidator() view returns (address)"]),
+      baseProvider
+    );
+
+    const transferValidatorAddress = await token.getTransferValidator();
+    const transferValidator = new Contract(
+      transferValidatorAddress,
       new Interface([
-        "function getTransferValidatorV2() public view returns (address)",
-        `function getSecurityPolicyV2() public view returns (
-          uint8 transferSecurityLevel,
-          uint120 listId
-        )`,
+        `
+          function getCollectionSecurityPolicyV2(address collection) view returns (
+            uint8 transferSecurityLevel,
+            uint120 listId
+          )
+        `,
       ]),
       baseProvider
     );
 
-    const [transferValidator, securityPolicy] = await Promise.all([
-      token.getTransferValidatorV2(),
-      token.getSecurityPolicyV2(),
-    ]);
+    const securityPolicy = await transferValidator.getCollectionSecurityPolicyV2(contract);
 
     const listId = securityPolicy.listId.toString();
 
     return {
-      transferValidator: transferValidator.toLowerCase(),
+      transferValidator: transferValidatorAddress.toLowerCase(),
       transferSecurityLevel: securityPolicy.transferSecurityLevel,
       listId,
-      whitelist: await refreshWhitelist(transferValidator, listId),
-      blacklist: await refreshBlacklist(transferValidator, listId),
+      whitelist: await refreshWhitelist(transferValidatorAddress, listId),
+      blacklist: await refreshBlacklist(transferValidatorAddress, listId),
     };
   } catch {
     // Skip errors
@@ -164,7 +169,7 @@ export const refreshWhitelist = async (transferValidator: string, id: string) =>
       ) VALUES (
         $/transferValidator/,
         $/id/,
-        $/blacklist:json/
+        $/blacklist:json/,
         $/whitelist:json/
       )
       ON CONFLICT (transfer_validator, id)
@@ -271,6 +276,7 @@ export const refreshBlacklist = async (transferValidator: string, id: string) =>
     `,
     {
       transferValidator: toBuffer(transferValidator),
+      id,
     }
   );
 

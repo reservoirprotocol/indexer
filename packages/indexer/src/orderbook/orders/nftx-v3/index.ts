@@ -306,7 +306,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 conduit: null,
                 fee_bps: 0,
                 fee_breakdown: undefined,
-                dynamic: true,
+                dynamic: false,
                 raw_data: sdkOrder.params,
                 expiration: validTo,
                 missing_royalties: missingRoyalties,
@@ -445,7 +445,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 amount: index + 1,
                 nftxApiKey: config.nftxApiKey,
               });
-              tmpPriceList[index] = poolPrice;
+              if (poolPrice?.price?.gt(0)) {
+                tmpPriceList[index] = poolPrice;
+              }
             } catch {
               // Ignore errors
             }

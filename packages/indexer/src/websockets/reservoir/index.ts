@@ -1,15 +1,12 @@
 import WebSocket from "ws";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
+import { getNetworkName } from "@/config/network";
 
-if (
-  [1, 11155111].includes(config.chainId) &&
-  config.doWebsocketWork &&
-  config.debugApiKeys.length
-) {
+if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.debugWsApiKey) {
   const wsUrl = `wss://ws${
-    config.environment === "dev" ? ".dev" : config.chainId === 11155111 ? "-sepolia" : ""
-  }.reservoir.tools?api_key=${config.debugApiKeys[0]}`;
+    config.environment === "dev" ? ".dev" : config.chainId === 1 ? "" : `-${getNetworkName()}`
+  }.reservoir.tools?api_key=${config.debugWsApiKey}`;
 
   const ws = new WebSocket(wsUrl);
 
@@ -33,14 +30,6 @@ if (
     ws.on("message", (data: WebSocket.Data) => {
       const message = data.toString();
       const messageJson = JSON.parse(message);
-
-      // logger.info(
-      //   "reservoir-websocket",
-      //   JSON.stringify({
-      //     topic: "debugMissingSaleWsEvents",
-      //     message: `Received message: ${message}`,
-      //   })
-      // );
 
       if (messageJson.status === "ready") {
         ws.send(

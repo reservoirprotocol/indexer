@@ -24,20 +24,21 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
 
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
-    const eventData = availableEventData.find(
-      ({ addresses, topic, numTopics }) =>
-        log.topics[0] === topic &&
-        log.topics.length === numTopics &&
-        (addresses ? addresses[log.address.toLowerCase()] : true)
+    enhancedEvents.push(
+      ...availableEventData
+        .filter(
+          ({ addresses, numTopics, topic }) =>
+            log.topics[0] === topic &&
+            log.topics.length === numTopics &&
+            (addresses ? addresses[log.address.toLowerCase()] : true)
+        )
+        .map((eventData) => ({
+          kind: eventData.kind,
+          subKind: eventData.subKind,
+          baseEventParams: parseEvent(log, tx.blockTimestamp, 1, txData),
+          log,
+        }))
     );
-    if (eventData) {
-      enhancedEvents.push({
-        kind: eventData.kind,
-        subKind: eventData.subKind,
-        baseEventParams: parseEvent(log, tx.blockTimestamp, 1, txData),
-        log,
-      });
-    }
   }
 
   return enhancedEvents;

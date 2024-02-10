@@ -43,7 +43,7 @@ export class BackfillActiveUserCollectionsJob extends AbstractRabbitMqJobHandler
     const query = `
       SELECT nte.to as "owner", updated_at
       FROM nft_transfer_events nte
-      WHERE updated_at < now() - INTERVAL '12 months'
+      WHERE updated_at < now() - INTERVAL '0 months'
       AND updated_at > now() - INTERVAL '18 months'
       AND nte.to NOT IN ($/AddressZero/, $/deadAddress/)
       ${updatedAtFilter}

@@ -1051,6 +1051,14 @@ export const getExecuteSellV7Options: RouteOptions = {
           kind: "transaction",
           items: [],
         },
+        {
+          id: "swap",
+          action: "Swap tokens",
+          description:
+            "To swap the received tokens you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
+          items: [],
+        },
       ];
 
       // Custom gas settings
@@ -1367,18 +1375,34 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        steps[5].items.push({
-          status: "incomplete",
-          orderIds,
-          data: !steps[3].items.length
-            ? {
-                ...txData,
-                maxFeePerGas,
-                maxPriorityFeePerGas,
-              }
-            : undefined,
-          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
-        });
+        // Need a separate step for the swap transactions
+        if (txTags?.swaps) {
+          steps[6].items.push({
+            status: "incomplete",
+            orderIds,
+            data: !steps[3].items.length
+              ? {
+                  ...txData,
+                  maxFeePerGas,
+                  maxPriorityFeePerGas,
+                }
+              : undefined,
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+        } else {
+          steps[5].items.push({
+            status: "incomplete",
+            orderIds,
+            data: !steps[3].items.length
+              ? {
+                  ...txData,
+                  maxFeePerGas,
+                  maxPriorityFeePerGas,
+                }
+              : undefined,
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+        }
       }
 
       // Warning! When filtering the steps, we should ensure that it

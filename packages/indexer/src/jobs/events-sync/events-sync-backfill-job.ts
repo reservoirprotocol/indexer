@@ -13,7 +13,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-backfill";
   maxRetries = 10;
   concurrency = 3;
-  timeout = 60000;
+  timeout = 60 * 30 * 1000;
   backoff = {
     type: "exponential",
     delay: 10000,
