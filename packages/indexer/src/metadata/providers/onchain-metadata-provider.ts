@@ -79,7 +79,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               throw new TokenUriNotFoundError("Not found");
             }
 
-            if (error === 403 || error === "ECONNREFUSED") {
+            if (error === 403) {
               throw new TokenUriRequestForbiddenError("Not Allowed");
             }
 
@@ -641,6 +641,12 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       if (!uri.startsWith("http")) {
         // if the uri is not a valid url, return null
         return [null, "Invalid URI"];
+      }
+
+      if (contract === "0xcfa2b548db870b7f496808fe028375cc93025b64" && config.ipfsGatewayDomain) {
+        if (uri && uri?.includes("ipfs.io")) {
+          uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+        }
       }
 
       return axios

@@ -79,7 +79,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
         "0x4b15a9c28034dc83db40cd810001427d3bd7163d",
         "0xa28d6a8eb65a41f3958f1de62cbfca20b817e66a",
-        "0xb660c6dc8b18e7541a493a9014d0525575184bd7",
+        // "0xb660c6dc8b18e7541a493a9014d0525575184bd7",
         "0x9e9fbde7c7a83c43913bddc8779158f1368f0413",
         "0xba5e05cb26b78eda3a2f8e3b3814726305dcac83",
       ].includes(payload.data.collection)
