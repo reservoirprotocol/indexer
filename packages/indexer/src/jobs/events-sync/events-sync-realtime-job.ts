@@ -6,6 +6,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { traceSyncJob } from "./trace-sync-job";
 import { redis } from "@/common/redis";
 import { getNetworkSettings } from "@/config/network";
+import { ridb } from "@/common/db";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
@@ -23,6 +24,13 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
 
   public async process(payload: EventsSyncRealtimeJobPayload) {
     const { block } = payload;
+
+    if (config.chainId === 204) {
+      if (await ridb.oneOrNone(`SELECT * FROM blocks WHERE number=$/block/`, { block })) {
+        return;
+      }
+    }
+
     try {
       // Update the latest block synced
       const latestBlock = await redis.get("latest-block-realtime");

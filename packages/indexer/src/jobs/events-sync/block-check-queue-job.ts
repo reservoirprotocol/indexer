@@ -7,6 +7,7 @@ import { baseProvider } from "@/common/provider";
 import { idb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { HashZero } from "@ethersproject/constants";
+import { config } from "@/config/index";
 
 export type BlockCheckJobPayload = {
   block: number;
@@ -17,7 +18,7 @@ export type BlockCheckJobPayload = {
 export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = [204].includes(config.chainId) ? 5 : 1;
   timeout = 60000;
   backoff = {
     type: "exponential",
