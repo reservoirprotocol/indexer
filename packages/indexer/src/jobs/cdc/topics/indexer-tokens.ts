@@ -146,12 +146,14 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         payload.after.image === null &&
         payload.after.media === null
       ) {
-        redis.sadd("missing-token-image-contracts", payload.after.contract);
+        if (config.chainId === 1) {
+          redis.sadd("missing-token-image-contracts", payload.after.contract);
+        }
 
         logger.error(
           "IndexerTokensHandler",
           JSON.stringify({
-            topic: "debugMissingTokenImages",
+            // topic: "debugMissingTokenImages",
             message: `token image missing. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
             payload,
           })
