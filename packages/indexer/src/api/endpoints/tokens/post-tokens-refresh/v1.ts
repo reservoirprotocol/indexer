@@ -17,6 +17,7 @@ import { Tokens } from "@/models/tokens";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-asks-job";
 
 const version = "v1";
 
@@ -84,6 +85,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
         // Refresh the token floor sell and top bid
         await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
+
+        // Refresh the token asks
+        await backfillTokenAsksJob.addToQueue(contract, tokenId, false);
 
         // Lock for 10 seconds
         await redis.set(lockKey, "locked", "EX", 10);
