@@ -33,7 +33,7 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
   concurrency = 10;
   persistent = false;
 
-  protected async process(payload: CollectionContractDeployed) {
+  public async process(payload: CollectionContractDeployed) {
     const { contract } = payload;
     let deployer = payload.deployer || null;
 

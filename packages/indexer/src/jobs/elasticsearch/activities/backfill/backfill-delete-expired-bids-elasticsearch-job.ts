@@ -17,7 +17,7 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
   concurrency = 1;
   persistent = true;
 
-  protected async process(payload: BackfillDeleteExpiredBidsElasticsearchJobPayload) {
+  public async process(payload: BackfillDeleteExpiredBidsElasticsearchJobPayload) {
     const { collectionId, cursor } = payload;
 
     if (cursor == null) {

@@ -216,7 +216,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           // Skip errors
         }
       }
-      if (["nftx", "sudoswap", "sudoswap-v2", "payment-processor"].includes(orderResult.kind)) {
+      if (
+        ["nftx", "nftx-v3", "sudoswap", "sudoswap-v2", "payment-processor"].includes(
+          orderResult.kind
+        )
+      ) {
         return { message: "Order not simulatable" };
       }
       if (orderResult.kind === "blur" && orderResult.side === "buy") {
@@ -322,6 +326,13 @@ export const postSimulateOrderV1Options: RouteOptions = {
         const parsedPayload = JSON.parse(response.payload);
         if (!parsedPayload?.path?.length) {
           return { message: "Nothing to simulate" };
+        }
+
+        const numIncompleteItems = (parsedPayload.steps as { items: { status: string }[] }[])
+          .map((s) => s.items.filter((i) => i.status === "incomplete").length)
+          .reduce((a, b) => a + b, 0);
+        if (numIncompleteItems > 1) {
+          return { message: "Order not simulatable due to multiple required transactions" };
         }
 
         const saleData = parsedPayload.steps.find((s: { id: string }) => s.id === "sale").items[0]
@@ -438,6 +449,13 @@ export const postSimulateOrderV1Options: RouteOptions = {
         const parsedPayload = JSON.parse(response.payload);
         if (!parsedPayload?.path?.length) {
           return { message: "Nothing to simulate" };
+        }
+
+        const numIncompleteItems = (parsedPayload.steps as { items: { status: string }[] }[])
+          .map((s) => s.items.filter((i) => i.status === "incomplete").length)
+          .reduce((a, b) => a + b, 0);
+        if (numIncompleteItems > 1) {
+          return { message: "Order not simulatable due to multiple required transactions" };
         }
 
         const saleData = parsedPayload.steps.find((s: { id: string }) => s.id === "sale").items[0]

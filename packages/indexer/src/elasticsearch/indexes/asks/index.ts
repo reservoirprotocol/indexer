@@ -22,6 +22,7 @@ import {
 import { acquireLockCrossChain } from "@/common/redis";
 import { config } from "@/config/index";
 import { isRetryableError } from "@/elasticsearch/indexes/utils";
+import _ from "lodash";
 
 const INDEX_NAME = `asks`;
 
@@ -303,24 +304,15 @@ export const searchTokenAsks = async (
   }
 
   if (params.attributes?.length) {
-    const attributesFilter = { bool: { should: [] } };
+    const attributes = _.groupBy(params.attributes, (attribute) => attribute.key);
 
-    for (const attribute of params.attributes) {
-      (attributesFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { ["token.attributes.key"]: attribute.key },
-            },
-            {
-              term: { ["token.attributes.value"]: attribute.value },
-            },
-          ],
-        },
+    for (const attribute in attributes) {
+      const attributeValues = attributes[attribute].map((attribute) => attribute.value);
+
+      (esQuery as any).bool.filter.push({
+        terms: { [`token.attributesV2.${attribute}`]: attributeValues },
       });
     }
-
-    (esQuery as any).bool.filter.push(attributesFilter);
   }
 
   (esQuery as any).bool.filter.push({
@@ -882,14 +874,24 @@ export const updateAsksTokenAttributesData = async (
     );
 
     if (pendingUpdateDocuments.length) {
+      const tokenAttributesDataV2: any = {};
+
+      if (tokenAttributesData.length) {
+        for (const tokenAttribute of tokenAttributesData) {
+          tokenAttributesDataV2[tokenAttribute["key"]] = tokenAttribute["value"];
+        }
+      }
+
       const bulkParams = {
         body: pendingUpdateDocuments.flatMap((document) => [
           { update: { _index: document.index, _id: document.id, retry_on_conflict: 3 } },
           {
             script: {
-              source: "ctx._source.token.attributes = params.token_attributes",
+              source:
+                "ctx._source.token.attributes = params.token_attributes; ctx._source.token.attributesV2 = params.token_attributes_v2",
               params: {
                 token_attributes: tokenAttributesData,
+                token_attributes_v2: tokenAttributesDataV2,
               },
             },
           },
@@ -956,7 +958,7 @@ export const updateAsksTokenAttributesData = async (
       await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
 
       // Refresh the token asks
-      await backfillTokenAsksJob.addToQueue(contract, tokenId);
+      await backfillTokenAsksJob.addToQueue(contract, tokenId, true);
     }
   } catch (error) {
     if (isRetryableError(error)) {

@@ -19,7 +19,7 @@ export default class OpenseaOffChainCancellationsJob extends AbstractRabbitMqJob
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: OpenseaOffChainCancellationsJobPayload) {
+  public async process(payload: OpenseaOffChainCancellationsJobPayload) {
     const { orderId } = payload;
 
     logger.debug(this.queueName, JSON.stringify({ orderId }));

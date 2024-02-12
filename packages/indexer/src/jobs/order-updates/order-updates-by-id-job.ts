@@ -64,7 +64,7 @@ export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: OrderUpdatesByIdJobPayload) {
+  public async process(payload: OrderUpdatesByIdJobPayload) {
     const { id, trigger, ingestMethod, ingestDelay } = payload;
     let { side, tokenSetId } = payload;
 
@@ -329,6 +329,7 @@ export default class OrderUpdatesByIdJob extends AbstractRabbitMqJobHandler {
             logger.info(
               "order-latency",
               JSON.stringify({
+                topic: "latency-metrics",
                 latency: orderCreated - orderStart - Number(ingestDelay ?? 0),
                 source: source?.getTitle() ?? null,
                 orderId: order.id,

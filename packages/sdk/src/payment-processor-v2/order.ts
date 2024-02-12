@@ -510,8 +510,8 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     itemPrice: s(order.itemPrice),
     expiration: s(order.expiration),
     marketplaceFeeNumerator: s(order.marketplaceFeeNumerator),
-    nonce: s(order.nonce),
-    masterNonce: s(order.masterNonce),
+    nonce: s(bn(order.nonce)),
+    masterNonce: s(bn(order.masterNonce)),
     fallbackRoyaltyRecipient:
       order.fallbackRoyaltyRecipient !== undefined ? lc(order.fallbackRoyaltyRecipient) : undefined,
     maxRoyaltyFeeNumerator:

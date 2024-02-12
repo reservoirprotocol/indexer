@@ -13,9 +13,9 @@ import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import * as registry from "@/utils/royalties/registry";
 import * as paymentProcessor from "@/utils/payment-processor";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
+import * as registry from "@/utils/royalties/registry";
 
 type PaymentToken = {
   address: string;
@@ -44,6 +44,7 @@ type Marketplace = {
       traitBidSupported: boolean;
       orderKind: OrderKind | null;
       customFeesSupported: boolean;
+      numFeesSupported?: number;
       collectionBidSupported?: boolean;
       partialOrderSupported: boolean;
       minimumBidExpiry?: number;
@@ -109,6 +110,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                 orderKind: Joi.string().allow(null),
                 enabled: Joi.boolean(),
                 customFeesSupported: Joi.boolean(),
+                numFeesSupported: Joi.number().optional(),
                 minimumBidExpiry: Joi.number(),
                 minimumPrecision: Joi.string(),
                 collectionBidSupported: Joi.boolean(),
@@ -206,7 +208,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
             },
             seaport: {
               enabled: false,
-              orderKind: "seaport",
+              orderKind: "seaport-v1.5",
               minimumBidExpiry: 15 * 60,
               customFeesSupported: false,
               supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
@@ -278,6 +280,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               orderKind: "payment-processor",
               enabled: true,
               customFeesSupported: true,
+              numFeesSupported: 1,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
               supportedBidCurrencies:
@@ -293,6 +296,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               orderKind: "payment-processor-v2",
               enabled: true,
               customFeesSupported: true,
+              numFeesSupported: 1,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
               supportedBidCurrencies:

@@ -12,7 +12,7 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
   disableErrorLogs = true;
 
-  protected async process(payload: GenericOrderInfo) {
+  public async process(payload: GenericOrderInfo) {
     await processOrder(this, payload);
   }
 
@@ -20,7 +20,11 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
     await this.sendBatch(
       orderInfos.map((orderInfo) => ({
         payload: orderInfo,
-        delay: delay ? delay * 1000 : 0,
+        delay: delay
+          ? delay * 1000
+          : orderInfo.delayBeforeProcessing
+          ? orderInfo.delayBeforeProcessing * 1000
+          : 0,
         jobId,
       }))
     );

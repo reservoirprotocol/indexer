@@ -22,7 +22,7 @@ export default class UpdateNftBalancesSpamJob extends AbstractRabbitMqJobHandler
     delay: 5000,
   } as BackoffStrategy;
 
-  protected async process(payload: UpdateNftBalancesSpamJobPayload) {
+  public async process(payload: UpdateNftBalancesSpamJobPayload) {
     const { collectionId, newSpamState, owner } = payload;
     const limit = 1000;
     let continuationFilter = "";

@@ -213,6 +213,11 @@ export const getExecuteSellV7Options: RouteOptions = {
           // Net price (without fees on top) = price - builtInFees
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          sellOutCurrency: Joi.string().lowercase().pattern(regex.address),
+          sellOutCurrencySymbol: Joi.string().optional().allow(null),
+          sellOutCurrencyDecimals: Joi.number().optional().allow(null),
+          sellOutQuote: Joi.number().unsafe(),
+          sellOutRawQuote: Joi.string().pattern(regex.number),
           // Total price (with fees on top) = price + feesOnTop
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
@@ -256,6 +261,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         currencyDecimals?: number;
         quote: number;
         rawQuote: string;
+        sellOutCurrency?: string;
+        sellOutCurrencySymbol?: string;
+        sellOutCurrencyDecimals?: number;
+        sellOutQuote?: number;
+        sellOutRawQuote?: string;
         totalPrice: number;
         totalRawPrice: string;
         builtInFees: ExecuteFee[];
@@ -301,7 +311,9 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["blur", "sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
+        if (
+          ["blur", "sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(order.kind)
+        ) {
           // TODO: Handle the case when the next best-priced order in the database
           // has a better price than the current dynamically-priced order (because
           // of a quantity > 1 being filled on this current order).
@@ -952,6 +964,32 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
+      const sellOutCurrency = payload.currency;
+
+      // Add the quotes in the "sell-out" currency to the path items
+      for (const item of path) {
+        if (sellOutCurrency && item.currency !== sellOutCurrency) {
+          const sellOutPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            sellOutCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (sellOutPrices.currencyPrice) {
+            const c = await getCurrency(sellOutCurrency);
+            item.sellOutCurrency = c.contract;
+            item.sellOutCurrencyDecimals = c.decimals;
+            item.sellOutCurrencySymbol = c.symbol;
+            item.sellOutQuote = formatPrice(sellOutPrices.currencyPrice, c.decimals, true);
+            item.sellOutRawQuote = sellOutPrices.currencyPrice;
+          }
+        }
+      }
+
       if (payload.onlyPath) {
         return { path };
       }
@@ -1010,6 +1048,14 @@ export const getExecuteSellV7Options: RouteOptions = {
           id: "sale",
           action: "Accept offer",
           description: "To sell this item you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
+          items: [],
+        },
+        {
+          id: "swap",
+          action: "Swap tokens",
+          description:
+            "To swap the received tokens you must confirm the transaction and pay the gas fee",
           kind: "transaction",
           items: [],
         },
@@ -1192,6 +1238,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
         zeroExApiKey: config.zeroExApiKey,
+        nftxApiKey: config.nftxApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
@@ -1209,7 +1256,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          sellOutCurrency: payload.currency,
+          sellOutCurrency,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({
@@ -1328,18 +1375,34 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        steps[5].items.push({
-          status: "incomplete",
-          orderIds,
-          data: !steps[3].items.length
-            ? {
-                ...txData,
-                maxFeePerGas,
-                maxPriorityFeePerGas,
-              }
-            : undefined,
-          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
-        });
+        // Need a separate step for the swap transactions
+        if (txTags?.swaps) {
+          steps[6].items.push({
+            status: "incomplete",
+            orderIds,
+            data: !steps[3].items.length
+              ? {
+                  ...txData,
+                  maxFeePerGas,
+                  maxPriorityFeePerGas,
+                }
+              : undefined,
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+        } else {
+          steps[5].items.push({
+            status: "incomplete",
+            orderIds,
+            data: !steps[3].items.length
+              ? {
+                  ...txData,
+                  maxFeePerGas,
+                  maxPriorityFeePerGas,
+                }
+              : undefined,
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+        }
       }
 
       // Warning! When filtering the steps, we should ensure that it

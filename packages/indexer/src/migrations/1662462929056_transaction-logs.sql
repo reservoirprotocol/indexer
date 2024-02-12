@@ -2,7 +2,8 @@
 
 CREATE TABLE "transaction_logs" (
   "hash" BYTEA NOT NULL,
-  "logs" JSONB NOT NULL
+  "logs" JSONB NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 

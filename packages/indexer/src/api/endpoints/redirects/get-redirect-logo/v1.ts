@@ -36,7 +36,9 @@ export const getRedirectLogoV1Options: RouteOptions = {
         source = sources.getByDomain(query.source);
       }
 
-      return response.redirect(source?.getIcon()).header("cache-control", `${1000 * 60}`);
+      return response
+        .redirect(source?.getIcon())
+        .header("cache-control", `max-age=60, must-revalidate, public`);
     } catch (error) {
       logger.error(`get-redirect-logo-${version}-handler`, `Handler failure: ${error}`);
       throw error;

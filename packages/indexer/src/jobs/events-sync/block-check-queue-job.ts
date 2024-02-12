@@ -7,6 +7,7 @@ import { baseProvider } from "@/common/provider";
 import { idb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { HashZero } from "@ethersproject/constants";
+import { config } from "@/config/index";
 
 export type BlockCheckJobPayload = {
   block: number;
@@ -17,28 +18,21 @@ export type BlockCheckJobPayload = {
 export default class BlockCheckJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-block-check";
   maxRetries = 10;
-  concurrency = 1;
+  concurrency = [204].includes(config.chainId) ? 5 : 1;
   timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 30000,
   } as BackoffStrategy;
 
-  protected async process(payload: BlockCheckJobPayload) {
+  public async process(payload: BlockCheckJobPayload) {
     const { block, blockHash } = payload;
 
     try {
       // Generic method for handling an orphan block
       const handleOrphanBlock = async (block: { number: number; hash: string }) => {
         // Resync the detected orphaned block
-        await eventsSyncBackfillJob.addToQueue(
-          block.number,
-          block.number,
-          {},
-          {
-            prioritized: 1,
-          }
-        );
+        await eventsSyncBackfillJob.addToQueue(block.number, block.number, {});
         await unsyncEvents(block.number, block.hash);
 
         // Delete the orphaned block from the `blocks` table

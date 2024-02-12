@@ -22,7 +22,7 @@ export default class TokenFloorQueueJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: FloorQueueJobPayload) {
+  public async process(payload: FloorQueueJobPayload) {
     const { kind, tokenSetId, txHash, txTimestamp } = payload;
 
     try {

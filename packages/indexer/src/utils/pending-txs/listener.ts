@@ -30,6 +30,10 @@ export class PendingTxsListener {
     });
   }
 
+  close() {
+    this.ws.close();
+  }
+
   subscribe() {
     const params: {
       include: string[];
@@ -107,9 +111,29 @@ export class PendingTxsListener {
   }
 }
 
-export function startListener() {
-  const listenner = new PendingTxsListener();
-  listenner.listen(async (message) => {
-    await pendingTxsJob.addToQueue([message]);
-  });
-}
+export const startListener = () => {
+  let listener: PendingTxsListener;
+  let lastMessageTimestamp: number | undefined;
+
+  const startNewListener = () => {
+    listener = new PendingTxsListener();
+    listener.listen(async (message) => {
+      lastMessageTimestamp = Date.now();
+      await pendingTxsJob.addToQueue([message]);
+    });
+  };
+
+  startNewListener();
+
+  // Every 5 minutes check to see if we got any message in the last 5 minutes.
+  // If not, we assume the connection is stale and we reinitiate it.
+  const FIVE_MINUTES = 5 * 60 * 1000;
+  setInterval(() => {
+    if (lastMessageTimestamp && lastMessageTimestamp <= Date.now() - FIVE_MINUTES) {
+      logger.error(COMPONENT, "Stale pending-tx websocket, reinitiating");
+
+      listener.close();
+      startNewListener();
+    }
+  }, FIVE_MINUTES);
+};

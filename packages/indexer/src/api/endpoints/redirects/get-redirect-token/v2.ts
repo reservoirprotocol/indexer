@@ -51,7 +51,9 @@ export const getRedirectTokenV2Options: RouteOptions = {
       const tokenUrl = sources.getTokenUrl(source, contract, tokenId);
 
       if (tokenUrl) {
-        return response.redirect(tokenUrl).header("cache-control", `${1000 * 60}`);
+        return response
+          .redirect(tokenUrl)
+          .header("cache-control", `max-age=60, must-revalidate, public`);
       }
 
       let redirectUrl = source.domain;
@@ -59,7 +61,9 @@ export const getRedirectTokenV2Options: RouteOptions = {
         redirectUrl = `https://${redirectUrl}`;
       }
 
-      return response.redirect(redirectUrl).header("cache-control", `${1000 * 60}`);
+      return response
+        .redirect(redirectUrl)
+        .header("cache-control", `max-age=60, must-revalidate, public`);
     } catch (error) {
       logger.error(`get-redirect-token-${version}-handler`, `Handler failure: ${error}`);
       throw error;

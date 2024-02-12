@@ -17,7 +17,7 @@ export default class MintsRefreshJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: MintsRefreshJobPayload) {
+  public async process(payload: MintsRefreshJobPayload) {
     const { collection, forceRefresh } = payload;
 
     const lockKey = `mints-refresh-lock:${collection}`;

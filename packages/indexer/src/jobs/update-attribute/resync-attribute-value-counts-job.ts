@@ -18,7 +18,7 @@ export default class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHa
   concurrency = 3;
   useSharedChannel = true;
 
-  protected async process(payload: ResyncAttributeValueCountsJobPayload) {
+  public async process(payload: ResyncAttributeValueCountsJobPayload) {
     const { collection, key, value } = payload;
 
     const attributeValueCount = await Tokens.getTokenAttributesValueCount(collection, key, value);

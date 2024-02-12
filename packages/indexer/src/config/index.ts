@@ -137,6 +137,7 @@ export const config = {
   privateImageResizingSigningKey: String(process.env.PRIVATE_IMAGE_RESIZING_SIGNING_KEY),
   imageResizingBaseUrl: String(process.env.IMAGE_RESIZING_BASE_URL),
 
+  nftxApiKey: String(process.env.NFTX_API_KEY),
   zeroExApiKey: process.env.ZEROEX_API_KEY,
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
@@ -177,8 +178,13 @@ export const config = {
   forceEnableRabbitJobsConsumer: Boolean(Number(process.env.FORCE_ENABLE_RABBIT_JOBS_CONSUMER)),
 
   debugApiKeys: process.env.DEBUG_API_KEYS ? String(process.env.DEBUG_API_KEYS).split(",") : [],
+  debugWsApiKey: String(process.env.DEBUG_WS_API_KEY),
 
   coinGeckoWsApiKey: process.env.COINGECKO_API_KEY,
 
   spamNames: process.env.SPAM_NAMES ? String(process.env.SPAM_NAMES).split(",") : [],
+
+  thirdWebSecret: process.env.THIRD_WEB_SECRET ? String(process.env.THIRD_WEB_SECRET) : undefined,
+
+  ipfsGatewayDomain: String(process.env.IPFS_GATEWAY_DOMAIN || ""),
 };

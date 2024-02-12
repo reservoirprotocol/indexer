@@ -1,4 +1,28 @@
+import { idb } from "@/common/db";
+import { toBuffer } from "@/common/utils";
+
 // Utility functions for parsing cdc event data
+
+export async function getTokenMetadata(tokenId: string, contract: string) {
+  const r = await idb.oneOrNone(
+    `
+    SELECT
+      tokens.name,
+      tokens.image,
+      tokens.collection_id,
+      collections.name AS collection_name
+    FROM tokens
+    LEFT JOIN collections 
+      ON tokens.collection_id = collections.id
+    WHERE tokens.contract = $/contract/ AND tokens.token_id = $/token_id/
+  `,
+    {
+      token_id: tokenId,
+      contract: toBuffer(contract),
+    }
+  );
+  return r;
+}
 
 export const formatValidBetween = (validBetween: string) => {
   try {

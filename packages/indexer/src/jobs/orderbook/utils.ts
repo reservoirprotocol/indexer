@@ -4,142 +4,94 @@ import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as orders from "@/orderbook/orders";
 
+type CommonOrderInfo = {
+  delayBeforeProcessing?: number;
+  validateBidValue?: boolean;
+  ingestMethod?: "websocket" | "rest";
+  ingestDelay?: number;
+};
+
 export type GenericOrderInfo =
-  | {
+  | ({
       kind: "zeroex-v4";
       info: orders.zeroExV4.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "foundation";
       info: orders.foundation.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "x2y2";
       info: orders.x2y2.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "seaport";
       info: orders.seaport.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "seaport-v1.4";
       info: orders.seaportV14.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "seaport-v1.5";
       info: orders.seaportV15.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "zora-v3";
       info: orders.zora.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "sudoswap";
       info: orders.sudoswap.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "rarible";
       info: orders.rarible.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "blur-listing";
       info: orders.blur.PartialListingOrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "blur-bid";
       info: orders.blur.PartialBidOrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "manifold";
       info: orders.manifold.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "element";
       info: orders.element.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "nftx";
       info: orders.nftx.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
+      kind: "nftx-v3";
+      info: orders.nftxV3.OrderInfo;
+    } & CommonOrderInfo)
+  | ({
       kind: "superrare";
       info: orders.superrare.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "looks-rare-v2";
       info: orders.looksRareV2.OrderInfo;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "sudoswap-v2";
       info: orders.sudoswapV2.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    }
-  | {
+    } & CommonOrderInfo)
+  | ({
       kind: "caviar-v1";
       info: orders.caviarV1.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-      ingestMethod?: "websocket" | "rest";
-      ingestDelay?: number;
-    };
+    } & CommonOrderInfo);
 
 export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: GenericOrderInfo) => {
   const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;
@@ -224,6 +176,11 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
 
       case "nftx": {
         result = await orders.nftx.save([info]);
+        break;
+      }
+
+      case "nftx-v3": {
+        result = await orders.nftxV3.save([info]);
         break;
       }
 

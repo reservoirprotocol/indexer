@@ -15,7 +15,7 @@ export default class ResyncAttributeCollectionJob extends AbstractRabbitMqJobHan
   concurrency = 4;
   useSharedChannel = true;
 
-  protected async process(payload: ResyncAttributeCollectionJobPayload) {
+  public async process(payload: ResyncAttributeCollectionJobPayload) {
     const { continuation } = payload;
 
     const limit = 200;

@@ -19,7 +19,7 @@ export default class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: RecalcTokenCountQueueJobPayload) {
+  public async process(payload: RecalcTokenCountQueueJobPayload) {
     const { collection, fromTokenId } = payload;
     const limit = 5000;
     const continuation = fromTokenId ? `AND token_id > $/fromTokenId/` : "";

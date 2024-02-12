@@ -40,7 +40,9 @@ export const getRedirectCurrencyIconV1Options: RouteOptions = {
       const currency = await getCurrency(params.address);
       const currencyIconImage = currency?.metadata?.image;
       if (currencyIconImage) {
-        return response.redirect(currencyIconImage).header("cache-control", `${1000 * 60}`);
+        return response
+          .redirect(currencyIconImage)
+          .header("cache-control", `max-age=60, must-revalidate, public`);
       }
     } catch (error) {
       logger.error(`get-redirect-currency-icon-${version}-handler`, `Handler failure: ${error}`);

@@ -87,6 +87,12 @@ export const getNetworkName = () => {
     case 204:
       return "opbnb";
 
+    case 888888888:
+      return "ancient8";
+
+    case 84532:
+      return "base-sepolia";
+
     default:
       return "unknown";
   }
@@ -122,6 +128,8 @@ export const getOpenseaNetworkName = () => {
       return "zora";
     case 999:
       return "zora_testnet";
+    case 84532:
+      return "base-sepolia";
     default:
       return null;
   }
@@ -928,7 +936,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 324: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: true,
+        enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1132,6 +1140,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           ...defaultNetworkSettings.supportedBidCurrencies,
           // PaymentProcessor WETH
           "0xfff9976782d46cc05630d1f6ebab18b2324d6b14": true,
+          // USDC
+          "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238": true,
         },
         whitelistedCurrencies: new Map([
           [
@@ -1191,7 +1201,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
-        enableWebSocket: true,
+        enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         supportedBidCurrencies: {
@@ -1382,7 +1392,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         metadataMintDelay: 300,
-        enableWebSocket: true,
+        enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1646,7 +1656,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 68840142: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: true,
+        enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1679,7 +1689,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 204: {
       return {
         ...defaultNetworkSettings,
-        enableWebSocket: true,
+        enableWebSocket: false,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
@@ -1705,6 +1715,71 @@ export const getNetworkSettings = (): NetworkSettings => {
                   '{"coingeckoCurrencyId": "binancecoin", "image": "https://assets.coingecko.com/coins/images/12591/large/binance-coin-logo.png"}'
                 ) ON CONFLICT DO NOTHING
               `
+            ),
+          ]);
+        },
+      };
+    }
+    // ancient8
+    case 888888888: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 2,
+        lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'Ether',
+                      'ETH',
+                      18,
+                      '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
+            ),
+          ]);
+        },
+      };
+    }
+    // Base Sepolia
+    case 84532: {
+      return {
+        ...defaultNetworkSettings,
+        isTestnet: true,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'Ether',
+                      'ETH',
+                      18,
+                      '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
             ),
           ]);
         },

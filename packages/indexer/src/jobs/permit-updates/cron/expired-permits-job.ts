@@ -21,7 +21,7 @@ export class ExpiredPermitsJob extends AbstractRabbitMqJobHandler {
   } as BackoffStrategy;
   intervalInSeconds = 60;
 
-  protected async process() {
+  public async process() {
     logger.info(this.queueName, "Invalidating expired permits");
 
     try {

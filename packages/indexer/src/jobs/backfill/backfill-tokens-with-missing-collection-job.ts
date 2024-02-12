@@ -1,11 +1,14 @@
-import { redis } from "@/common/redis";
-import { idb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 import { logger } from "@/common/logger";
+import { hasExtendCollectionHandler } from "@/metadata/extend";
+import _ from "lodash";
+import { redlock } from "@/common/redis";
+import { config } from "@/config/index";
 
 export type CursorInfo = {
   contract: string;
@@ -24,13 +27,16 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
   persistent = true;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillTokensWithMissingCollectionJobPayload) {
+  public async process(payload: BackfillTokensWithMissingCollectionJobPayload) {
     const { contract, cursor } = payload;
+    const columns = new pgp.helpers.ColumnSet(["contract", "token_id", "collection"], {
+      table: "tokens",
+    });
 
     let contractFilter = "";
     let continuationFilter = "";
 
-    const limit = (await redis.get(`${this.queueName}-limit`)) || 1;
+    const limit = 600;
 
     if (contract) {
       contractFilter = `AND tokens.contract = $/contract/`;
@@ -44,12 +50,13 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
       `
           SELECT
             tokens.contract,
-            tokens.token_id
+            tokens.token_id,
+            tokens.minted_timestamp
           FROM tokens
           WHERE tokens.collection_id IS NULL
           ${contractFilter}
           ${continuationFilter}
-          ORDER BY tokens.contract, tokens.token_id
+          ORDER BY tokens.collection_id, tokens.contract, tokens.token_id
           LIMIT $/limit/
         `,
       {
@@ -61,15 +68,42 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
     );
 
     if (results.length) {
-      const currentTime = now();
+      const tokensToMint = [];
+      const tokensToUpdate = [];
 
-      await mintQueueJob.addToQueue(
-        results.map((r) => ({
-          contract: fromBuffer(r.contract),
-          tokenId: r.token_id,
-          mintedTimestamp: currentTime,
-        }))
-      );
+      for (const token of results) {
+        if (hasExtendCollectionHandler(fromBuffer(token.contract))) {
+          tokensToMint.push({
+            contract: fromBuffer(token.contract),
+            tokenId: token.token_id,
+            mintedTimestamp: token.minted_timestamp || now(),
+          });
+        } else {
+          tokensToUpdate.push({
+            contract: token.contract,
+            token_id: token.token_id,
+            collection: fromBuffer(token.contract),
+          });
+        }
+      }
+
+      if (!_.isEmpty(tokensToMint)) {
+        await mintQueueJob.addToQueue(tokensToMint);
+      }
+
+      if (!_.isEmpty(tokensToUpdate)) {
+        const updateQuery = `
+          UPDATE tokens
+          SET collection_id = x.collectionColumn
+          FROM (VALUES ${pgp.helpers.values(
+            tokensToUpdate,
+            columns
+          )}) AS x(contractColumn, tokenIdColumn, collectionColumn)
+          WHERE CAST(x.contractColumn AS bytea) = tokens.contract
+          AND x.tokenIdColumn::numeric = tokens.token_id`;
+
+        await idb.none(updateQuery);
+      }
 
       if (results.length >= limit) {
         const lastResult = results[results.length - 1];
@@ -80,16 +114,18 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
         };
 
         await this.addToQueue(contract, nextCursor);
-      }
 
-      logger.info(
-        this.queueName,
-        `Processed ${results.length} tokens. cursor=${JSON.stringify(cursor)}`
-      );
+        logger.info(
+          this.queueName,
+          `Sent to mint ${tokensToMint.length} updated ${
+            tokensToUpdate.length
+          }. cursor=${JSON.stringify(nextCursor)}`
+        );
+      }
     }
   }
 
-  public async addToQueue(contract?: string, cursor?: CursorInfo, delay = 1000) {
+  public async addToQueue(contract?: string, cursor?: CursorInfo, delay = 0) {
     await this.send(
       {
         payload: {
@@ -103,3 +139,17 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
 }
 
 export const backfillTokensWithMissingCollectionJob = new BackfillTokensWithMissingCollectionJob();
+
+if (config.chainId !== 10) {
+  redlock
+    .acquire(
+      [`${backfillTokensWithMissingCollectionJob.getQueue()}-lock`],
+      60 * 60 * 24 * 30 * 1000
+    )
+    .then(async () => {
+      await backfillTokensWithMissingCollectionJob.addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
+}

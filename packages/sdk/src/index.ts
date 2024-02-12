@@ -6,8 +6,6 @@ import * as RouterV6 from "./router/v6";
 import * as Beeple from "./beeple";
 import * as BendDao from "./bend-dao";
 import * as Blur from "./blur";
-import * as CrossChain from "./cross-chain";
-import * as CrossChainV2 from "./cross-chain-v2";
 import * as CryptoArte from "./cryptoarte";
 import * as CryptoKitties from "./cryptokitties";
 import * as CryptoPunks from "./cryptopunks";
@@ -20,6 +18,7 @@ import * as LooksRare from "./looks-rare";
 import * as Manifold from "./manifold";
 import * as NftTrader from "./nft-trader";
 import * as Nftx from "./nftx";
+import * as NftxV3 from "./nftx-v3";
 import * as Nouns from "./nouns";
 import * as Okex from "./okex";
 import * as Quixotic from "./quixotic";
@@ -64,8 +63,6 @@ export {
   Beeple,
   BendDao,
   Blur,
-  CrossChain,
-  CrossChainV2,
   CryptoArte,
   CryptoKitties,
   CryptoPunks,
@@ -78,6 +75,7 @@ export {
   Manifold,
   NftTrader,
   Nftx,
+  NftxV3,
   Nouns,
   Okex,
   Quixotic,

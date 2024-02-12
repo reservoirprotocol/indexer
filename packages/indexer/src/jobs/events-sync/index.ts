@@ -42,7 +42,9 @@ if (config.catchup) {
               await eventsSyncRealtimeJob.addToQueue({ block });
             }
 
-            await checkForMissingBlocks(block);
+            if (![204, 80001].includes(config.chainId)) {
+              await checkForMissingBlocks(block);
+            }
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
           }
@@ -67,7 +69,7 @@ if (config.catchup) {
           await redis.set("latest-block-websocket-received", now());
           await eventsSyncRealtimeJob.addToQueue({ block });
 
-          if (![137, 80001, 56].includes(config.chainId)) {
+          if (![56, 137, 204, 80001].includes(config.chainId)) {
             await checkForMissingBlocks(block);
           } else {
             await redis.set("latest-block-realtime", block);

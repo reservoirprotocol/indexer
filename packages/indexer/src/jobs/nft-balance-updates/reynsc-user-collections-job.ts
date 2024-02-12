@@ -24,7 +24,7 @@ export default class ResyncUserCollectionsJob extends AbstractRabbitMqJobHandler
     delay: 5000,
   } as BackoffStrategy;
 
-  protected async process(payload: ResyncUserCollectionsJobPayload) {
+  public async process(payload: ResyncUserCollectionsJobPayload) {
     const { user, collectionId, cursor } = payload;
     let contract = "";
     let newBalanceResults;

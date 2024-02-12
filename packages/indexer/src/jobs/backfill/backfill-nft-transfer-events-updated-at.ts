@@ -11,7 +11,7 @@ export class BackfillNftTransferEventsUpdatedAtJob extends AbstractRabbitMqJobHa
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process() {
+  public async process() {
     const limit = 250;
 
     const results = await idb.result(

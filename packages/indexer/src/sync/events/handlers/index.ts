@@ -17,6 +17,7 @@ import * as element from "@/events-sync/handlers/element";
 import * as foundation from "@/events-sync/handlers/foundation";
 import * as looksrare from "@/events-sync/handlers/looks-rare";
 import * as nftx from "@/events-sync/handlers/nftx";
+import * as nftxV3 from "@/events-sync/handlers/nftx-v3";
 import * as nouns from "@/events-sync/handlers/nouns";
 import * as quixotic from "@/events-sync/handlers/quixotic";
 import * as seaport from "@/events-sync/handlers/seaport";
@@ -84,6 +85,7 @@ export const eventKindToHandler = new Map<
   ["foundation", (e, d) => foundation.handleEvents(e, d)],
   ["looks-rare", (e, d) => looksrare.handleEvents(e, d)],
   ["nftx", (e, d) => nftx.handleEvents(e, d)],
+  ["nftx-v3", (e, d) => nftxV3.handleEvents(e, d)],
   ["nouns", (e, d) => nouns.handleEvents(e, d)],
   ["quixotic", (e, d) => quixotic.handleEvents(e, d)],
   ["seaport", (e, d) => seaport.handleEvents(e, d)],

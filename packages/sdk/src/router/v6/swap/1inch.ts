@@ -2,7 +2,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
-import { isETH } from "../utils";
+import { isNative } from "../utils";
 import { Common, ZeroExV4 } from "../../../index";
 import { bn } from "../../../utils";
 import { TransferDetail, SwapInfo } from "./index";
@@ -22,10 +22,10 @@ export const generateBuyExecutions = async (
     revertIfIncomplete: boolean;
   }
 ): Promise<SwapInfo> => {
-  const fromToken = isETH(chainId, fromTokenAddress)
+  const fromToken = isNative(chainId, fromTokenAddress)
     ? ZeroExV4.Addresses.Native[chainId]
     : fromTokenAddress;
-  const toToken = isETH(chainId, toTokenAddress)
+  const toToken = isNative(chainId, toTokenAddress)
     ? Common.Addresses.WNative[chainId]
     : toTokenAddress;
 
@@ -61,7 +61,7 @@ export const generateBuyExecutions = async (
     },
   });
 
-  const fromETH = isETH(chainId, fromToken);
+  const fromETH = isNative(chainId, fromToken);
   const execution = {
     module: options.module.address,
     data: options.module.interface.encodeFunctionData(

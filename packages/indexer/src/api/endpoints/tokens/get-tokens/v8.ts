@@ -394,10 +394,12 @@ export const getTokensV8Options: RouteOptions = {
 
     let esTokens: any[] = [];
 
-    let enableElasticsearchAsks =
-      query.sortBy === "floorAskPrice" &&
-      query.sortDirection !== "desc" &&
-      !["tokenName", "tokenSetId"].some((filter) => query[filter]);
+    let enableElasticsearchAsks = false;
+
+    // let enableElasticsearchAsks =
+    //   query.sortBy === "floorAskPrice" &&
+    //   query.sortDirection !== "desc" &&
+    //   !["tokenName", "tokenSetId"].some((filter) => query[filter]);
 
     if (enableElasticsearchAsks && query.continuation) {
       const contArr = splitContinuation(query.continuation);
@@ -1438,7 +1440,9 @@ export const getTokensV8Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(
+                r.floor_sell_order_kind
+              )
             ) {
               // Pool orders
               dynamicPricing = {

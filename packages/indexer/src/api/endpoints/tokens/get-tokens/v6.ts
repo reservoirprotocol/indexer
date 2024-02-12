@@ -1432,7 +1432,9 @@ export const getTokensV6Options: RouteOptions = {
                 },
               };
             } else if (
-              ["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(r.floor_sell_order_kind)
+              ["sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(
+                r.floor_sell_order_kind
+              )
             ) {
               // Pool orders
               dynamicPricing = {
@@ -1731,6 +1733,14 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     });
   }
 
+  let currencies: string[] = [];
+
+  if (query.currencies && !_.isArray(query.currencies)) {
+    currencies = [query.currencies];
+  } else if (query.currencies) {
+    currencies = query.currencies;
+  }
+
   if (query.source) {
     const sources = await Sources.getInstance();
     let source = sources.getByName(query.source, false);
@@ -1787,6 +1797,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
     collections,
     tokens,
     attributes,
+    currencies,
     rarityRank: { min: query.minRarityRank, max: query.maxRarityRank },
     floorAskPrice: { min: query.minFloorAskPrice, max: query.maxFloorAskPrice },
     flaggedTokens: query.flaggedTokens,
@@ -2136,7 +2147,9 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
               },
             },
           };
-        } else if (["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(ask.order.kind)) {
+        } else if (
+          ["sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(ask.order.kind)
+        ) {
           // Pool orders
           dynamicPricing = {
             kind: "pool",

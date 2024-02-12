@@ -26,7 +26,7 @@ export default class CollectionMetadataQueueJob extends AbstractRabbitMqJobHandl
   concurrency = 1;
   useSharedChannel = true;
 
-  protected async process(payload: MetadataQueueJobPayload) {
+  public async process(payload: MetadataQueueJobPayload) {
     const { contract, tokenId, community, forceRefresh } = payload;
     const retries = payload.retries ?? 0;
 

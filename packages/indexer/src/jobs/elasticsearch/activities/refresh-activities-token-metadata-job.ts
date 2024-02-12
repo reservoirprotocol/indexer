@@ -18,7 +18,7 @@ export default class RefreshActivitiesTokenMetadataJob extends AbstractRabbitMqJ
   concurrency = 2;
   persistent = true;
 
-  protected async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
+  public async process(payload: RefreshActivitiesTokenMetadataJobPayload) {
     let addToQueue = false;
 
     const { contract, tokenId } = payload;

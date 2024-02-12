@@ -25,6 +25,7 @@ export interface AskDocument extends BaseDocument {
       key: string;
       value: string;
     }[];
+    attributesV2: any;
   };
   collection?: {
     id: string;
@@ -131,6 +132,14 @@ export class AskDocumentBuilder extends DocumentBuilder {
   public buildDocument(data: BuildAskDocumentData): AskDocument {
     const baseDocument = super.buildDocument(data);
 
+    const attributesV2: any = {};
+
+    if (data.token_attributes?.length) {
+      for (const tokenAttribute of data.token_attributes) {
+        attributesV2[tokenAttribute["key"]] = tokenAttribute["value"];
+      }
+    }
+
     return {
       ...baseDocument,
       chain: {
@@ -144,6 +153,7 @@ export class AskDocumentBuilder extends DocumentBuilder {
         id: data.token_id,
         name: data.token_name,
         attributes: data.token_attributes,
+        attributesV2,
         isFlagged: Boolean(data.token_is_flagged || 0),
         rarityRank: data.token_rarity_rank,
         isSpam: Number(data.token_is_spam) > 0,

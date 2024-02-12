@@ -6,6 +6,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { traceSyncJob } from "./trace-sync-job";
 import { redis } from "@/common/redis";
 import { getNetworkSettings } from "@/config/network";
+import { ridb } from "@/common/db";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
@@ -14,15 +15,22 @@ export type EventsSyncRealtimeJobPayload = {
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-realtime";
   maxRetries = 30;
-  concurrency = [84531, 80001, 11155111].includes(config.chainId) ? 1 : 5;
+  concurrency = [84531].includes(config.chainId) ? 1 : 5;
   timeout = 5 * 60 * 1000;
   backoff = {
     type: "fixed",
     delay: 1000,
   } as BackoffStrategy;
 
-  protected async process(payload: EventsSyncRealtimeJobPayload) {
+  public async process(payload: EventsSyncRealtimeJobPayload) {
     const { block } = payload;
+
+    if (config.chainId === 204) {
+      if (await ridb.oneOrNone(`SELECT * FROM blocks WHERE number=$/block/`, { block })) {
+        return;
+      }
+    }
+
     try {
       // Update the latest block synced
       const latestBlock = await redis.get("latest-block-realtime");

@@ -1,6 +1,5 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { processTopBid, topBidPayload } from "@/jobs/token-set-updates/utils";
-
 export default class TopBidQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "token-set-updates-top-bid-queue";
   maxRetries = 10;
@@ -10,7 +9,7 @@ export default class TopBidQueueJob extends AbstractRabbitMqJobHandler {
     delay: 20000,
   } as BackoffStrategy;
 
-  protected async process(payload: topBidPayload) {
+  public async process(payload: topBidPayload) {
     await processTopBid(payload, this.queueName);
   }
 

@@ -800,6 +800,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
         zeroExApiKey: config.zeroExApiKey,
+        nftxApiKey: config.nftxApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),

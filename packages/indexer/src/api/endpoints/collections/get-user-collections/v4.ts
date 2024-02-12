@@ -88,10 +88,10 @@ export const getUserCollectionsV4Options: RouteOptions = {
           "Input any ERC20 address to return result in given currency. Applies to `topBid` and `floorAsk`."
         ),
       sortBy: Joi.string()
-        .valid("allTimeVolume", "totalValue")
+        .valid("allTimeVolume", "totalValue", "floorAskPrice")
         .default("allTimeVolume")
         .description(
-          "Order the items are returned in the response. Options are `allTimeVolume`, `totalValue`"
+          "Order the items are returned in the response. Options are `allTimeVolume`, `totalValue`, `floorAskPrice`"
         ),
       sortDirection: Joi.string()
         .lowercase()
@@ -323,6 +323,10 @@ export const getUserCollectionsV4Options: RouteOptions = {
 
       // Sorting
       switch (query.sortBy) {
+        case "floorAskPrice":
+          baseQuery += ` ORDER BY collections.floor_sell_value ${query.sortDirection} NULLS LAST`;
+          break;
+
         case "totalValue":
           baseQuery += ` ORDER BY (COALESCE(collections.floor_sell_value, 0) * uc.token_count) ${query.sortDirection}`;
           break;

@@ -161,6 +161,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               tokenId,
               collection: collection?.id || contract,
             },
+            context: "opensea-websocket",
           },
         ]);
       } else {
@@ -173,6 +174,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               tokenId,
               collection: contract,
             },
+            context: "opensea-websocket",
           },
         ]);
       }

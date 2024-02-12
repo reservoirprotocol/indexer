@@ -18,7 +18,7 @@ export default class BlockGapCheckJob extends AbstractRabbitMqJobHandler {
   concurrency = 1;
   singleActiveConsumer = true;
 
-  protected async process(payload: BlockGapCheckJobPayload) {
+  public async process(payload: BlockGapCheckJobPayload) {
     logger.info("block-gap-check", `Block gap check. limit=${payload.limit}`);
 
     try {

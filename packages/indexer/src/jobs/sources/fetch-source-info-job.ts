@@ -16,7 +16,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
   persistent = false;
   useSharedChannel = true;
 
-  protected async process(payload: FetchSourceInfoJobPayload) {
+  public async process(payload: FetchSourceInfoJobPayload) {
     const { sourceDomain } = payload;
 
     logger.info(this.queueName, `Start. sourceDomain=${sourceDomain}`);
@@ -49,6 +49,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     let tokenUrlScroll;
     let tokenUrlImmutableZkevmTestnet;
     let tokenUrlAncient8Testnet;
+    let tokenUrlAncient8;
 
     if (!_.startsWith(url, "http")) {
       url = `https://${url}`;
@@ -133,6 +134,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlScroll = this.getTokenUrl(html, url, "scroll");
       tokenUrlImmutableZkevmTestnet = this.getTokenUrl(html, url, "immutable-zkevm-testnet");
       tokenUrlAncient8Testnet = this.getTokenUrl(html, url, "ancient8-testnet");
+      tokenUrlAncient8 = this.getTokenUrl(html, url, "ancient8");
     } catch (error) {
       logger.info(this.queueName, `Get html error. sourceDomain=${sourceDomain}, error=${error}`);
     }
@@ -202,6 +204,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
           tokenUrlScroll,
           tokenUrlImmutableZkevmTestnet,
           tokenUrlAncient8Testnet,
+          tokenUrlAncient8,
         },
       })
     );
@@ -235,6 +238,7 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlScroll,
       tokenUrlImmutableZkevmTestnet,
       tokenUrlAncient8Testnet,
+      tokenUrlAncient8,
     });
   }
 

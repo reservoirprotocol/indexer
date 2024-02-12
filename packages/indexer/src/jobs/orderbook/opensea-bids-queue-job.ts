@@ -10,7 +10,7 @@ export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
   concurrency = 100;
   timeout = 120000;
 
-  protected async process(payload: GenericOrderInfo) {
+  public async process(payload: GenericOrderInfo) {
     const { kind, info, validateBidValue, ingestMethod, ingestDelay } = payload;
 
     let result: { status: string; delay?: number }[] = [];

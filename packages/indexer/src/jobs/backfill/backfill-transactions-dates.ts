@@ -5,7 +5,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { redlock } from "@/common/redis";
+import { logger } from "@/common/logger";
 
 export type BackfillTransactionsDatesJobCursorInfo = {
   hash: string;
@@ -19,7 +19,7 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  protected async process(payload: BackfillTransactionsDatesJobCursorInfo) {
+  public async process(payload: BackfillTransactionsDatesJobCursorInfo) {
     const { hash } = payload;
     const values: {
       limit: number;
@@ -59,6 +59,11 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
     if (results.length == values.limit) {
       const lastItem = _.last(results);
 
+      logger.info(
+        this.queueName,
+        `Processed ${results.length} tokens. last hash=${fromBuffer(lastItem.hash)}`
+      );
+
       return {
         addToQueue: true,
         cursor: { hash: fromBuffer(lastItem.hash) },
@@ -87,11 +92,11 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
 
 export const backfillTransactionsDatesJob = new BackfillTransactionsDatesJob();
 
-redlock
-  .acquire([`${backfillTransactionsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
-  .then(async () => {
-    await backfillTransactionsDatesJob.addToQueue();
-  })
-  .catch(() => {
-    // Skip on any errors
-  });
+// redlock
+//   .acquire([`${backfillTransactionsDatesJob.getQueue()}-lock`], 60 * 60 * 24 * 30 * 1000)
+//   .then(async () => {
+//     await backfillTransactionsDatesJob.addToQueue();
+//   })
+//   .catch(() => {
+//     // Skip on any errors
+//   });

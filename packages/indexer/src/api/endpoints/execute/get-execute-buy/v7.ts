@@ -392,7 +392,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       ) => {
         // Handle dynamically-priced orders
-        if (["sudoswap", "sudoswap-v2", "nftx", "caviar-v1"].includes(order.kind)) {
+        if (["sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(order.kind)) {
           let poolId: string;
           let priceList: string[];
 
@@ -1907,6 +1907,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         item.quote = formatPrice(cost);
         item.rawQuote = cost.toString();
         item.gasCost = data.relayerFee.toString();
+        item.fromChainId = payload.currencyChainId;
 
         // Better approach
         // const c = await getCurrency(Sdk.Common.Addresses.Native[config.chainId]);
@@ -2073,7 +2074,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             ) {
               const transferValidator = (configV1 ?? configV2)!.transferValidator;
 
-              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.maker);
+              const isVerified = await erc721c.isVerifiedEOA(transferValidator, payload.taker);
               if (!isVerified) {
                 unverifiedERC721CTransferValidators.push(transferValidator);
               }
@@ -2151,6 +2152,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
         zeroExApiKey: config.zeroExApiKey,
+        nftxApiKey: config.nftxApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
         orderFetcherMetadata: {
           apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
