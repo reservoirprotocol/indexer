@@ -58,20 +58,18 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         for (const rawResult of rawResults) {
           try {
             const eventHandler = new AskCreatedEventHandler(rawResult.order_id);
-            const askDocument = eventHandler.buildDocument(rawResult);
 
-            if (
-              payload.contract === "0x524cab2ec69124574082676e6f654a18df49a048" &&
-              payload.tokenId === "5039"
-            ) {
-              askEvents.push({
-                kind: "delete",
-                info: { id: eventHandler.getAskId() },
-              } as AskEvent);
-            } else {
+            if (rawResult.status === "active") {
+              const askDocument = eventHandler.buildDocument(rawResult);
+
               askEvents.push({
                 kind: "index",
                 info: { id: eventHandler.getAskId(), document: askDocument },
+              } as AskEvent);
+            } else {
+              askEvents.push({
+                kind: "delete",
+                info: { id: eventHandler.getAskId() },
               } as AskEvent);
             }
           } catch (error) {
