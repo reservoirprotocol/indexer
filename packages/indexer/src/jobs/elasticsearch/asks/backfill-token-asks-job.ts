@@ -62,7 +62,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
 
             if (
               payload.contract === "0x524cab2ec69124574082676e6f654a18df49a048" &&
-              payload.tokenId === "1"
+              payload.tokenId === "5039"
             ) {
               askEvents.push({
                 kind: "delete",
