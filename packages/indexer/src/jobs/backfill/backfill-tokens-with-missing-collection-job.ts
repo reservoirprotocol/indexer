@@ -7,6 +7,8 @@ import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
 import { logger } from "@/common/logger";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import _ from "lodash";
+import { redlock } from "@/common/redis";
+import { config } from "@/config/index";
 
 export type CursorInfo = {
   contract: string;
@@ -34,7 +36,7 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
     let contractFilter = "";
     let continuationFilter = "";
 
-    const limit = 200;
+    const limit = 600;
 
     if (contract) {
       contractFilter = `AND tokens.contract = $/contract/`;
@@ -54,7 +56,7 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
           WHERE tokens.collection_id IS NULL
           ${contractFilter}
           ${continuationFilter}
-          ORDER BY tokens.contract, tokens.token_id
+          ORDER BY tokens.collection_id, tokens.contract, tokens.token_id
           LIMIT $/limit/
         `,
       {
@@ -137,3 +139,17 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
 }
 
 export const backfillTokensWithMissingCollectionJob = new BackfillTokensWithMissingCollectionJob();
+
+if (config.chainId !== 10) {
+  redlock
+    .acquire(
+      [`${backfillTokensWithMissingCollectionJob.getQueue()}-lock`],
+      60 * 60 * 24 * 30 * 1000
+    )
+    .then(async () => {
+      await backfillTokensWithMissingCollectionJob.addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
+}
