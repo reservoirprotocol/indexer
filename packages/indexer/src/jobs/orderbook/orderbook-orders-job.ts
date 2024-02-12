@@ -20,7 +20,11 @@ export class OrderbookOrdersJob extends AbstractRabbitMqJobHandler {
     await this.sendBatch(
       orderInfos.map((orderInfo) => ({
         payload: orderInfo,
-        delay: delay ? delay * 1000 : 0,
+        delay: delay
+          ? delay * 1000
+          : orderInfo.delayBeforeProcessing
+          ? orderInfo.delayBeforeProcessing * 1000
+          : 0,
         jobId,
       }))
     );
