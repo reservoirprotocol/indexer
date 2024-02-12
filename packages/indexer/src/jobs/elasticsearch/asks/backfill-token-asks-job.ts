@@ -27,13 +27,12 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
 
     let nextCursor;
     let query;
+    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
     const askEvents: AskEvent[] = [];
 
     try {
       let continuationFilter = "";
-
-      const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
       if (payload.cursor) {
         continuationFilter = `AND (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
@@ -145,26 +144,23 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
           nextCursor,
           indexName: AskIndex.getIndexName(),
           bulkIndexOpsResponseHasErrors: bulkIndexOpsResponse?.errors,
-          bulkIndexOpsResponse: bulkIndexOpsResponse?.errors ? bulkIndexOpsResponse : undefined,
+          bulkIndexOpsResponse,
           bulkDeleteOpsResponseHasErrors: bulkDeleteOpsResponse?.errors,
-          bulkDeleteOpsResponse: bulkDeleteOpsResponse?.errors ? bulkDeleteOpsResponse : undefined,
+          bulkDeleteOpsResponse,
+          askEvents: JSON.stringify(askEvents),
+          bulkIndexOps: JSON.stringify(askEvents),
+          bulkDeleteOps: JSON.stringify(askEvents),
         })
       );
 
-      await backfillTokenAsksJob.addToQueue(
-        payload.contract,
-        payload.tokenId,
-        payload.onlyActive,
-        nextCursor
-      );
-    } else {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `No Ask Events. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-          payload,
-        })
-      );
+      if (askEvents.length === limit) {
+        await backfillTokenAsksJob.addToQueue(
+          payload.contract,
+          payload.tokenId,
+          payload.onlyActive,
+          nextCursor
+        );
+      }
     }
   }
 
