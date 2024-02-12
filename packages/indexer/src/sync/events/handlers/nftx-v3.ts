@@ -44,6 +44,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               },
               metadata: {},
             },
+            delayBeforeProcessing: 20,
           });
 
           nftCount += amount;
@@ -254,6 +255,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
+              delayBeforeProcessing: 20,
             });
 
             const orderInfo = dbOrders.find((c) => c.id === orderId);
@@ -457,6 +459,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
+              delayBeforeProcessing: 20,
             });
           }
 
@@ -475,6 +478,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
+              delayBeforeProcessing: 20,
             });
           });
         }
@@ -500,6 +504,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             },
             metadata: {},
           },
+          delayBeforeProcessing: 20,
         });
 
         break;
@@ -525,6 +530,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
+              delayBeforeProcessing: 20,
             });
           }
 
@@ -545,6 +551,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
+              delayBeforeProcessing: 20,
             });
           }
         }

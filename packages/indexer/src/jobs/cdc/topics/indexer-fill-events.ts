@@ -32,6 +32,7 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
     logger.info(
       "sales-latency",
       JSON.stringify({
+        topic: "latency-metrics",
         latency: new Date(payload.after.created_at).getTime() / 1000 - payload.after.timestamp,
         tx_hash: payload.after.tx_hash,
         log_index: payload.after.log_index,

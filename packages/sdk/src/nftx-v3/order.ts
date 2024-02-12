@@ -71,6 +71,7 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
     pool: s(order.pool),
     extra: {
       prices: order.extra?.prices ? order.extra.prices.map(s) : [],
+      premiumPrice: order.extra?.premiumPrice ?? "0",
     },
   };
 };
