@@ -1,5 +1,5 @@
 import { ridb } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import cron from "node-cron";
@@ -43,7 +43,7 @@ export default class FixTokensMissingCollectionJob extends AbstractRabbitMqJobHa
           tokensToReMint.push({
             tokenId: token.token_id,
             contract: fromBuffer(token.contract),
-            mintedTimestamp: token.minted_timestamp,
+            mintedTimestamp: token.minted_timestamp || now(),
           });
         }
       }
