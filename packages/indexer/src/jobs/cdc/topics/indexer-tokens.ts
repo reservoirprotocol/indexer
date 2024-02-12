@@ -121,7 +121,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         logger.info(
           "token-metadata-latency-metric",
           JSON.stringify({
-            topic: "metrics",
+            topic: "latency-metrics",
             contract: payload.after.contract,
             tokenId: payload.after.token_id,
             indexedLatency: Math.floor(

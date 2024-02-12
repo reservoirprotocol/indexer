@@ -405,6 +405,7 @@ const logMetric = (crossPostingOrder: any) => {
     logger.info(
       "cross-posting-latency-metric",
       JSON.stringify({
+        topic: "latency-metrics",
         latency:
           Math.floor(new Date(crossPostingOrder.updated_at).getTime() / 1000) -
           Math.floor(new Date(crossPostingOrder.created_at).getTime() / 1000),

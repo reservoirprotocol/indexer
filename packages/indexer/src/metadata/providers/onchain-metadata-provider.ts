@@ -643,10 +643,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, "Invalid URI"];
       }
 
-      if (uri && uri?.includes("ipfs.io") && config.ipfsGatewayDomain) {
-        uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
-      }
-
       return axios
         .get(uri, {
           headers: {
@@ -654,17 +650,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           },
         })
         .then((res) => {
-          if (debugMissingTokenImages) {
-            logger.info(
-              "getTokenMetadataFromURI",
-              JSON.stringify({
-                topic: "debugMissingTokenImages",
-                message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
-                resData: res.data,
-              })
-            );
-          }
-
           if (res.data !== null && typeof res.data === "object") {
             return [res.data, null];
           }
@@ -672,19 +657,63 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           return [null, "Invalid JSON"];
         })
         .catch((error) => {
-          logger.warn(
-            "onchain-fetcher",
-            JSON.stringify({
-              topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
-              message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
-              contract,
-              tokenId,
-              uri,
-              error,
-              errorResponseStatus: error.response?.status,
-              errorResponseData: error.response?.data,
-            })
-          );
+          const fallbackToIpfsGateway = uri.includes("ipfs.io") && config.ipfsGatewayDomain;
+
+          if (fallbackToIpfsGateway) {
+            const ipfsGatewayUrl = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+
+            return axios
+              .get(ipfsGatewayUrl, {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              })
+              .then((res) => {
+                if (res.data !== null && typeof res.data === "object") {
+                  return [res.data, null];
+                }
+
+                return [null, "Invalid JSON"];
+              })
+              .catch((fallbackError) => {
+                logger.warn(
+                  "onchain-fetcher",
+                  JSON.stringify({
+                    topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                    message: `getTokenMetadataFromURI axios fallback error. contract=${contract}, tokenId=${tokenId}`,
+                    contract,
+                    tokenId,
+                    uri,
+                    error,
+                    errorResponseStatus: error.response?.status,
+                    errorResponseData: error.response?.data,
+                    ipfsGatewayUrl,
+                    fallbackError,
+                    fallbackErrorResponseStatus: fallbackError.response?.status,
+                    fallbackErrorResponseData: fallbackError.response?.data,
+                  })
+                );
+
+                return [
+                  null,
+                  fallbackError.response?.status || fallbackError.code || `${fallbackError}`,
+                ];
+              });
+          } else {
+            logger.warn(
+              "onchain-fetcher",
+              JSON.stringify({
+                topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
+                contract,
+                tokenId,
+                uri,
+                error,
+                errorResponseStatus: error.response?.status,
+                errorResponseData: error.response?.data,
+              })
+            );
+          }
 
           return [null, error.response?.status || error.code || `${error}`];
         });
