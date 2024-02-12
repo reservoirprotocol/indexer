@@ -20,6 +20,8 @@ import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider"
 import { getNetworkName } from "@/config/network";
 import axios from "axios";
 import { redis } from "@/common/redis";
+import { idb } from "@/common/db";
+import { toBuffer } from "@/common/utils";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -379,33 +381,64 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // helpers
 
   async detectTokenStandard(contractAddress: string) {
+    let erc721Supported = false;
+    let erc1155Supported = false;
+
     try {
-      const contract = new ethers.Contract(
-        contractAddress,
-        [...erc721Interface.fragments, ...erc1155Interface.fragments],
-        metadataIndexingBaseProvider
-      );
+      let contractKind = await redis.get(`contract-kind:${contractAddress}`);
 
-      const erc721Supported = await contract.supportsInterface("0x80ac58cd");
-      const erc1155Supported = await contract.supportsInterface("0xd9b67a26");
+      if (!contractKind) {
+        const result = await idb.oneOrNone(
+          `
+          SELECT
+            con.kind
+          FROM contracts con
+          WHERE con.address = $/contract/
+        `,
+          {
+            contract: toBuffer(contractAddress),
+          }
+        );
 
-      if (erc721Supported && !erc1155Supported) {
+        contractKind = result?.kind;
+
+        if (contractKind) {
+          await redis.set(`contract-kind:${contractAddress}`, contractKind, "EX", 3600);
+        }
+      }
+
+      erc721Supported = contractKind === "erc721" || contractKind === "erc721-like";
+      erc1155Supported = contractKind === "erc1155";
+
+      if (!erc721Supported && !erc1155Supported) {
+        const contract = new ethers.Contract(
+          contractAddress,
+          [...erc721Interface.fragments, ...erc1155Interface.fragments],
+          metadataIndexingBaseProvider
+        );
+
+        erc721Supported = await contract.supportsInterface("0x80ac58cd");
+
+        if (!erc721Supported) {
+          erc1155Supported = await contract.supportsInterface("0xd9b67a26");
+        }
+      }
+
+      if (erc721Supported) {
         return "ERC721";
-      } else if (!erc721Supported && erc1155Supported) {
+      }
+
+      if (erc1155Supported) {
         return "ERC1155";
-      } else if (erc721Supported && erc1155Supported) {
-        return "Both";
-      } else {
-        return "Unknown";
       }
     } catch (error) {
-      logger.warn(
+      logger.error(
         "onchain-fetcher",
         `detectTokenStandard error. contractAddress:${contractAddress}, error:${error}`
       );
-
-      return "Unknown";
     }
+
+    return "Unknown";
   }
 
   encodeTokenERC721(token: any) {
