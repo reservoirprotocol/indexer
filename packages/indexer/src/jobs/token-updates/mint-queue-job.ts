@@ -31,7 +31,7 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   public async process(payload: MintQueueJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
-    if (contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
+    if (config.chainId === 137 && contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
       return;
     }
 
