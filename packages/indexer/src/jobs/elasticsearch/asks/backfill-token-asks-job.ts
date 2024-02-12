@@ -17,6 +17,15 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
   persistent = true;
 
   public async process(payload: BackfillTokenAsksJobPayload) {
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugAskIndex",
+        message: `Start. contract=${payload.contract}, tokenId=${payload.tokenId}`,
+        payload,
+      })
+    );
+
     let nextCursor;
     let query;
 
@@ -32,7 +41,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
       }
 
       query = `
-            ${AskCreatedEventHandler.buildBaseQuery(true)}
+            ${AskCreatedEventHandler.buildBaseQuery(payload.onlyActive)}
             AND token_set_id = $/tokenSetId/
             ${continuationFilter}
             ORDER BY created_at, id
@@ -126,7 +135,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         this.queueName,
         JSON.stringify({
           topic: "debugAskIndex",
-          message: `Indexed ${bulkIndexOps.length} asks. Deleted ${bulkDeleteOps.length} asks`,
+          message: `Done. contract=${payload.contract}, tokenId=${payload.tokenId}, indexedAsks=${bulkIndexOps.length}, deletedAsks=${bulkDeleteOps.length}`,
           payload,
           nextCursor,
           indexName: AskIndex.getIndexName(),
@@ -137,13 +146,19 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         })
       );
 
-      await backfillTokenAsksJob.addToQueue(payload.contract, payload.tokenId, nextCursor);
+      await backfillTokenAsksJob.addToQueue(
+        payload.contract,
+        payload.tokenId,
+        payload.onlyActive,
+        nextCursor
+      );
     }
   }
 
   public async addToQueue(
     contract: string,
     tokenId: string,
+    onlyActive?: boolean,
     cursor?: {
       createdAt: string;
       id: string;
@@ -157,6 +172,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
       payload: {
         contract,
         tokenId,
+        onlyActive,
         cursor,
       },
     });
@@ -168,6 +184,7 @@ export const backfillTokenAsksJob = new BackfillTokenAsksJob();
 export type BackfillTokenAsksJobPayload = {
   contract: string;
   tokenId: string;
+  onlyActive?: boolean;
   cursor?: {
     createdAt: string;
     id: string;
