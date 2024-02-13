@@ -3,7 +3,7 @@ import { toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import * as tokenSets from "@/orderbook/token-sets";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -179,6 +179,8 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
           if (!config.disableRealtimeMetadataRefresh) {
             const delay = getNetworkSettings().metadataMintDelay;
             const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+
+            await acquireLock(`refresh-new-token-metadata:${contract}:${tokenId}`, 10);
 
             await metadataIndexFetchJob.addToQueue(
               [
