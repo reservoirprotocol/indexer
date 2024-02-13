@@ -118,12 +118,14 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           this.queueName,
           JSON.stringify({
             topic: "simpleHashFallbackDebug",
-            message: `Start. collection=${collection}, tokenId=${tokenId}`,
+            message: `Fallback. collection=${collection}, tokenId=${tokenId}`,
             payload,
             fallbackSuccess: name != null || imageUrl != null,
             fallbackError: debugSimplehashFallbackError,
           })
         );
+
+        await redis.hdel("simplehash-fallback-debug-tokens-v2", `${contract}:${tokenId}`);
       }
     }
 
