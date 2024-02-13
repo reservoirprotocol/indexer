@@ -90,21 +90,40 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    const debugMissingTokenImages = await redis.sismember(
-      "missing-token-image-contracts",
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
       contract
     );
 
-    if (debugMissingTokenImages) {
+    if (tokenMetadataIndexingDebug) {
       logger.info(
         this.queueName,
         JSON.stringify({
-          topic: "debugMissingTokenImages",
+          topic: "tokenMetadataIndexingDebug",
           message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
           payload,
           metadataMethod,
         })
       );
+    }
+
+    if (metadataMethod === "simplehash") {
+      const debugSimplehashFallback = await redis.sismember(
+        "simplehash-fallback-debug-tokens",
+        `${contract}:${tokenId}`
+      );
+
+      if (debugSimplehashFallback) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "simpleHashFallbackDebug",
+            message: `Start. collection=${collection}, tokenId=${tokenId}`,
+            payload,
+            fallbackSuccess: name != null || imageUrl != null,
+          })
+        );
+      }
     }
 
     // Update the token's metadata

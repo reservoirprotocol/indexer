@@ -51,16 +51,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             token.tokenId
           );
 
-          const debugMissingTokenImages = await redis.sismember(
-            "missing-token-image-contracts",
-            token.contract
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
+            metadata.contract
           );
 
-          if (debugMissingTokenImages) {
+          if (tokenMetadataIndexingDebug) {
             logger.info(
               "_getTokensMetadata",
               JSON.stringify({
-                topic: "debugMissingTokenImages",
+                topic: "tokenMetadataIndexingDebug",
                 message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
                 metadata: JSON.stringify(metadata),
                 error,
@@ -224,6 +224,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             }
           } else if (uri.endsWith("/{id}")) {
             uri = uri.replace("{id}", idToToken[token.id].tokenId);
+
+            logger.info(
+              "_getTokensMetadataUri",
+              JSON.stringify({
+                topic: "hexTokenUriDebug",
+                message: `contract=${idToToken[token.id].contract}, tokenId=${
+                  idToToken[token.id].tokenId
+                }, uri=${uri}`,
+              })
+            );
           }
 
           return {
@@ -639,16 +649,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      const debugMissingTokenImages = await redis.sismember(
-        "missing-token-image-contracts",
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
         contract
       );
 
-      if (debugMissingTokenImages) {
+      if (tokenMetadataIndexingDebug) {
         logger.info(
           "getTokenMetadataFromURI",
           JSON.stringify({
-            topic: "debugMissingTokenImages",
+            topic: "tokenMetadataIndexingDebug",
             message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
           })
         );
@@ -712,7 +722,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
                 logger.warn(
                   "onchain-fetcher",
                   JSON.stringify({
-                    topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                    topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
                     message: `getTokenMetadataFromURI axios fallback error. contract=${contract}, tokenId=${tokenId}`,
                     contract,
                     tokenId,
@@ -736,7 +746,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             logger.warn(
               "onchain-fetcher",
               JSON.stringify({
-                topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
                 message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
                 contract,
                 tokenId,

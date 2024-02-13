@@ -80,16 +80,16 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
-        const debugMissingTokenImages = await redis.sismember(
-          "missing-token-image-contracts",
+        const tokenMetadataIndexingDebug = await redis.sismember(
+          "metadata-indexing-debug-contracts",
           metadata.contract
         );
 
-        if (debugMissingTokenImages) {
+        if (tokenMetadataIndexingDebug) {
           logger.info(
             "getTokensMetadata",
             JSON.stringify({
-              topic: "debugMissingTokenImages",
+              topic: "tokenMetadataIndexingDebug",
               message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
               metadata: JSON.stringify(metadata),
             })
@@ -97,21 +97,9 @@ export abstract class AbstractBaseMetadataProvider {
         }
 
         if (hasExtendHandler(metadata.contract)) {
-          const result = await extendMetadata(metadata);
-
-          if (debugMissingTokenImages) {
-            logger.info(
-              "getTokensMetadata",
-              JSON.stringify({
-                topic: "debugMissingTokenImages",
-                message: `extendMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
-                result: JSON.stringify(result),
-              })
-            );
-          }
-
-          return result;
+          return extendMetadata(metadata);
         }
+
         return metadata;
       })
     );
@@ -120,8 +108,8 @@ export abstract class AbstractBaseMetadataProvider {
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
         try {
-          const debugMissingTokenImages = await redis.sismember(
-            "missing-token-image-contracts",
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
             metadata.contract
           );
 
@@ -136,11 +124,11 @@ export abstract class AbstractBaseMetadataProvider {
               metadata.tokenId
             );
 
-            if (debugMissingTokenImages) {
+            if (tokenMetadataIndexingDebug) {
               logger.info(
                 "getTokensMetadata",
                 JSON.stringify({
-                  topic: "debugMissingTokenImages",
+                  topic: "tokenMetadataIndexingDebug",
                   message: `_getImageMimeType. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}, imageMimeType=${metadata.imageMimeType}`,
                   metadata: JSON.stringify(metadata),
                 })
@@ -155,7 +143,9 @@ export abstract class AbstractBaseMetadataProvider {
               logger.warn(
                 "getTokensMetadata",
                 JSON.stringify({
-                  topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                  topic: tokenMetadataIndexingDebug
+                    ? "tokenMetadataIndexingDebug"
+                    : "debugMimeType",
                   message: `Missing image mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, imageUrl=${metadata.imageUrl}`,
                   metadata: JSON.stringify(metadata),
                   method: this.method,
@@ -179,7 +169,7 @@ export abstract class AbstractBaseMetadataProvider {
               logger.warn(
                 "getTokensMetadata",
                 JSON.stringify({
-                  topic: debugMissingTokenImages ? "debugMissingTokenImages" : "debugMimeType",
+                  topic: "debugMimeType",
                   message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
                   metadata: JSON.stringify(metadata),
                   method: this.method,
