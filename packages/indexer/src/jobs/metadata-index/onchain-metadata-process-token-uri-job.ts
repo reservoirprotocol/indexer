@@ -57,18 +57,18 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         { contract, tokenId, uri },
       ]);
 
-      if (retryCount > 0 && config.chainId === 137) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "simpleHashFallbackDebug",
-            message: `Delayed getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-            contract,
-            tokenId,
-            retryCount,
-          })
-        );
-      }
+      // if (retryCount > 0 && config.chainId === 137) {
+      //   logger.info(
+      //     this.queueName,
+      //     JSON.stringify({
+      //       topic: "simpleHashFallbackDebug",
+      //       message: `Delayed getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+      //       contract,
+      //       tokenId,
+      //       retryCount,
+      //     })
+      //   );
+      // }
 
       if (metadata.length) {
         if (debugMissingTokenImages) {
@@ -222,19 +222,19 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ) {
         // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
         if (retryCount < this.maxRetries) {
-          if (config.chainId === 137) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "simpleHashFallbackDebug",
-                message: `Retry getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-                contract,
-                tokenId,
-                retryCount,
-                error: `${error}`,
-              })
-            );
-          }
+          // if (config.chainId === 137) {
+          //   logger.info(
+          //     this.queueName,
+          //     JSON.stringify({
+          //       topic: "simpleHashFallbackDebug",
+          //       message: `Retry getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          //       contract,
+          //       tokenId,
+          //       retryCount,
+          //       error: `${error}`,
+          //     })
+          //   );
+          // }
 
           throw error; // throw to retry
         }
