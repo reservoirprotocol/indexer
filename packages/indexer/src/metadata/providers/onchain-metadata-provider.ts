@@ -53,7 +53,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
           const tokenMetadataIndexingDebug = await redis.sismember(
             "metadata-indexing-debug-contracts",
-            metadata.contract
+            token.contract
           );
 
           if (tokenMetadataIndexingDebug) {
