@@ -17,7 +17,7 @@ import {
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
-import { doesLockExist, redis } from "@/common/redis";
+import { doesLockExist, redis, releaseLock } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
@@ -167,13 +167,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           },
         ]);
       } else {
-        logger.info(
-          "opensea-websocket-item-metadata-update-event",
-          JSON.stringify({
-            message: `Lock exists. network=${network}, contract=${contract}, tokenId=${tokenId}`,
-            event: JSON.stringify(event),
-          })
-        );
+        await releaseLock(`refresh-new-token-metadata:${contract}:${tokenId}`);
       }
     } catch (error) {
       logger.error(
