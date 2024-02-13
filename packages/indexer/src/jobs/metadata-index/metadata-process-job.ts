@@ -46,11 +46,22 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     // Get the tokens from the list
     const pendingRefreshTokens = new PendingRefreshTokens(method);
-    const refreshTokens = await pendingRefreshTokens.get(countTotal);
+    let refreshTokens = await pendingRefreshTokens.get(countTotal);
 
     // If no more tokens
     if (_.isEmpty(refreshTokens)) {
       return;
+    }
+
+    if (config.chainId === 137) {
+      refreshTokens = _.filter(
+        refreshTokens,
+        (refreshToken) => refreshToken.contract !== "0x8c63f5e15735d0caf96202c5db01e2c9f28a4591"
+      );
+
+      if (_.isEmpty(refreshTokens)) {
+        return 1;
+      }
     }
 
     const refreshTokensChunks = _.chunk(refreshTokens, count);
