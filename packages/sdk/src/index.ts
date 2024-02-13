@@ -51,6 +51,7 @@ import * as Joepeg from "./joepeg";
 import * as ArtBlocks from "./artblocks";
 import * as Mooar from "./mooar";
 import * as HighlightXyz from "./highlightxyz";
+import * as FairXyz from "./fairxyz";
 
 export {
   // Common
@@ -108,4 +109,5 @@ export {
   ArtBlocks,
   Mooar,
   HighlightXyz,
+  FairXyz,
 };

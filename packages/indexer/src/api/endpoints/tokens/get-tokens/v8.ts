@@ -338,6 +338,7 @@ export const getTokensV8Options: RouteOptions = {
                 stage: Joi.string().required(),
                 tokenId: Joi.string().pattern(regex.number).allow(null),
                 kind: Joi.string().required(),
+                standard: Joi.string(),
                 price: JoiPrice.allow(null),
                 startTime: Joi.number().allow(null),
                 endTime: Joi.number().allow(null),
@@ -567,6 +568,7 @@ export const getTokensV8Options: RouteOptions = {
                 'stage', collection_mints.stage,
                 'tokenId', collection_mints.token_id::TEXT,
                 'kind', collection_mints.kind,
+                'standard', collection_mint_standards.standard,
                 'currency', concat('0x', encode(collection_mints.currency, 'hex')),
                 'price', collection_mints.price::TEXT,
                 'startTime', floor(extract(epoch from collection_mints.start_time)),
@@ -575,6 +577,8 @@ export const getTokensV8Options: RouteOptions = {
               )
             ) AS mint_stages
           FROM collection_mints
+          JOIN collection_mint_standards
+            ON collection_mints.collection_id = collection_mint_standards.collection_id
           WHERE collection_mints.collection_id = t.collection_id
             AND collection_mints.token_id = t.token_id
             AND collection_mints.status = 'open'
@@ -1614,6 +1618,7 @@ export const getTokensV8Options: RouteOptions = {
                     r.mint_stages.map(async (m: any) => ({
                       stage: m.stage,
                       kind: m.kind,
+                      standard: m.standard,
                       tokenId: m.tokenId,
                       price: m.price
                         ? await getJoiPriceObject({ gross: { amount: m.price } }, m.currency)

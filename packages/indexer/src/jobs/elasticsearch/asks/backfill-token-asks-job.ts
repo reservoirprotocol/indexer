@@ -9,6 +9,7 @@ import * as AskIndex from "@/elasticsearch/indexes/asks";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
 import { AskEvent } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
+import { BulkOperationType, BulkResponseItem } from "@elastic/elasticsearch/lib/api/types";
 
 export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-token-asks-queue";
@@ -27,13 +28,12 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
 
     let nextCursor;
     let query;
+    const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
     const askEvents: AskEvent[] = [];
 
     try {
       let continuationFilter = "";
-
-      const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
 
       if (payload.cursor) {
         continuationFilter = `AND (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
@@ -58,12 +58,20 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         for (const rawResult of rawResults) {
           try {
             const eventHandler = new AskCreatedEventHandler(rawResult.order_id);
-            const askDocument = eventHandler.buildDocument(rawResult);
 
-            askEvents.push({
-              kind: "index",
-              info: { id: eventHandler.getAskId(), document: askDocument },
-            } as AskEvent);
+            if (rawResult.status === "active") {
+              const askDocument = eventHandler.buildDocument(rawResult);
+
+              askEvents.push({
+                kind: "index",
+                info: { id: eventHandler.getAskId(), document: askDocument },
+              } as AskEvent);
+            } else {
+              askEvents.push({
+                kind: "delete",
+                info: { id: eventHandler.getAskId() },
+              } as AskEvent);
+            }
           } catch (error) {
             logger.error(
               this.queueName,
@@ -103,7 +111,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
       const bulkIndexOps = askEvents
         .filter((askEvent) => askEvent.kind == "index")
         .flatMap((askEvent) => [
-          { index: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } },
+          { create: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } },
           askEvent.info.document,
         ]);
 
@@ -113,50 +121,68 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
           delete: { _index: AskIndex.getIndexName(), _id: askEvent.info.id },
         }));
 
+      let createdAsks: Partial<Record<BulkOperationType, BulkResponseItem>>[] = [];
       let bulkIndexOpsResponse;
 
       if (bulkIndexOps.length) {
         bulkIndexOpsResponse = await elasticsearch.bulk({
           body: bulkIndexOps,
         });
+
+        createdAsks = bulkIndexOpsResponse.items.filter((item) => item.create?.status === 201);
       }
 
+      let deletedAsks: Partial<Record<BulkOperationType, BulkResponseItem>>[] = [];
       let bulkDeleteOpsResponse;
 
       if (bulkDeleteOps.length) {
         bulkDeleteOpsResponse = await elasticsearch.bulk({
           body: bulkDeleteOps,
         });
+
+        deletedAsks = bulkDeleteOpsResponse.items.filter((item) => item.delete?.status === 200);
       }
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Done. contract=${payload.contract}, tokenId=${payload.tokenId}, indexedAsks=${bulkIndexOps.length}, deletedAsks=${bulkDeleteOps.length}`,
-          payload,
-          nextCursor,
-          indexName: AskIndex.getIndexName(),
-          bulkIndexOpsResponseHasErrors: bulkIndexOpsResponse?.errors,
-          bulkIndexOpsResponse: bulkIndexOpsResponse?.errors ? bulkIndexOpsResponse : undefined,
-          bulkDeleteOpsResponseHasErrors: bulkDeleteOpsResponse?.errors,
-          bulkDeleteOpsResponse: bulkDeleteOpsResponse?.errors ? bulkDeleteOpsResponse : undefined,
-        })
-      );
+      if (createdAsks.length > 0 || deletedAsks.length > 0) {
+        logger.warn(
+          this.queueName,
+          JSON.stringify({
+            message: `Done. contract=${payload.contract}, tokenId=${
+              payload.tokenId
+            }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
+              createdAsks.length
+            }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
+            payload,
+            nextCursor,
+            indexName: AskIndex.getIndexName(),
+            createdAsks: JSON.stringify(createdAsks),
+            deletedAsks: JSON.stringify(deletedAsks),
+          })
+        );
+      } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Done. contract=${payload.contract}, tokenId=${
+              payload.tokenId
+            }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
+              createdAsks.length
+            }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
+            payload,
+            nextCursor,
+            indexName: AskIndex.getIndexName(),
+          })
+        );
+      }
 
-      await backfillTokenAsksJob.addToQueue(
-        payload.contract,
-        payload.tokenId,
-        payload.onlyActive,
-        nextCursor
-      );
-    } else {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `No Ask Events. contract=${payload.contract}, tokenId=${payload.tokenId}`,
-          payload,
-        })
-      );
+      if (askEvents.length === limit) {
+        await backfillTokenAsksJob.addToQueue(
+          payload.contract,
+          payload.tokenId,
+          payload.onlyActive,
+          nextCursor
+        );
+      }
     }
   }
 

@@ -71,6 +71,17 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
               orders.created_at AS "order_created_at",
               extract(epoch from orders.updated_at) updated_ts,
               extract(epoch from orders.created_at) created_ts,
+              (
+                CASE
+                  WHEN orders.fillability_status = 'filled' THEN 'filled'
+                  WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+                  WHEN orders.fillability_status = 'expired' THEN 'expired'
+                  WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+                  WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+                  WHEN orders.approval_status = 'disabled' THEN 'inactive'
+                  ELSE 'active'
+                END
+              ) AS status,
               t.*
             FROM orders
             JOIN LATERAL (

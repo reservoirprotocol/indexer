@@ -87,7 +87,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
         await tokenRefreshCacheJob.addToQueue({ contract, tokenId, checkTopBid: true });
 
         // Refresh the token asks
-        await backfillTokenAsksJob.addToQueue(contract, tokenId, true);
+        await backfillTokenAsksJob.addToQueue(contract, tokenId, false);
 
         // Lock for 10 seconds
         await redis.set(lockKey, "locked", "EX", 10);

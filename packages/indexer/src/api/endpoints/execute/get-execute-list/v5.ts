@@ -1018,14 +1018,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const order = await paymentProcessorSellToken.build({
@@ -1110,14 +1103,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-v2-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const options = (params.options?.["payment-processor-v2"] ??
