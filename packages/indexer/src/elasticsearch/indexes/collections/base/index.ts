@@ -24,19 +24,19 @@ export interface CollectionDocument extends BaseDocument {
   imageVersion: number;
   day1Rank?: number | null;
   day1Volume?: string;
-  day1VolumeDecimal?: number;
+  day1VolumeDecimal?: number | null;
   day1VolumeUsd?: number;
   day7Rank?: number | null;
   day7Volume?: string;
-  day7VolumeDecimal?: number;
+  day7VolumeDecimal?: number | null;
   day7VolumeUsd?: number;
   day30Rank?: number | null;
   day30Volume?: string;
-  day30VolumeDecimal?: number;
+  day30VolumeDecimal?: number | null;
   day30VolumeUsd?: number;
   allTimeRank?: number | null;
   allTimeVolume?: string;
-  allTimeVolumeDecimal?: number;
+  allTimeVolumeDecimal?: number | null;
   allTimeVolumeUsd?: number;
   floorSell?: {
     id?: string;
@@ -200,7 +200,7 @@ export class CollectionDocumentBuilder {
       suggestDay1Rank: [
         {
           input: data.name,
-          weight: data.day1_rank * -1,
+          weight: data.day1_rank ? data.day1_rank * -10 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -213,7 +213,7 @@ export class CollectionDocumentBuilder {
         },
         {
           input: data.contract_symbol,
-          weight: data.day1_rank * -1 + 1,
+          weight: data.day1_rank ? data.day1_rank * -1 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -228,7 +228,7 @@ export class CollectionDocumentBuilder {
       suggestDay7Rank: [
         {
           input: data.name,
-          weight: data.day7_rank * -1,
+          weight: data.day7_rank ? data.day7_rank * -10 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -241,7 +241,7 @@ export class CollectionDocumentBuilder {
         },
         {
           input: data.contract_symbol,
-          weight: data.day7_rank * -1 + 1,
+          weight: data.day7_rank ? data.day7_rank * -1 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -256,7 +256,7 @@ export class CollectionDocumentBuilder {
       suggestDay30Rank: [
         {
           input: data.name,
-          weight: data.day30_rank * -1,
+          weight: data.day30_rank ? data.day30_rank * -10 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -269,7 +269,7 @@ export class CollectionDocumentBuilder {
         },
         {
           input: data.contract_symbol,
-          weight: data.day30_rank * -1 + 1,
+          weight: data.day30_rank ? data.day30_rank * -1 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -284,7 +284,7 @@ export class CollectionDocumentBuilder {
       suggestAllTimeRank: [
         {
           input: data.name,
-          weight: data.all_time_rank * -1,
+          weight: data.all_time_rank ? data.all_time_rank * -10 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -297,7 +297,7 @@ export class CollectionDocumentBuilder {
         },
         {
           input: data.contract_symbol,
-          weight: data.all_time_rank * -1 + 1,
+          weight: data.all_time_rank ? data.all_time_rank * -1 : undefined,
           contexts: {
             chainId: [config.chainId],
             id: [data.id],
@@ -319,19 +319,19 @@ export class CollectionDocumentBuilder {
       imageVersion: data.image_version,
       day1Rank: data.day1_rank,
       day1Volume: data.day1_volume,
-      day1VolumeDecimal: formatEth(data.day1_volume),
+      day1VolumeDecimal: data.day1_volume ? formatEth(data.day1_volume) : null,
       day1VolumeUsd: day1VolumeUsd,
       day7Rank: data.day7_rank,
       day7Volume: data.day7_volume,
-      day7VolumeDecimal: formatEth(data.day7_volume),
+      day7VolumeDecimal: data.day7_volume ? formatEth(data.day7_volume) : null,
       day7VolumeUsd: day7VolumeUsd,
       day30Rank: data.day30_rank,
       day30Volume: data.day30_volume,
-      day30VolumeDecimal: formatEth(data.day30_volume),
+      day30VolumeDecimal: data.day7_volume ? formatEth(data.day30_volume) : null,
       day30VolumeUsd: day30VolumeUsd,
       allTimeRank: data.all_time_rank,
       allTimeVolume: data.all_time_volume,
-      allTimeVolumeDecimal: formatEth(data.all_time_volume),
+      allTimeVolumeDecimal: data.all_time_volume ? formatEth(data.all_time_volume) : null,
       allTimeVolumeUsd: allTimeVolumeUsd,
       floorSell: data.floor_sell_id
         ? {
