@@ -108,12 +108,12 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     }
 
     if (metadataMethod === "simplehash") {
-      const debugSimplehashFallback = await redis.sismember(
-        "simplehash-fallback-debug-tokens",
+      const debugSimplehashFallbackError = await redis.hget(
+        "simplehash-fallback-debug-tokens-v2",
         `${contract}:${tokenId}`
       );
 
-      if (debugSimplehashFallback) {
+      if (debugSimplehashFallbackError) {
         logger.info(
           this.queueName,
           JSON.stringify({
@@ -121,6 +121,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             message: `Start. collection=${collection}, tokenId=${tokenId}`,
             payload,
             fallbackSuccess: name != null || imageUrl != null,
+            fallbackError: debugSimplehashFallbackError,
           })
         );
       }

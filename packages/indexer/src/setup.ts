@@ -16,6 +16,7 @@ import { startKafkaConsumer } from "@/jobs/cdc";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
+import { redis } from "@/common/redis";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 process.on("unhandledRejection", (error: any) => {
@@ -58,6 +59,8 @@ const setup = async () => {
   if (config.doKafkaWork) {
     await startKafkaConsumer();
   }
+
+  await redis.del("simplehash-fallback-debug-tokens");
 };
 
 setup().then(() => start());
