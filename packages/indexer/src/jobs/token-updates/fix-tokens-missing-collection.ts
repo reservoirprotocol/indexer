@@ -1,5 +1,5 @@
 import { ridb } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import cron from "node-cron";
@@ -19,7 +19,7 @@ export default class FixTokensMissingCollectionJob extends AbstractRabbitMqJobHa
           SELECT contract, token_id, minted_timestamp
           FROM tokens t 
           WHERE collection_id IS NULL
-          AND updated_at < now() - INTERVAL '1 minutes'
+          AND updated_at < now() - INTERVAL '2 minutes'
           AND updated_at > now() - INTERVAL '1 hour'
           --AND updated_at = created_at
           ORDER BY updated_at DESC
@@ -43,7 +43,7 @@ export default class FixTokensMissingCollectionJob extends AbstractRabbitMqJobHa
           tokensToReMint.push({
             tokenId: token.token_id,
             contract: fromBuffer(token.contract),
-            mintedTimestamp: token.minted_timestamp,
+            mintedTimestamp: token.minted_timestamp || now(),
           });
         }
       }

@@ -42,9 +42,7 @@ if (config.catchup) {
               await eventsSyncRealtimeJob.addToQueue({ block });
             }
 
-            if (![204, 80001].includes(config.chainId)) {
-              await checkForMissingBlocks(block);
-            }
+            await checkForMissingBlocks(block);
           } catch (error) {
             logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
           }

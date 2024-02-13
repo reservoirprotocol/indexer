@@ -6,7 +6,7 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redlock } from "@/common/redis";
-import { fromBuffer, now } from "@/common/utils";
+import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import {
@@ -73,7 +73,6 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
         { continuation }
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const values: {
         id: string;
         price: string;
@@ -81,6 +80,8 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
         value: string;
         currency_value: string;
         dynamic: boolean;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        raw_data: any;
       }[] = [];
       for (const {
         id,
@@ -112,19 +113,23 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
               value: prices.nativePrice,
               currency_value: newCurrencyPrice,
               dynamic: true,
+              raw_data,
             });
           }
         } else if (kind === "nftx-v3") {
           try {
-            const order = new Sdk.NftxV3.Order(
-              config.chainId,
-              fromBuffer(maker),
-              fromBuffer(taker),
-              raw_data
-            );
+            const vault = fromBuffer(maker);
+            const userAddress = fromBuffer(taker);
+
+            const order = new Sdk.NftxV3.Order(config.chainId, vault, userAddress, raw_data);
 
             if (side === "sell") {
               const { price, premiumPrice } = await order.getPrice(baseProvider, config.nftxApiKey);
+
+              const oldPremium = bn(raw_data.extra.premiumPrice || "0");
+              const prices = (raw_data.extra.prices as string[]).map((price) =>
+                bn(price).sub(oldPremium).add(premiumPrice).toString()
+              );
 
               logger.info(
                 this.queueName,
@@ -132,6 +137,7 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
                   order,
                   price: price.toString(),
                   premiumPrice: premiumPrice.toString(),
+                  prices,
                 })}`
               );
 
@@ -141,7 +147,14 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
                 currency_price: price.toString(),
                 value: price.toString(),
                 currency_value: price.toString(),
-                dynamic: side === "sell" && premiumPrice.gt(0),
+                dynamic: premiumPrice.gt(0),
+                raw_data: {
+                  ...raw_data,
+                  extra: {
+                    premiumPrice: premiumPrice.toString(),
+                    prices,
+                  },
+                },
               });
             } else {
               values.push({
@@ -151,6 +164,7 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
                 value,
                 currency_value,
                 dynamic: false,
+                raw_data,
               });
             }
           } catch (error) {
@@ -165,9 +179,10 @@ export default class OrderUpdatesDynamicOrderJob extends AbstractRabbitMqJobHand
           { name: "price", cast: "numeric(78, 0)" },
           { name: "currency_price", cast: "numeric(78, 0)" },
           { name: "value", cast: "numeric(78, 0)" },
-          { name: "currency_value", cast: "numeric(78, 0) " },
+          { name: "currency_value", cast: "numeric(78, 0)" },
           { name: "updated_at", mod: ":raw", init: () => "now()" },
           { name: "dynamic", cast: "boolean" },
+          { name: "raw_data", cast: "jsonb" },
         ],
         {
           table: "orders",

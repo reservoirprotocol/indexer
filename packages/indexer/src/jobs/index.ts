@@ -186,6 +186,7 @@ import { updateUserCollectionsSpamJob } from "@/jobs/nft-balance-updates/update-
 import { updateNftBalancesSpamJob } from "@/jobs/nft-balance-updates/update-nft-balances-spam-job";
 import { pendingTxWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/pending-tx-websocket-events-trigger-job";
 import { fixTokensMissingCollectionJob } from "@/jobs/token-updates/fix-tokens-missing-collection";
+import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -355,6 +356,7 @@ export class RabbitMqJobsConsumer {
       updateNftBalancesSpamJob,
       pendingTxWebsocketEventsTriggerQueueJob,
       fixTokensMissingCollectionJob,
+      backfillTokensWithMissingCollectionJob,
     ];
   }
 
@@ -517,37 +519,6 @@ export class RabbitMqJobsConsumer {
           logger.error(
             "rabbit-consume",
             `protocol error consuming from ${job.getPriorityQueue()} error ${error}`
-          );
-        });
-    }
-
-    // Subscribe to the old name quorum queue
-    if (!_.includes(["fix-tokens-missing-collection"], job.queueName)) {
-      await channel
-        .consume(
-          `quorum-${job.getQueue()}`,
-          async (msg) => {
-            if (!_.isNull(msg)) {
-              await _.clone(job)
-                .consume(channel, msg)
-                .catch((error) => {
-                  logger.error(
-                    "rabbit-consume",
-                    `error consuming from ${`quorum-${job.getQueue()}`} error ${error}`
-                  );
-                });
-            }
-          },
-          {
-            consumerTag: RabbitMqJobsConsumer.getConsumerTag(`quorum-${job.getQueue()}`),
-            prefetch: job.getConcurrency(),
-            noAck: false,
-          }
-        )
-        .catch((error) => {
-          logger.error(
-            "rabbit-consume",
-            `protocol error consuming from ${`quorum-${job.getQueue()}`} error ${error}`
           );
         });
     }

@@ -461,9 +461,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
         const priceList = tmpPriceList.map((p) => p!);
 
-        const prices: string[] = [];
+        const basePrices: string[] = [];
         for (let i = 0; i < priceList.length; i++) {
-          prices.push(
+          basePrices.push(
             bn(priceList[i].price)
               .sub(i > 0 ? priceList[i - 1].price : 0)
               .toString()
@@ -532,6 +532,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                   const normalizedValue = bn(value).add(missingRoyaltyAmount);
 
+                  let prices = basePrices;
+                  if (premiumPrice.gt(0)) {
+                    prices = basePrices.map((price) => bn(price).add(premiumPrice).toString());
+                  }
+
                   // Handle: core sdk order
                   const sdkOrder = new Sdk.NftxV3.Order(
                     config.chainId,
@@ -546,6 +551,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       price: price.toString(),
                       extra: {
                         prices,
+                        premiumPrice: premiumPrice.toString(),
                       },
                       deductRoyalty: missingRoyalties.length > 0,
                       executeCallData,

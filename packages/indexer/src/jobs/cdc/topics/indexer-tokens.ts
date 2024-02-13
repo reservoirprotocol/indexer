@@ -110,7 +110,11 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         }
 
         if (changed.some((value) => ["collection_id"].includes(value))) {
-          await backfillTokenAsksJob.addToQueue(payload.after.contract, payload.after.token_id);
+          await backfillTokenAsksJob.addToQueue(
+            payload.after.contract,
+            payload.after.token_id,
+            true
+          );
         }
       }
 

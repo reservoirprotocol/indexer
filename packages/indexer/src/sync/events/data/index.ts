@@ -54,6 +54,7 @@ import * as artblocks from "@/events-sync/data/artblocks";
 import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
 import * as mooar from "@/events-sync/data/mooar";
+import * as fairxyz from "@/events-sync/data/fairxyz";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -112,7 +113,8 @@ export type EventKind =
   | "mooar"
   | "titlesxyz"
   | "ditto"
-  | "highlightxyz";
+  | "highlightxyz"
+  | "fairxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -360,7 +362,8 @@ export type EventSubKind =
   | "highlightxyz-vector-deleted"
   | "highlightxyz-discrete-da-created"
   | "highlightxyz-mechanic-vector-registered"
-  | "highlightxyz-discrete-da-updated";
+  | "highlightxyz-discrete-da-updated"
+  | "fairxyz-edition-created";
 
 export type EventData = {
   kind: EventKind;
@@ -614,6 +617,7 @@ const allEventData = [
   highlightxyz.mechanicVectorUpdated,
   ditto.dittoPoolInitialized,
   mooar.orderFulfilled,
+  fairxyz.editionCreated,
 ];
 
 // array of all addresses we're syncing events for

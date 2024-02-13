@@ -5270,12 +5270,13 @@ export class Router {
 
   public async transfersTx(
     transferItem: ApprovalProxy.TransferItem,
-    sender: string
+    sender: string,
+    contractToBlockingStatus: { [contract: string]: { seaport: boolean; reservoir: boolean } }
   ): Promise<TransfersResult> {
+    const conduitController = new ConduitController(this.chainId, this.provider);
+
     const openseaTransferHelper = Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId];
     const openseaConduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId];
-
-    const conduitController = new ConduitController(this.chainId, this.provider);
     const useOpenseaTransferHelper =
       openseaTransferHelper &&
       openseaConduitKey &&
@@ -5289,61 +5290,113 @@ export class Router {
       : Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId];
     const conduit = conduitController.deriveConduit(conduitKey);
 
-    const approvals = transferItem.items.map((item) => ({
-      orderIds: [],
-      contract: item.token,
-      owner: sender,
-      operator: conduit,
-      txData: generateNFTApprovalTxData(item.token, sender, conduit),
-    }));
+    const useReservoirApprovalProxy = !useOpenseaTransferHelper
+      ? Addresses.ApprovalProxy[this.chainId] &&
+        (await conduitController.getChannelStatus(conduit, Addresses.ApprovalProxy[this.chainId]))
+      : false;
 
-    // Ensure approvals are unique
-    const uniqueApprovals = uniqBy(
-      approvals,
-      ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
-    );
-
-    if (useOpenseaTransferHelper) {
-      return {
-        txs: [
-          {
-            approvals: uniqueApprovals,
-            txData: {
-              from: sender,
-              to: Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId],
-              data: new Interface(OpenseaTransferHelperAbi).encodeFunctionData("bulkTransfer", [
-                [
-                  {
-                    ...transferItem,
-                    items: transferItem.items.map((item) => ({
-                      ...item,
-                      validateERC721Receiver: true,
-                    })),
-                  },
-                ],
-                conduitKey,
-              ]),
-            },
-          },
-        ],
-      };
-    } else {
-      return {
-        txs: [
-          {
-            approvals: uniqueApprovals,
-            txData: {
-              from: sender,
-              to: Addresses.ApprovalProxy[this.chainId],
-              data: this.contracts.approvalProxy.interface.encodeFunctionData(
-                "bulkTransferWithExecute",
-                [[transferItem], [], conduitKey]
-              ),
-            },
-          },
-        ],
-      };
+    // Use native transfer if neither opensea nor reservoir are not supported
+    if (!useOpenseaTransferHelper && !useReservoirApprovalProxy) {
+      return ApprovalProxy.createTransferTxsFromTransferItem(transferItem, sender);
     }
+
+    const txs: {
+      approvals: NFTApproval[];
+      txData: TxData;
+    }[] = [];
+
+    const allowedItems: ApprovalProxy.Item[] = [];
+    const blockedItems: ApprovalProxy.Item[] = [];
+
+    // Split items by blocked status
+    transferItem.items.forEach((item) => {
+      // Only NFTs
+      if ([ApprovalProxy.ItemType.ERC1155, ApprovalProxy.ItemType.ERC721].includes(item.itemType)) {
+        const blockingData = contractToBlockingStatus[item.token];
+        if (blockingData) {
+          if (blockingData.seaport && useOpenseaTransferHelper) {
+            blockedItems.push(item);
+          } else if (blockingData.reservoir && !useOpenseaTransferHelper) {
+            blockedItems.push(item);
+          } else {
+            allowedItems.push(item);
+          }
+        } else {
+          allowedItems.push(item);
+        }
+      } else {
+        allowedItems.push(item);
+      }
+    });
+
+    // Transfer blocked items directly
+    if (blockedItems.length) {
+      const transferTxs = ApprovalProxy.createTransferTxsFromTransferItem(
+        {
+          ...transferItem,
+          items: blockedItems,
+        },
+        sender
+      );
+      for (const tx of transferTxs.txs) {
+        txs.push(tx);
+      }
+    }
+
+    // Transfer allowed items in batch
+    if (allowedItems) {
+      const approvals = allowedItems.map((item) => ({
+        orderIds: [],
+        contract: item.token,
+        owner: sender,
+        operator: conduit,
+        txData: generateNFTApprovalTxData(item.token, sender, conduit),
+      }));
+
+      // Ensure approvals are unique
+      const uniqueApprovals = uniqBy(
+        approvals,
+        ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+      );
+
+      if (useOpenseaTransferHelper) {
+        txs.push({
+          approvals: uniqueApprovals,
+          txData: {
+            from: sender,
+            to: Sdk.Common.Addresses.OpenseaTransferHelper[this.chainId],
+            data: new Interface(OpenseaTransferHelperAbi).encodeFunctionData("bulkTransfer", [
+              [
+                {
+                  ...transferItem,
+                  items: allowedItems.map((item) => ({
+                    ...item,
+                    validateERC721Receiver: true,
+                  })),
+                },
+              ],
+              conduitKey,
+            ]),
+          },
+        });
+      } else {
+        txs.push({
+          approvals: uniqueApprovals,
+          txData: {
+            from: sender,
+            to: Addresses.ApprovalProxy[this.chainId],
+            data: this.contracts.approvalProxy.interface.encodeFunctionData(
+              "bulkTransferWithExecute",
+              [[transferItem], [], conduitKey]
+            ),
+          },
+        });
+      }
+    }
+
+    return {
+      txs,
+    };
   }
 
   public parseExecutions(calldata: string) {

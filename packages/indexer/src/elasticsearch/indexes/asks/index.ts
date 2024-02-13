@@ -958,7 +958,7 @@ export const updateAsksTokenAttributesData = async (
       await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
 
       // Refresh the token asks
-      await backfillTokenAsksJob.addToQueue(contract, tokenId);
+      await backfillTokenAsksJob.addToQueue(contract, tokenId, true);
     }
   } catch (error) {
     if (isRetryableError(error)) {

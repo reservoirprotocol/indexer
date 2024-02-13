@@ -12,5 +12,6 @@ export type OrderParams = {
   vTokenPremiumLimit?: string;
   extra?: {
     prices: string[];
+    premiumPrice?: string;
   };
 };
