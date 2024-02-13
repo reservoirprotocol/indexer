@@ -12,6 +12,7 @@ import { BuildDocumentData, BaseDocument } from "@/elasticsearch/indexes/base";
 export interface CollectionDocument extends BaseDocument {
   id: string;
   contract: string;
+  contractSymbol: string;
   name: string;
   slug: string;
   image: string;
@@ -21,6 +22,19 @@ export interface CollectionDocument extends BaseDocument {
   isSpam: boolean;
   isNsfw: boolean;
   imageVersion: number;
+  day1Rank?: number | null;
+  day1Volume?: string;
+  day1VolumeDecimal?: number;
+  day1VolumeUsd?: number;
+  day7Rank?: number | null;
+  day7Volume?: string;
+  day7VolumeDecimal?: number;
+  day7VolumeUsd?: number;
+  day30Rank?: number | null;
+  day30Volume?: string;
+  day30VolumeDecimal?: number;
+  day30VolumeUsd?: number;
+  allTimeRank?: number | null;
   allTimeVolume?: string;
   allTimeVolumeDecimal?: number;
   allTimeVolumeUsd?: number;
@@ -37,6 +51,7 @@ export interface CollectionDocument extends BaseDocument {
 export interface BuildCollectionDocumentData extends BuildDocumentData {
   id: string;
   contract: Buffer;
+  contract_symbol: string;
   name: string;
   slug: string;
   image: string;
@@ -47,6 +62,13 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   metadata_disabled: number;
   is_spam: number;
   nsfw_status: number;
+  day1_rank: number;
+  day7_rank: number;
+  day30_rank: number;
+  all_time_rank: number;
+  day1_volume: string;
+  day7_volume: string;
+  day30_volume: string;
   all_time_volume: string;
   floor_sell_id?: string;
   floor_sell_value?: string;
@@ -57,6 +79,9 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
 
 export class CollectionDocumentBuilder {
   public async buildDocument(data: BuildCollectionDocumentData): Promise<CollectionDocument> {
+    let day1VolumeUsd = 0;
+    let day7VolumeUsd = 0;
+    let day30VolumeUsd = 0;
     let allTimeVolumeUsd = 0;
 
     try {
@@ -83,6 +108,84 @@ export class CollectionDocumentBuilder {
       // );
     }
 
+    if (data.day1_volume) {
+      try {
+        const prices = await getUSDAndNativePrices(
+          Sdk.Common.Addresses.Native[config.chainId],
+          data.day1_volume,
+          now(),
+          {
+            onlyUSD: true,
+          }
+        );
+
+        day1VolumeUsd = formatUsd(prices.usdPrice!);
+      } catch {
+        // logger.warn(
+        //   "cdc-indexer-collections",
+        //   JSON.stringify({
+        //     topic: "debugActivitiesErrors",
+        //     message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+        //       data.all_time_volume
+        //     }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+        //     error,
+        //   })
+        // );
+      }
+    }
+
+    if (data.day7_volume) {
+      try {
+        const prices = await getUSDAndNativePrices(
+          Sdk.Common.Addresses.Native[config.chainId],
+          data.day7_volume,
+          now(),
+          {
+            onlyUSD: true,
+          }
+        );
+
+        day7VolumeUsd = formatUsd(prices.usdPrice!);
+      } catch {
+        // logger.warn(
+        //   "cdc-indexer-collections",
+        //   JSON.stringify({
+        //     topic: "debugActivitiesErrors",
+        //     message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+        //       data.all_time_volume
+        //     }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+        //     error,
+        //   })
+        // );
+      }
+    }
+
+    if (data.day30_volume) {
+      try {
+        const prices = await getUSDAndNativePrices(
+          Sdk.Common.Addresses.Native[config.chainId],
+          data.day30_volume,
+          now(),
+          {
+            onlyUSD: true,
+          }
+        );
+
+        day30VolumeUsd = formatUsd(prices.usdPrice!);
+      } catch {
+        // logger.warn(
+        //   "cdc-indexer-collections",
+        //   JSON.stringify({
+        //     topic: "debugActivitiesErrors",
+        //     message: `No usd value. collectionId=${data.id}, allTimeVolume=${
+        //       data.all_time_volume
+        //     }, currencyAddress=${Sdk.Common.Addresses.Native[config.chainId]}`,
+        //     error,
+        //   })
+        // );
+      }
+    }
+
     const document = {
       chain: {
         id: config.chainId,
@@ -92,7 +195,120 @@ export class CollectionDocumentBuilder {
       indexedAt: new Date(),
       createdAt: data.created_at,
       contract: fromBuffer(data.contract),
+      contractSymbol: data.contract_symbol,
       name: data.name,
+      suggestDay1Rank: [
+        {
+          input: data.name,
+          weight: data.day1_rank * -1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+        {
+          input: data.contract_symbol,
+          weight: data.day1_rank * -1 + 1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+      ],
+      suggestDay7Rank: [
+        {
+          input: data.name,
+          weight: data.day7_rank * -1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+        {
+          input: data.contract_symbol,
+          weight: data.day7_rank * -1 + 1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+      ],
+      suggestDay30Rank: [
+        {
+          input: data.name,
+          weight: data.day30_rank * -1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+        {
+          input: data.contract_symbol,
+          weight: data.day30_rank * -1 + 1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+      ],
+      suggestAllTimeRank: [
+        {
+          input: data.name,
+          weight: data.all_time_rank * -1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+        {
+          input: data.contract_symbol,
+          weight: data.all_time_rank * -1 + 1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+      ],
       slug: data.slug,
       image: data.image,
       community: data.community,
@@ -101,6 +317,19 @@ export class CollectionDocumentBuilder {
       isSpam: Number(data.is_spam) > 0,
       isNsfw: Number(data.nsfw_status) > 0,
       imageVersion: data.image_version,
+      day1Rank: data.day1_rank,
+      day1Volume: data.day1_volume,
+      day1VolumeDecimal: formatEth(data.day1_volume),
+      day1VolumeUsd: day1VolumeUsd,
+      day7Rank: data.day7_rank,
+      day7Volume: data.day7_volume,
+      day7VolumeDecimal: formatEth(data.day7_volume),
+      day7VolumeUsd: day7VolumeUsd,
+      day30Rank: data.day30_rank,
+      day30Volume: data.day30_volume,
+      day30VolumeDecimal: formatEth(data.day30_volume),
+      day30VolumeUsd: day30VolumeUsd,
+      allTimeRank: data.all_time_rank,
       allTimeVolume: data.all_time_volume,
       allTimeVolumeDecimal: formatEth(data.all_time_volume),
       allTimeVolumeUsd: allTimeVolumeUsd,
@@ -117,4 +346,15 @@ export class CollectionDocumentBuilder {
 
     return document;
   }
+  // generateInputValues(data: BuildCollectionDocumentData): string[] {
+  //   const words = data.name.split(" ");
+  //   const combinations: string[] = [];
+  //
+  //   for (let i = 0; i < words.length; i++) {
+  //     const combination = words.slice(i).join(" ");
+  //     combinations.push(combination);
+  //   }
+  //
+  //   return combinations;
+  // }
 }

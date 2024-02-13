@@ -52,7 +52,15 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
               extract(epoch from collections.image_version) AS "image_version",
               collections.contract,
+              contracts.symbol AS "contract_symbol",
               collections.creator,
+              collections.day1_rank,
+              collections.day7_rank,
+              collections.day30_rank,
+              collections.all_time_rank,
+              collections.day1_volume,
+              collections.day7_volume,
+              collections.day30_volume,
               collections.all_time_volume,
               collections.is_spam,
               collections.nsfw_status,
@@ -64,6 +72,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
               orders.currency AS "floor_sell_currency",
               orders.currency_price AS "floor_sell_currency_price"
             FROM collections
+            JOIN contracts ON contracts.address = collections.contract
             LEFT JOIN orders ON orders.id = collections.floor_sell_id
             WHERE collections.id = $/collectionId/
             LIMIT 1;
@@ -80,6 +89,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           id: rawResult.id,
           created_at: new Date(rawResult.created_at),
           contract: rawResult.contract,
+          contract_symbol: rawResult.contract_symbol,
           name: rawResult.name,
           slug: rawResult.slug,
           image: rawResult.image,
@@ -88,6 +98,13 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           metadata_disabled: rawResult.metadata_disabled,
           is_spam: rawResult.is_spam,
           nsfw_status: rawResult.nsfw_status,
+          day1_rank: rawResult.day1_rank,
+          day7_rank: rawResult.day7_rank,
+          day30_rank: rawResult.day30_rank,
+          all_time_rank: rawResult.all_time_rank,
+          day1_volume: rawResult.day1_volume,
+          day7_volume: rawResult.day7_volume,
+          day30_volume: rawResult.day30_volume,
           all_time_volume: rawResult.all_time_volume,
           floor_sell_id: rawResult.floor_sell_id,
           floor_sell_value: rawResult.floor_sell_value,

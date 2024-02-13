@@ -16,9 +16,142 @@ export const CONFIG_DEFAULT = {
         type: "search_as_you_type",
         max_shingle_size: 3,
       },
+      suggestDay1Rank: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
+            type: "category",
+          },
+          {
+            name: "isNsfw",
+            type: "category",
+          },
+          {
+            name: "metadataDisabled",
+            type: "category",
+          },
+        ],
+      },
+      suggestDay7Rank: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
+            type: "category",
+          },
+          {
+            name: "isNsfw",
+            type: "category",
+          },
+          {
+            name: "metadataDisabled",
+            type: "category",
+          },
+        ],
+      },
+      suggestDay30Rank: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
+            type: "category",
+          },
+          {
+            name: "isNsfw",
+            type: "category",
+          },
+          {
+            name: "metadataDisabled",
+            type: "category",
+          },
+        ],
+      },
+      suggestAllTimeRank: {
+        type: "completion",
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
+            type: "category",
+          },
+          {
+            name: "isNsfw",
+            type: "category",
+          },
+          {
+            name: "metadataDisabled",
+            type: "category",
+          },
+        ],
+      },
       slug: { type: "keyword" },
       image: { type: "keyword" },
       contract: { type: "keyword" },
+      contractSymbol: { type: "keyword" },
       community: { type: "keyword" },
       tokenCount: { type: "long" },
       isSpam: { type: "boolean" },
@@ -27,6 +160,19 @@ export const CONFIG_DEFAULT = {
       metadataDisabled: { type: "boolean" },
       createdAt: { type: "date" },
       indexedAt: { type: "date" },
+      day1Rank: { type: "integer" },
+      day1Volume: { type: "double" },
+      day1VolumeDecimal: { type: "double" },
+      day1VolumeUsd: { type: "double" },
+      day7Rank: { type: "integer" },
+      day7Volume: { type: "double" },
+      day7VolumeDecimal: { type: "double" },
+      day7VolumeUsd: { type: "double" },
+      day30Rank: { type: "integer" },
+      day30Volume: { type: "double" },
+      day30VolumeDecimal: { type: "double" },
+      day30VolumeUsd: { type: "double" },
+      alltimeRank: { type: "integer" },
       allTimeVolume: { type: "double" },
       allTimeVolumeDecimal: { type: "double" },
       allTimeVolumeUsd: { type: "double" },
