@@ -72,7 +72,8 @@ export type CustomInfo =
   | (BaseCustomInfo & mints.artblocks.Info)
   | (BaseCustomInfo & mints.highlightxyz.Info)
   | (BaseCustomInfo & mints.zora.Info)
-  | (BaseCustomInfo & mints.bueno.Info);
+  | (BaseCustomInfo & mints.bueno.Info)
+  | (BaseCustomInfo & mints.fairxyz.Info);
 
 export type PartialCollectionMint = Pick<
   CollectionMint,

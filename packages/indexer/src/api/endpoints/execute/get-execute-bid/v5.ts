@@ -1370,14 +1370,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 let order: Sdk.PaymentProcessor.Order;
@@ -1481,14 +1474,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-v2-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const options = params.options?.[params.orderKind] as

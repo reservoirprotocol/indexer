@@ -27,6 +27,7 @@ import * as zora from "@/orderbook/mints/calldata/detector/zora";
 import * as titlesxyz from "@/orderbook/mints/calldata/detector/titlesxyz";
 import * as highlightxyz from "@/orderbook/mints/calldata/detector/highlightxyz";
 import * as bueno from "@/orderbook/mints/calldata/detector/bueno";
+import * as fairxyz from "@/orderbook/mints/calldata/detector/fairxyz";
 
 export {
   artblocks,
@@ -43,6 +44,7 @@ export {
   titlesxyz,
   highlightxyz,
   bueno,
+  fairxyz,
 };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
@@ -260,6 +262,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const buenoResults = await bueno.extractByTx(collection, tx);
   if (buenoResults.length) {
     return buenoResults;
+  }
+
+  // Fairxyz
+  const fairXyzResults = await fairxyz.extractByTx(collection, tx);
+  if (fairXyzResults.length) {
+    return fairXyzResults;
   }
 
   // Generic via `mintConfig`

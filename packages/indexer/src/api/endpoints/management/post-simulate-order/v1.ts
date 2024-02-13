@@ -60,6 +60,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         Network.EthereumGoerli,
         Network.EthereumSepolia,
         Network.Polygon,
+        Network.Mumbai,
         Network.Arbitrum,
         Network.Optimism,
         Network.Base,

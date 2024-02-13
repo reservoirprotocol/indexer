@@ -202,7 +202,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       metadataIndexInfos.map((metadataIndexInfo) => ({
         payload: metadataIndexInfo,
         delay: delayInSeconds * 1000,
-        priority: prioritized ? 1 : 0,
+        priority: prioritized ? 0 : 0,
       }))
     );
   }
