@@ -197,6 +197,44 @@ export class CollectionDocumentBuilder {
       contract: fromBuffer(data.contract),
       contractSymbol: data.contract_symbol,
       name: data.name,
+      suggest: [
+        {
+          input: data.name,
+          weight:
+            (data.day1_rank * 0.3 +
+              data.day7_rank * 0.2 +
+              data.day30_rank * 0.06 +
+              data.all_time_rank * 0.04) *
+            -10,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+        {
+          input: data.contract_symbol,
+          weight:
+            (data.day1_rank * 0.3 +
+              data.day7_rank * 0.2 +
+              data.day30_rank * 0.06 +
+              data.all_time_rank * 0.04) *
+            -1,
+          contexts: {
+            chainId: [config.chainId],
+            id: [data.id],
+            community: data.community ? [data.community] : [],
+            hasTokens: [Number(data.token_count) > 0],
+            isSpam: [Number(data.is_spam) > 0],
+            isNsfw: [Number(data.nsfw_status) > 0],
+            metadataDisabled: [Number(data.metadata_disabled) > 0],
+          },
+        },
+      ],
       suggestDay1Rank: [
         {
           input: data.name,

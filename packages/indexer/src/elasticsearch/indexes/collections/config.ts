@@ -16,8 +16,43 @@ export const CONFIG_DEFAULT = {
         type: "search_as_you_type",
         max_shingle_size: 3,
       },
+      suggest: {
+        type: "completion",
+        preserve_separators: false,
+        contexts: [
+          {
+            name: "chainId",
+            type: "category",
+          },
+          {
+            name: "id",
+            type: "category",
+          },
+          {
+            name: "community",
+            type: "category",
+          },
+          {
+            name: "hasTokens",
+            type: "category",
+          },
+          {
+            name: "isSpam",
+            type: "category",
+          },
+          {
+            name: "isNsfw",
+            type: "category",
+          },
+          {
+            name: "metadataDisabled",
+            type: "category",
+          },
+        ],
+      },
       suggestDay1Rank: {
         type: "completion",
+        preserve_separators: false,
         contexts: [
           {
             name: "chainId",
@@ -51,6 +86,7 @@ export const CONFIG_DEFAULT = {
       },
       suggestDay7Rank: {
         type: "completion",
+        preserve_separators: false,
         contexts: [
           {
             name: "chainId",
@@ -84,6 +120,7 @@ export const CONFIG_DEFAULT = {
       },
       suggestDay30Rank: {
         type: "completion",
+        preserve_separators: false,
         contexts: [
           {
             name: "chainId",
@@ -117,6 +154,7 @@ export const CONFIG_DEFAULT = {
       },
       suggestAllTimeRank: {
         type: "completion",
+        preserve_separators: false,
         contexts: [
           {
             name: "chainId",
