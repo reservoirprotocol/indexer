@@ -246,7 +246,11 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       })
     );
 
-    redis.sadd("simplehash-fallback-debug-tokens", `${contract}:${tokenId}`);
+    await redis.hset(
+      "simplehash-fallback-debug-tokens-v2",
+      `${contract}:${tokenId}`,
+      `${fallbackError}`
+    );
 
     // for whatever reason, we didn't find the metadata, we fall back to simplehash
     await metadataIndexFetchJob.addToQueue(

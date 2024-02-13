@@ -111,7 +111,11 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           );
 
           if (result.error === "Unable to decode tokenURI from contract") {
-            redis.sadd("simplehash-fallback-debug-tokens", `${result.contract}:${result.tokenId}`);
+            redis.hset(
+              "simplehash-fallback-debug-tokens-v2",
+              `${result.contract}:${result.tokenId}`,
+              result.error
+            );
 
             fallbackTokens.push({
               collection: result.contract,
