@@ -9,6 +9,7 @@ import * as AskIndex from "@/elasticsearch/indexes/asks";
 import { elasticsearch } from "@/common/elasticsearch";
 import { AskCreatedEventHandler } from "@/elasticsearch/indexes/asks/event-handlers/ask-created";
 import { AskEvent } from "@/elasticsearch/indexes/asks/pending-ask-events-queue";
+import { BulkOperationType, BulkResponseItem } from "@elastic/elasticsearch/lib/api/types";
 
 export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-token-asks-queue";
@@ -120,35 +121,41 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
           delete: { _index: AskIndex.getIndexName(), _id: askEvent.info.id },
         }));
 
+      let createdAsks: Partial<Record<BulkOperationType, BulkResponseItem>>[] = [];
       let bulkIndexOpsResponse;
 
       if (bulkIndexOps.length) {
         bulkIndexOpsResponse = await elasticsearch.bulk({
           body: bulkIndexOps,
         });
+
+        createdAsks = bulkIndexOpsResponse.items.filter((item) => item.create?.status === 201);
       }
 
+      let deletedAsks: Partial<Record<BulkOperationType, BulkResponseItem>>[] = [];
       let bulkDeleteOpsResponse;
 
       if (bulkDeleteOps.length) {
         bulkDeleteOpsResponse = await elasticsearch.bulk({
           body: bulkDeleteOps,
         });
+
+        deletedAsks = bulkDeleteOpsResponse.items.filter((item) => item.delete?.status === 200);
       }
 
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Done. contract=${payload.contract}, tokenId=${payload.tokenId}, indexedAsks=${
-            bulkIndexOps.length / 2
-          }, deletedAsks=${bulkDeleteOps.length}`,
+          message: `Done. contract=${payload.contract}, tokenId=${
+            payload.tokenId
+          }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
+            createdAsks.length
+          }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
           payload,
           nextCursor,
           indexName: AskIndex.getIndexName(),
-          bulkIndexOpsResponseHasErrors: bulkIndexOpsResponse?.errors,
-          bulkIndexOpsResponse,
-          bulkDeleteOpsResponseHasErrors: bulkDeleteOpsResponse?.errors,
-          bulkDeleteOpsResponse,
+          createdAsks: createdAsks.length > 0 ? JSON.stringify(createdAsks) : undefined,
+          deletedAsks: deletedAsks.length > 0 ? JSON.stringify(deletedAsks) : undefined,
         })
       );
 

@@ -16,6 +16,7 @@ import { startKafkaConsumer } from "@/jobs/cdc";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
+import { redis } from "@/common/redis";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 process.on("unhandledRejection", (error: any) => {
@@ -57,6 +58,10 @@ const setup = async () => {
 
   if (config.doKafkaWork) {
     await startKafkaConsumer();
+  }
+
+  if (config.chainId !== 1) {
+    await redis.del("missing-token-image-contracts");
   }
 };
 
