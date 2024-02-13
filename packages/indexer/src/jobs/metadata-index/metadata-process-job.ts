@@ -56,7 +56,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
     if (config.chainId === 137) {
       refreshTokens = _.filter(
         refreshTokens,
-        (refreshToken) => refreshToken.contract !== "0x8c63f5e15735d0caf96202c5db01e2c9f28a4591"
+        (refreshToken) => refreshToken.contract !== "0x14a725839184f879f3c09ce3d707e5a3e4c5869d"
       );
 
       if (_.isEmpty(refreshTokens)) {
