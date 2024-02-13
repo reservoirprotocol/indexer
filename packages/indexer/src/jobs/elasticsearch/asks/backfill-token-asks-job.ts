@@ -148,8 +148,8 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
           bulkDeleteOpsResponseHasErrors: bulkDeleteOpsResponse?.errors,
           bulkDeleteOpsResponse,
           askEvents: JSON.stringify(askEvents),
-          bulkIndexOps: JSON.stringify(askEvents),
-          bulkDeleteOps: JSON.stringify(askEvents),
+          bulkIndexOps: JSON.stringify(bulkIndexOps),
+          bulkDeleteOps: JSON.stringify(bulkDeleteOps),
         })
       );
 
