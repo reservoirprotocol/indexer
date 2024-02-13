@@ -104,7 +104,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }], 0);
 
       // Refresh the token asks
-      await backfillTokenAsksJob.addToQueue(contract, tokenId, true);
+      await backfillTokenAsksJob.addToQueue(contract, tokenId, false);
 
       return { message: "Request accepted" };
     } catch (error) {

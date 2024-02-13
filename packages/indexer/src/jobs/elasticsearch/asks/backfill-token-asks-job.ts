@@ -143,21 +143,37 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         deletedAsks = bulkDeleteOpsResponse.items.filter((item) => item.delete?.status === 200);
       }
 
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Done. contract=${payload.contract}, tokenId=${
-            payload.tokenId
-          }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
-            createdAsks.length
-          }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
-          payload,
-          nextCursor,
-          indexName: AskIndex.getIndexName(),
-          createdAsks: createdAsks.length > 0 ? JSON.stringify(createdAsks) : undefined,
-          deletedAsks: deletedAsks.length > 0 ? JSON.stringify(deletedAsks) : undefined,
-        })
-      );
+      if (createdAsks.length > 0 || deletedAsks.length > 0) {
+        logger.warn(
+          this.queueName,
+          JSON.stringify({
+            message: `Done. contract=${payload.contract}, tokenId=${
+              payload.tokenId
+            }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
+              createdAsks.length
+            }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
+            payload,
+            nextCursor,
+            indexName: AskIndex.getIndexName(),
+            createdAsks: JSON.stringify(createdAsks),
+            deletedAsks: JSON.stringify(deletedAsks),
+          })
+        );
+      } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Done. contract=${payload.contract}, tokenId=${
+              payload.tokenId
+            }, bulkIndexOpsCount=${bulkIndexOps.length / 2}, createdAsksCount=${
+              createdAsks.length
+            }, bulkDeleteOpsCount=${bulkDeleteOps.length}, deletedAsksCount=${deletedAsks.length}`,
+            payload,
+            nextCursor,
+            indexName: AskIndex.getIndexName(),
+          })
+        );
+      }
 
       if (askEvents.length === limit) {
         await backfillTokenAsksJob.addToQueue(
