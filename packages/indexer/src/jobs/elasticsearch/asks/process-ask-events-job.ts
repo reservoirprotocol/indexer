@@ -37,13 +37,13 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           }
 
           if (pendingAskEvent.kind === "delete") {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `SellOrderInactive. orderId=${pendingAskEvent.info.id}`,
-                topic: "debugStaleAsks",
-              })
-            );
+            // logger.info(
+            //   this.queueName,
+            //   JSON.stringify({
+            //     message: `SellOrderInactive. orderId=${pendingAskEvent.info.id}`,
+            //     topic: "debugStaleAsks",
+            //   })
+            // );
 
             bulkOps.push({
               delete: {
@@ -59,8 +59,12 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           refresh: true,
         });
 
-        const indexErrors = response.items.filter((item) => item.index?.status !== 201);
-        const deleteErrors = response.items.filter((item) => item.delete?.status !== 200);
+        const indexErrors = response.items.filter(
+          (item) => item.index && item.index.status !== 201
+        );
+        const deleteErrors = response.items.filter(
+          (item) => item.delete && item.delete.status !== 200
+        );
 
         logger.info(
           this.queueName,
