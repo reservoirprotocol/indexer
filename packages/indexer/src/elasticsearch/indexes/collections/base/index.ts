@@ -99,10 +99,7 @@ export class CollectionDocumentBuilder {
         name: data.name,
         suggest: this.getSuggest(
           data,
-          data.day1_rank * 0.3 +
-            data.day7_rank * 0.2 +
-            data.day30_rank * 0.06 +
-            data.all_time_rank * 0.04
+          data.day1_rank * 30 + data.day7_rank * 20 + data.day30_rank * 6 + data.all_time_rank * 4
         ),
         suggestDay1Rank: this.getSuggest(data, data.day1_rank),
         suggestDay7Rank: this.getSuggest(data, data.day7_rank),
@@ -183,7 +180,7 @@ export class CollectionDocumentBuilder {
     const suggest = [
       {
         input: data.name,
-        weight: rank * -10,
+        weight: rank ? 1000000000 - rank : 0,
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
@@ -199,7 +196,7 @@ export class CollectionDocumentBuilder {
     if (data.contract_symbol) {
       suggest.push({
         input: data.contract_symbol,
-        weight: rank * -1,
+        weight: rank ? 2000000000 - rank : 0,
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
