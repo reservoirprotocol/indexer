@@ -179,7 +179,7 @@ export class CollectionDocumentBuilder {
     return usdPrice;
   }
 
-  async getSuggest(data: BuildCollectionDocumentData, rank: number): Promise<any> {
+  getSuggest(data: BuildCollectionDocumentData, rank: number): any {
     const suggest = [
       {
         input: data.name,
