@@ -127,7 +127,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
         }
       } catch (error) {
         logger.error(
-          "kafka-event-handler",
+          "IndexerOrdersHandler",
           JSON.stringify({
             topic: "debugAskIndex",
             message: `Handle ask error. error=${error}`,
