@@ -9,6 +9,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as CONFIG from "@/elasticsearch/indexes/collections/config";
 import { CollectionDocument } from "@/elasticsearch/indexes/collections/base";
 import { acquireLockCrossChain } from "@/common/redis";
+import { config } from "@/config/index";
 
 const INDEX_NAME = `collections`;
 
@@ -185,6 +186,122 @@ export const initIndex = async (): Promise<void> => {
 };
 
 export const autocomplete = async (params: {
+  prefix: string;
+  communities?: string[];
+  excludeSpam?: boolean;
+  excludeNsfw?: boolean;
+  limit?: number;
+}): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
+  let esQuery = undefined;
+  let esSuggest = undefined;
+
+  try {
+    if (isAddress(params.prefix)) {
+      esQuery = {
+        bool: {
+          filter: [
+            {
+              term: { ["chain.id"]: config.chainId },
+            },
+            {
+              term: { metadataDisabled: false },
+            },
+            {
+              term: { contract: params.prefix },
+            },
+            {
+              range: { tokenCount: { gt: 0 } },
+            },
+          ],
+        },
+      };
+
+      if (params.communities?.length) {
+        const communities = params.communities?.map((community) => community.toLowerCase());
+
+        (esQuery as any).bool.filter.push({
+          terms: { community: communities },
+        });
+      }
+
+      if (params.excludeSpam) {
+        (esQuery as any).bool.filter.push({
+          term: { isSpam: false },
+        });
+      }
+
+      if (params.excludeNsfw) {
+        (esQuery as any).bool.filter.push({
+          term: { isNsfw: false },
+        });
+      }
+
+      const esSearchParams = {
+        index: INDEX_NAME,
+        query: esQuery,
+        size: params.limit,
+      };
+
+      const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
+
+      const results: { collection: CollectionDocument; score: number }[] = esResult.hits.hits.map(
+        (hit) => {
+          return { collection: hit._source!, score: hit._score! };
+        }
+      );
+
+      return { results };
+    } else {
+      esSuggest = {
+        prefix_suggestion: {
+          prefix: params.prefix,
+          completion: {
+            field: "suggest",
+            size: params.limit ?? 20,
+            contexts: {
+              chainId: [config.chainId],
+              hasTokens: [true],
+              metadataDisabled: [false],
+              isSpam: params.excludeSpam ? [false] : [true, false],
+              isNsfw: params.excludeNsfw ? [false] : [true, false],
+            },
+          },
+        },
+      };
+
+      const esSearchParams = {
+        index: INDEX_NAME,
+        suggest: esSuggest,
+      };
+
+      const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
+
+      const results: { collection: CollectionDocument; score: number }[] =
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        esResult.suggest?.prefix_suggestion[0].options.map((option: any) => {
+          return { collection: option._source!, score: option._score! };
+        });
+
+      return { results };
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-collections",
+      JSON.stringify({
+        topic: "autocompleteCollections",
+        params,
+        esQuery,
+        esSuggest,
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
+export const autocompleteCrosschain = async (params: {
   prefix: string;
   chains?: number[];
   communities?: string[];

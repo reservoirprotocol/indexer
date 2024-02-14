@@ -181,7 +181,7 @@ export class CollectionDocumentBuilder {
   getSuggest(data: BuildCollectionDocumentData, rank: number): any {
     const suggest = [
       {
-        input: data.name,
+        input: this.generateInputValues(data),
         weight: rank ? 1000000000 - rank : 0,
         contexts: {
           chainId: [config.chainId],
@@ -197,7 +197,7 @@ export class CollectionDocumentBuilder {
 
     if (data.contract_symbol) {
       suggest.push({
-        input: data.contract_symbol,
+        input: [data.contract_symbol],
         weight: rank ? 2000000000 - rank : 0,
         contexts: {
           chainId: [config.chainId],
@@ -214,15 +214,15 @@ export class CollectionDocumentBuilder {
     return suggest;
   }
 
-  // generateInputValues(data: BuildCollectionDocumentData): string[] {
-  //   const words = data.name.split(" ");
-  //   const combinations: string[] = [];
-  //
-  //   for (let i = 0; i < words.length; i++) {
-  //     const combination = words.slice(i).join(" ");
-  //     combinations.push(combination);
-  //   }
-  //
-  //   return combinations;
-  // }
+  generateInputValues(data: BuildCollectionDocumentData): string[] {
+    const words = data.name.split(" ");
+    const combinations: string[] = [];
+
+    for (let i = 0; i < words.length; i++) {
+      const combination = words.slice(i).join(" ");
+      combinations.push(combination);
+    }
+
+    return combinations;
+  }
 }

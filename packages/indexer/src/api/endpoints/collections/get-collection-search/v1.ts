@@ -84,7 +84,7 @@ export const getCollectionSearchV1Options: RouteOptions = {
       query.chains = [query.chains];
     }
 
-    const { collections } = await collectionsIndex.autocomplete({
+    const { collections } = await collectionsIndex.autocompleteCrosschain({
       chains: query.chains,
       prefix: query.prefix,
       communities: query.community ? [query.community] : undefined,
