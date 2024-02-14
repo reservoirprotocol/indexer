@@ -287,7 +287,7 @@ export class CollectionDocumentBuilder {
       logger.error(
         "CollectionDocumentBuilder",
         JSON.stringify({
-          message: ` buildDocument Error. collectionId=${data.id}, error=${error}`,
+          message: `buildDocument Error. collectionId=${data.id}, error=${error}`,
           data,
           error,
         })
