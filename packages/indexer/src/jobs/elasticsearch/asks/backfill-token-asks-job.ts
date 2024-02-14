@@ -186,6 +186,16 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
     }
   }
 
+  public async addToQueueBatch(
+    payloads: { contract: string; tokenId: string; onlyActive: boolean }[]
+  ) {
+    await this.sendBatch(
+      payloads.map((payload) => ({
+        payload,
+      }))
+    );
+  }
+
   public async addToQueue(
     contract: string,
     tokenId: string,
