@@ -60,7 +60,6 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
             message: "Bulk Response",
             hasErrors: response.errors,
             response: response.errors ? JSON.stringify(response) : undefined,
-            bulkOps: JSON.stringify(bulkOps),
             deleteItems: JSON.stringify(deleteItems),
           })
         );
