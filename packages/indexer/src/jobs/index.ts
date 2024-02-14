@@ -524,42 +524,6 @@ export class RabbitMqJobsConsumer {
           );
         });
     }
-
-    // Subscribe to the old name quorum queue
-    if (
-      !_.includes(
-        ["fix-tokens-missing-collection", "backfill-tokens-with-missing-collection-queue"],
-        job.queueName
-      )
-    ) {
-      await channel
-        .consume(
-          `quorum-${job.getQueue()}`,
-          async (msg) => {
-            if (!_.isNull(msg)) {
-              await _.clone(job)
-                .consume(channel, msg)
-                .catch((error) => {
-                  logger.error(
-                    "rabbit-consume",
-                    `error consuming from ${`quorum-${job.getQueue()}`} error ${error}`
-                  );
-                });
-            }
-          },
-          {
-            consumerTag: RabbitMqJobsConsumer.getConsumerTag(`quorum-${job.getQueue()}`),
-            prefetch: job.getConcurrency(),
-            noAck: false,
-          }
-        )
-        .catch((error) => {
-          logger.error(
-            "rabbit-consume",
-            `protocol error consuming from ${`quorum-${job.getQueue()}`} error ${error}`
-          );
-        });
-    }
   }
 
   /**

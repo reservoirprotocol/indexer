@@ -59,7 +59,7 @@ export const getBuildInfo = async (
     marketplaceFeeNumerator = options.fee[0];
 
     if (options.feeRecipient?.length > 1) {
-      // throw new Error("Multiple fees not supported");
+      throw new Error("Multiple fees not supported");
     }
   }
 

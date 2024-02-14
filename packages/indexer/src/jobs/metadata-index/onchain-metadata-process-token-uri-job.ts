@@ -34,16 +34,16 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    const debugMissingTokenImages = await redis.sismember(
-      "missing-token-image-contracts",
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
       contract
     );
 
-    if (debugMissingTokenImages) {
+    if (tokenMetadataIndexingDebug) {
       logger.info(
         this.queueName,
         JSON.stringify({
-          topic: "debugMissingTokenImages",
+          topic: "tokenMetadataIndexingDebug",
           message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           payload,
         })
@@ -57,21 +57,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         { contract, tokenId, uri },
       ]);
 
-      if (retryCount > 0 && config.chainId === 137) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "simpleHashFallbackDebug",
-            message: `Delayed getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-            contract,
-            tokenId,
-            retryCount,
-          })
-        );
-      }
-
       if (metadata.length) {
-        if (debugMissingTokenImages) {
+        if (tokenMetadataIndexingDebug) {
           logger.info(
             this.queueName,
             JSON.stringify({
@@ -88,7 +75,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             logger.warn(
               this.queueName,
               JSON.stringify({
-                topic: debugMissingTokenImages
+                topic: tokenMetadataIndexingDebug
                   ? "debugMissingTokenImages"
                   : "simpleHashFallbackDebug",
                 message: `Fallback - Image Encoding. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
@@ -126,8 +113,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             logger.warn(
               this.queueName,
               JSON.stringify({
-                topic: debugMissingTokenImages
-                  ? "debugMissingTokenImages"
+                topic: tokenMetadataIndexingDebug
+                  ? "tokenMetadataIndexingDebug"
                   : "simpleHashFallbackDebug",
                 message: `Fallback - Missing Mime Type. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
                 contract,
@@ -165,8 +152,8 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             logger.warn(
               this.queueName,
               JSON.stringify({
-                topic: debugMissingTokenImages
-                  ? "debugMissingTokenImages"
+                topic: tokenMetadataIndexingDebug
+                  ? "tokenMetadataIndexingDebug"
                   : "simpleHashFallbackDebug",
                 message: `Fallback - GIF. contract=${contract}, tokenId=${tokenId}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
                 contract,
@@ -194,11 +181,11 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           }
         }
 
-        if (debugMissingTokenImages) {
+        if (tokenMetadataIndexingDebug) {
           logger.info(
             this.queueName,
             JSON.stringify({
-              topic: "debugMissingTokenImages",
+              topic: "tokenMetadataIndexingDebug",
               message: `metadataIndexWriteJob. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
               metadata: JSON.stringify(metadata),
             })
@@ -222,20 +209,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       ) {
         // if this is the last retry, we don't throw to retry, and instead we fall back to simplehash
         if (retryCount < this.maxRetries) {
-          if (config.chainId === 137) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "simpleHashFallbackDebug",
-                message: `Retry getTokensMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-                contract,
-                tokenId,
-                retryCount,
-                error: `${error}`,
-              })
-            );
-          }
-
           throw error; // throw to retry
         }
       }
@@ -245,7 +218,9 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       logger.warn(
         this.queueName,
         JSON.stringify({
-          topic: debugMissingTokenImages ? "debugMissingTokenImages" : "simpleHashFallbackDebug",
+          topic: tokenMetadataIndexingDebug
+            ? "tokenMetadataIndexingDebug"
+            : "simpleHashFallbackDebug",
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
@@ -269,6 +244,12 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         retryCount,
         maxRetriesReached: retryCount >= this.maxRetries,
       })
+    );
+
+    await redis.hset(
+      "simplehash-fallback-debug-tokens-v2",
+      `${contract}:${tokenId}`,
+      `${fallbackError}`
     );
 
     // for whatever reason, we didn't find the metadata, we fall back to simplehash
