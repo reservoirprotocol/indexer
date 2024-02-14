@@ -63,7 +63,7 @@ export class BackfillCollectionAsksJob extends AbstractRabbitMqJobHandler {
         await backfillTokenAsksJob.addToQueueBatch(
           rawResults.map((rawResult) => ({
             contract: fromBuffer(rawResult.contract),
-            tokenId: rawResult.tokenId,
+            tokenId: rawResult.token_id,
             onlyActive: false,
           }))
         );
