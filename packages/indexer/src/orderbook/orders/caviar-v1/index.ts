@@ -348,17 +348,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           }
         }
 
-        if (prices.length) {
-          const price = prices[0].toString();
-          const value = prices[0].toString();
+        // Fetch all token ids owned by the pool
+        const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
 
-          // Fetch all token ids owned by the pool
-          const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
+        await Promise.all(
+          poolOwnedTokenIds.map(async ({ tokenId }) => {
+            try {
+              const id = getOrderId(orderParams.pool, "sell", tokenId);
 
-          await Promise.all(
-            poolOwnedTokenIds.map(async ({ tokenId }) => {
-              try {
-                const id = getOrderId(orderParams.pool, "sell", tokenId);
+              if (prices.length) {
+                const price = prices[0].toString();
+                const value = prices[0].toString();
 
                 // Calculate royalties
                 const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
@@ -525,12 +525,31 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     triggerKind: "reprice",
                   });
                 }
-              } catch {
-                // Ignore errors
+              } else {
+                await idb.none(
+                  `
+                    UPDATE orders SET
+                      fillability_status = 'cancelled',
+                      expiration = to_timestamp(${orderParams.txTimestamp}),
+                      updated_at = now()
+                    WHERE orders.id = $/id/
+                  `,
+                  { id }
+                );
+
+                results.push({
+                  id,
+                  txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
+                  status: "success",
+                  triggerKind: "reprice",
+                });
               }
-            })
-          );
-        }
+            } catch {
+              // Ignore errors
+            }
+          })
+        );
       } catch (error) {
         logger.error(
           "orders-caviar-v1-save",
