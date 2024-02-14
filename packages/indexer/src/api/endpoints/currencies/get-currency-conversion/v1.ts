@@ -12,10 +12,6 @@ import * as Boom from "@hapi/boom";
 const version = "v1";
 
 export const getCurrencyConversionV1Options: RouteOptions = {
-  cache: {
-    privacy: "public",
-    expiresIn: 60 * 60 * 1000,
-  },
   description: "Currency Conversions",
   notes: "Convert an amount in one currency to another",
   tags: ["api", "x-deprecated"],
