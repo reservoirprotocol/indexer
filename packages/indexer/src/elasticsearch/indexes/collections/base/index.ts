@@ -107,12 +107,14 @@ export class CollectionDocumentBuilder {
         suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
         slug: data.slug,
         image: data.image,
+        imageVersion: data.image_version
+          ? Math.floor(new Date(data.image_version).getTime() / 1000)
+          : undefined,
         community: data.community,
         tokenCount: Number(data.token_count),
         metadataDisabled: Number(data.metadata_disabled) > 0,
         isSpam: Number(data.is_spam) > 0,
         isNsfw: Number(data.nsfw_status) > 0,
-        imageVersion: data.image_version,
         day1Rank: data.day1_rank,
         day1Volume: data.day1_volume,
         day1VolumeDecimal: data.day1_volume ? formatEth(data.day1_volume) : null,

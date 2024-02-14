@@ -111,7 +111,7 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           floor_sell_currency: rawResult.floor_sell_currency,
           floor_sell_currency_price: rawResult.floor_sell_currency_price,
           opensea_verification_status: rawResult.opensea_verification_status,
-          image_version: rawResult.image_version ? Math.floor(rawResult.image_version) : undefined,
+          image_version: rawResult.image_version,
         });
       }
     } catch (error) {
