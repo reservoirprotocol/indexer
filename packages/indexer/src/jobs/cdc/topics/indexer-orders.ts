@@ -12,7 +12,6 @@ import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { formatStatus } from "@/jobs/websocket-events/utils";
-import { config } from "@/config/index";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -119,21 +118,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
             },
           ]);
         } else if (beforeStatus === "active") {
-          const [, contract, tokenId] = payload.after.token_set_id.split(":");
-
-          if (config.chainId === 1) {
-            logger.info(
-              "IndexerOrdersHandler",
-              JSON.stringify({
-                message: `SellOrderInactive. orderId=${payload.after.id}, contract=${contract}, tokenId=${tokenId}`,
-                topic: "debugStaleAsks",
-                payload,
-                afterStatus,
-                beforeStatus,
-              })
-            );
-          }
-
           await processAskEventJob.addToQueue([
             {
               kind: EventKind.SellOrderInactive,
