@@ -54,16 +54,18 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
         if (config.chainId === 1) {
           const deleteItems = response.items.filter((item) => item.delete);
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugStaleAsks",
-              message: "Bulk Response",
-              hasErrors: response.errors,
-              response: response.errors ? JSON.stringify(response) : undefined,
-              deleteItems: JSON.stringify(deleteItems),
-            })
-          );
+          if (deleteItems.length) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugStaleAsks",
+                message: "Bulk Delete Items",
+                hasErrors: response.errors,
+                response: response.errors ? JSON.stringify(response) : undefined,
+                deleteItems: JSON.stringify(deleteItems),
+              })
+            );
+          }
         }
 
         if (response.errors) {
