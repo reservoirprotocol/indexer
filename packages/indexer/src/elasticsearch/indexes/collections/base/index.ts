@@ -97,156 +97,17 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name,
-        suggest: [
-          {
-            input: data.name,
-            weight:
-              (data.day1_rank * 0.3 +
-                data.day7_rank * 0.2 +
-                data.day30_rank * 0.06 +
-                data.all_time_rank * 0.04) *
-              -10,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-          {
-            input: data.contract_symbol,
-            weight:
-              (data.day1_rank * 0.3 +
-                data.day7_rank * 0.2 +
-                data.day30_rank * 0.06 +
-                data.all_time_rank * 0.04) *
-              -1,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-        ],
-        suggestDay1Rank: [
-          {
-            input: data.name,
-            weight: data.day1_rank ? data.day1_rank * -10 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-          {
-            input: data.contract_symbol,
-            weight: data.day1_rank ? data.day1_rank * -1 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-        ],
-        suggestDay7Rank: [
-          {
-            input: data.name,
-            weight: data.day7_rank ? data.day7_rank * -10 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-          {
-            input: data.contract_symbol,
-            weight: data.day7_rank ? data.day7_rank * -1 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-        ],
-        suggestDay30Rank: [
-          {
-            input: data.name,
-            weight: data.day30_rank ? data.day30_rank * -10 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-          {
-            input: data.contract_symbol,
-            weight: data.day30_rank ? data.day30_rank * -1 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-        ],
-        suggestAllTimeRank: [
-          {
-            input: data.name,
-            weight: data.all_time_rank ? data.all_time_rank * -10 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-          {
-            input: data.contract_symbol,
-            weight: data.all_time_rank ? data.all_time_rank * -1 : undefined,
-            contexts: {
-              chainId: [config.chainId],
-              id: [data.id],
-              community: data.community ? [data.community] : [],
-              hasTokens: [Number(data.token_count) > 0],
-              isSpam: [Number(data.is_spam) > 0],
-              isNsfw: [Number(data.nsfw_status) > 0],
-              metadataDisabled: [Number(data.metadata_disabled) > 0],
-            },
-          },
-        ],
+        suggest: this.getSuggest(
+          data,
+          data.day1_rank * 0.3 +
+            data.day7_rank * 0.2 +
+            data.day30_rank * 0.06 +
+            data.all_time_rank * 0.04
+        ),
+        suggestDay1Rank: this.getSuggest(data, data.day1_rank),
+        suggestDay7Rank: this.getSuggest(data, data.day7_rank),
+        suggestDay30Rank: this.getSuggest(data, data.day30_rank),
+        suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
         slug: data.slug,
         image: data.image,
         community: data.community,
@@ -316,6 +177,42 @@ export class CollectionDocumentBuilder {
     }
 
     return usdPrice;
+  }
+
+  async getSuggest(data: BuildCollectionDocumentData, rank: number): Promise<any> {
+    const suggest = [
+      {
+        input: data.name,
+        weight: rank * -10,
+        contexts: {
+          chainId: [config.chainId],
+          id: [data.id],
+          community: data.community ? [data.community] : [],
+          hasTokens: [Number(data.token_count) > 0],
+          isSpam: [Number(data.is_spam) > 0],
+          isNsfw: [Number(data.nsfw_status) > 0],
+          metadataDisabled: [Number(data.metadata_disabled) > 0],
+        },
+      },
+    ];
+
+    if (data.contract_symbol) {
+      suggest.push({
+        input: data.contract_symbol,
+        weight: rank * -1,
+        contexts: {
+          chainId: [config.chainId],
+          id: [data.id],
+          community: data.community ? [data.community] : [],
+          hasTokens: [Number(data.token_count) > 0],
+          isSpam: [Number(data.is_spam) > 0],
+          isNsfw: [Number(data.nsfw_status) > 0],
+          metadataDisabled: [Number(data.metadata_disabled) > 0],
+        },
+      });
+    }
+
+    return suggest;
   }
 
   // generateInputValues(data: BuildCollectionDocumentData): string[] {
