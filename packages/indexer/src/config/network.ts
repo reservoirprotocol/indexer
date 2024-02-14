@@ -151,9 +151,8 @@ export const getServiceName = () => {
 };
 
 export const getSubDomain = () => {
-  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${
-    config.environment === "dev" ? ".dev" : ""
-  }`;
+  return `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}${config.environment === "dev" ? ".dev" : ""
+    }`;
 };
 
 type NetworkSettings = {
@@ -787,6 +786,18 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
               metadata: {
                 image: "https://rcax.io/images/coins/poop/icon.png",
+              },
+            },
+          ],
+          [
+            "0x071ac29d569a47ebffb9e57517f855cb577dcc4c",
+            {
+              contract: "0x071ac29d569a47ebffb9e57517f855cb577dcc4c",
+              name: "GCOIN",
+              symbol: "GCOIN",
+              decimals: 18,
+              metadata: {
+                image: "https://i.ibb.co/KGdXSkb/gfccoin.jpg",
               },
             },
           ],
