@@ -40,11 +40,20 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
           this.queueName,
           JSON.stringify({
             message: `Ask is active - Skipping delete. orderId=${data.id}, contract=${contract}, tokenId=${tokenId}`,
-            topic: "debugMissingAsks",
+            topic: "debugStaleAsks",
             payload,
           })
         );
       } else {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Ask is inactive - delete. orderId=${data.id}`,
+            topic: "debugStaleAsks",
+            payload,
+          })
+        );
+
         const askDocumentId = askCreatedEventHandler.getAskId();
         await pendingAskEventsQueue.add([{ info: { id: askDocumentId }, kind: "delete" }]);
       }
