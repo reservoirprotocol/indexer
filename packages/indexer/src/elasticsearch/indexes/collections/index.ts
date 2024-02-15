@@ -187,6 +187,7 @@ export const initIndex = async (): Promise<void> => {
 
 export const autocomplete = async (params: {
   prefix: string;
+  collectionIds?: string[];
   communities?: string[];
   excludeSpam?: boolean;
   excludeNsfw?: boolean;
@@ -215,6 +216,14 @@ export const autocomplete = async (params: {
           ],
         },
       };
+
+      if (params.collectionIds?.length) {
+        const collections = params.collectionIds.map((collectionId) => collectionId.toLowerCase());
+
+        (esQuery as any).bool.filter.push({
+          terms: { "collection.id": collections },
+        });
+      }
 
       if (params.communities?.length) {
         const communities = params.communities?.map((community) => community.toLowerCase());
@@ -264,6 +273,7 @@ export const autocomplete = async (params: {
               metadataDisabled: [false],
               isSpam: params.excludeSpam ? [false] : [true, false],
               isNsfw: params.excludeNsfw ? [false] : [true, false],
+              id: params.collectionIds?.length ? params.collectionIds : [],
             },
           },
         },

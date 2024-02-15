@@ -5,12 +5,13 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { formatEth, now, regex } from "@/common/utils";
+import { regex } from "@/common/utils";
 import { Assets, ImageSize } from "@/utils/assets";
-import { getUSDAndCurrencyPrices } from "@/utils/prices";
-import { AddressZero } from "@ethersproject/constants";
 import { getJoiCollectionObject, getJoiPriceObject, JoiPrice } from "@/common/joi";
 import * as collectionsIndex from "@/elasticsearch/indexes/collections";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v3";
 
@@ -49,11 +50,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       excludeNsfw: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as nsfw."),
-      offset: Joi.number()
-        .integer()
-        .min(0)
-        .default(0)
-        .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -72,8 +68,20 @@ export const getSearchCollectionsV3Options: RouteOptions = {
             image: Joi.string().allow("", null),
             name: Joi.string().allow("", null),
             isSpam: Joi.boolean().default(false),
+            isNsfw: Joi.boolean().default(false),
             slug: Joi.string().allow("", null),
-            allTimeVolume: Joi.number().unsafe().allow(null),
+            rank: Joi.object({
+              "1day": Joi.number().unsafe().allow(null),
+              "7day": Joi.number().unsafe().allow(null),
+              "30day": Joi.number().unsafe().allow(null),
+              allTime: Joi.number().unsafe().allow(null),
+            }).description("Current rank based from overall volume"),
+            volume: Joi.object({
+              "1day": JoiPrice.allow(null),
+              "7day": JoiPrice.allow(null),
+              "30day": JoiPrice.allow(null),
+              allTime: JoiPrice.allow(null),
+            }).description("Total volume in given time period."),
             floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
             openseaVerificationStatus: Joi.string().allow("", null),
           }),
@@ -89,17 +97,19 @@ export const getSearchCollectionsV3Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
-    // if (query.collectionsSetId) {
-    //   const collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
-    //
-    //   if (!_.isEmpty(collectionsIds)) {
-    //     query.collectionsIds = _.join(collectionsIds, "','");
-    //     conditions.push(`c.id IN ('$/collectionsIds:raw/')`);
-    //   }
-    // }
+    let collectionIds: string[] = [];
+
+    if (query.collectionsSetId) {
+      collectionIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+      if (_.isEmpty(collectionIds)) {
+        return [];
+      }
+    }
 
     const { results } = await collectionsIndex.autocomplete({
       prefix: query.prefix,
+      collectionIds: collectionIds,
       communities: query.community ? [query.community] : undefined,
       excludeSpam: query.excludeSpam,
       excludeNsfw: query.excludeNsfw,
@@ -109,25 +119,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
     return {
       collections: await Promise.all(
         _.map(results, async ({ collection, score }) => {
-          let allTimeVolume;
-
-          if (query.displayCurrency) {
-            const currentTime = now();
-
-            allTimeVolume = collection.allTimeVolume
-              ? (
-                  await getUSDAndCurrencyPrices(
-                    AddressZero,
-                    query.displayCurrency,
-                    collection.allTimeVolume,
-                    currentTime
-                  )
-                ).currencyPrice
-              : null;
-          } else {
-            allTimeVolume = collection.allTimeVolume;
-          }
-
           return {
             collection: getJoiCollectionObject(
               {
@@ -140,8 +131,64 @@ export const getSearchCollectionsV3Options: RouteOptions = {
                   ImageSize.small,
                   collection.imageVersion
                 ),
-                isSpam: Number(collection.isSpam) > 0,
-                allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
+                isSpam: collection.isSpam,
+                isNsfw: collection.isNsfw,
+                rank: {
+                  "1day": collection.day1Rank,
+                  "7day": collection.day7Rank,
+                  "30day": collection.day30Rank,
+                  allTime: collection.allTimeRank,
+                },
+                volume: {
+                  "1day": collection.day1Volume
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(collection.day1Volume),
+                            nativeAmount: String(collection.day1Volume),
+                          },
+                        },
+                        Sdk.Common.Addresses.Native[config.chainId],
+                        query.displayCurrency
+                      )
+                    : null,
+                  "7day": collection.day7Volume
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(collection.day7Volume),
+                            nativeAmount: String(collection.day7Volume),
+                          },
+                        },
+                        Sdk.Common.Addresses.Native[config.chainId],
+                        query.displayCurrency
+                      )
+                    : null,
+                  "30day": collection.day30Volume
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(collection.day30Volume),
+                            nativeAmount: String(collection.day30Volume),
+                          },
+                        },
+                        Sdk.Common.Addresses.Native[config.chainId],
+                        query.displayCurrency
+                      )
+                    : null,
+                  allTime: collection.allTimeVolume
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: String(collection.allTimeVolume),
+                            nativeAmount: String(collection.allTimeVolume),
+                          },
+                        },
+                        Sdk.Common.Addresses.Native[config.chainId],
+                        query.displayCurrency
+                      )
+                    : null,
+                },
                 floorAskPrice: collection.floorSell?.value
                   ? await getJoiPriceObject(
                       {

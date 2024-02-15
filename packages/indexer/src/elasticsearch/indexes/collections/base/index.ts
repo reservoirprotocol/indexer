@@ -101,10 +101,10 @@ export class CollectionDocumentBuilder {
           data,
           data.day1_rank * 30 + data.day7_rank * 20 + data.day30_rank * 6 + data.all_time_rank * 4
         ),
-        suggestDay1Rank: this.getSuggest(data, data.day1_rank),
-        suggestDay7Rank: this.getSuggest(data, data.day7_rank),
-        suggestDay30Rank: this.getSuggest(data, data.day30_rank),
-        suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
+        // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
+        // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
+        // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
+        // suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
         slug: data.slug,
         image: data.image,
         imageVersion: data.image_version

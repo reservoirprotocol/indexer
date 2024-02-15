@@ -50,142 +50,142 @@ export const CONFIG_DEFAULT = {
           },
         ],
       },
-      suggestDay1Rank: {
-        type: "completion",
-        preserve_separators: false,
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-          {
-            name: "isNsfw",
-            type: "category",
-          },
-          {
-            name: "metadataDisabled",
-            type: "category",
-          },
-        ],
-      },
-      suggestDay7Rank: {
-        type: "completion",
-        preserve_separators: false,
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-          {
-            name: "isNsfw",
-            type: "category",
-          },
-          {
-            name: "metadataDisabled",
-            type: "category",
-          },
-        ],
-      },
-      suggestDay30Rank: {
-        type: "completion",
-        preserve_separators: false,
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-          {
-            name: "isNsfw",
-            type: "category",
-          },
-          {
-            name: "metadataDisabled",
-            type: "category",
-          },
-        ],
-      },
-      suggestAllTimeRank: {
-        type: "completion",
-        preserve_separators: false,
-        contexts: [
-          {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-          {
-            name: "isNsfw",
-            type: "category",
-          },
-          {
-            name: "metadataDisabled",
-            type: "category",
-          },
-        ],
-      },
+      // suggestDay1Rank: {
+      //   type: "completion",
+      //   preserve_separators: false,
+      //   contexts: [
+      //     {
+      //       name: "chainId",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "id",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "community",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "hasTokens",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isSpam",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isNsfw",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "metadataDisabled",
+      //       type: "category",
+      //     },
+      //   ],
+      // },
+      // suggestDay7Rank: {
+      //   type: "completion",
+      //   preserve_separators: false,
+      //   contexts: [
+      //     {
+      //       name: "chainId",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "id",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "community",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "hasTokens",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isSpam",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isNsfw",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "metadataDisabled",
+      //       type: "category",
+      //     },
+      //   ],
+      // },
+      // suggestDay30Rank: {
+      //   type: "completion",
+      //   preserve_separators: false,
+      //   contexts: [
+      //     {
+      //       name: "chainId",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "id",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "community",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "hasTokens",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isSpam",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isNsfw",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "metadataDisabled",
+      //       type: "category",
+      //     },
+      //   ],
+      // },
+      // suggestAllTimeRank: {
+      //   type: "completion",
+      //   preserve_separators: false,
+      //   contexts: [
+      //     {
+      //       name: "chainId",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "id",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "community",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "hasTokens",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isSpam",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "isNsfw",
+      //       type: "category",
+      //     },
+      //     {
+      //       name: "metadataDisabled",
+      //       type: "category",
+      //     },
+      //   ],
+      // },
       slug: { type: "keyword" },
       image: { type: "keyword" },
       contract: { type: "keyword" },
