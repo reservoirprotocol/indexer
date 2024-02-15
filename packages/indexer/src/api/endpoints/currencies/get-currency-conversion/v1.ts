@@ -8,14 +8,11 @@ import { formatPrice, now, regex, bn, formatUsd } from "@/common/utils";
 import { getAvailableUSDPrice, getUSDAndCurrencyPrices } from "@/utils/prices";
 import { getCurrency } from "@/utils/currencies";
 import * as Boom from "@hapi/boom";
+import { redis } from "@/common/redis";
 
 const version = "v1";
 
 export const getCurrencyConversionV1Options: RouteOptions = {
-  cache: {
-    privacy: "public",
-    expiresIn: 60 * 60 * 1000,
-  },
   description: "Currency Conversions",
   notes: "Convert an amount in one currency to another",
   tags: ["api", "x-deprecated"],
@@ -42,6 +39,16 @@ export const getCurrencyConversionV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    let cacheKey = "";
+
+    if (request.raw.req.url) {
+      cacheKey = request.raw.req.url;
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    }
 
     try {
       let conversion: string | undefined;
@@ -82,10 +89,16 @@ export const getCurrencyConversionV1Options: RouteOptions = {
             : `${formatUsd(usd)}`;
       }
 
-      return {
+      const response = {
         conversion,
         usd: usd ? `${formatUsd(usd)}` : undefined,
       };
+
+      if (cacheKey) {
+        await redis.set(cacheKey, JSON.stringify(response), "EX", 60 * 60);
+      }
+
+      return response;
     } catch (error) {
       logger.error(`get-currency-conversion-${version}-handler`, `Handler failure: ${error}`);
       throw error;

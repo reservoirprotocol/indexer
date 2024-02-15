@@ -66,6 +66,8 @@ export const getBuildInfo = async (
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
 
+  const onChainRoyalties = await getRoyalties(contract, undefined, "onchain");
+
   const buildParams: BaseBuildParams = {
     protocol:
       collectionResult.kind === "erc721"
@@ -74,9 +76,8 @@ export const getBuildInfo = async (
     marketplace,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator,
-    maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "onchain").then((royalties) =>
-      royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
-    ),
+    maxRoyaltyFeeNumerator: onChainRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+    fallbackRoyaltyRecipient: onChainRoyalties.length ? onChainRoyalties[0].recipient : undefined,
     maker: options.maker,
     tokenAddress: contract,
     itemPrice: options.weiPrice,
