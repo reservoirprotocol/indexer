@@ -8,7 +8,6 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 
 import { BuildDocumentData, BaseDocument } from "@/elasticsearch/indexes/base";
 import { logger } from "@/common/logger";
-// import { logger } from "@/common/logger";
 
 export interface CollectionDocument extends BaseDocument {
   id: string;
@@ -97,10 +96,7 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name,
-        suggest: this.getSuggest(
-          data,
-          data.day1_rank * 30 + data.day7_rank * 20 + data.day30_rank * 6 + data.all_time_rank * 4
-        ),
+        suggest: this.getSuggest(data),
         // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
         // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
         // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
@@ -178,11 +174,16 @@ export class CollectionDocumentBuilder {
     return usdPrice;
   }
 
-  getSuggest(data: BuildCollectionDocumentData, rank: number): any {
+  getSuggest(data: BuildCollectionDocumentData): any {
     const suggest = [
       {
         input: this.generateInputValues(data),
-        weight: rank ? 1000000000 - rank : 0,
+        weight: Math.floor(
+          (data.day1_rank ? 1000000000 - data.day1_rank : 0) * 0.3 +
+            (data.day7_rank ? 1000000000 - data.day7_rank : 0) * 0.2 +
+            (data.day30_rank ? 1000000000 - data.day30_rank : 0) * 0.06 +
+            (data.all_time_rank ? 1000000000 - data.all_time_rank : 0) * 0.04
+        ),
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
@@ -198,7 +199,12 @@ export class CollectionDocumentBuilder {
     if (data.contract_symbol) {
       suggest.push({
         input: [data.contract_symbol],
-        weight: rank ? 2000000000 - rank : 0,
+        weight: Math.floor(
+          (data.day1_rank ? 2000000000 - data.day1_rank : 0) * 0.3 +
+            (data.day7_rank ? 2000000000 - data.day7_rank : 0) * 0.2 +
+            (data.day30_rank ? 2000000000 - data.day30_rank : 0) * 0.06 +
+            (data.all_time_rank ? 2000000000 - data.all_time_rank : 0) * 0.04
+        ),
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
