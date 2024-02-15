@@ -45,15 +45,6 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
           })
         );
       } else {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Ask is inactive - delete. orderId=${data.id}`,
-            topic: "debugStaleAsks",
-            payload,
-          })
-        );
-
         const askDocumentId = askCreatedEventHandler.getAskId();
         await pendingAskEventsQueue.add([{ info: { id: askDocumentId }, kind: "delete" }]);
       }
