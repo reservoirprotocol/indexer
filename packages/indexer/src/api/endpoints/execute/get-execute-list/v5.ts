@@ -441,8 +441,12 @@ export const getExecuteListV5Options: RouteOptions = {
             params.orderKind = "looks-rare-v2";
           }
 
-          // Blacklist checks
-          await checkBlacklistAndFallback(contract, params);
+          try {
+            // Blacklist checks
+            await checkBlacklistAndFallback(contract, params);
+          } catch (error) {
+            return errors.push({ message: (error as any).message, orderIndex: i });
+          }
 
           // Handle fees
           // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
@@ -1404,6 +1408,7 @@ export const getExecuteListV5Options: RouteOptions = {
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          stack: (error as any).stack,
           apiKey,
         })
       );

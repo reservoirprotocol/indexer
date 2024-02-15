@@ -10,7 +10,7 @@ import { redis } from "@/common/redis";
 import { toBuffer, bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { isNonceCancelled } from "@/orderbook/orders/common/helpers";
-import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
+import { Royalty, refreshDefaultRoyalties, updateRoyaltySpec } from "@/utils/royalties";
 
 export enum PaymentSettings {
   DefaultPaymentMethodWhitelist = 0,
@@ -250,12 +250,14 @@ export const checkAccountIsBanned = async (token: string, account: string) => {
 
 // Backfilled royalties
 
-export const saveBackfilledRoyalties = async (tokenAddress: string, royalties: Royalty[]) =>
-  updateRoyaltySpec(
+export const saveBackfilledRoyalties = async (tokenAddress: string, royalties: Royalty[]) => {
+  await updateRoyaltySpec(
     tokenAddress,
     "pp-v2-backfill",
     royalties.some((r) => r.recipient !== AddressZero) ? royalties : undefined
   );
+  await refreshDefaultRoyalties(tokenAddress);
+};
 
 // Nonce tracking
 

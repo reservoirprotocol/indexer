@@ -16,6 +16,7 @@ import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-a
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
+import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -116,6 +117,15 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             true
           );
         }
+      }
+
+      // If the token was listed or listing was removed update the onSaleCount
+      if (
+        payload.after.collection_id &&
+        changed.some((value) => ["floor_sell_id"].includes(value)) &&
+        (!payload.before.floor_sell_id || !payload.after.floor_sell_id)
+      ) {
+        await recalcOnSaleCountQueueJob.addToQueue({ collection: payload.after.collection_id });
       }
 
       const metadataInitializedAtChanged =

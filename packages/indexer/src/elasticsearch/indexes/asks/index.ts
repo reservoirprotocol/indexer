@@ -198,6 +198,45 @@ export const initIndex = async (): Promise<void> => {
   }
 };
 
+export const getCollectionOnSaleCount = async (params: { collection: string }): Promise<number> => {
+  const esQuery = {};
+
+  (esQuery as any).bool = {
+    filter: [
+      {
+        term: {
+          "chain.id": config.chainId,
+        },
+      },
+      {
+        term: {
+          "collection.id": params.collection.toLowerCase(),
+        },
+      },
+    ],
+  };
+
+  const esSearchParams = {
+    index: INDEX_NAME,
+    query: esQuery,
+    size: 0,
+    track_total_hits: false,
+    aggs: {
+      distinct_token: {
+        cardinality: {
+          field: "token.id",
+        },
+      },
+    },
+  };
+
+  const esResult = await elasticsearch.search(esSearchParams);
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  return Number(esResult.aggregations?.distinct_token.value);
+};
+
 export const searchTokenAsks = async (
   params: {
     tokens?: { contract: string; tokenId: string }[];

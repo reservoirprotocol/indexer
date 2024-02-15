@@ -188,6 +188,7 @@ import { updateNftBalancesSpamJob } from "@/jobs/nft-balance-updates/update-nft-
 import { pendingTxWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events/pending-tx-websocket-events-trigger-job";
 import { fixTokensMissingCollectionJob } from "@/jobs/token-updates/fix-tokens-missing-collection";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
+import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -359,6 +360,7 @@ export class RabbitMqJobsConsumer {
       pendingTxWebsocketEventsTriggerQueueJob,
       fixTokensMissingCollectionJob,
       backfillTokensWithMissingCollectionJob,
+      recalcOnSaleCountQueueJob,
     ];
   }
 
