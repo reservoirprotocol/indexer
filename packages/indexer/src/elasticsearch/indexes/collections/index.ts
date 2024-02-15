@@ -191,6 +191,7 @@ export const autocomplete = async (params: {
   communities?: string[];
   excludeSpam?: boolean;
   excludeNsfw?: boolean;
+  fuzzy?: boolean;
   limit?: number;
 }): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
   let esQuery = undefined;
@@ -266,6 +267,9 @@ export const autocomplete = async (params: {
           prefix: params.prefix,
           completion: {
             field: "suggest",
+            fuzzy: {
+              fuzziness: params.fuzzy ? 1 : 0,
+            },
             size: params.limit ?? 20,
             contexts: {
               chainId: [config.chainId],

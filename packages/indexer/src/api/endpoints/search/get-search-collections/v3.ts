@@ -50,6 +50,9 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       excludeNsfw: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as nsfw."),
+      fuzzy: Joi.boolean()
+        .default(false)
+        .description("If true, fuzzy search to help with misspellings."),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -113,6 +116,7 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       communities: query.community ? [query.community] : undefined,
       excludeSpam: query.excludeSpam,
       excludeNsfw: query.excludeNsfw,
+      fuzzy: query.fuzzy,
       limit: query.limit,
     });
 
