@@ -30,13 +30,26 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const { kind, data } = payload;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
+    const askCreatedEventHandler = new AskCreatedEventHandler(data.id);
 
     if (kind === EventKind.SellOrderInactive) {
-      const id = new AskCreatedEventHandler(data.id).getAskId();
+      if (await askCreatedEventHandler.isAskActive()) {
+        const [, contract, tokenId] = data.token_set_id.split(":");
 
-      await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Ask is active - Skipping delete. orderId=${data.id}, contract=${contract}, tokenId=${tokenId}`,
+            topic: "debugMissingAsks",
+            payload,
+          })
+        );
+      } else {
+        const askDocumentId = askCreatedEventHandler.getAskId();
+        await pendingAskEventsQueue.add([{ info: { id: askDocumentId }, kind: "delete" }]);
+      }
     } else {
-      const askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
+      const askDocumentInfo = await askCreatedEventHandler.generateAsk();
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);

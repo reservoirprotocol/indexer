@@ -124,6 +124,16 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
               data: payload.after,
             },
           ]);
+
+          await processAskEventJob.addToQueue(
+            [
+              {
+                kind: EventKind.SellOrderInactive,
+                data: payload.after,
+              },
+            ],
+            60000
+          );
         }
       } catch (error) {
         logger.error(
