@@ -335,7 +335,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           },
           createdAt: new Date(data.after.created_at).toISOString(),
           updatedAt: new Date(data.after.updated_at).toISOString(),
-          onSaleCount: Number(data.after.on_sale_count),
+          onSaleCount: String(data.after.on_sale_count),
         },
       });
     } catch (error) {
