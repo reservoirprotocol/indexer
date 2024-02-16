@@ -219,7 +219,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
       await OpenseaIndexerApi.fastContractSync(collection.id);
 
       if (refreshTokens) {
-        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const method = metadataIndexFetchJob.getIndexingMethod(collection);
         const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {

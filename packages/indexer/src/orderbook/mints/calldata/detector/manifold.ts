@@ -200,7 +200,7 @@ export const extractByCollectionERC721 = async (
                   bytes32 merkleRoot,
                   string location,
                   uint256 cost,
-                  address payable paymentReceiver,
+                  address paymentReceiver,
                   address erc20
                 ) claim
               )

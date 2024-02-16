@@ -20,6 +20,8 @@ import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider"
 import { getNetworkName } from "@/config/network";
 import axios from "axios";
 import { redis } from "@/common/redis";
+import { idb } from "@/common/db";
+import { toBuffer } from "@/common/utils";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -49,16 +51,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             token.tokenId
           );
 
-          const debugMissingTokenImages = await redis.sismember(
-            "missing-token-image-contracts",
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
             token.contract
           );
 
-          if (debugMissingTokenImages) {
+          if (tokenMetadataIndexingDebug) {
             logger.info(
               "_getTokensMetadata",
               JSON.stringify({
-                topic: "debugMissingTokenImages",
+                topic: "tokenMetadataIndexingDebug",
                 message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
                 metadata: JSON.stringify(metadata),
                 error,
@@ -222,6 +224,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             }
           } else if (uri.endsWith("/{id}")) {
             uri = uri.replace("{id}", idToToken[token.id].tokenId);
+
+            logger.info(
+              "_getTokensMetadataUri",
+              JSON.stringify({
+                topic: "hexTokenUriDebug",
+                message: `contract=${idToToken[token.id].contract}, tokenId=${
+                  idToToken[token.id].tokenId
+                }, uri=${uri}`,
+              })
+            );
           }
 
           return {
@@ -379,33 +391,64 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
   // helpers
 
   async detectTokenStandard(contractAddress: string) {
+    let erc721Supported = false;
+    let erc1155Supported = false;
+
     try {
-      const contract = new ethers.Contract(
-        contractAddress,
-        [...erc721Interface.fragments, ...erc1155Interface.fragments],
-        metadataIndexingBaseProvider
-      );
+      let contractKind = await redis.get(`contract-kind:${contractAddress}`);
 
-      const erc721Supported = await contract.supportsInterface("0x80ac58cd");
-      const erc1155Supported = await contract.supportsInterface("0xd9b67a26");
+      if (!contractKind) {
+        const result = await idb.oneOrNone(
+          `
+          SELECT
+            con.kind
+          FROM contracts con
+          WHERE con.address = $/contract/
+        `,
+          {
+            contract: toBuffer(contractAddress),
+          }
+        );
 
-      if (erc721Supported && !erc1155Supported) {
+        contractKind = result?.kind;
+
+        if (contractKind) {
+          await redis.set(`contract-kind:${contractAddress}`, contractKind, "EX", 3600);
+        }
+      }
+
+      erc721Supported = contractKind === "erc721" || contractKind === "erc721-like";
+      erc1155Supported = contractKind === "erc1155";
+
+      if (!erc721Supported && !erc1155Supported) {
+        const contract = new ethers.Contract(
+          contractAddress,
+          [...erc721Interface.fragments, ...erc1155Interface.fragments],
+          metadataIndexingBaseProvider
+        );
+
+        erc721Supported = await contract.supportsInterface("0x80ac58cd");
+
+        if (!erc721Supported) {
+          erc1155Supported = await contract.supportsInterface("0xd9b67a26");
+        }
+      }
+
+      if (erc721Supported) {
         return "ERC721";
-      } else if (!erc721Supported && erc1155Supported) {
+      }
+
+      if (erc1155Supported) {
         return "ERC1155";
-      } else if (erc721Supported && erc1155Supported) {
-        return "Both";
-      } else {
-        return "Unknown";
       }
     } catch (error) {
-      logger.warn(
+      logger.error(
         "onchain-fetcher",
         `detectTokenStandard error. contractAddress:${contractAddress}, error:${error}`
       );
-
-      return "Unknown";
     }
+
+    return "Unknown";
   }
 
   encodeTokenERC721(token: any) {
@@ -606,16 +649,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      const debugMissingTokenImages = await redis.sismember(
-        "missing-token-image-contracts",
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
         contract
       );
 
-      if (debugMissingTokenImages) {
+      if (tokenMetadataIndexingDebug) {
         logger.info(
           "getTokenMetadataFromURI",
           JSON.stringify({
-            topic: "debugMissingTokenImages",
+            topic: "tokenMetadataIndexingDebug",
             message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
           })
         );
@@ -679,7 +722,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
                 logger.warn(
                   "onchain-fetcher",
                   JSON.stringify({
-                    topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                    topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
                     message: `getTokenMetadataFromURI axios fallback error. contract=${contract}, tokenId=${tokenId}`,
                     contract,
                     tokenId,
@@ -703,7 +746,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             logger.warn(
               "onchain-fetcher",
               JSON.stringify({
-                topic: debugMissingTokenImages ? "debugMissingTokenImages" : undefined,
+                topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
                 message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
                 contract,
                 tokenId,

@@ -46,7 +46,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetchJob.getIndexingMethod(null),
+                method: metadataIndexFetchJob.getIndexingMethod(),
                 contract,
                 tokenId,
                 collection: contract,

@@ -82,6 +82,7 @@ export const SwapModule: ChainIdToAddress = {
   [Network.Arbitrum]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Bsc]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Base]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Avalanche]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
 };
 
 export const OneInchSwapModule: ChainIdToAddress = {

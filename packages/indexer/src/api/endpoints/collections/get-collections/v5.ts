@@ -456,13 +456,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.created_at,
           collections.minted_timestamp,
           collections.metadata_disabled,
-          (
-            SELECT
-              COUNT(*)
-            FROM tokens
-            WHERE tokens.collection_id = collections.id
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS on_sale_count,
+          collections.on_sale_count,
           ARRAY(
             SELECT
               tokens.image

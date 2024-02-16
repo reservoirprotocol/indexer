@@ -520,6 +520,14 @@ export const generateListingDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
+      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
+
       const extraArgs: any = {};
       const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
@@ -919,6 +927,14 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
+      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
+
       const extraArgs: any = {};
 
       if (sdkOrder.params.kind?.includes("token-set-offer-approval")) {
@@ -1012,16 +1028,16 @@ export const checkBlacklistAndFallback = async (
     ["reservoir"].includes(params.orderbook) &&
     seaportIsBlocked
   ) {
-    params.orderKind = "payment-processor";
+    params.orderKind = "payment-processor-v2";
   }
 
   // Fallback to Seaport if when PaymentProcessor is blocked
   if (
-    ["payment-processor", "payment-processor-v2"].includes(params.orderKind) &&
+    ["payment-processor-v2"].includes(params.orderKind) &&
     ["reservoir"].includes(params.orderbook)
   ) {
     const isBlocked = await checkMarketplaceIsFiltered(collection, [
-      Sdk.PaymentProcessor.Addresses.Exchange[config.chainId],
+      Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
     ]);
 
     // https://linear.app/reservoir/issue/PRO-1163/failing-ppv1-purchase

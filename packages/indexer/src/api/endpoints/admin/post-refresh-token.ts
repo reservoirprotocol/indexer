@@ -68,9 +68,7 @@ export const postRefreshTokenOptions: RouteOptions = {
           {
             kind: "single-token",
             data: {
-              method:
-                payload.method ??
-                metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              method: payload.method ?? metadataIndexFetchJob.getIndexingMethod(collection),
               contract,
               tokenId,
               collection: collection?.id || contract,
@@ -104,7 +102,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       await tokenReclacSupplyJob.addToQueue([{ contract, tokenId }], 0);
 
       // Refresh the token asks
-      await backfillTokenAsksJob.addToQueue(contract, tokenId);
+      await backfillTokenAsksJob.addToQueue(contract, tokenId, false);
 
       return { message: "Request accepted" };
     } catch (error) {

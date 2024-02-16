@@ -20,16 +20,6 @@ const DEFAULT_PRICE = "1000000000000000000";
 // Assume there are no per-token royalties but everything is per-contract
 export const refreshRegistryRoyalties = async (collection: string) => {
   try {
-    if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-      logger.info(
-        "refreshRegistryRoyalties",
-        JSON.stringify({
-          topic: "debugRefreshRoyalties",
-          message: `Start. collection=${collection}`,
-        })
-      );
-    }
-
     // Fetch the collection's contract
     const collectionResult = await idb.oneOrNone(
       `
@@ -89,17 +79,6 @@ export const refreshRegistryRoyalties = async (collection: string) => {
         // Protect against the case where querying the royalties of a non-existent token reverts
         latestRoyalties = [];
       }
-    }
-
-    if (collection === "0x27ca1486749ef528b97a7ea1857f0b6aaee2626a") {
-      logger.info(
-        "refreshRegistryRoyalties",
-        JSON.stringify({
-          topic: "debugRefreshRoyalties",
-          message: `getRegistryRoyalties. collection=${collection}`,
-          latestRoyalties,
-        })
-      );
     }
 
     // Save the retrieved royalty spec

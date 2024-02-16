@@ -17,7 +17,7 @@ import {
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { doesLockExist, redis, releaseLock } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
@@ -149,14 +149,16 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
-      if (config.chainId === 1) {
+      const lockExists = await doesLockExist(`refresh-new-token-metadata:${contract}:${tokenId}`);
+
+      if (!lockExists) {
         const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
         await metadataIndexFetchJob.addToQueue([
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              method: metadataIndexFetchJob.getIndexingMethod(collection),
               contract,
               tokenId,
               collection: collection?.id || contract,
@@ -165,18 +167,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           },
         ]);
       } else {
-        await metadataIndexFetchJob.addToQueue([
-          {
-            kind: "single-token",
-            data: {
-              method: config.metadataIndexingMethod,
-              contract,
-              tokenId,
-              collection: contract,
-            },
-            context: "opensea-websocket",
-          },
-        ]);
+        await releaseLock(`refresh-new-token-metadata:${contract}:${tokenId}`);
       }
     } catch (error) {
       logger.error(

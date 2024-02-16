@@ -247,6 +247,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/set-indexing-method",
+    options: adminEndpoints.postSetTokenIndexingMethodOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/calc-rarity",
     options: adminEndpoints.postCalcRarityOptions,
   });
@@ -1262,6 +1268,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/search/collections/v2",
     options: searchEndpoints.getSearchCollectionsV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/search/collections/v3",
+    options: searchEndpoints.getSearchCollectionsV3Options,
   });
 
   server.route({

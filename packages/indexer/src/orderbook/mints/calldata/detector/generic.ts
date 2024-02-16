@@ -114,7 +114,8 @@ export const extractByTx = async (
   collection: string,
   tx: Transaction,
   pricePerAmountMinted: BigNumber,
-  amountMinted: BigNumber
+  amountMinted: BigNumber,
+  recipient: string
 ): Promise<CollectionMint[]> => {
   const maxSupply = await getMaxSupply(collection);
 
@@ -225,8 +226,8 @@ export const extractByTx = async (
         } else if (
           abiType.includes("address") &&
           (complexParam
-            ? decodedValue.length === 1 && decodedValue[0].toLowerCase() === tx.from
-            : decodedValue.toLowerCase() === tx.from)
+            ? decodedValue.length === 1 && decodedValue[0].toLowerCase() === recipient
+            : decodedValue.toLowerCase() === recipient)
         ) {
           params.push({
             kind: "recipient",

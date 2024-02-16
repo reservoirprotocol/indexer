@@ -8,7 +8,6 @@ import {
   ExternalTypedDataSigner,
   getExternalCosigner,
 } from "@/utils/offchain-cancel/external-cosign";
-import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 
 // Reuse the cancellation format of `seaport` orders
 export const generateOffChainCancellationSignatureData = (orderIds: string[]) => {
@@ -72,10 +71,5 @@ export const doSignOrder = async (order: Sdk.PaymentProcessorV2.Order, taker: st
     } else {
       await order.cosign(cosigner(), taker);
     }
-  }
-
-  const isBanned = await paymentProcessorV2.checkAccountIsBanned(order.params.tokenAddress, taker);
-  if (isBanned) {
-    throw new Error("Taker is banned");
   }
 };

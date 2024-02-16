@@ -441,8 +441,12 @@ export const getExecuteListV5Options: RouteOptions = {
             params.orderKind = "looks-rare-v2";
           }
 
-          // Blacklist checks
-          await checkBlacklistAndFallback(contract, params);
+          try {
+            // Blacklist checks
+            await checkBlacklistAndFallback(contract, params);
+          } catch (error) {
+            return errors.push({ message: (error as any).message, orderIndex: i });
+          }
 
           // Handle fees
           // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
@@ -1018,14 +1022,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const order = await paymentProcessorSellToken.build({
@@ -1110,14 +1107,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 }
 
                 if (params.fees && params.fees?.length > 1) {
-                  logger.error(
-                    `payment-processor-v2-multiple-fees`,
-                    JSON.stringify({
-                      request: payload,
-                      apiKey,
-                    })
-                  );
-                  // return errors.push({ message: "Multiple fees not supported", orderIndex: i });
+                  return errors.push({ message: "Multiple fees not supported", orderIndex: i });
                 }
 
                 const options = (params.options?.["payment-processor-v2"] ??
@@ -1418,6 +1408,7 @@ export const getExecuteListV5Options: RouteOptions = {
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          stack: (error as any).stack,
           apiKey,
         })
       );

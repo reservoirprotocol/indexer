@@ -200,6 +200,7 @@ const config: HardhatUserConfig = {
       scroll: process.env.ETHERSCAN_API_KEY_SCROLL ?? "",
       zora: "0x",
       ancient8: "0x",
+      opBnb: "0x",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
       zoraTestnet: "0x",
@@ -210,7 +211,7 @@ const config: HardhatUserConfig = {
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       frameTestnet: "0x",
       ancient8Testnet: "0x",
-      baseSepolia: "G3S7U2BHWAFPNV9GHHSC1YURSWW3DGN275",
+      baseSepolia: "0x",
     },
     customChains: [
       // Mainnets
@@ -284,6 +285,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://scan.ancient8.gg/api",
           browserURL: "https://scan.ancient8.gg",
+        },
+      },
+      {
+        network: "opBnb",
+        chainId: 204,
+        urls: {
+          apiURL: "https://api-opbnb.bscscan.com/api",
+          browserURL: "https://opbnb.bscscan.com/",
         },
       },
       // Testnets

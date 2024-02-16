@@ -10,6 +10,7 @@ import { RequestWasThrottledError } from "@/metadata/providers/utils";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { hasCustomHandler } from "@/metadata/custom";
+import { redis } from "@/common/redis";
 
 export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-fetch-uri-queue";
@@ -110,6 +111,12 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           );
 
           if (result.error === "Unable to decode tokenURI from contract") {
+            redis.hset(
+              "simplehash-fallback-debug-tokens-v2",
+              `${result.contract}:${result.tokenId}`,
+              result.error
+            );
+
             fallbackTokens.push({
               collection: result.contract,
               contract: result.contract,
@@ -128,7 +135,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           this.queueName,
           JSON.stringify({
             topic: "simpleHashFallbackDebug",
-            message: `metadataIndexFetchJob. fallbackToken=${fallbackTokens.length}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+            message: `metadataIndexFetchJob. fallbackTokensCount=${fallbackTokens.length}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           })
         );
 

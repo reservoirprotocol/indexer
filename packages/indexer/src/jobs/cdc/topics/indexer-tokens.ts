@@ -16,6 +16,7 @@ import { backfillTokenAsksJob } from "@/jobs/elasticsearch/asks/backfill-token-a
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
+import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -110,8 +111,21 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         }
 
         if (changed.some((value) => ["collection_id"].includes(value))) {
-          await backfillTokenAsksJob.addToQueue(payload.after.contract, payload.after.token_id);
+          await backfillTokenAsksJob.addToQueue(
+            payload.after.contract,
+            payload.after.token_id,
+            true
+          );
         }
+      }
+
+      // If the token was listed or listing was removed update the onSaleCount
+      if (
+        payload.after.collection_id &&
+        changed.some((value) => ["floor_sell_id"].includes(value)) &&
+        (!payload.before.floor_sell_id || !payload.after.floor_sell_id)
+      ) {
+        await recalcOnSaleCountQueueJob.addToQueue({ collection: payload.after.collection_id });
       }
 
       const metadataInitializedAtChanged =
@@ -147,13 +161,12 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         payload.after.media === null
       ) {
         if (config.chainId === 1) {
-          redis.sadd("missing-token-image-contracts", payload.after.contract);
+          redis.sadd("metadata-indexing-debug-contracts", payload.after.contract);
         }
 
         logger.error(
           "IndexerTokensHandler",
           JSON.stringify({
-            // topic: "debugMissingTokenImages",
             message: `token image missing. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
             payload,
           })

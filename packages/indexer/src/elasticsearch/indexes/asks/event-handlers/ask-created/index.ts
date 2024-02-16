@@ -33,6 +33,22 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
     return null;
   }
 
+  async isAskActive(): Promise<boolean | null> {
+    return idb.oneOrNone(
+      `
+          SELECT 1 FROM orders 
+          WHERE 
+            orders.side = 'sell' 
+            AND orders.id = $/orderId/
+            AND orders.fillability_status = 'fillable' 
+            AND orders.approval_status = 'approved'
+        `,
+      {
+        orderId: this.orderId,
+      }
+    );
+  }
+
   public static buildBaseQuery(onlyActive = true) {
     const orderCriteriaSelectQueryPart = Orders.buildCriteriaQuery(
       "orders",
@@ -71,6 +87,17 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
               orders.created_at AS "order_created_at",
               extract(epoch from orders.updated_at) updated_ts,
               extract(epoch from orders.created_at) created_ts,
+              (
+                CASE
+                  WHEN orders.fillability_status = 'filled' THEN 'filled'
+                  WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+                  WHEN orders.fillability_status = 'expired' THEN 'expired'
+                  WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+                  WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+                  WHEN orders.approval_status = 'disabled' THEN 'inactive'
+                  ELSE 'active'
+                END
+              ) AS status,
               t.*
             FROM orders
             JOIN LATERAL (

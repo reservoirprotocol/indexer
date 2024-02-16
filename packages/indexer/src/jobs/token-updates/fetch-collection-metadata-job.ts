@@ -138,7 +138,7 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection.community),
+                method: metadataIndexFetchJob.getIndexingMethod(collection),
                 contract,
                 tokenId,
                 collection: collection.id,

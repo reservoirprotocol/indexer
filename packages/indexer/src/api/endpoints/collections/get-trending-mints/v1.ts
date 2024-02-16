@@ -175,7 +175,8 @@ export const getTrendingMintsV1Options: RouteOptions = {
       trendingMints,
       collectionsMetadata,
       normalizeRoyalties,
-      useNonFlaggedFloorAsk
+      useNonFlaggedFloorAsk,
+      type
     );
 
     return h.response({ mints });
@@ -219,7 +220,8 @@ async function formatCollections(
   collectionsResult: ElasticMintResult[],
   collectionsMetadata: Record<string, Metadata>,
   normalizeRoyalties: boolean,
-  useNonFlaggedFloorAsk: boolean
+  useNonFlaggedFloorAsk: boolean,
+  mintType: string
 ): Promise<any[]> {
   const sources = await Sources.getInstance();
 
@@ -301,7 +303,7 @@ async function formatCollections(
           metadata?.sample_images && metadata?.sample_images?.length > 0
             ? Assets.getResizedImageURLs(metadata?.sample_images)
             : [],
-        mintType: Number(mintData?.price) > 0 ? "paid" : "free",
+        mintType: mintType === "any" ? (Number(mintData?.price) > 0 ? "paid" : "free") : mintType,
         mintPrice: mintData?.price,
         maxSupply: Number.isSafeInteger(Number(mintData?.max_supply))
           ? Number(mintData?.max_supply)

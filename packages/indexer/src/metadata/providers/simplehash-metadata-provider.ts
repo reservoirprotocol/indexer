@@ -104,17 +104,6 @@ export class SimplehashMetadataProvider extends AbstractBaseMetadataProvider {
 
     let imageUrl = metadata.image_url || image_original_url;
 
-    if (!imageUrl) {
-      logger.info(
-        "simplehash-fetcher",
-        JSON.stringify({
-          topic: "debugMissingTokenImages",
-          message: `_parseToken. contract=${metadata.contract_address}, tokenId=${metadata.token_id}`,
-          metadata: JSON.stringify(metadata),
-        })
-      );
-    }
-
     if (
       metadata?.image_properties?.mime_type === "image/gif" &&
       metadata?.image_properties?.size > 1000000 &&

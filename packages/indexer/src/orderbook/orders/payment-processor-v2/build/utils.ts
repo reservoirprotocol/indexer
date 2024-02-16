@@ -59,12 +59,14 @@ export const getBuildInfo = async (
     marketplaceFeeNumerator = options.fee[0];
 
     if (options.feeRecipient?.length > 1) {
-      // throw new Error("Multiple fees not supported");
+      throw new Error("Multiple fees not supported");
     }
   }
 
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
+
+  const onChainRoyalties = await getRoyalties(contract, undefined, "onchain");
 
   const buildParams: BaseBuildParams = {
     protocol:
@@ -74,9 +76,8 @@ export const getBuildInfo = async (
     marketplace,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator,
-    maxRoyaltyFeeNumerator: await getRoyalties(contract, undefined, "onchain").then((royalties) =>
-      royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)
-    ),
+    maxRoyaltyFeeNumerator: onChainRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+    fallbackRoyaltyRecipient: onChainRoyalties.length ? onChainRoyalties[0].recipient : undefined,
     maker: options.maker,
     tokenAddress: contract,
     itemPrice: options.weiPrice,

@@ -561,6 +561,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_price",
         "currency_value",
         "needs_conversion",
+        "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",

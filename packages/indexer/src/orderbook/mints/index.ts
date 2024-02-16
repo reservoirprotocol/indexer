@@ -26,7 +26,8 @@ export type CollectionMintStandard =
   | "titlesxyz"
   | "artblocks"
   | "highlightxyz"
-  | "bueno";
+  | "bueno"
+  | "fairxyz";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;

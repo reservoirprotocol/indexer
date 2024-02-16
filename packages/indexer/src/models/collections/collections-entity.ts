@@ -29,6 +29,7 @@ export type CollectionsEntityUpdateParams = {
   creator?: string;
   isSpam?: number;
   nsfwStatus?: number;
+  tokenIndexingMethod?: string | null;
 };
 
 export type CollectionsMetadata = {
@@ -77,6 +78,7 @@ export type CollectionsEntityParams = {
   creator: Buffer;
   is_spam: number | null;
   nsfw_status: number | null;
+  token_indexing_method: string | null;
 };
 
 export class CollectionsEntity {
@@ -110,6 +112,7 @@ export class CollectionsEntity {
   creator: string;
   isSpam: number;
   nsfwStatus: number;
+  tokenIndexingMethod: string;
 
   constructor(params: CollectionsEntityParams) {
     this.id = params.id;
@@ -142,5 +145,6 @@ export class CollectionsEntity {
     this.creator = params.creator ? fromBuffer(params.creator) : params.creator;
     this.isSpam = Number(params.is_spam);
     this.nsfwStatus = Number(params.nsfw_status);
+    this.tokenIndexingMethod = params.token_indexing_method ?? "";
   }
 }
