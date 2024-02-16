@@ -247,6 +247,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/set-indexing-method",
+    options: adminEndpoints.postSetTokenIndexingMethodOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/calc-rarity",
     options: adminEndpoints.postCalcRarityOptions,
   });

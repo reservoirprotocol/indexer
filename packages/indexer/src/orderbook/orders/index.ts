@@ -520,6 +520,14 @@ export const generateListingDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
+      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
+
       const extraArgs: any = {};
       const settings = await paymentProcessorV2Utils.getConfigByContract(
         sdkOrder.params.tokenAddress
@@ -918,6 +926,14 @@ export const generateBidDetailsV6 = async (
     case "payment-processor-v2": {
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
+
+      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
 
       const extraArgs: any = {};
 

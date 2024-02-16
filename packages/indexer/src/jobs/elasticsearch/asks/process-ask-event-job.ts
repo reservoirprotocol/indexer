@@ -79,7 +79,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                method: metadataIndexFetchJob.getIndexingMethod(collection),
                 contract,
                 tokenId,
                 collection: collection?.id || contract,

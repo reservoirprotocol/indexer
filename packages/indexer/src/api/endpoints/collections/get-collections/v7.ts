@@ -515,13 +515,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.top_buy_id,
           collections.top_buy_maker,        
           collections.minted_timestamp,
-          (
-            SELECT
-              COUNT(*)
-            FROM tokens
-            WHERE tokens.collection_id = collections.id
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS on_sale_count,
+          collections.on_sale_count,
           ARRAY(
             SELECT
               tokens.image

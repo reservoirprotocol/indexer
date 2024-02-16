@@ -37,6 +37,7 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
         id: string;
         token_set_id: string | null;
         community: string | null;
+        token_indexing_method: string | null;
         token_count: number;
       } | null = await idb.oneOrNone(
         `
@@ -44,6 +45,7 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
               collections.id,
               collections.token_set_id,
               collections.community,
+              token_indexing_method,
               token_count
             FROM collections
             WHERE collections.contract = $/contract/
@@ -178,7 +180,7 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
           // Refresh the metadata for the new token
           if (!config.disableRealtimeMetadataRefresh) {
             const delay = getNetworkSettings().metadataMintDelay;
-            const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+            const method = metadataIndexFetchJob.getIndexingMethod(collection);
 
             await acquireLock(`refresh-new-token-metadata:${contract}:${tokenId}`, 10);
 

@@ -266,13 +266,7 @@ export async function getCollectionsMetadata(
           ORDER BY rarity_rank DESC NULLS LAST 
           LIMIT 4 
         ) AS sample_images,
-      (
-        SELECT
-          COUNT(*)
-        FROM tokens
-        WHERE tokens.collection_id = collections.id
-          AND tokens.floor_sell_value IS NOT NULL
-      ) AS on_sale_count
+      collections.on_sale_count
     FROM collections
     LEFT JOIN LATERAL (
       SELECT

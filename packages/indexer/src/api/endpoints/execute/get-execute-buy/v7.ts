@@ -497,30 +497,40 @@ export const getExecuteBuyV7Options: RouteOptions = {
             }
           );
 
-          listingDetails.push(
-            await generateListingDetailsV6(
-              {
-                id: order.id,
-                kind: order.kind,
-                currency: order.currency,
-                price: order.price,
-                source: path[path.length - 1].source ?? undefined,
-                rawData: order.rawData,
-                fees: additionalFees,
-              },
-              {
-                kind: token.kind,
-                contract: token.contract,
-                tokenId: token.tokenId!,
-                amount: token.quantity,
-                isFlagged: Boolean(flaggedResult.is_flagged),
-              },
-              payload.taker,
-              {
-                ppV2TrustedChannel: payload.forwarderChannel,
-              }
-            )
-          );
+          try {
+            listingDetails.push(
+              await generateListingDetailsV6(
+                {
+                  id: order.id,
+                  kind: order.kind,
+                  currency: order.currency,
+                  price: order.price,
+                  source: path[path.length - 1].source ?? undefined,
+                  rawData: order.rawData,
+                  fees: additionalFees,
+                },
+                {
+                  kind: token.kind,
+                  contract: token.contract,
+                  tokenId: token.tokenId!,
+                  amount: token.quantity,
+                  isFlagged: Boolean(flaggedResult.is_flagged),
+                },
+                payload.taker,
+                {
+                  ppV2TrustedChannel: payload.forwarderChannel,
+                }
+              )
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } catch (error: any) {
+            // Remove the last path item
+            path = path.slice(0, -1);
+
+            if (!payload.partial) {
+              throw getExecuteError(error.message ?? "Could not generate calldata");
+            }
+          }
         }
 
         txTags.feesOnTop! += additionalFees.length;

@@ -147,7 +147,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
           { by: "contract", data: { contract: collection.contract } },
         ]);
 
-        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const method = metadataIndexFetchJob.getIndexingMethod(collection);
         const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {

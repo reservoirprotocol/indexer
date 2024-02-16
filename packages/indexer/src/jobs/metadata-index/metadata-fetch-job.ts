@@ -72,20 +72,6 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     const limit = 1000;
     let refreshTokens: RefreshTokens[] = [];
 
-    if (
-      [
-        "0x23581767a106ae21c074b2276d25e5c3e136a68b",
-        "0x4481507cc228fa19d203bd42110d679571f7912e",
-        "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
-        "0x4b15a9c28034dc83db40cd810001427d3bd7163d",
-        "0xa28d6a8eb65a41f3958f1de62cbfca20b817e66a",
-        "0x9e9fbde7c7a83c43913bddc8779158f1368f0413",
-        "0xba5e05cb26b78eda3a2f8e3b3814726305dcac83",
-      ].includes(payload.data.collection)
-    ) {
-      data.method = "simplehash";
-    }
-
     if (kind === "full-collection") {
       logger.info(
         this.queueName,
@@ -183,8 +169,14 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     });
   }
 
-  public getIndexingMethod(community?: string | null) {
-    switch (community) {
+  public getIndexingMethod(
+    collection?: { tokenIndexingMethod?: string | null; community: string | null } | null
+  ) {
+    if (collection?.tokenIndexingMethod) {
+      return collection.tokenIndexingMethod;
+    }
+
+    switch (collection?.community) {
       case "sound.xyz":
         return "soundxyz";
     }
