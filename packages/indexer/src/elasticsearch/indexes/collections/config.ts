@@ -214,6 +214,8 @@ export const CONFIG_DEFAULT = {
       allTimeVolume: { type: "double" },
       allTimeVolumeDecimal: { type: "double" },
       allTimeVolumeUsd: { type: "double" },
+      algoVolumeDecimal: { type: "double" },
+      algoVolumeUsd: { type: "double" },
       floorSell: {
         properties: {
           id: { type: "keyword" },
