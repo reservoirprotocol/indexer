@@ -87,6 +87,11 @@ export class CollectionDocumentBuilder {
       const day30VolumeUsd = await this.getUsdPrice(data.day30_volume);
       const allTimeVolumeUsd = await this.getUsdPrice(data.all_time_volume);
 
+      const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
+      const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
+      const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
+      const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
+
       const document = {
         chain: {
           id: config.chainId,
@@ -98,7 +103,7 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name,
-        // suggest: this.getSuggest(data),
+        suggest: this.getSuggest(data),
         // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
         // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
         // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
@@ -123,23 +128,17 @@ export class CollectionDocumentBuilder {
         day7VolumeUsd: day7VolumeUsd,
         day30Rank: data.day30_rank,
         day30Volume: data.day30_volume,
-        day30VolumeDecimal: data.day7_volume ? formatEth(data.day30_volume) : null,
+        day30VolumeDecimal: data.day30_volume ? formatEth(data.day30_volume) : null,
         day30VolumeUsd: day30VolumeUsd,
         allTimeRank: data.all_time_rank,
         allTimeVolume: data.all_time_volume,
         allTimeVolumeDecimal: data.all_time_volume ? formatEth(data.all_time_volume) : null,
         allTimeVolumeUsd: allTimeVolumeUsd,
-        algoVolumeDecimal: formatEth(
-          Number(data.day1_volume) * 0.3 +
-            Number(data.day7_volume) * 0.2 +
-            Number(data.day30_volume) * 0.06 +
-            Number(data.all_time_volume) * 0.04
-        ),
-        algoVolumeUsd:
-          day1VolumeUsd * 0.3 +
-          day7VolumeUsd * 0.2 +
-          day30VolumeUsd * 0.06 +
-          allTimeVolumeUsd * 0.04,
+        algoVolumeDecimal:
+          day1VolumeDecimal * 0.3 +
+          day7VolumeDecimal * 0.2 +
+          day30VolumeDecimal * 0.06 +
+          allTimeVolumeDecimal * 0.04,
         floorSell: data.floor_sell_id
           ? {
               id: data.floor_sell_id,
@@ -188,14 +187,19 @@ export class CollectionDocumentBuilder {
   }
 
   getSuggest(data: BuildCollectionDocumentData): any {
+    const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
+    const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
+    const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
+    const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
+
     const suggest = [
       {
         input: this.generateInputValues(data),
         weight: Math.floor(
-          (data.day1_rank ? 1000000000 - data.day1_rank : 0) * 0.3 +
-            (data.day7_rank ? 1000000000 - data.day7_rank : 0) * 0.2 +
-            (data.day30_rank ? 1000000000 - data.day30_rank : 0) * 0.06 +
-            (data.all_time_rank ? 1000000000 - data.all_time_rank : 0) * 0.04
+          day1VolumeDecimal * 0.3 +
+            day7VolumeDecimal * 0.2 +
+            day30VolumeDecimal * 0.06 +
+            allTimeVolumeDecimal * 0.04
         ),
         contexts: {
           chainId: [config.chainId],
@@ -213,10 +217,10 @@ export class CollectionDocumentBuilder {
       suggest.push({
         input: [data.contract_symbol],
         weight: Math.floor(
-          (data.day1_rank ? 2000000000 - data.day1_rank : 0) * 0.3 +
-            (data.day7_rank ? 2000000000 - data.day7_rank : 0) * 0.2 +
-            (data.day30_rank ? 2000000000 - data.day30_rank : 0) * 0.06 +
-            (data.all_time_rank ? 2000000000 - data.all_time_rank : 0) * 0.04
+          day1VolumeDecimal * 0.3 +
+            day7VolumeDecimal * 0.2 +
+            day30VolumeDecimal * 0.06 +
+            allTimeVolumeDecimal * 0.04
         ),
         contexts: {
           chainId: [config.chainId],
