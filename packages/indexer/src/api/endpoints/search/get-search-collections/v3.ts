@@ -34,29 +34,17 @@ export const getSearchCollectionsV3Options: RouteOptions = {
         .description(
           "Lightweight search for collections that match a string. Can also search using contract address. Example: `bored` or `0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d`"
         ),
-      community: Joi.string()
-        .lowercase()
-        .description("Filter to a particular community. Example: `artblocks`"),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description("Return result in given currency"),
-      collectionsSetId: Joi.string()
-        .lowercase()
-        .description("Filter to a particular collection set"),
-      excludeSpam: Joi.boolean()
-        .default(false)
-        .description("If true, will filter any collections marked as spam."),
-      excludeNsfw: Joi.boolean()
-        .default(false)
-        .description("If true, will filter any collections marked as nsfw."),
       fuzzy: Joi.boolean()
         .default(false)
         .description("If true, fuzzy search to help with misspellings."),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(1000)
+        .max(100)
         .default(20)
         .description("Amount of items returned in response."),
     }),
