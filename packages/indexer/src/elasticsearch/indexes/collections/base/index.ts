@@ -192,15 +192,24 @@ export class CollectionDocumentBuilder {
     const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
     const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
 
+    let weight =
+      day1VolumeDecimal * 0.3 +
+      day7VolumeDecimal * 0.2 +
+      day30VolumeDecimal * 0.06 +
+      allTimeVolumeDecimal * 0.04;
+
+    if (weight > 0) {
+      if (Number.isInteger(weight)) {
+        weight += 1;
+      } else {
+        weight = Math.ceil(weight);
+      }
+    }
+
     const suggest = [
       {
         input: this.generateInputValues(data),
-        weight: Math.floor(
-          day1VolumeDecimal * 0.3 +
-            day7VolumeDecimal * 0.2 +
-            day30VolumeDecimal * 0.06 +
-            allTimeVolumeDecimal * 0.04
-        ),
+        weight,
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
@@ -216,12 +225,7 @@ export class CollectionDocumentBuilder {
     if (data.contract_symbol) {
       suggest.push({
         input: [data.contract_symbol],
-        weight: Math.floor(
-          day1VolumeDecimal * 0.3 +
-            day7VolumeDecimal * 0.2 +
-            day30VolumeDecimal * 0.06 +
-            allTimeVolumeDecimal * 0.04
-        ),
+        weight,
         contexts: {
           chainId: [config.chainId],
           id: [data.id],
