@@ -38,6 +38,8 @@ export interface CollectionDocument extends BaseDocument {
   allTimeVolume?: string;
   allTimeVolumeDecimal?: number | null;
   allTimeVolumeUsd?: number;
+  algoVolumeDecimal?: number | null;
+  algoVolumeUsd?: number;
   floorSell?: {
     id?: string;
     value?: string;
@@ -96,7 +98,7 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name,
-        suggest: this.getSuggest(data),
+        // suggest: this.getSuggest(data),
         // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
         // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
         // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
@@ -127,6 +129,17 @@ export class CollectionDocumentBuilder {
         allTimeVolume: data.all_time_volume,
         allTimeVolumeDecimal: data.all_time_volume ? formatEth(data.all_time_volume) : null,
         allTimeVolumeUsd: allTimeVolumeUsd,
+        algoVolumeDecimal: formatEth(
+          Number(data.day1_volume) * 0.3 +
+            Number(data.day7_volume) * 0.2 +
+            Number(data.day30_volume) * 0.06 +
+            Number(data.all_time_volume) * 0.04
+        ),
+        algoVolumeUsd:
+          day1VolumeUsd * 0.3 +
+          day7VolumeUsd * 0.2 +
+          day30VolumeUsd * 0.06 +
+          allTimeVolumeUsd * 0.04,
         floorSell: data.floor_sell_id
           ? {
               id: data.floor_sell_id,
