@@ -102,7 +102,7 @@ export class CollectionDocumentBuilder {
         createdAt: data.created_at,
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
-        name: data.name,
+        name: data.name?.trim(),
         suggest: this.getSuggest(data),
         // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
         // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
@@ -206,8 +206,10 @@ export class CollectionDocumentBuilder {
       }
     }
 
-    const suggest = [
-      {
+    const suggest = [];
+
+    if (data.name) {
+      suggest.push({
         input: this.generateInputValues(data),
         weight,
         contexts: {
@@ -219,8 +221,8 @@ export class CollectionDocumentBuilder {
           isNsfw: [Number(data.nsfw_status) > 0],
           metadataDisabled: [Number(data.metadata_disabled) > 0],
         },
-      },
-    ];
+      });
+    }
 
     if (data.contract_symbol) {
       suggest.push({
@@ -242,7 +244,7 @@ export class CollectionDocumentBuilder {
   }
 
   generateInputValues(data: BuildCollectionDocumentData): string[] {
-    const words = data.name.split(" ");
+    const words = data.name.trim().split(" ");
     const combinations: string[] = [];
 
     for (let i = 0; i < words.length; i++) {
