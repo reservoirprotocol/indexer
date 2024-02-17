@@ -195,7 +195,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       {
         contract: toBuffer(contract),
         tokenId,
-        name: `${name}` || null,
+        name: _.isNull(name) ? null : `${name}`,
         description: description || null,
         image: imageUrl || null,
         tokenURI: tokenURI || null,

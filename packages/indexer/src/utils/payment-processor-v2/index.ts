@@ -87,7 +87,7 @@ export const getConfigByContract = async (
         blockTradesFromUntrustedChannels: paymentSettings.blockTradesFromUntrustedChannels,
         blockBannedAccounts: paymentSettings.blockBannedAccounts,
         whitelistedPaymentMethods:
-          paymentSettings.paymentMethodWhitelistId === 0
+          paymentSettings.paymentSettings === PaymentSettings.DefaultPaymentMethodWhitelist
             ? await getDefaultPaymentMethods()
             : await getPaymentMethods(paymentSettings.paymentMethodWhitelistId, refresh),
       };

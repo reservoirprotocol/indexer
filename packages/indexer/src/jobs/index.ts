@@ -189,7 +189,6 @@ import { pendingTxWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events
 import { fixTokensMissingCollectionJob } from "@/jobs/token-updates/fix-tokens-missing-collection";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
-import { backfillCollectionsOnSaleCountJob } from "@/jobs/backfill/backfill-collections-on-sale-count";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -362,7 +361,6 @@ export class RabbitMqJobsConsumer {
       fixTokensMissingCollectionJob,
       backfillTokensWithMissingCollectionJob,
       recalcOnSaleCountQueueJob,
-      backfillCollectionsOnSaleCountJob,
     ];
   }
 

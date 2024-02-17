@@ -1342,6 +1342,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
+      let hasSeparateSwaps = false;
       for (const { txData, txTags, orderIds, preSignatures } of txs) {
         // Handle pre-signatures
         const signaturesPaymentProcessor: string[] = [];
@@ -1385,8 +1386,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        // Need a separate step for the swap transactions
-        if (txTags?.swaps) {
+        // Need a separate step for the swap-only transactions
+        if (txTags && Object.keys(txTags).length === 1 && Object.keys(txTags)[0] === "swaps") {
           steps[6].items.push({
             status: "incomplete",
             orderIds,
@@ -1399,6 +1400,8 @@ export const getExecuteSellV7Options: RouteOptions = {
               : undefined,
             gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
           });
+
+          hasSeparateSwaps = true;
         } else {
           steps[5].items.push({
             status: "incomplete",
@@ -1428,6 +1431,9 @@ export const getExecuteSellV7Options: RouteOptions = {
       if (!bidDetails.some((d) => d.kind === "payment-processor")) {
         // For now, pre-signatures are only needed for `payment-processor` orders
         steps = steps.filter((s) => s.id !== "pre-signatures");
+      }
+      if (!hasSeparateSwaps) {
+        steps = steps.filter((s) => s.id !== "swap");
       }
 
       const executionsBuffer = new ExecutionsBuffer();

@@ -74,8 +74,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         [
           paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
           paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
-        ].includes(settings.paymentSettings) &&
-        order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]
+        ].includes(settings.paymentSettings)
       ) {
         if (settings.whitelistedPaymentMethods) {
           const paymentMethodWhitelist = settings.whitelistedPaymentMethods.includes(

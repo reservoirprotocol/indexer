@@ -1646,6 +1646,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
+          id: "swap",
+          action: "Swap tokens",
+          description: "To swap the tokens you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
+          items: [],
+        },
+        {
           id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
@@ -2454,29 +2461,51 @@ export const getExecuteBuyV7Options: RouteOptions = {
         });
       }
 
+      let hasSeparateSwaps = false;
       for (const { txData, txTags, orderIds, permits } of txs) {
-        steps[5].items.push({
-          status: "incomplete",
-          orderIds,
-          // Do not return unless all previous steps are completed
-          data:
-            !steps[2].items.length && !steps[3].items.length
-              ? {
-                  ...permitHandler.attachToRouterExecution(txData, permits),
-                  maxFeePerGas,
-                  maxPriorityFeePerGas,
-                }
-              : undefined,
-          check: {
-            endpoint: "/execute/status/v1",
-            method: "POST",
-            body: {
-              kind: "transaction",
+        // Need a separate step for the swap-only transactions
+        if (txTags && Object.keys(txTags).length === 1 && Object.keys(txTags)[0] === "swaps") {
+          steps[5].items.push({
+            status: "incomplete",
+            orderIds,
+            // Do not return unless all previous steps are completed
+            data:
+              !steps[2].items.length && !steps[3].items.length
+                ? {
+                    ...txData,
+                    maxFeePerGas,
+                    maxPriorityFeePerGas,
+                  }
+                : undefined,
+            // TODO: To remove, only kept for backwards-compatibility
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+
+          hasSeparateSwaps = true;
+        } else {
+          steps[6].items.push({
+            status: "incomplete",
+            orderIds,
+            // Do not return unless all previous steps are completed
+            data:
+              !steps[2].items.length && !steps[3].items.length
+                ? {
+                    ...permitHandler.attachToRouterExecution(txData, permits),
+                    maxFeePerGas,
+                    maxPriorityFeePerGas,
+                  }
+                : undefined,
+            check: {
+              endpoint: "/execute/status/v1",
+              method: "POST",
+              body: {
+                kind: "transaction",
+              },
             },
-          },
-          // TODO: To remove, only kept for backwards-compatibility
-          gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
-        });
+            // TODO: To remove, only kept for backwards-compatibility
+            gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
+          });
+        }
       }
 
       // Warning! When filtering the steps, we should ensure that it
@@ -2512,6 +2541,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       if (!listingDetails.some((d) => d.kind === "payment-processor")) {
         // For now, pre-signatures are only needed for `payment-processor` orders
         steps = steps.filter((s) => s.id !== "pre-signatures");
+      }
+      if (!hasSeparateSwaps) {
+        steps = steps.filter((s) => s.id !== "swap");
       }
 
       if (steps.find((s) => s.id === "currency-permit")?.items.length) {
