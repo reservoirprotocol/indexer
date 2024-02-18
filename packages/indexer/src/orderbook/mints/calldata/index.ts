@@ -141,6 +141,11 @@ export const generateCollectionMintTxData = async (
 
   const tx = collectionMint.details.tx;
 
+  // Hacky fix for Manifold mints to be routed via the correct method without needing to refresh
+  if (collectionMint.standard === "manifold" && tx.data.signature === "0x26c858a4") {
+    tx.data.signature = "0x07591acc";
+  }
+
   let hasExplicitRecipient = false;
   const encodeParams = async (params: AbiParam[]) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

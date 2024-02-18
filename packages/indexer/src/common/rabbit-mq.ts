@@ -420,7 +420,7 @@ export class RabbitMq {
       });
 
       for (const queue of queuesToDelete) {
-        await channel.deleteQueue(queue, { ifUnused: true });
+        await channel.deleteQueue(queue);
       }
 
       await channel.close();
