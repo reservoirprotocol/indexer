@@ -269,6 +269,7 @@ export const autocomplete = async (params: {
             field: "suggest",
             fuzzy: {
               fuzziness: params.fuzzy ? 1 : 0,
+              prefix_length: 0,
             },
             size: params.limit ?? 20,
             contexts: {
