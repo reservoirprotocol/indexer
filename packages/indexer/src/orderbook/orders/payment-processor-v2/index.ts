@@ -459,6 +459,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         const replacedOrderResult = await idb.oneOrNone(
           `
             SELECT
+              orders.id,
               orders.raw_data
             FROM orders
             WHERE orders.id = $/id/
@@ -471,7 +472,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         if (
           replacedOrderResult &&
           // Replacement is only possible if the replaced order is an off-chain cancellable order
-          replacedOrderResult.raw_data.cosigner?.toLowerCase() !== cosigner().address.toLowerCase()
+          replacedOrderResult.raw_data.cosigner?.toLowerCase() === cosigner().address.toLowerCase()
         ) {
           const rawOrder = new Sdk.PaymentProcessorV2.Order(
             config.chainId,
