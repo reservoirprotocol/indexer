@@ -36,8 +36,9 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     try {
       let continuationFilter = "";
       let fromTimestampFilter = "";
+      let orderKindFilter = "";
 
-      const limit = Number(await redis.get(`${this.queueName}-limit`)) || 1000;
+      const limit = Number(await redis.get(`${this.queueName}-limit`)) || 100;
 
       if (payload.cursor) {
         continuationFilter = `AND (orders.updated_at, orders.id) > (to_timestamp($/updatedAt/), $/id/)`;
@@ -47,16 +48,22 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
         fromTimestampFilter = `AND (orders.updated_at) > (to_timestamp($/fromTimestamp/))`;
       }
 
+      if (payload.orderKind) {
+        orderKindFilter = `AND orders.kind = $/orderKind/`;
+      }
+
       query = `
             ${AskCreatedEventHandler.buildBaseQuery(payload.onlyActive)}
               ${continuationFilter}
               ${fromTimestampFilter}
+              ${orderKindFilter}
               ORDER BY updated_at, id
               LIMIT $/limit/;
           `;
 
       const rawResults = await idb.manyOrNone(query, {
         fromTimestamp: payload.fromTimestamp,
+        orderKind: payload.orderKind,
         updatedAt: payload.cursor?.updatedAt,
         id: payload.cursor?.id,
         limit,
@@ -187,6 +194,7 @@ export const backfillAsksElasticsearchJob = new BackfillAsksElasticsearchJob();
 export type BackfillAsksElasticsearchJobPayload = {
   fromTimestamp?: number;
   onlyActive?: boolean;
+  orderKind?: string;
   cursor?: {
     updatedAt: string;
     id: string;
