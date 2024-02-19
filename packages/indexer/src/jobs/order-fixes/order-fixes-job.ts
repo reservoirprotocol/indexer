@@ -12,6 +12,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import { Royalty } from "@/utils/royalties";
 
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
@@ -503,26 +504,55 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
 
                 case "payment-processor-v2": {
                   const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
-                  try {
-                    await paymentProcessorV2Check.offChainCheck(order, {
-                      onChainApprovalRecheck: true,
-                      checkFilledOrCancelled: true,
-                    });
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } catch (error: any) {
-                    if (error.message === "cancelled") {
-                      fillabilityStatus = "cancelled";
-                    } else if (error.message === "filled") {
-                      fillabilityStatus = "filled";
-                    } else if (error.message === "no-balance") {
-                      fillabilityStatus = "no-balance";
-                    } else if (error.message === "no-approval") {
-                      approvalStatus = "no-approval";
-                    } else if (error.message === "no-balance-no-approval") {
-                      fillabilityStatus = "no-balance";
-                      approvalStatus = "no-approval";
-                    } else {
-                      return;
+
+                  // Also check the royalty built into the order vs the actual on-chain royalties of the collection
+                  let royaltyBpsToPay = 0;
+                  const royalties = await idb.oneOrNone(
+                    `
+                      SELECT
+                        COALESCE(collections.new_royalties, '{}') AS new_royalties
+                      FROM collections
+                      WHERE collections.id = $/collection/
+                    `,
+                    { collection: order.params.tokenAddress }
+                  );
+                  if (royalties.new_royalties["onchain"]) {
+                    royaltyBpsToPay = (royalties.new_royalties["onchain"] as Royalty[])
+                      .map((r) => r.bps)
+                      .reduce((a, b) => a + b, 0);
+                  } else if (royalties.new_royalties["pp-v2-backfill"]) {
+                    royaltyBpsToPay = (royalties.new_royalties["pp-v2-backfill"] as Royalty[])
+                      .map((r) => r.bps)
+                      .reduce((a, b) => a + b, 0);
+                  }
+
+                  if (
+                    order.params.maxRoyaltyFeeNumerator !== undefined &&
+                    Number(order.params.maxRoyaltyFeeNumerator) < royaltyBpsToPay
+                  ) {
+                    fillabilityStatus = "cancelled";
+                  } else {
+                    try {
+                      await paymentProcessorV2Check.offChainCheck(order, {
+                        onChainApprovalRecheck: true,
+                        checkFilledOrCancelled: true,
+                      });
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } catch (error: any) {
+                      if (error.message === "cancelled") {
+                        fillabilityStatus = "cancelled";
+                      } else if (error.message === "filled") {
+                        fillabilityStatus = "filled";
+                      } else if (error.message === "no-balance") {
+                        fillabilityStatus = "no-balance";
+                      } else if (error.message === "no-approval") {
+                        approvalStatus = "no-approval";
+                      } else if (error.message === "no-balance-no-approval") {
+                        fillabilityStatus = "no-balance";
+                        approvalStatus = "no-approval";
+                      } else {
+                        return;
+                      }
                     }
                   }
 

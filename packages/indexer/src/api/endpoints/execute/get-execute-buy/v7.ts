@@ -2318,13 +2318,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
-              check: {
-                endpoint: "/execute/status/v1",
-                method: "POST",
-                body: {
-                  kind: "transaction",
-                },
-              },
             });
           }
         }
@@ -2451,13 +2444,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   erc721cAuth!.signature
                 )
               : undefined,
-          check: {
-            endpoint: "/execute/status/v1",
-            method: "POST",
-            body: {
-              kind: "transaction",
-            },
-          },
         });
       }
 

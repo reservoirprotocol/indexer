@@ -542,9 +542,16 @@ export class Router {
             });
           }
         }
+
+        // Ensure approvals are unique
+        const uniqueApprovals = uniqBy(
+          approvals,
+          ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+        );
+
         if (useSweepCollection) {
           txs.push({
-            approvals,
+            approvals: uniqueApprovals,
             permits: [],
             txTags: {
               listings: { "payment-processor-v2": orders.length },
@@ -560,7 +567,7 @@ export class Router {
           });
         } else {
           txs.push({
-            approvals,
+            approvals: uniqueApprovals,
             permits: [],
             txTags: {
               listings: { "payment-processor-v2": orders.length },
@@ -657,6 +664,12 @@ export class Router {
         }
       }
 
+      // Ensure approvals are unique
+      const uniqueApprovals = uniqBy(
+        approvals,
+        ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+      );
+
       const preSignatures: PreSignature[] = [];
       const orders: Sdk.PaymentProcessor.Order[] = blockedPaymentProcessorDetails.map(
         (c) => c.order as Sdk.PaymentProcessor.Order
@@ -688,7 +701,7 @@ export class Router {
         });
 
         txs.push({
-          approvals,
+          approvals: uniqueApprovals,
           permits: [],
           txTags: {
             listings: { "payment-processor": orders.length },
@@ -717,7 +730,7 @@ export class Router {
         }
 
         txs.push({
-          approvals,
+          approvals: uniqueApprovals,
           permits: [],
           txTags: {
             listings: { "payment-processor": orders.length },
@@ -5190,6 +5203,7 @@ export class Router {
 
       txs.push({
         approvals: [],
+        // Ensure approvals are unique
         ftApprovals: uniqBy(
           ftApprovals,
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
