@@ -704,6 +704,26 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         })
         .then((res) => {
           if (res.data !== null && typeof res.data === "object") {
+            if (
+              config.chainId === 1 &&
+              contract === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401" &&
+              "message" in res.data
+            ) {
+              logger.info(
+                "getTokenMetadataFromURI",
+                JSON.stringify({
+                  topic: "tokenMetadataIndexingDebug",
+                  message: `ENS Invalid response. contract=${contract}, tokenId=${tokenId}`,
+                  contract,
+                  tokenId,
+                  uri,
+                  resData: res.data,
+                })
+              );
+
+              return [null, 404];
+            }
+
             return [res.data, null];
           }
 
