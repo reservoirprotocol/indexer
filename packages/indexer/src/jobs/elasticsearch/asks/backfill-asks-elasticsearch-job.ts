@@ -161,6 +161,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
 
       await backfillAsksElasticsearchJob.addToQueue(
         payload.fromTimestamp,
+        payload.orderKind,
         payload.onlyActive,
         nextCursor
       );
@@ -169,6 +170,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
 
   public async addToQueue(
     fromTimestamp?: number,
+    orderKind?: string,
     onlyActive?: boolean,
     cursor?: {
       updatedAt: string;
@@ -182,6 +184,7 @@ export class BackfillAsksElasticsearchJob extends AbstractRabbitMqJobHandler {
     await this.send({
       payload: {
         fromTimestamp,
+        orderKind,
         onlyActive,
         cursor,
       },
