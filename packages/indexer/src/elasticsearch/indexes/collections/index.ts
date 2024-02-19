@@ -267,10 +267,7 @@ export const autocomplete = async (params: {
           prefix: params.prefix,
           completion: {
             field: "suggest",
-            fuzzy: {
-              fuzziness: params.fuzzy ? 1 : 0,
-              prefix_length: 0,
-            },
+            fuzzy: !!params.fuzzy,
             size: params.limit ?? 20,
             contexts: {
               chainId: [config.chainId],
