@@ -132,27 +132,49 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
       if (metadataInitializedAtChanged && _.random(100) <= 25) {
-        logger.info(
-          "token-metadata-latency-metric",
-          JSON.stringify({
-            topic: "latency-metrics",
-            contract: payload.after.contract,
-            tokenId: payload.after.token_id,
-            indexedLatency: Math.floor(
-              (new Date(payload.after.metadata_indexed_at).getTime() -
-                new Date(payload.after.created_at).getTime()) /
-                1000
-            ),
-            initializedLatency: Math.floor(
-              (new Date(payload.after.metadata_initialized_at).getTime() -
-                new Date(payload.after.created_at).getTime()) /
-                1000
-            ),
-            createdAt: payload.after.created_at,
-            indexedAt: payload.after.metadata_indexed_at,
-            initializedAt: payload.after.metadata_initialized_at,
-          })
+        const indexedLatency = Math.floor(
+          (new Date(payload.after.metadata_indexed_at).getTime() -
+            new Date(payload.after.created_at).getTime()) /
+            1000
         );
+
+        if (indexedLatency >= 500) {
+          logger.warn(
+            "token-metadata-latency-metric",
+            JSON.stringify({
+              topic: "latency-metrics",
+              contract: payload.after.contract,
+              tokenId: payload.after.token_id,
+              indexedLatency,
+              initializedLatency: Math.floor(
+                (new Date(payload.after.metadata_initialized_at).getTime() -
+                  new Date(payload.after.created_at).getTime()) /
+                  1000
+              ),
+              createdAt: payload.after.created_at,
+              indexedAt: payload.after.metadata_indexed_at,
+              initializedAt: payload.after.metadata_initialized_at,
+            })
+          );
+        } else {
+          logger.info(
+            "token-metadata-latency-metric",
+            JSON.stringify({
+              topic: "latency-metrics",
+              contract: payload.after.contract,
+              tokenId: payload.after.token_id,
+              indexedLatency,
+              initializedLatency: Math.floor(
+                (new Date(payload.after.metadata_initialized_at).getTime() -
+                  new Date(payload.after.created_at).getTime()) /
+                  1000
+              ),
+              createdAt: payload.after.created_at,
+              indexedAt: payload.after.metadata_indexed_at,
+              initializedAt: payload.after.metadata_initialized_at,
+            })
+          );
+        }
       }
 
       if (
