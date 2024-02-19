@@ -32,20 +32,22 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   public async process(payload: MintQueueJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
-    const tokenMetadataIndexingDebug = await redis.sismember(
-      "metadata-indexing-debug-contracts",
-      contract
-    );
-
-    if (tokenMetadataIndexingDebug) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "tokenMetadataIndexingDebug",
-          message: `Start. contract=${contract}, tokenId=${tokenId}`,
-          payload,
-        })
+    if (config.chainId === 1) {
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        contract
       );
+
+      if (tokenMetadataIndexingDebug) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "tokenMetadataIndexingDebug",
+            message: `Start. contract=${contract}, tokenId=${tokenId}`,
+            payload,
+          })
+        );
+      }
     }
 
     try {
