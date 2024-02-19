@@ -655,8 +655,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
+      let tokenMetadataIndexingDebug = 0;
+
       if (config.chainId === 1) {
-        const tokenMetadataIndexingDebug = await redis.sismember(
+        tokenMetadataIndexingDebug = await redis.sismember(
           "metadata-indexing-debug-contracts",
           contract
         );

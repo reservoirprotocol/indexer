@@ -34,8 +34,10 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
+    let tokenMetadataIndexingDebug = 0;
+
     if (config.chainId === 1) {
-      const tokenMetadataIndexingDebug = await redis.sismember(
+      tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         contract
       );

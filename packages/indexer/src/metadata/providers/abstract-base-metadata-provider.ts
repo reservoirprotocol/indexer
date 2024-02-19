@@ -110,10 +110,14 @@ export abstract class AbstractBaseMetadataProvider {
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
         try {
-          const tokenMetadataIndexingDebug = await redis.sismember(
-            "metadata-indexing-debug-contracts",
-            metadata.contract
-          );
+          let tokenMetadataIndexingDebug = 0;
+
+          if (config.chainId === 1) {
+            tokenMetadataIndexingDebug = await redis.sismember(
+              "metadata-indexing-debug-contracts",
+              metadata.contract
+            );
+          }
 
           if (
             metadata.imageUrl &&
