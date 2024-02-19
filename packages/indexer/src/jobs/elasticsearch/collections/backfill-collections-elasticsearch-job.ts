@@ -1,7 +1,7 @@
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { idb } from "@/common/db";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 
@@ -238,3 +238,14 @@ export type BackfillCollectionsElasticsearchJobPayload = {
     id: string;
   };
 };
+
+if (config.chainId !== 1 && config.chainId !== 137) {
+  redlock
+    .acquire([`${backfillCollectionsElasticsearchJob.queueName}-lock`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await backfillCollectionsElasticsearchJob.addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
+}

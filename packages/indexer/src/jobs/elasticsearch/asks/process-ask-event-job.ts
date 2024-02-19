@@ -53,7 +53,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
-      } else if (!["element-erc721", "element-erc1155"].includes(data.kind)) {
+      } else {
         const [, contract, tokenId] = data.token_set_id.split(":");
 
         const orderExists = await idb.oneOrNone(
