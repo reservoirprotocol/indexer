@@ -54,7 +54,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const wasCancellation = parsedLog.args["wasCancellation"];
 
         if (wasCancellation) {
-          onChainData.cancelEventsOnChain.push({
+          onChainData.cancelEvents.push({
             orderKind: "payment-processor-v2",
             orderId,
             baseEventParams,

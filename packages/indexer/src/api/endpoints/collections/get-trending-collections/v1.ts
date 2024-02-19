@@ -103,6 +103,14 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
               .allow(null)
               .description("Lowest Ask Price."),
           },
+          topBid: Joi.object({
+            id: Joi.string().allow(null),
+            sourceDomain: Joi.string().allow("", null),
+            price: JoiPrice.allow(null),
+            maker: Joi.string().lowercase().pattern(regex.address).allow(null),
+            validFrom: Joi.number().unsafe().allow(null),
+            validUntil: Joi.number().unsafe().allow(null),
+          }),
           floorAskPercentChange: Joi.number().unsafe().allow(null),
           tokenCount: Joi.number().description("Total tokens within the collection."),
           ownerCount: Joi.number().description("Unique number of owners."),
@@ -169,7 +177,7 @@ export async function getCollectionsMetadata(
   floorAskPercentChange?: Period
 ) {
   const collectionIds = collectionsResult.map((collection: any) => collection.id);
-  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v6:${id}`);
+  const collectionsToFetch = collectionIds.map((id: string) => `collection-cache:v7:${id}`);
   const batches = chunk(collectionsToFetch, REDIS_BATCH_SIZE);
   const tasks = batches.map(async (batch) => redis.mget(batch));
   const results = await Promise.all(tasks);
@@ -243,9 +251,13 @@ export async function getCollectionsMetadata(
       collections.top_buy_value,
       collections.top_buy_maker,
       collections.top_buy_valid_between,
-
+      tb.*,
+      DATE_PART('epoch', LOWER(collections.top_buy_valid_between)) AS top_buy_valid_from,
+      COALESCE(
+        NULLIF(DATE_PART('epoch', UPPER(collections.top_buy_valid_between)), 'Infinity'),
+        0
+      ) AS top_buy_valid_until,
       collections.top_buy_source_id_int,
-
       ARRAY( 
         SELECT 
         tokens.image
@@ -254,16 +266,8 @@ export async function getCollectionsMetadata(
           ORDER BY rarity_rank DESC NULLS LAST 
           LIMIT 4 
         ) AS sample_images,
-
-      (
-            SELECT
-              COUNT(*)
-            FROM tokens
-            WHERE tokens.collection_id = collections.id
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS on_sale_count
+      collections.on_sale_count
     FROM collections
-
     LEFT JOIN LATERAL (
       SELECT
         orders.currency AS floor_sell_currency,
@@ -272,6 +276,17 @@ export async function getCollectionsMetadata(
       FROM orders
       WHERE orders.id = collections.floor_sell_id
     ) y ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT
+        orders.currency AS top_buy_currency,
+        orders.price AS top_buy_price,
+        orders.currency_price AS top_buy_currency_price,
+        orders.normalized_value AS top_buy_normalized_value,
+        orders.currency_value AS top_buy_currency_value,
+        orders.currency_normalized_value AS top_buy_currency_normalized_value
+      FROM orders
+      WHERE orders.id = collections.top_buy_id
+    ) tb ON TRUE
     WHERE collections.id IN (${collectionIdList})
   `;
 
@@ -279,7 +294,14 @@ export async function getCollectionsMetadata(
 
     // need to convert buffers before saving to redis
     collectionMetadataResponse = collectionMetadataResponse.map((metadata: any) => {
-      const { contract, floor_sell_currency, metadata_disabled, ...rest } = metadata;
+      const {
+        contract,
+        floor_sell_currency,
+        top_buy_currency,
+        top_buy_maker,
+        metadata_disabled,
+        ...rest
+      } = metadata;
 
       return getJoiCollectionObject(
         {
@@ -288,6 +310,10 @@ export async function getCollectionsMetadata(
           floor_sell_currency: floor_sell_currency
             ? fromBuffer(floor_sell_currency)
             : Sdk.Common.Addresses.Native[config.chainId],
+          top_buy_currency: top_buy_currency
+            ? fromBuffer(top_buy_currency)
+            : Sdk.Common.Addresses.Native[config.chainId],
+          top_buy_maker: top_buy_maker ? fromBuffer(top_buy_maker) : null,
         },
         metadata_disabled
       );
@@ -295,8 +321,8 @@ export async function getCollectionsMetadata(
 
     const commands = flatMap(collectionMetadataResponse, (metadata: any) => {
       return [
-        ["set", `collection-cache:v6:${metadata.id}`, JSON.stringify(metadata)],
-        ["expire", `collection-cache:v6:${metadata.id}`, REDIS_EXPIRATION],
+        ["set", `collection-cache:v7:${metadata.id}`, JSON.stringify(metadata)],
+        ["expire", `collection-cache:v7:${metadata.id}`, REDIS_EXPIRATION],
       ];
     });
 
@@ -449,6 +475,35 @@ async function formatCollections(
         banner: metadata?.metadata?.bannerImageUrl,
         description: metadata?.metadata?.description,
         floorAsk,
+        topBid: {
+          id: metadata.top_buy_id,
+          sourceDomain: metadata.top_buy_id
+            ? sources.get(metadata.top_buy_source_id_int)?.domain
+            : null,
+          price:
+            metadata.top_buy_id && metadata.top_buy_value
+              ? await getJoiPriceObject(
+                  {
+                    net: {
+                      amount: normalizeRoyalties
+                        ? metadata.top_buy_currency_normalized_value ?? metadata.top_buy_value
+                        : metadata.top_buy_currency_value ?? metadata.top_buy_value,
+                      nativeAmount: normalizeRoyalties
+                        ? metadata.top_buy_normalized_value ?? metadata.top_buy_value
+                        : metadata.top_buy_value,
+                    },
+                    gross: {
+                      amount: metadata.top_buy_currency_price ?? metadata.top_buy_price,
+                      nativeAmount: metadata.top_buy_price,
+                    },
+                  },
+                  metadata.top_buy_currency
+                )
+              : null,
+          maker: metadata.top_buy_maker,
+          validFrom: metadata.top_buy_valid_from,
+          validUntil: metadata.top_buy_value ? metadata.top_buy_valid_until : null,
+        },
       };
     })
   );

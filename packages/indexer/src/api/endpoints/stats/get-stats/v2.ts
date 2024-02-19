@@ -399,11 +399,7 @@ export const getStatsV2Options: RouteOptions = {
             "c"."top_buy_value",
             "c"."top_buy_maker",
             "x"."image_version",
-            (
-              SELECT COUNT(*) FROM "tokens"
-              WHERE "collection_id" = $/collection/
-                AND "floor_sell_value" IS NOT NULL
-            ) AS "on_sale_count",
+            "c"."on_sale_count",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/

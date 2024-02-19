@@ -83,6 +83,7 @@ export class ProcessConsecutiveTransferJob extends AbstractRabbitMqJobHandler {
           contract: baseEventParams.address,
           tokenId,
           mintedTimestamp: baseEventParams.timestamp,
+          context: this.queueName,
         });
         onChainData.mints.push({
           by: "tx",

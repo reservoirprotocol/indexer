@@ -419,36 +419,46 @@ export const getExecuteSellV7Options: RouteOptions = {
           ? await getPersistentPermit(order.rawData.permitId, order.rawData.permitIndex ?? 0)
           : undefined;
 
-        bidDetails.push(
-          await generateBidDetailsV6(
-            {
-              id: order.id,
-              kind: order.kind,
-              unitPrice: order.price,
-              rawData: order.rawData,
-              currency: order.currency,
-              source: source || undefined,
-              fees: additionalFees,
-              builtInFeeBps: builtInFees.map(({ bps }) => bps).reduce((a, b) => a + b, 0),
-              isProtected:
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (order.rawData as any).zone ===
-                Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId],
-            },
-            {
-              kind: token.kind,
-              contract: token.contract,
-              tokenId: token.tokenId,
-              amount: token.quantity,
-              owner: token.owner,
-            },
-            payload.taker,
-            {
-              permit,
-              ppV2TrustedChannel: payload.forwarderChannel,
-            }
-          )
-        );
+        try {
+          bidDetails.push(
+            await generateBidDetailsV6(
+              {
+                id: order.id,
+                kind: order.kind,
+                unitPrice: order.price,
+                rawData: order.rawData,
+                currency: order.currency,
+                source: source || undefined,
+                fees: additionalFees,
+                builtInFeeBps: builtInFees.map(({ bps }) => bps).reduce((a, b) => a + b, 0),
+                isProtected:
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (order.rawData as any).zone ===
+                  Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId],
+              },
+              {
+                kind: token.kind,
+                contract: token.contract,
+                tokenId: token.tokenId,
+                amount: token.quantity,
+                owner: token.owner,
+              },
+              payload.taker,
+              {
+                permit,
+                ppV2TrustedChannel: payload.forwarderChannel,
+              }
+            )
+          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (error: any) {
+          // Remove the last path item
+          path = path.slice(0, -1);
+
+          if (!payload.partial) {
+            throw getExecuteError(error.message ?? "Could not generate calldata");
+          }
+        }
       };
 
       const items: {
@@ -1332,6 +1342,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
+      let hasSeparateSwaps = false;
       for (const { txData, txTags, orderIds, preSignatures } of txs) {
         // Handle pre-signatures
         const signaturesPaymentProcessor: string[] = [];
@@ -1375,8 +1386,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           txData.data = exchange.attachTakerSignatures(txData.data, signaturesPaymentProcessor);
         }
 
-        // Need a separate step for the swap transactions
-        if (txTags?.swaps) {
+        // Need a separate step for the swap-only transactions
+        if (txTags && Object.keys(txTags).length === 1 && Object.keys(txTags)[0] === "swaps") {
           steps[6].items.push({
             status: "incomplete",
             orderIds,
@@ -1389,6 +1400,8 @@ export const getExecuteSellV7Options: RouteOptions = {
               : undefined,
             gasEstimate: txTags ? estimateGasFromTxTags(txTags) : undefined,
           });
+
+          hasSeparateSwaps = true;
         } else {
           steps[5].items.push({
             status: "incomplete",
@@ -1418,6 +1431,9 @@ export const getExecuteSellV7Options: RouteOptions = {
       if (!bidDetails.some((d) => d.kind === "payment-processor")) {
         // For now, pre-signatures are only needed for `payment-processor` orders
         steps = steps.filter((s) => s.id !== "pre-signatures");
+      }
+      if (!hasSeparateSwaps) {
+        steps = steps.filter((s) => s.id !== "swap");
       }
 
       const executionsBuffer = new ExecutionsBuffer();

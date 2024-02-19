@@ -300,11 +300,7 @@ export const getStatsV1Options: RouteOptions = {
             "c"."top_buy_value",
             "c"."top_buy_maker",
             "x"."image_version",
-            (
-              SELECT COUNT(*) FROM "tokens"
-              WHERE "collection_id" = $/collection/
-                AND "floor_sell_value" IS NOT NULL
-            ) AS "on_sale_count",
+            "c"."on_sale_count",
             array(
               SELECT "t"."image" FROM "tokens" "t"
               WHERE "t"."collection_id" = $/collection/

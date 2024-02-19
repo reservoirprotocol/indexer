@@ -74,8 +74,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         [
           paymentProcessorV2.PaymentSettings.DefaultPaymentMethodWhitelist,
           paymentProcessorV2.PaymentSettings.CustomPaymentMethodWhitelist,
-        ].includes(settings.paymentSettings) &&
-        order.params.paymentMethod !== Sdk.Common.Addresses.Native[config.chainId]
+        ].includes(settings.paymentSettings)
       ) {
         if (settings.whitelistedPaymentMethods) {
           const paymentMethodWhitelist = settings.whitelistedPaymentMethods.includes(
@@ -460,6 +459,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         const replacedOrderResult = await idb.oneOrNone(
           `
             SELECT
+              orders.id,
               orders.raw_data
             FROM orders
             WHERE orders.id = $/id/
@@ -472,7 +472,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         if (
           replacedOrderResult &&
           // Replacement is only possible if the replaced order is an off-chain cancellable order
-          replacedOrderResult.raw_data.cosigner?.toLowerCase() !== cosigner().address.toLowerCase()
+          replacedOrderResult.raw_data.cosigner?.toLowerCase() === cosigner().address.toLowerCase()
         ) {
           const rawOrder = new Sdk.PaymentProcessorV2.Order(
             config.chainId,
@@ -561,6 +561,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_price",
         "currency_value",
         "needs_conversion",
+        "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",

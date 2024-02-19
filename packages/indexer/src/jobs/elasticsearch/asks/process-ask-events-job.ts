@@ -55,11 +55,10 @@ export default class ProcessAskEventsJob extends AbstractRabbitMqJobHandler {
           logger.error(
             this.queueName,
             JSON.stringify({
-              topic: "save-errors",
-              data: {
-                bulkOps: JSON.stringify(bulkOps),
-              },
-              response,
+              topic: "debugStaleAsks",
+              message: "Bulk Response Errors",
+              bulkOps: JSON.stringify(bulkOps),
+              response: JSON.stringify(response),
             })
           );
         }

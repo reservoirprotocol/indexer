@@ -3,6 +3,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
+import { Mutex, withTimeout } from "async-mutex";
 
 import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
@@ -10,7 +11,7 @@ import { redis } from "@/common/redis";
 import { toBuffer, bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { isNonceCancelled } from "@/orderbook/orders/common/helpers";
-import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
+import { Royalty, refreshDefaultRoyalties, updateRoyaltySpec } from "@/utils/royalties";
 
 export enum PaymentSettings {
   DefaultPaymentMethodWhitelist = 0,
@@ -87,7 +88,7 @@ export const getConfigByContract = async (
         blockTradesFromUntrustedChannels: paymentSettings.blockTradesFromUntrustedChannels,
         blockBannedAccounts: paymentSettings.blockBannedAccounts,
         whitelistedPaymentMethods:
-          paymentSettings.paymentMethodWhitelistId === 0
+          paymentSettings.paymentSettings === PaymentSettings.DefaultPaymentMethodWhitelist
             ? await getDefaultPaymentMethods()
             : await getPaymentMethods(paymentSettings.paymentMethodWhitelistId, refresh),
       };
@@ -250,74 +251,88 @@ export const checkAccountIsBanned = async (token: string, account: string) => {
 
 // Backfilled royalties
 
-export const saveBackfilledRoyalties = async (tokenAddress: string, royalties: Royalty[]) =>
-  updateRoyaltySpec(
+export const saveBackfilledRoyalties = async (tokenAddress: string, royalties: Royalty[]) => {
+  await updateRoyaltySpec(
     tokenAddress,
     "pp-v2-backfill",
     royalties.some((r) => r.recipient !== AddressZero) ? royalties : undefined
   );
+  await refreshDefaultRoyalties(tokenAddress);
+};
 
 // Nonce tracking
 
+// The execution of the below method should happen atomically, pr otherwise
+// we could have multiple orders sharing the same nonce (which means only a
+// single one of these orders will actually be fillable - nonces are unique
+// per order)
+
+const mutex = withTimeout(new Mutex(), 5000);
 export const getAndIncrementUserNonce = async (
   user: string,
   marketplace: string
 ): Promise<string | undefined> => {
-  let nextNonce = await idb
-    .oneOrNone(
-      `
-        SELECT
-          payment_processor_v2_user_nonces.nonce
-        FROM payment_processor_v2_user_nonces
-        WHERE payment_processor_v2_user_nonces.user = $/user/
-          AND payment_processor_v2_user_nonces.marketplace = $/marketplace/
-      `,
-      {
-        user: toBuffer(user),
-        marketplace: toBuffer(marketplace),
+  return mutex
+    .runExclusive(async () => {
+      let nextNonce = await idb
+        .oneOrNone(
+          `
+            SELECT
+              payment_processor_v2_user_nonces.nonce
+            FROM payment_processor_v2_user_nonces
+            WHERE payment_processor_v2_user_nonces.user = $/user/
+              AND payment_processor_v2_user_nonces.marketplace = $/marketplace/
+          `,
+          {
+            user: toBuffer(user),
+            marketplace: toBuffer(marketplace),
+          }
+        )
+        .then((r) => r?.nonce ?? "0");
+
+      const shiftedMarketplaceId = bn("0x" + marketplace.slice(-8).padEnd(64, "0"));
+      nextNonce = shiftedMarketplaceId.add(nextNonce).toString();
+
+      // At most 20 attempts
+      let foundValidNonce = false;
+      for (let i = 0; i < 20; i++) {
+        const isCancelled = await isNonceCancelled("payment-processor-v2", user, nextNonce);
+        if (isCancelled) {
+          nextNonce = bn(nextNonce).add(1).toString();
+        } else {
+          foundValidNonce = true;
+          break;
+        }
       }
-    )
-    .then((r) => r?.nonce ?? "0");
 
-  const shiftedMarketplaceId = bn("0x" + marketplace.slice(-8).padEnd(64, "0"));
-  nextNonce = shiftedMarketplaceId.add(nextNonce).toString();
+      if (!foundValidNonce) {
+        return undefined;
+      }
 
-  // At most 20 attempts
-  let foundValidNonce = false;
-  for (let i = 0; i < 20; i++) {
-    const isCancelled = await isNonceCancelled("payment-processor-v2", user, nextNonce);
-    if (isCancelled) {
-      nextNonce = bn(nextNonce).add(1).toString();
-    } else {
-      foundValidNonce = true;
-      break;
-    }
-  }
+      await idb.none(
+        `
+          INSERT INTO payment_processor_v2_user_nonces (
+            "user",
+            marketplace,
+            nonce
+          ) VALUES (
+            $/user/,
+            $/marketplace/,
+            $/nonce/
+          ) ON CONFLICT ("user", marketplace) DO UPDATE SET
+            nonce = $/nonce/,
+            updated_at = now()
+        `,
+        {
+          user: toBuffer(user),
+          marketplace: toBuffer(marketplace),
+          nonce: bn(nextNonce).add(1).sub(shiftedMarketplaceId).toString(),
+        }
+      );
 
-  if (!foundValidNonce) {
-    return undefined;
-  }
-
-  await idb.none(
-    `
-      INSERT INTO payment_processor_v2_user_nonces (
-        "user",
-        marketplace,
-        nonce
-      ) VALUES (
-        $/user/,
-        $/marketplace/,
-        $/nonce/
-      ) ON CONFLICT ("user", marketplace) DO UPDATE SET
-        nonce = $/nonce/,
-        updated_at = now()
-    `,
-    {
-      user: toBuffer(user),
-      marketplace: toBuffer(marketplace),
-      nonce: bn(nextNonce).add(1).sub(shiftedMarketplaceId).toString(),
-    }
-  );
-
-  return nextNonce;
+      return nextNonce;
+    })
+    .catch(() => {
+      return undefined;
+    });
 };

@@ -124,10 +124,20 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
               data: payload.after,
             },
           ]);
+
+          await processAskEventJob.addToQueue(
+            [
+              {
+                kind: EventKind.SellOrderInactive,
+                data: payload.after,
+              },
+            ],
+            60000
+          );
         }
       } catch (error) {
         logger.error(
-          "kafka-event-handler",
+          "IndexerOrdersHandler",
           JSON.stringify({
             topic: "debugAskIndex",
             message: `Handle ask error. error=${error}`,
@@ -178,7 +188,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                    method: metadataIndexFetchJob.getIndexingMethod(collection),
                     contract,
                     tokenId,
                     collection: collection?.id || contract,

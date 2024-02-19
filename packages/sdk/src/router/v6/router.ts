@@ -542,9 +542,16 @@ export class Router {
             });
           }
         }
+
+        // Ensure approvals are unique
+        const uniqueApprovals = uniqBy(
+          approvals,
+          ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+        );
+
         if (useSweepCollection) {
           txs.push({
-            approvals,
+            approvals: uniqueApprovals,
             permits: [],
             txTags: {
               listings: { "payment-processor-v2": orders.length },
@@ -560,7 +567,7 @@ export class Router {
           });
         } else {
           txs.push({
-            approvals,
+            approvals: uniqueApprovals,
             permits: [],
             txTags: {
               listings: { "payment-processor-v2": orders.length },
@@ -657,6 +664,12 @@ export class Router {
         }
       }
 
+      // Ensure approvals are unique
+      const uniqueApprovals = uniqBy(
+        approvals,
+        ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+      );
+
       const preSignatures: PreSignature[] = [];
       const orders: Sdk.PaymentProcessor.Order[] = blockedPaymentProcessorDetails.map(
         (c) => c.order as Sdk.PaymentProcessor.Order
@@ -688,7 +701,7 @@ export class Router {
         });
 
         txs.push({
-          approvals,
+          approvals: uniqueApprovals,
           permits: [],
           txTags: {
             listings: { "payment-processor": orders.length },
@@ -717,7 +730,7 @@ export class Router {
         }
 
         txs.push({
-          approvals,
+          approvals: uniqueApprovals,
           permits: [],
           txTags: {
             listings: { "payment-processor": orders.length },
@@ -1333,19 +1346,25 @@ export class Router {
     }[] = [];
 
     // Keep track of tags for the router execution
-    const routerTxTags: TxTags = {
-      listings: {},
-      bids: {},
-      mints: 0,
-      swaps: 0,
-      feesOnTop: 0,
-    };
+    const routerTxTags: TxTags = {};
     const addRouterTags = (orderKind: string, numListings: number, numFeesOnTop: number) => {
-      if (!routerTxTags.listings![orderKind]) {
-        routerTxTags.listings![orderKind] = 0;
+      if (!routerTxTags.listings) {
+        routerTxTags.listings = {};
       }
-      routerTxTags.listings![orderKind] += numListings;
-      routerTxTags.feesOnTop! += numFeesOnTop;
+
+      if (numListings) {
+        if (!routerTxTags.listings![orderKind]) {
+          routerTxTags.listings![orderKind] = 0;
+        }
+        routerTxTags.listings![orderKind] += numListings;
+      }
+
+      if (numFeesOnTop) {
+        if (!routerTxTags.feesOnTop) {
+          routerTxTags.feesOnTop = 0;
+        }
+        routerTxTags.feesOnTop! += numFeesOnTop;
+      }
     };
 
     // Handle Element ERC721 listings
@@ -3478,7 +3497,9 @@ export class Router {
     executions = executions.filter((_, i) => !unsuccessfulDependentExecutionIndexes.includes(i));
     txs = txs.filter((_, i) => !unsuccessfulDependentTxIndexes.includes(i));
 
-    routerTxTags.swaps! += successfulSwapInfos.length;
+    if (successfulSwapInfos.length) {
+      routerTxTags.swaps = successfulSwapInfos.length;
+    }
 
     if (executions.length || successfulSwapInfos.length) {
       // Prepend any swap executions
@@ -4034,19 +4055,25 @@ export class Router {
     }[] = [];
 
     // Keep track of tags for the router execution
-    const routerTxTags: TxTags = {
-      listings: {},
-      bids: {},
-      mints: 0,
-      swaps: 0,
-      feesOnTop: 0,
-    };
+    const routerTxTags: TxTags = {};
     const addRouterTags = (orderKind: string, numBids: number, numFeesOnTop: number) => {
-      if (!routerTxTags.bids![orderKind]) {
-        routerTxTags.bids![orderKind] = 0;
+      if (!routerTxTags.bids) {
+        routerTxTags.bids = {};
       }
-      routerTxTags.bids![orderKind] += numBids;
-      routerTxTags.feesOnTop! += numFeesOnTop;
+
+      if (numBids) {
+        if (!routerTxTags.bids![orderKind]) {
+          routerTxTags.bids![orderKind] = 0;
+        }
+        routerTxTags.bids![orderKind] += numBids;
+      }
+
+      if (numFeesOnTop) {
+        if (!routerTxTags.feesOnTop) {
+          routerTxTags.feesOnTop = 0;
+        }
+        routerTxTags.feesOnTop! += numFeesOnTop;
+      }
     };
 
     // We aggregate all protected offers and fill them together
@@ -5176,6 +5203,7 @@ export class Router {
 
       txs.push({
         approvals: [],
+        // Ensure approvals are unique
         ftApprovals: uniqBy(
           ftApprovals,
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`

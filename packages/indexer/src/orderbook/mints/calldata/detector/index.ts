@@ -160,6 +160,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     return [];
   }
 
+  // Make sure every mint in the transaction goes to the same recipient
+  const recipient = transfers[0].to;
+  if (!transfers.every((t) => t.to === recipient)) {
+    return [];
+  }
+
   // Make sure something was actually minted
   const amountMinted = transfers.map((t) => bn(t.amount)).reduce((a, b) => bn(a).add(b));
   if (amountMinted.eq(0)) {
@@ -295,7 +301,8 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
     collection,
     tx,
     pricePerAmountMinted,
-    amountMinted
+    amountMinted,
+    recipient
   );
   if (genericResults.length) {
     return genericResults;

@@ -58,6 +58,7 @@ interface CollectionInfo {
   metadata_disabled?: number;
   created_at: string;
   updated_at: string;
+  on_sale_count: number;
 }
 
 export type CollectionWebsocketEventInfo = {
@@ -98,6 +99,7 @@ const changedMapping = {
   top_buy_id: "topBid.id",
   top_buy_value: "topBid.value",
   metadata_disabled: "metadataDisabled",
+  on_sale_count: "onSaleCount",
 };
 
 export type CollectionWebsocketEventsTriggerQueuePayload = {
@@ -333,6 +335,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           },
           createdAt: new Date(data.after.created_at).toISOString(),
           updatedAt: new Date(data.after.updated_at).toISOString(),
+          onSaleCount: String(data.after.on_sale_count),
         },
       });
     } catch (error) {

@@ -66,7 +66,15 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
               collections.image_version,
               collections.contract,
+              contracts.symbol AS "contract_symbol",
               collections.creator,
+              collections.day1_rank,
+              collections.day7_rank,
+              collections.day30_rank,
+              collections.all_time_rank,
+              collections.day1_volume,
+              collections.day7_volume,
+              collections.day30_volume,
               collections.all_time_volume,
               collections.is_spam,
               collections.nsfw_status,
@@ -79,6 +87,7 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
               orders.currency_price AS floor_sell_currency_price,
               extract(epoch from collections.updated_at) AS updated_ts
             FROM collections
+            JOIN contracts ON contracts.address = collections.contract
             LEFT JOIN orders ON orders.id = collections.floor_sell_id
             ${continuationFilter}
             ${fromTimestampFilter}
@@ -97,30 +106,49 @@ export class BackfillCollectionsElasticsearchJob extends AbstractRabbitMqJobHand
         const builder = new CollectionDocumentBuilder();
 
         for (const rawResult of rawResults) {
-          const documentId = `${config.chainId}:${rawResult.id}`;
+          try {
+            const documentId = `${config.chainId}:${rawResult.id}`;
 
-          const document = await builder.buildDocument({
-            id: rawResult.id,
-            created_at: new Date(rawResult.created_at),
-            contract: rawResult.contract,
-            name: rawResult.name,
-            slug: rawResult.slug,
-            image: rawResult.image,
-            community: rawResult.community,
-            token_count: rawResult.token_count,
-            metadata_disabled: rawResult.metadata_disabled,
-            is_spam: rawResult.is_spam,
-            nsfw_status: rawResult.nsfw_status,
-            all_time_volume: rawResult.all_time_volume,
-            floor_sell_id: rawResult.floor_sell_id,
-            floor_sell_value: rawResult.floor_sell_value,
-            floor_sell_currency: rawResult.floor_sell_currency,
-            floor_sell_currency_price: rawResult.floor_sell_currency_price,
-            opensea_verification_status: rawResult.opensea_verification_status,
-            image_version: rawResult.image_version,
-          });
+            const document = await builder.buildDocument({
+              id: rawResult.id,
+              created_at: new Date(rawResult.created_at),
+              contract: rawResult.contract,
+              contract_symbol: rawResult.contract_symbol,
+              name: rawResult.name,
+              slug: rawResult.slug,
+              image: rawResult.image,
+              community: rawResult.community,
+              token_count: rawResult.token_count,
+              metadata_disabled: rawResult.metadata_disabled,
+              is_spam: rawResult.is_spam,
+              nsfw_status: rawResult.nsfw_status,
+              day1_rank: rawResult.day1_rank,
+              day7_rank: rawResult.day7_rank,
+              day30_rank: rawResult.day30_rank,
+              all_time_rank: rawResult.all_time_rank,
+              day1_volume: rawResult.day1_volume,
+              day7_volume: rawResult.day7_volume,
+              day30_volume: rawResult.day30_volume,
+              all_time_volume: rawResult.all_time_volume,
+              floor_sell_id: rawResult.floor_sell_id,
+              floor_sell_value: rawResult.floor_sell_value,
+              floor_sell_currency: rawResult.floor_sell_currency,
+              floor_sell_currency_price: rawResult.floor_sell_currency_price,
+              opensea_verification_status: rawResult.opensea_verification_status,
+              image_version: rawResult.image_version,
+            });
 
-          collectionEvents.push({ kind: "index", _id: documentId, document });
+            collectionEvents.push({ kind: "index", _id: documentId, document });
+          } catch (error) {
+            logger.error(
+              this.queueName,
+              JSON.stringify({
+                message: `buildDocument Error. documentId=${rawResult.id}, error=${error}`,
+                rawResult,
+                error,
+              })
+            );
+          }
         }
 
         const lastResult = rawResults[rawResults.length - 1];

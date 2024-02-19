@@ -33,6 +33,22 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
     return null;
   }
 
+  async isAskActive(): Promise<boolean | null> {
+    return idb.oneOrNone(
+      `
+          SELECT 1 FROM orders 
+          WHERE 
+            orders.side = 'sell' 
+            AND orders.id = $/orderId/
+            AND orders.fillability_status = 'fillable' 
+            AND orders.approval_status = 'approved'
+        `,
+      {
+        orderId: this.orderId,
+      }
+    );
+  }
+
   public static buildBaseQuery(onlyActive = true) {
     const orderCriteriaSelectQueryPart = Orders.buildCriteriaQuery(
       "orders",
@@ -125,7 +141,6 @@ export class AskCreatedEventHandler extends BaseAskEventHandler {
                 ? `AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`
                 : ""
             }
-            AND orders.kind != 'element-erc1155' AND orders.kind != 'element-erc721'
                  `;
   }
 

@@ -230,6 +230,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           contract: baseEventParams.address,
           tokenId,
           mintedTimestamp: baseEventParams.timestamp,
+          context: "cryptopunks",
         });
 
         break;

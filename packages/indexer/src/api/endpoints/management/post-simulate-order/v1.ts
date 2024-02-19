@@ -62,6 +62,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         Network.Polygon,
         Network.Mumbai,
         Network.Arbitrum,
+        Network.ArbitrumNova,
         Network.Optimism,
         Network.Base,
         Network.Zora,
@@ -317,6 +318,21 @@ export const postSimulateOrderV1Options: RouteOptions = {
         });
 
         if (response.statusCode !== 200) {
+          logger.info(
+            "debug",
+            JSON.stringify({
+              payload: {
+                items: [{ orderId: id }],
+                taker,
+                skipBalanceCheck,
+                currency: Sdk.Common.Addresses.Native[config.chainId],
+                allowInactiveOrderIds: true,
+              },
+              response: response.payload,
+              status: response.statusCode,
+            })
+          );
+
           return { message: "Simulation failed" };
         }
 

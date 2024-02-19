@@ -147,7 +147,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetchJob.getIndexingMethod(collection?.community || null),
+              method: metadataIndexFetchJob.getIndexingMethod(collection),
               contract,
               tokenId,
               collection: collection?.id || contract,

@@ -24,7 +24,6 @@ import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import * as erc721c from "@/utils/erc721c";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
-import { redis } from "@/common/redis";
 
 const version = "v7";
 
@@ -357,18 +356,6 @@ export const getCollectionsV7Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-    let cacheKey = "";
-
-    if (
-      _.includes(["0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0"], query.contract) &&
-      request.raw.req.url
-    ) {
-      cacheKey = request.raw.req.url;
-      const cachedData = await redis.get(cacheKey);
-      if (cachedData && cacheKey === request.raw.req.url) {
-        return JSON.parse(cachedData);
-      }
-    }
 
     try {
       // Include attributes
@@ -528,13 +515,7 @@ export const getCollectionsV7Options: RouteOptions = {
           collections.top_buy_id,
           collections.top_buy_maker,        
           collections.minted_timestamp,
-          (
-            SELECT
-              COUNT(*)
-            FROM tokens
-            WHERE tokens.collection_id = collections.id
-              AND tokens.floor_sell_value IS NOT NULL
-          ) AS on_sale_count,
+          collections.on_sale_count,
           ARRAY(
             SELECT
               tokens.image
@@ -1087,18 +1068,6 @@ export const getCollectionsV7Options: RouteOptions = {
             }
           }
         }
-      }
-
-      if (cacheKey) {
-        await redis.set(
-          cacheKey,
-          JSON.stringify({
-            collections,
-            continuation: continuation ? continuation : undefined,
-          }),
-          "EX",
-          60
-        );
       }
 
       return {

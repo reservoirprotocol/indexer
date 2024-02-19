@@ -90,21 +90,23 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    const tokenMetadataIndexingDebug = await redis.sismember(
-      "metadata-indexing-debug-contracts",
-      contract
-    );
-
-    if (tokenMetadataIndexingDebug) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "tokenMetadataIndexingDebug",
-          message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
-          payload,
-          metadataMethod,
-        })
+    if (config.chainId === 1) {
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        contract
       );
+
+      if (tokenMetadataIndexingDebug) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "tokenMetadataIndexingDebug",
+            message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
+            payload,
+            metadataMethod,
+          })
+        );
+      }
     }
 
     if (metadataMethod === "simplehash") {
@@ -195,7 +197,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       {
         contract: toBuffer(contract),
         tokenId,
-        name: name || null,
+        name: _.isNull(name) ? null : `${name}`,
         description: description || null,
         image: imageUrl || null,
         tokenURI: tokenURI || null,

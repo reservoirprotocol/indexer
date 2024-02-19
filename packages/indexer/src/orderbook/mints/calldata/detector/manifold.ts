@@ -200,7 +200,7 @@ export const extractByCollectionERC721 = async (
                   bytes32 merkleRoot,
                   string location,
                   uint256 cost,
-                  address payable paymentReceiver,
+                  address paymentReceiver,
                   address erc20
                 ) claim
               )
@@ -258,8 +258,8 @@ export const extractByCollectionERC721 = async (
               tx: {
                 to: extension.toLowerCase(),
                 data: {
-                  // `mintBatch`
-                  signature: "0x26c858a4",
+                  // `mintProxy`
+                  signature: "0x07591acc",
                   params: [
                     {
                       kind: "contract",
@@ -324,8 +324,8 @@ export const extractByCollectionERC721 = async (
               tx: {
                 to: extension.toLowerCase(),
                 data: {
-                  // `mintBatch`
-                  signature: "0x26c858a4",
+                  // `mintProxy`
+                  signature: "0x07591acc",
                   params: [
                     {
                       kind: "contract",
@@ -553,8 +553,8 @@ export const extractByCollectionERC1155 = async (
               tx: {
                 to: extension.toLowerCase(),
                 data: {
-                  // `mintBatch`
-                  signature: "0x26c858a4",
+                  // `mintProxy`
+                  signature: "0x07591acc",
                   params: [
                     {
                       kind: "contract",
@@ -620,8 +620,8 @@ export const extractByCollectionERC1155 = async (
               tx: {
                 to: extension.toLowerCase(),
                 data: {
-                  // `mintBatch`
-                  signature: "0x26c858a4",
+                  // `mintProxy`
+                  signature: "0x07591acc",
                   params: [
                     {
                       kind: "contract",
@@ -693,11 +693,13 @@ export const extractByTx = async (
     [
       "0xfa2b068f", // `mint`
       "0x26c858a4", // `mintBatch`
+      "0x07591acc", // `mintProxy`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     const contractKind =
       (await commonHelpers.getContractKind(collection)) ?? (await getContractKind(collection));
 
+    // `mintBatch` and `mintProxy` have the same interface
     const instanceId = new Interface([
       "function mint(address creatorContractAddress, uint256 instanceId, uint32 mintIndex, bytes32[] calldata merkleProof, address mintFor)",
       "function mintBatch(address creatorContractAddress, uint256 instanceId, uint16 mintCount, uint32[] calldata mintIndices, bytes32[][] calldata merkleProofs, address mintFor)",

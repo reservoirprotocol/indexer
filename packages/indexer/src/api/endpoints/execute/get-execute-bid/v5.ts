@@ -595,12 +595,16 @@ export const getExecuteBidV5Options: RouteOptions = {
             params.orderKind = "looks-rare-v2";
           }
 
-          // Blacklist checks
-          if (collectionId) {
-            await checkBlacklistAndFallback(collectionId, params);
-          }
-          if (token) {
-            await checkBlacklistAndFallback(token.split(":")[0], params);
+          try {
+            // Blacklist checks
+            if (collectionId) {
+              await checkBlacklistAndFallback(collectionId, params);
+            }
+            if (token) {
+              await checkBlacklistAndFallback(token.split(":")[0], params);
+            }
+          } catch (error) {
+            return errors.push({ message: (error as any).message, orderIndex: i });
           }
 
           // Only single-contract token sets are biddable
@@ -1841,6 +1845,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           httpCode: error instanceof Boom.Boom ? error.output.statusCode : 500,
           error:
             error instanceof Boom.Boom ? error.output.payload : { error: "Internal Server Error" },
+          stack: (error as any).stack,
           apiKey,
         })
       );

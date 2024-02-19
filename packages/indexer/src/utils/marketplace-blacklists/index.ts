@@ -70,7 +70,7 @@ export const isBlockedByCustomLogic = async (
   if (refresh || !cache) {
     const iface = new Interface([
       "function registry() view returns (address)",
-      "function getWhitelistedOperators() view returns (address[])",
+      "function beforeTokenTransferHandler() view returns (address)",
     ]);
     const nft = new Contract(contract, iface, baseProvider);
 
@@ -88,6 +88,22 @@ export const isBlockedByCustomLogic = async (
 
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
       result = allowed.some((c) => !c);
+    } catch {
+      // Skip errors
+    }
+
+    // `beforeTokenTransferHandler()`
+    try {
+      const registry = new Contract(
+        await nft.beforeTokenTransferHandler(),
+        new Interface(["function getDenylistOperators() view returns (address[])"]),
+        baseProvider
+      );
+
+      const blockedOperators = await registry
+        .getDenylistOperators()
+        .then((ops: string[]) => ops.map((op) => op.toLowerCase()));
+      result = operators.every((c) => blockedOperators.includes(c));
     } catch {
       // Skip errors
     }

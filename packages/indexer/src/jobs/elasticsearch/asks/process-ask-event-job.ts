@@ -30,17 +30,19 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const { kind, data } = payload;
 
     const pendingAskEventsQueue = new PendingAskEventsQueue();
+    const askCreatedEventHandler = new AskCreatedEventHandler(data.id);
 
     if (kind === EventKind.SellOrderInactive) {
-      const id = new AskCreatedEventHandler(data.id).getAskId();
-
-      await pendingAskEventsQueue.add([{ info: { id }, kind: "delete" }]);
+      if (!(await askCreatedEventHandler.isAskActive())) {
+        const askDocumentId = askCreatedEventHandler.getAskId();
+        await pendingAskEventsQueue.add([{ info: { id: askDocumentId }, kind: "delete" }]);
+      }
     } else {
-      const askDocumentInfo = await new AskCreatedEventHandler(data.id).generateAsk();
+      const askDocumentInfo = await askCreatedEventHandler.generateAsk();
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
-      } else if (!["element-erc721", "element-erc1155"].includes(data.kind)) {
+      } else {
         const [, contract, tokenId] = data.token_set_id.split(":");
 
         const orderExists = await idb.oneOrNone(
@@ -66,7 +68,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetchJob.getIndexingMethod(collection?.community),
+                method: metadataIndexFetchJob.getIndexingMethod(collection),
                 contract,
                 tokenId,
                 collection: collection?.id || contract,

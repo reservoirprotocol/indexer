@@ -174,7 +174,7 @@ export const updatedCollectionPaymentSettings: EventData = {
   subKind: "payment-processor-v2-updated-collection-payment-settings",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xe6a4f8022c953d2d77979a9c33363936fafc1dcadec52ae9af45b6d3f17973d3",
-  numTopics: 2,
+  numTopics: 4,
   abi: new Interface([
     `event UpdatedCollectionPaymentSettings(
       address indexed tokenAddress,

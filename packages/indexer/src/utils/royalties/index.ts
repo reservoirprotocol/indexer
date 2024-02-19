@@ -3,6 +3,7 @@ import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { regex, toBuffer } from "@/common/utils";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import * as registry from "@/utils/royalties/registry";
 
 export type Royalty = {
@@ -236,6 +237,7 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   const royaltiesResult = await idb.oneOrNone(
     `
       SELECT
+        collections.royalties,
         COALESCE(collections.new_royalties, '{}') AS new_royalties
       FROM collections
       WHERE collections.id = $/collection/
@@ -252,22 +254,33 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
+  } else if (royaltiesResult.new_royalties["pp-v2-backfill"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["pp-v2-backfill"];
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
 
-  await idb.none(
-    `
-      UPDATE collections SET
-        royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/,
-        updated_at = now()
-      WHERE collections.id = $/id/
-    `,
-    {
-      id: collection,
-      royalties: defaultRoyalties,
-      royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
-    }
-  );
+  // Assume `JSON.stringify` is deterministic
+  if (JSON.stringify(royaltiesResult.royalties ?? {}) !== JSON.stringify(defaultRoyalties)) {
+    await idb.none(
+      `
+        UPDATE collections SET
+          royalties = $/royalties:json/,
+          royalties_bps = $/royaltiesBps/,
+          updated_at = now()
+        WHERE collections.id = $/id/
+      `,
+      {
+        id: collection,
+        royalties: defaultRoyalties,
+        royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
+      }
+    );
+
+    // Every time the royalties change we refresh all orders on the collection
+    // in order to cover the cases when the royalty change might result in the
+    // orders becoming unfillable (eg. `pp-v1` and `pp-v2` orders have the max
+    // royalty allowed to pay built into the order)
+    await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection } }]);
+  }
 };

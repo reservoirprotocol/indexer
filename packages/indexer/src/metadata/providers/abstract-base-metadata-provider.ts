@@ -80,20 +80,22 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
-        const tokenMetadataIndexingDebug = await redis.sismember(
-          "metadata-indexing-debug-contracts",
-          metadata.contract
-        );
-
-        if (tokenMetadataIndexingDebug) {
-          logger.info(
-            "getTokensMetadata",
-            JSON.stringify({
-              topic: "tokenMetadataIndexingDebug",
-              message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
-              metadata: JSON.stringify(metadata),
-            })
+        if (config.chainId === 1) {
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
+            metadata.contract
           );
+
+          if (tokenMetadataIndexingDebug) {
+            logger.info(
+              "getTokensMetadata",
+              JSON.stringify({
+                topic: "tokenMetadataIndexingDebug",
+                message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
+                metadata: JSON.stringify(metadata),
+              })
+            );
+          }
         }
 
         if (hasExtendHandler(metadata.contract)) {
@@ -108,10 +110,14 @@ export abstract class AbstractBaseMetadataProvider {
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
         try {
-          const tokenMetadataIndexingDebug = await redis.sismember(
-            "metadata-indexing-debug-contracts",
-            metadata.contract
-          );
+          let tokenMetadataIndexingDebug = 0;
+
+          if (config.chainId === 1) {
+            tokenMetadataIndexingDebug = await redis.sismember(
+              "metadata-indexing-debug-contracts",
+              metadata.contract
+            );
+          }
 
           if (
             metadata.imageUrl &&

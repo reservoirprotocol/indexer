@@ -215,7 +215,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
       await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
       if (refreshTokens) {
-        const method = metadataIndexFetchJob.getIndexingMethod(collection.community);
+        const method = metadataIndexFetchJob.getIndexingMethod(collection);
         const metadataIndexInfo: MetadataIndexFetchJobPayload = {
           kind: "full-collection",
           data: {

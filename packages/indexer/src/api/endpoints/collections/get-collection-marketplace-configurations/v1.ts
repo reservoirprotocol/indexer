@@ -277,7 +277,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               ),
             },
             "payment-processor": {
-              orderKind: "payment-processor",
+              orderKind: config.chainId === 11155111 ? "payment-processor-v2" : "payment-processor",
               enabled: true,
               customFeesSupported: true,
               numFeesSupported: 1,
