@@ -59,7 +59,8 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           "IndexerTokensHandler",
           JSON.stringify({
             topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
-            message: `normalizedFloorSellIdChanged. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            message: `normalizedFloorSellIdChanged. collectionId=${payload.after.collection_id}, contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            collectionId: payload.after.collection_id,
             contract: payload.after.contract,
             tokenId: payload.after.token_id,
             payload: JSON.stringify(payload),

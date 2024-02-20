@@ -134,7 +134,8 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${missingMetadataRefreshTokens.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+            message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${refreshTokensMetadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+            refreshTokens,
             missingMetadataRefreshTokens,
           })
         );

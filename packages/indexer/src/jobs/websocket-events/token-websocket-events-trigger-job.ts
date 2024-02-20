@@ -300,7 +300,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
             this.queueName,
             JSON.stringify({
               topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
-              message: `publishWebsocketEvent. contract=${contract}, tokenId=${tokenId}`,
+              message: `publishWebsocketEvent. collectionId=${data.after.collection_id}, contract=${contract}, tokenId=${tokenId}`,
+              collectionId: data.after.collection_id,
               contract,
               tokenId,
               data: JSON.stringify(data),
