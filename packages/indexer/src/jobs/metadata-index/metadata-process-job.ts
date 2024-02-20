@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
 import { config } from "@/config/index";
-import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
+import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
@@ -51,6 +51,27 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
     // If no more tokens
     if (_.isEmpty(refreshTokens)) {
       return;
+    }
+
+    const uniqueRefreshTokens: RefreshTokens[] = Object.values(
+      refreshTokens.reduce(
+        (acc, refreshToken) => ({
+          ...acc,
+          [`${refreshToken.contract}:${refreshToken.tokenId}`]: refreshToken,
+        }),
+        {}
+      )
+    );
+
+    if (uniqueRefreshTokens.length < refreshTokens.length) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Duplicate tokens. method=${method}, refreshTokensCount=${refreshTokens.length}`,
+          refreshTokens: JSON.stringify(refreshTokens),
+          uniqueRefreshTokens: JSON.stringify(uniqueRefreshTokens),
+        })
+      );
     }
 
     const refreshTokensChunks = _.chunk(refreshTokens, count);
@@ -105,26 +126,26 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     try {
       for (const refreshTokenMetadata of refreshTokensMetadata) {
-        const refreshToken = refreshTokens.find(
-          (refreshToken) =>
-            refreshTokenMetadata.contract === refreshToken.contract &&
-            refreshTokenMetadata.tokenId === refreshToken.tokenId
+        const uniqueRefreshToken = uniqueRefreshTokens.find(
+          (uniqueRefreshToken) =>
+            refreshTokenMetadata.contract === uniqueRefreshToken.contract &&
+            refreshTokenMetadata.tokenId === uniqueRefreshToken.tokenId
         );
 
-        if (refreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
+        if (uniqueRefreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
           logger.info(
             this.queueName,
             JSON.stringify({
-              message: `Fallback Refresh token missing image. method=${method}, contract=${refreshToken.contract}, tokenId=${refreshToken.tokenId}`,
-              refreshToken,
+              message: `Fallback Refresh token missing image. method=${method}, contract=${uniqueRefreshToken.contract}, tokenId=${uniqueRefreshToken.tokenId}`,
+              uniqueRefreshToken,
               refreshTokenMetadata: JSON.stringify(refreshTokenMetadata),
             })
           );
         }
       }
 
-      if (refreshTokensMetadata.length < refreshTokens.length) {
-        const missingMetadataRefreshTokens = refreshTokens.filter(
+      if (refreshTokensMetadata.length < uniqueRefreshTokens.length) {
+        const missingMetadataRefreshTokens = uniqueRefreshTokens.filter(
           (obj1) =>
             !refreshTokensMetadata.some(
               (obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId
@@ -134,8 +155,8 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${refreshTokensMetadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
-            refreshTokens: JSON.stringify(refreshTokens),
+            message: `Debug. method=${method}, refreshTokensCount=${uniqueRefreshTokens.length}, metadataCount=${refreshTokensMetadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+            uniqueRefreshTokens: JSON.stringify(uniqueRefreshTokens),
             missingMetadataRefreshTokens: JSON.stringify(missingMetadataRefreshTokens),
           })
         );
