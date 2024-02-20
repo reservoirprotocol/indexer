@@ -213,7 +213,8 @@ export class IndexerTokensHandler extends KafkaEventHandler {
                 context: "IndexerTokensHandler",
               },
             ],
-            true
+            true,
+            15
           );
         }
       }

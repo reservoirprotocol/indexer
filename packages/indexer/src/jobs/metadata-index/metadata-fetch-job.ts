@@ -28,6 +28,7 @@ export type MetadataIndexFetchJobPayload =
         collection: string;
         contract: string;
         tokenId: string;
+        isFallback?: boolean;
       };
       context?: string;
     };
@@ -133,6 +134,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         collection: data.collection,
         contract: data.contract,
         tokenId: data.tokenId,
+        isFallback: data.isFallback,
       });
     }
 
