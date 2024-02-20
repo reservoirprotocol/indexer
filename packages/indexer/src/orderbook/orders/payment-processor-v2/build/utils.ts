@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { cosigner } from "@/utils/offchain-cancel";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
-import { getRoyalties } from "@/utils/royalties";
+import { getRoyalties, hasRoyalties } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -66,7 +66,10 @@ export const getBuildInfo = async (
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
 
-  const onChainRoyalties = await getRoyalties(contract, undefined, "onchain");
+  // If no `onchain` royalties are set, default to `pp-v2-backfill`
+  const onChainRoyalties = (await hasRoyalties("onchain", contract))
+    ? await getRoyalties(contract, undefined, "onchain")
+    : await getRoyalties(contract, undefined, "pp-v2-backfill");
 
   const buildParams: BaseBuildParams = {
     protocol:

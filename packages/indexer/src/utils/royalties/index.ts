@@ -11,6 +11,34 @@ export type Royalty = {
   bps: number;
 };
 
+export const hasRoyalties = async (
+  spec: string,
+  contract: string,
+  tokenId?: string
+): Promise<boolean> => {
+  const royaltiesResult = await idb.oneOrNone(
+    `
+      SELECT
+        collections.new_royalties
+      FROM tokens
+      JOIN collections
+        ON tokens.collection_id = collections.id
+      WHERE tokens.contract = $/contract/
+        ${tokenId ? " AND tokens.token_id = $/tokenId/" : ""}
+      LIMIT 1
+    `,
+    {
+      contract: toBuffer(contract),
+      tokenId,
+    }
+  );
+  if (!royaltiesResult) {
+    return false;
+  }
+
+  return Boolean(royaltiesResult.new_royalties?.[spec]);
+};
+
 export const getRoyalties = async (
   contract: string,
   tokenId?: string,

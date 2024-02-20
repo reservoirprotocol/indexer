@@ -51,15 +51,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "payment-processor-v2-order-digest-invalidated": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderDigest"].toLowerCase();
-        const wasCancellation = parsedLog.args["wasCancellation"];
 
-        if (wasCancellation) {
-          onChainData.cancelEvents.push({
-            orderKind: "payment-processor-v2",
-            orderId,
-            baseEventParams,
-          });
-        }
+        onChainData.cancelEvents.push({
+          orderKind: "payment-processor-v2",
+          orderId,
+          baseEventParams,
+        });
 
         break;
       }

@@ -648,6 +648,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/collections/{collection}/marketplace-configurations/v2",
+    options: collectionsEndpoints.getCollectionMarketplaceConfigurationsV2Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections/nsfw-status/v1",
     options: collectionsEndpoints.postNsfwStatusCollectionV1Options,
