@@ -7,11 +7,6 @@ import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
-import {
-  metadataIndexFetchJob,
-  MetadataIndexFetchJobPayload,
-} from "@/jobs/metadata-index/metadata-fetch-job";
-import { incrEx } from "@/common/redis";
 
 export type MetadataIndexProcessJobPayload = {
   method: string;
@@ -99,86 +94,59 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
       )
     );
 
-    const RefreshTokensMetadata = results.flat(1);
+    const refreshTokensMetadata = results.flat(1);
 
     await metadataIndexWriteJob.addToQueue(
-      RefreshTokensMetadata.map((m) => ({
+      refreshTokensMetadata.map((m) => ({
         ...m,
         metadataMethod: method,
       }))
     );
 
     try {
-      for (const refreshTokensMetadata of RefreshTokensMetadata) {
+      for (const refreshTokenMetadata of refreshTokensMetadata) {
         const refreshToken = refreshTokens.find(
           (refreshToken) =>
-            refreshTokensMetadata.contract === refreshToken.contract &&
-            refreshTokensMetadata.tokenId === refreshToken.tokenId
+            refreshTokenMetadata.contract === refreshToken.contract &&
+            refreshTokenMetadata.tokenId === refreshToken.tokenId
         );
 
-        if (refreshToken?.isFallback && refreshTokensMetadata.imageUrl == null) {
+        if (refreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
           logger.info(
             this.queueName,
             JSON.stringify({
               message: `Fallback Refresh token missing image. method=${method}, contract=${refreshToken.contract}, tokenId=${refreshToken.tokenId}`,
-              refreshTokensMetadata,
+              refreshToken,
+              refreshTokenMetadata: JSON.stringify(refreshTokenMetadata),
             })
           );
         }
       }
 
-      if (RefreshTokensMetadata.length < refreshTokens.length) {
+      if (refreshTokensMetadata.length < refreshTokens.length) {
         const missingMetadataRefreshTokens = refreshTokens.filter(
           (obj1) =>
-            !RefreshTokensMetadata.some(
+            !refreshTokensMetadata.some(
               (obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId
             )
         );
 
-        if (missingMetadataRefreshTokens.length) {
-          const metadataIndexInfos: MetadataIndexFetchJobPayload[] = [];
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${missingMetadataRefreshTokens.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+            missingMetadataRefreshTokens,
+          })
+        );
 
-          for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
-            const missingMetadataRefreshTokenRetries = await incrEx(
-              `missing-metadata-refresh-token:${method}:${missingMetadataRefreshToken.contract}:${missingMetadataRefreshToken.tokenId}`,
-              300
-            );
-
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                message: `Missing refresh token from provider - Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
-                missingMetadataRefreshToken,
-                missingMetadataRefreshTokenRetries,
-              })
-            );
-
-            if (missingMetadataRefreshTokenRetries && missingMetadataRefreshTokenRetries <= 5) {
-              metadataIndexInfos.push({
-                kind: "single-token",
-                data: {
-                  method,
-                  collection: missingMetadataRefreshToken.collection,
-                  contract: missingMetadataRefreshToken.contract,
-                  tokenId: missingMetadataRefreshToken.tokenId,
-                },
-                context: this.queueName,
-              });
-            } else {
-              logger.warn(
-                this.queueName,
-                JSON.stringify({
-                  message: `Missing refresh token from provider - Stop Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
-                  missingMetadataRefreshToken,
-                  missingMetadataRefreshTokenRetries,
-                })
-              );
-            }
-          }
-
-          if (metadataIndexInfos.length) {
-            await metadataIndexFetchJob.addToQueue(metadataIndexInfos, true, 15);
-          }
+        for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
+              missingMetadataRefreshToken,
+            })
+          );
         }
       }
     } catch (error) {

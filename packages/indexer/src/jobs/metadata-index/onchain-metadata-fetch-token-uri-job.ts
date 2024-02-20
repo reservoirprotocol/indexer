@@ -151,7 +151,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
             context: this.queueName,
           })),
           true,
-          5
+          30
         );
       }
     }

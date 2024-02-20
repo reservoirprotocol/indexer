@@ -42,6 +42,32 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       return;
     }
 
+    const changed = [];
+
+    for (const key in payload.after) {
+      const beforeValue = payload.before[key];
+      const afterValue = payload.after[key];
+
+      if (beforeValue !== afterValue) {
+        changed.push(key);
+      }
+    }
+
+    if ([1, 11155111].includes(config.chainId) && config.debugWsApiKey) {
+      if (changed.some((value) => ["normalized_floor_sell_id"].includes(value))) {
+        logger.info(
+          "IndexerTokensHandler",
+          JSON.stringify({
+            topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
+            message: `normalizedFloorSellIdChanged. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            payload: JSON.stringify(payload),
+          })
+        );
+      }
+    }
+
     await WebsocketEventRouter({
       eventInfo: {
         before: payload.before,
@@ -53,18 +79,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     });
 
     try {
-      // Update the elasticsearch activities token cache
-      const changed = [];
-
-      for (const key in payload.after) {
-        const beforeValue = payload.before[key];
-        const afterValue = payload.after[key];
-
-        if (beforeValue !== afterValue) {
-          changed.push(key);
-        }
-      }
-
       try {
         // Update the elasticsearch activities token cache
         if (
@@ -89,7 +103,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         logger.error(
           "IndexerTokensHandler",
           JSON.stringify({
-            message: `failed to update activities token cache. collectionId=${payload.after.id}, error=${error}`,
+            message: `failed to update activities token cache. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, error=${error}`,
             error,
           })
         );
@@ -214,7 +228,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
               },
             ],
             true,
-            15
+            30
           );
         }
       }

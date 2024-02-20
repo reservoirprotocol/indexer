@@ -13,7 +13,7 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
   logger.info(
     "reservoir-websocket",
     JSON.stringify({
-      topic: "debugMissingSaleWsEvents",
+      topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
       message: `WebSocket connection start`,
     })
   );
@@ -22,7 +22,7 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
     logger.info(
       "reservoir-websocket",
       JSON.stringify({
-        topic: "debugMissingSaleWsEvents",
+        topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
         message: "WebSocket connection established",
       })
     );
@@ -35,10 +35,11 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
         ws.send(
           JSON.stringify({
             type: "subscribe",
-            event: "sale.created",
+            event: "token.updated",
+            changed: "market.floorAskNormalized.id",
           })
         );
-      } else if (messageJson.event === "sale.created") {
+      } else if (messageJson.event === "token.updated") {
         const eventData = messageJson.data;
 
         const ts2 = new Date(eventData.timestamp * 1000);
@@ -49,8 +50,8 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
         logger.info(
           "reservoir-websocket",
           JSON.stringify({
-            topic: "debugMissingSaleWsEvents",
-            message: `receivedSaleEvent. saleId=${eventData.id}`,
+            topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
+            message: `receivedEvent. contract=${eventData.contract}, tokenId=${eventData.tokenId}`,
             saleId: eventData.id,
             saleTimestamp: eventData.timestamp,
             txHash: eventData.txHash,
@@ -77,7 +78,7 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
     logger.info(
       "reservoir-websocket",
       JSON.stringify({
-        topic: "debugMissingSaleWsEvents",
+        topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
         message: `WebSocket connection closed. code=${code}, reason=${reason}, wsUrl=${wsUrl}`,
       })
     );
@@ -87,7 +88,7 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
     logger.error(
       "reservoir-websocket",
       JSON.stringify({
-        topic: "debugMissingSaleWsEvents",
+        topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
         message: `WebSocket error. error=${error.message}, wsUrl=${wsUrl}`,
       })
     );

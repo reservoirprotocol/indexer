@@ -294,6 +294,21 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         }
       }
 
+      if ([1, 11155111].includes(config.chainId) && config.debugWsApiKey) {
+        if (changed.some((value) => ["market.floorAskNormalized.id"].includes(value))) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
+              message: `publishWebsocketEvent. contract=${contract}, tokenId=${tokenId}`,
+              contract,
+              tokenId,
+              data: JSON.stringify(data),
+            })
+          );
+        }
+      }
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
