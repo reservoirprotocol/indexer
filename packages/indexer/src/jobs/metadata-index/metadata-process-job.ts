@@ -7,7 +7,7 @@ import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { RequestWasThrottledError } from "@/metadata/providers/utils";
-import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
+// import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
 export type MetadataIndexProcessJobPayload = {
   method: string;
@@ -97,39 +97,39 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     const metadata = results.flat(1);
 
-    if (metadata.length < refreshTokens.length) {
-      const missingMetadataRefreshTokens = refreshTokens.filter(
-        (obj1) =>
-          !metadata.some((obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId)
-      );
-
-      if (missingMetadataRefreshTokens.length) {
-        for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
-              missingMetadataRefreshToken,
-            })
-          );
-        }
-
-        await metadataIndexFetchJob.addToQueue(
-          missingMetadataRefreshTokens.map((missingMetadataRefreshToken) => ({
-            kind: "single-token",
-            data: {
-              method,
-              collection: missingMetadataRefreshToken.collection,
-              contract: missingMetadataRefreshToken.contract,
-              tokenId: missingMetadataRefreshToken.tokenId,
-            },
-            context: this.queueName,
-          })),
-          true,
-          15
-        );
-      }
-    }
+    // if (metadata.length < refreshTokens.length) {
+    //   // const missingMetadataRefreshTokens = refreshTokens.filter(
+    //   //   (obj1) =>
+    //   //     !metadata.some((obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId)
+    //   // );
+    //
+    //   // if (missingMetadataRefreshTokens.length) {
+    //   //   for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
+    //   //     logger.info(
+    //   //       this.queueName,
+    //   //       JSON.stringify({
+    //   //         message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
+    //   //         missingMetadataRefreshToken,
+    //   //       })
+    //   //     );
+    //   //   }
+    //   //
+    //   //   await metadataIndexFetchJob.addToQueue(
+    //   //     missingMetadataRefreshTokens.map((missingMetadataRefreshToken) => ({
+    //   //       kind: "single-token",
+    //   //       data: {
+    //   //         method,
+    //   //         collection: missingMetadataRefreshToken.collection,
+    //   //         contract: missingMetadataRefreshToken.contract,
+    //   //         tokenId: missingMetadataRefreshToken.tokenId,
+    //   //       },
+    //   //       context: this.queueName,
+    //   //     })),
+    //   //     true,
+    //   //     15
+    //   //   );
+    //   // }
+    // }
 
     await metadataIndexWriteJob.addToQueue(
       metadata.map((m) => ({
