@@ -402,6 +402,13 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     );
   Sdk.RouterV6.Addresses.SeaportV14Module[chainId] = seaportV14Module.address.toLowerCase();
 
+  const seaportV15Module = await ethers
+    .getContractFactory("SeaportV15Module", deployer)
+    .then((factory) =>
+      factory.deploy(deployer.address, router.address, Sdk.SeaportV15.Addresses.Exchange[chainId])
+    );
+  Sdk.RouterV6.Addresses.SeaportV15Module[chainId] = seaportV15Module.address.toLowerCase();
+
   const zeroExV4Module = await ethers
     .getContractFactory("ZeroExV4Module", deployer)
     .then((factory) =>

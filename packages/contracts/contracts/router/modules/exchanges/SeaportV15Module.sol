@@ -21,6 +21,12 @@ contract SeaportV15Module is BaseExchangeModule {
     uint256 price;
   }
 
+  struct SeaportPrivateListingWithPrice {
+    ISeaport.AdvancedOrder[] orders;
+    ISeaport.Fulfillment[] fulfillments;
+    uint256 price;
+  }
+
   // --- Fields ---
 
   ISeaport public immutable EXCHANGE;
@@ -168,6 +174,104 @@ contract SeaportV15Module is BaseExchangeModule {
     }
   }
 
+  // --- Multiple ETH private listings ---
+
+  function acceptETHPrivateListings(
+    SeaportPrivateListingWithPrice[] calldata orders,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    uint256 length = orders.length;
+    ISeaport.CriteriaResolver[] memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
+
+    // Execute the fills
+    if (params.revertIfIncomplete) {
+      for (uint256 i; i < length; ) {
+        _fillPrivateOrderWithRevertIfIncomplete(
+          orders[i].orders,
+          criteriaResolvers,
+          orders[i].fulfillments,
+          params.fillTo,
+          orders[i].price
+        );
+
+        unchecked {
+          ++i;
+        }
+      }
+    } else {
+      for (uint256 i; i < length; ) {
+        _fillPrivateOrder(
+          orders[i].orders,
+          criteriaResolvers,
+          orders[i].fulfillments,
+          params.fillTo,
+          orders[i].price
+        );
+
+        unchecked {
+          ++i;
+        }
+      }
+    }
+  }
+
+  // --- Multiple Private ERC20 Private listings ---
+
+  function acceptERC20PrivateListings(
+    SeaportPrivateListingWithPrice[] calldata orders,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+
+    uint256 length = orders.length;
+    ISeaport.CriteriaResolver[] memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
+
+    // Execute the fills
+    if (params.revertIfIncomplete) {
+      for (uint256 i; i < length; ) {
+        _fillPrivateOrderWithRevertIfIncomplete(
+          orders[i].orders,
+          criteriaResolvers,
+          orders[i].fulfillments,
+          params.fillTo,
+          0
+        );
+
+        unchecked {
+          ++i;
+        }
+      }
+    } else {
+      for (uint256 i; i < length; ) {
+        _fillPrivateOrder(
+          orders[i].orders,
+          criteriaResolvers,
+          orders[i].fulfillments,
+          params.fillTo,
+          0
+        );
+
+        unchecked {
+          ++i;
+        }
+      }
+    }
+  }
+
   // --- Single ERC721 offer ---
 
   function acceptERC721Offer(
@@ -303,6 +407,13 @@ contract SeaportV15Module is BaseExchangeModule {
     EXCHANGE.matchOrders(orders, fulfillments);
   }
 
+  // --- ERC1271 ---
+
+  function isValidSignature(bytes32, bytes memory) external pure returns (bytes4) {
+    // Needed for filling private listings
+    return this.isValidSignature.selector;
+  }
+
   // --- ERC721 / ERC1155 hooks ---
 
   // Single token offer acceptance can be done approval-less by using the
@@ -399,6 +510,46 @@ contract SeaportV15Module is BaseExchangeModule {
       if (afterFilledAmount - beforeFilledAmount != order.numerator) {
         revert UnsuccessfulFill();
       }
+    }
+  }
+
+  function _fillPrivateOrder(
+    ISeaport.AdvancedOrder[] calldata advancedOrders,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    ISeaport.Fulfillment[] memory fulfillments,
+    address receiver,
+    uint256 value
+  ) internal {
+    // Execute the fill
+    try
+      EXCHANGE.matchAdvancedOrders{value: value}(
+        advancedOrders,
+        criteriaResolvers,
+        fulfillments,
+        receiver
+      )
+    {} catch {}
+  }
+
+  function _fillPrivateOrderWithRevertIfIncomplete(
+    ISeaport.AdvancedOrder[] calldata advancedOrders,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    ISeaport.Fulfillment[] memory fulfillments,
+    address receiver,
+    uint256 value
+  ) internal {
+    // Execute the fill
+    try
+      EXCHANGE.matchAdvancedOrders{value: value}(
+        advancedOrders,
+        criteriaResolvers,
+        fulfillments,
+        receiver
+      )
+    {} catch {
+      revert UnsuccessfulFill();
     }
   }
 

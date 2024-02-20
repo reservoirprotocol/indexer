@@ -1526,10 +1526,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
             endpoint: "/execute/buy/v7",
             salt: Math.floor(Math.random() * 1000000),
           },
+          source: payload.source,
         };
 
         const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
-          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data, {
+            headers: {
+              origin: request.headers["origin"],
+            },
+          })
           .then((response) => ({
             requestId: response.data.requestId,
             shortRequestId: response.data.shortRequestId,

@@ -751,6 +751,264 @@
           {
             "components": [
               {
+                "components": [
+                  {
+                    "internalType": "address",
+                    "name": "offerer",
+                    "type": "address"
+                  },
+                  {
+                    "internalType": "address",
+                    "name": "zone",
+                    "type": "address"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "enum ISeaport.ItemType",
+                        "name": "itemType",
+                        "type": "uint8"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "token",
+                        "type": "address"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "identifierOrCriteria",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "startAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "endAmount",
+                        "type": "uint256"
+                      }
+                    ],
+                    "internalType": "struct ISeaport.OfferItem[]",
+                    "name": "offer",
+                    "type": "tuple[]"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "enum ISeaport.ItemType",
+                        "name": "itemType",
+                        "type": "uint8"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "token",
+                        "type": "address"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "identifierOrCriteria",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "startAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "endAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "recipient",
+                        "type": "address"
+                      }
+                    ],
+                    "internalType": "struct ISeaport.ConsiderationItem[]",
+                    "name": "consideration",
+                    "type": "tuple[]"
+                  },
+                  {
+                    "internalType": "enum ISeaport.OrderType",
+                    "name": "orderType",
+                    "type": "uint8"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "startTime",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "endTime",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "bytes32",
+                    "name": "zoneHash",
+                    "type": "bytes32"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "salt",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "bytes32",
+                    "name": "conduitKey",
+                    "type": "bytes32"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "totalOriginalConsiderationItems",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.OrderParameters",
+                "name": "parameters",
+                "type": "tuple"
+              },
+              {
+                "internalType": "uint120",
+                "name": "numerator",
+                "type": "uint120"
+              },
+              {
+                "internalType": "uint120",
+                "name": "denominator",
+                "type": "uint120"
+              },
+              {
+                "internalType": "bytes",
+                "name": "signature",
+                "type": "bytes"
+              },
+              {
+                "internalType": "bytes",
+                "name": "extraData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct ISeaport.AdvancedOrder[]",
+            "name": "orders",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "orderIndex",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "itemIndex",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.FulfillmentComponent[]",
+                "name": "offerComponents",
+                "type": "tuple[]"
+              },
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "orderIndex",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "itemIndex",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.FulfillmentComponent[]",
+                "name": "considerationComponents",
+                "type": "tuple[]"
+              }
+            ],
+            "internalType": "struct ISeaport.Fulfillment[]",
+            "name": "fulfillments",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SeaportV15Module.SeaportPrivateListingWithPrice[]",
+        "name": "orders",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "fillTo",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "refundTo",
+            "type": "address"
+          },
+          {
+            "internalType": "bool",
+            "name": "revertIfIncomplete",
+            "type": "bool"
+          },
+          {
+            "internalType": "contract IERC20",
+            "name": "token",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BaseExchangeModule.ERC20ListingParams",
+        "name": "params",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BaseExchangeModule.Fee[]",
+        "name": "fees",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "acceptERC20PrivateListings",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
                 "internalType": "address",
                 "name": "offerer",
                 "type": "address"
@@ -1379,6 +1637,259 @@
       }
     ],
     "name": "acceptETHListings",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "internalType": "address",
+                    "name": "offerer",
+                    "type": "address"
+                  },
+                  {
+                    "internalType": "address",
+                    "name": "zone",
+                    "type": "address"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "enum ISeaport.ItemType",
+                        "name": "itemType",
+                        "type": "uint8"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "token",
+                        "type": "address"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "identifierOrCriteria",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "startAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "endAmount",
+                        "type": "uint256"
+                      }
+                    ],
+                    "internalType": "struct ISeaport.OfferItem[]",
+                    "name": "offer",
+                    "type": "tuple[]"
+                  },
+                  {
+                    "components": [
+                      {
+                        "internalType": "enum ISeaport.ItemType",
+                        "name": "itemType",
+                        "type": "uint8"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "token",
+                        "type": "address"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "identifierOrCriteria",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "startAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "uint256",
+                        "name": "endAmount",
+                        "type": "uint256"
+                      },
+                      {
+                        "internalType": "address",
+                        "name": "recipient",
+                        "type": "address"
+                      }
+                    ],
+                    "internalType": "struct ISeaport.ConsiderationItem[]",
+                    "name": "consideration",
+                    "type": "tuple[]"
+                  },
+                  {
+                    "internalType": "enum ISeaport.OrderType",
+                    "name": "orderType",
+                    "type": "uint8"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "startTime",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "endTime",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "bytes32",
+                    "name": "zoneHash",
+                    "type": "bytes32"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "salt",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "bytes32",
+                    "name": "conduitKey",
+                    "type": "bytes32"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "totalOriginalConsiderationItems",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.OrderParameters",
+                "name": "parameters",
+                "type": "tuple"
+              },
+              {
+                "internalType": "uint120",
+                "name": "numerator",
+                "type": "uint120"
+              },
+              {
+                "internalType": "uint120",
+                "name": "denominator",
+                "type": "uint120"
+              },
+              {
+                "internalType": "bytes",
+                "name": "signature",
+                "type": "bytes"
+              },
+              {
+                "internalType": "bytes",
+                "name": "extraData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct ISeaport.AdvancedOrder[]",
+            "name": "orders",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "orderIndex",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "itemIndex",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.FulfillmentComponent[]",
+                "name": "offerComponents",
+                "type": "tuple[]"
+              },
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "orderIndex",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "itemIndex",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct ISeaport.FulfillmentComponent[]",
+                "name": "considerationComponents",
+                "type": "tuple[]"
+              }
+            ],
+            "internalType": "struct ISeaport.Fulfillment[]",
+            "name": "fulfillments",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "price",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SeaportV15Module.SeaportPrivateListingWithPrice[]",
+        "name": "orders",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "fillTo",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "refundTo",
+            "type": "address"
+          },
+          {
+            "internalType": "bool",
+            "name": "revertIfIncomplete",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BaseExchangeModule.ETHListingParams",
+        "name": "params",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BaseExchangeModule.Fee[]",
+        "name": "fees",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "acceptETHPrivateListings",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"

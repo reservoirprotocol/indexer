@@ -177,6 +177,7 @@ interface ISeaport {
   function matchAdvancedOrders(
     AdvancedOrder[] calldata advancedOrders,
     CriteriaResolver[] calldata criteriaResolvers,
-    Fulfillment[] calldata fulfillments
+    Fulfillment[] calldata fulfillments,
+    address recipient
   ) external payable returns (Execution[] memory executions);
 }
