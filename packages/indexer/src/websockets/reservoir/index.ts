@@ -37,6 +37,12 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
             type: "subscribe",
             event: "token.updated",
             changed: "market.floorAskNormalized.id",
+            filters: {
+              contract: [
+                "0x5a96cf3ace257dfcc1fd3c037e548585124dc0c5",
+                "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
+              ],
+            },
           })
         );
       } else if (messageJson.event === "token.updated") {
