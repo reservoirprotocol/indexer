@@ -1172,6 +1172,12 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
         ]),
+        multiCollectionContracts: [
+          // ArtBlocks Contracts
+          "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
+          // ArtBlocks Engine Contracts
+          "0xe745243b82ebc46e5c23d9b1b968612c65d45f3d",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

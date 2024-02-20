@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { getNetworkName } from "@/config/network";
+import { getNetworkName, getNetworkSettings } from "@/config/network";
 
 if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.debugWsApiKey) {
   const wsUrl = `wss://ws${
@@ -38,10 +38,7 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
             event: "token.updated",
             changed: "market.floorAskNormalized.id",
             filters: {
-              contract: [
-                "0x5a96cf3ace257dfcc1fd3c037e548585124dc0c5",
-                "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
-              ],
+              contract: getNetworkSettings().multiCollectionContracts,
             },
           })
         );

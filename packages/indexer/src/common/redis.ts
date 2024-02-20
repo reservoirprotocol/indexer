@@ -112,18 +112,3 @@ export const getMemUsage = async () => {
 
   return usedMemory ? _.toInteger(_.split(usedMemory[0], ":")[1]) : 0;
 };
-
-export const incrEx = async (key: string, expirationInSeconds: number): Promise<number | null> => {
-  // Lua script to increment the key and set expiration atomically
-  const luaScript = `
-        local currentValue = redis.call('incr', KEYS[1])
-        if tonumber(currentValue) == 1 then
-            redis.call('expire', KEYS[1], ARGV[1])
-        end
-        return currentValue
-    `;
-
-  const result = await redis.eval(luaScript, 1, key, expirationInSeconds);
-
-  return Number(result);
-};

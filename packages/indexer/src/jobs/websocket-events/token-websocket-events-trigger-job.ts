@@ -14,6 +14,7 @@ import { Assets, ImageSize } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { getNetworkSettings } from "@/config/network";
 
 export type TokenWebsocketEventsTriggerJobPayload =
   | {
@@ -297,10 +298,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
       if (
         [1, 11155111].includes(config.chainId) &&
         config.debugWsApiKey &&
-        [
-          "0x5a96cf3ace257dfcc1fd3c037e548585124dc0c5",
-          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
-        ].includes(contract)
+        getNetworkSettings().multiCollectionContracts.includes(contract)
       ) {
         if (changed.some((value) => ["market.floorAskNormalized.id"].includes(value))) {
           logger.info(

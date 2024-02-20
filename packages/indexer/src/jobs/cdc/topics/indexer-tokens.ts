@@ -17,6 +17,7 @@ import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
+import { getNetworkSettings } from "@/config/network";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -56,10 +57,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     if (
       [1, 11155111].includes(config.chainId) &&
       config.debugWsApiKey &&
-      [
-        "0x5a96cf3ace257dfcc1fd3c037e548585124dc0c5",
-        "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
-      ].includes(payload.after.contract)
+      getNetworkSettings().multiCollectionContracts.includes(payload.after.contract)
     ) {
       if (changed.some((value) => ["normalized_floor_sell_id"].includes(value))) {
         logger.info(
