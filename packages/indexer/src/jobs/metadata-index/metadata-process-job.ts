@@ -101,85 +101,95 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
 
     const RefreshTokensMetadata = results.flat(1);
 
-    for (const refreshTokensMetadata of RefreshTokensMetadata) {
-      const refreshToken = refreshTokens.find(
-        (refreshToken) =>
-          refreshTokensMetadata.contract === refreshToken.contract &&
-          refreshTokensMetadata.tokenId === refreshToken.tokenId
-      );
-
-      if (refreshToken?.isFallback && refreshTokensMetadata.imageUrl == null) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Fallback Refresh token missing image. method=${method}, contract=${refreshToken.contract}, tokenId=${refreshToken.tokenId}`,
-            refreshTokensMetadata,
-          })
-        );
-      }
-    }
-
-    if (RefreshTokensMetadata.length < refreshTokens.length) {
-      const missingMetadataRefreshTokens = refreshTokens.filter(
-        (obj1) =>
-          !RefreshTokensMetadata.some(
-            (obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId
-          )
-      );
-
-      if (missingMetadataRefreshTokens.length) {
-        const metadataIndexInfos: MetadataIndexFetchJobPayload[] = [];
-
-        for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
-          const missingMetadataRefreshTokenRetries = await incrEx(
-            `missing-metadata-refresh-token:${method}:${missingMetadataRefreshToken.contract}:${missingMetadataRefreshToken.tokenId}`,
-            300
-          );
-
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Missing refresh token from provider - Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
-              missingMetadataRefreshToken,
-              missingMetadataRefreshTokenRetries,
-            })
-          );
-
-          if (missingMetadataRefreshTokenRetries && missingMetadataRefreshTokenRetries <= 5) {
-            metadataIndexInfos.push({
-              kind: "single-token",
-              data: {
-                method,
-                collection: missingMetadataRefreshToken.collection,
-                contract: missingMetadataRefreshToken.contract,
-                tokenId: missingMetadataRefreshToken.tokenId,
-              },
-              context: this.queueName,
-            });
-          } else {
-            logger.warn(
-              this.queueName,
-              JSON.stringify({
-                message: `Missing refresh token from provider - Stop Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
-                missingMetadataRefreshToken,
-                missingMetadataRefreshTokenRetries,
-              })
-            );
-          }
-        }
-
-        if (metadataIndexInfos.length) {
-          await metadataIndexFetchJob.addToQueue(metadataIndexInfos, true, 15);
-        }
-      }
-    }
-
     await metadataIndexWriteJob.addToQueue(
       RefreshTokensMetadata.map((m) => ({
         ...m,
         metadataMethod: method,
       }))
     );
+
+    try {
+      for (const refreshTokensMetadata of RefreshTokensMetadata) {
+        const refreshToken = refreshTokens.find(
+          (refreshToken) =>
+            refreshTokensMetadata.contract === refreshToken.contract &&
+            refreshTokensMetadata.tokenId === refreshToken.tokenId
+        );
+
+        if (refreshToken?.isFallback && refreshTokensMetadata.imageUrl == null) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              message: `Fallback Refresh token missing image. method=${method}, contract=${refreshToken.contract}, tokenId=${refreshToken.tokenId}`,
+              refreshTokensMetadata,
+            })
+          );
+        }
+      }
+
+      if (RefreshTokensMetadata.length < refreshTokens.length) {
+        const missingMetadataRefreshTokens = refreshTokens.filter(
+          (obj1) =>
+            !RefreshTokensMetadata.some(
+              (obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId
+            )
+        );
+
+        if (missingMetadataRefreshTokens.length) {
+          const metadataIndexInfos: MetadataIndexFetchJobPayload[] = [];
+
+          for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
+            const missingMetadataRefreshTokenRetries = await incrEx(
+              `missing-metadata-refresh-token:${method}:${missingMetadataRefreshToken.contract}:${missingMetadataRefreshToken.tokenId}`,
+              300
+            );
+
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                message: `Missing refresh token from provider - Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
+                missingMetadataRefreshToken,
+                missingMetadataRefreshTokenRetries,
+              })
+            );
+
+            if (missingMetadataRefreshTokenRetries && missingMetadataRefreshTokenRetries <= 5) {
+              metadataIndexInfos.push({
+                kind: "single-token",
+                data: {
+                  method,
+                  collection: missingMetadataRefreshToken.collection,
+                  contract: missingMetadataRefreshToken.contract,
+                  tokenId: missingMetadataRefreshToken.tokenId,
+                },
+                context: this.queueName,
+              });
+            } else {
+              logger.warn(
+                this.queueName,
+                JSON.stringify({
+                  message: `Missing refresh token from provider - Stop Retrying. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}, retries=${missingMetadataRefreshTokenRetries}`,
+                  missingMetadataRefreshToken,
+                  missingMetadataRefreshTokenRetries,
+                })
+              );
+            }
+          }
+
+          if (metadataIndexInfos.length) {
+            await metadataIndexFetchJob.addToQueue(metadataIndexInfos, false, 15);
+          }
+        }
+      }
+    } catch (error) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          message: `Fallback Refresh token missing image. method=${method}, error=${error}`,
+          error,
+        })
+      );
+    }
 
     // If there are potentially more tokens to process trigger another job
     if (rateLimitExpiredIn || _.size(refreshTokens) == countTotal) {
