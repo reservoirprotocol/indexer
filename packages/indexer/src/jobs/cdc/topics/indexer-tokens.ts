@@ -158,7 +158,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             1000
         );
 
-        if (indexedLatency >= 500) {
+        if (indexedLatency >= 120) {
           logger.warn(
             "token-metadata-latency-metric",
             JSON.stringify({

@@ -67,7 +67,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
       logger.info(
         this.queueName,
         JSON.stringify({
-          message: `Duplicate tokens. method=${method}, refreshTokensCount=${refreshTokens.length}`,
+          message: `Duplicate tokens. method=${method}, refreshTokensCount=${refreshTokens.length}, uniqueRefreshTokensCount=${uniqueRefreshTokens.length}`,
           refreshTokens: JSON.stringify(refreshTokens),
           uniqueRefreshTokens: JSON.stringify(uniqueRefreshTokens),
         })
