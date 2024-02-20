@@ -2509,9 +2509,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // setup they might run into errors
       if (
         buyInCurrency === Sdk.Common.Addresses.Native[config.chainId] &&
-        !unverifiedERC721CTransferValidators.length
+        !unverifiedERC721CTransferValidators.length &&
+        !steps.find(
+          (s) =>
+            s.id === "currency-approval" && s.items.find((item) => item.status === "incomplete")
+        )
       ) {
-        // Buying in ETH will never require an approval
         steps = steps.filter((s) => s.id !== "currency-approval");
       }
       if (!payload.usePermit) {
