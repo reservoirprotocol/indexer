@@ -125,24 +125,24 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
     );
 
     try {
-      for (const refreshTokenMetadata of refreshTokensMetadata) {
-        const uniqueRefreshToken = uniqueRefreshTokens.find(
-          (uniqueRefreshToken) =>
-            refreshTokenMetadata.contract === uniqueRefreshToken.contract &&
-            refreshTokenMetadata.tokenId === uniqueRefreshToken.tokenId
-        );
-
-        if (uniqueRefreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Fallback Refresh token missing image. method=${method}, contract=${uniqueRefreshToken.contract}, tokenId=${uniqueRefreshToken.tokenId}`,
-              uniqueRefreshToken,
-              refreshTokenMetadata: JSON.stringify(refreshTokenMetadata),
-            })
-          );
-        }
-      }
+      // for (const refreshTokenMetadata of refreshTokensMetadata) {
+      //   const uniqueRefreshToken = uniqueRefreshTokens.find(
+      //     (uniqueRefreshToken) =>
+      //       refreshTokenMetadata.contract === uniqueRefreshToken.contract &&
+      //       refreshTokenMetadata.tokenId === uniqueRefreshToken.tokenId
+      //   );
+      //
+      //   if (uniqueRefreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
+      //     logger.info(
+      //       this.queueName,
+      //       JSON.stringify({
+      //         message: `Fallback Refresh token missing image. method=${method}, contract=${uniqueRefreshToken.contract}, tokenId=${uniqueRefreshToken.tokenId}`,
+      //         uniqueRefreshToken,
+      //         refreshTokenMetadata: JSON.stringify(refreshTokenMetadata),
+      //       })
+      //     );
+      //   }
+      // }
 
       if (refreshTokensMetadata.length < uniqueRefreshTokens.length) {
         const missingMetadataRefreshTokens = uniqueRefreshTokens.filter(
