@@ -177,15 +177,15 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
           }
 
           if (metadataIndexInfos.length) {
-            await metadataIndexFetchJob.addToQueue(metadataIndexInfos, false, 15);
+            await metadataIndexFetchJob.addToQueue(metadataIndexInfos, true, 15);
           }
         }
       }
     } catch (error) {
-      logger.info(
+      logger.error(
         this.queueName,
         JSON.stringify({
-          message: `Fallback Refresh token missing image. method=${method}, error=${error}`,
+          message: `Fallback error. method=${method}, error=${error}`,
           error,
         })
       );

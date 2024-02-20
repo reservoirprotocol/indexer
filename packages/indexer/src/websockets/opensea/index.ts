@@ -154,18 +154,22 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       if (!lockExists) {
         const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
-        await metadataIndexFetchJob.addToQueue([
-          {
-            kind: "single-token",
-            data: {
-              method: metadataIndexFetchJob.getIndexingMethod(collection),
-              contract,
-              tokenId,
-              collection: collection?.id || contract,
+        await metadataIndexFetchJob.addToQueue(
+          [
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetchJob.getIndexingMethod(collection),
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
+              context: "opensea-websocket",
             },
-            context: "opensea-websocket",
-          },
-        ]);
+          ],
+          false,
+          15
+        );
       } else {
         await releaseLock(`refresh-new-token-metadata:${contract}:${tokenId}`);
       }
