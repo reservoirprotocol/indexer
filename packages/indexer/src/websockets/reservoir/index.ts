@@ -49,10 +49,10 @@ if ([1, 11155111].includes(config.chainId) && config.doWebsocketWork && config.d
           "reservoir-websocket",
           JSON.stringify({
             topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
-            message: `receivedEvent. collectionId=${eventData.collection?.id},  contract=${eventData.contract}, tokenId=${eventData.tokenId}`,
-            collectionId: eventData.collection?.id,
-            contract: eventData.contract,
-            tokenId: eventData.tokenId,
+            message: `receivedEvent. collectionId=${eventData.collection?.id},  contract=${eventData.token?.contract}, tokenId=${eventData.token?.tokenId}`,
+            collectionId: eventData.token?.collection?.id,
+            contract: eventData.token?.contract,
+            tokenId: eventData.token?.tokenId,
             eventData: JSON.stringify(eventData),
           })
         );

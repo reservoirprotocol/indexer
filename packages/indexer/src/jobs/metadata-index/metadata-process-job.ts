@@ -161,15 +161,15 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
           })
         );
 
-        for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
-              missingMetadataRefreshToken,
-            })
-          );
-        }
+        // for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
+        //   logger.info(
+        //     this.queueName,
+        //     JSON.stringify({
+        //       message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
+        //       missingMetadataRefreshToken,
+        //     })
+        //   );
+        // }
       }
     } catch (error) {
       logger.error(
