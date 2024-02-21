@@ -30,6 +30,13 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     if ([1, 11155111].includes(config.chainId)) {
       try {
         await redis.set(
+          `token-created-kafka-message-ts:${payload.after.contract}:${payload.after.token_id}`,
+          payload.ts_ms,
+          "EX",
+          600
+        );
+
+        await redis.set(
           `token-created-cdc-event-start:${payload.after.contract}:${payload.after.token_id}`,
           Date.now(),
           "EX",
