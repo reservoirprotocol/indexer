@@ -1362,6 +1362,7 @@ export class Router {
             paymentProcessorV2Details[currency] = [];
           }
           detailsRef = paymentProcessorV2Details[currency];
+          break;
         }
 
         default:
