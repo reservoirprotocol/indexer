@@ -119,15 +119,14 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
                   "This indicates whether or not multi quantity bidding is supported"
                 ),
                 supportedBidCurrencies: Joi.array()
-                  // .items(
-                  //   Joi.object({
-                  //     contract: Joi.string(),
-                  //     decimals: Joi.number().allow(null),
-                  //     name: Joi.string().allow(null),
-                  //     symbol: Joi.string().allow(null),
-                  //   })
-                  // )
-                  .items(Joi.any())
+                  .items(
+                    Joi.object({
+                      address: Joi.string(),
+                      decimals: Joi.number().allow(null),
+                      name: Joi.string().allow(null),
+                      symbol: Joi.string().allow(null),
+                    })
+                  )
                   .description("erc20 contract addresses"),
                 paymentTokens: Joi.array()
                   .items(

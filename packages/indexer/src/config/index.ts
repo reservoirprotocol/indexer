@@ -187,4 +187,5 @@ export const config = {
   thirdWebSecret: process.env.THIRD_WEB_SECRET ? String(process.env.THIRD_WEB_SECRET) : undefined,
 
   ipfsGatewayDomain: String(process.env.IPFS_GATEWAY_DOMAIN || ""),
+  forceIpfsGateway: Boolean(Number(process.env.FORCE_IPFS_GATEWAY)),
 };
