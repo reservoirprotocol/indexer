@@ -50,7 +50,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (config.chainId === 1) {
+    if ([1, 137].includes(config.chainId)) {
       const tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         payload.data.collection

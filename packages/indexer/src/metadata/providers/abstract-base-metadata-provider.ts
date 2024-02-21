@@ -80,7 +80,7 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
-        if (config.chainId === 1) {
+        if ([1, 137].includes(config.chainId)) {
           const tokenMetadataIndexingDebug = await redis.sismember(
             "metadata-indexing-debug-contracts",
             metadata.contract
