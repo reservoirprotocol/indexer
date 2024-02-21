@@ -36,7 +36,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
     let tokenMetadataIndexingDebug = 0;
 
-    if ([1, 137].includes(config.chainId)) {
+    if ([1, 137, 11155111].includes(config.chainId)) {
       tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         contract
