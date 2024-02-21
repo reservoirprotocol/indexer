@@ -7,11 +7,12 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { acquireLock } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import { Tokens } from "@/models/tokens";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import { EventKind, processAskEventJob } from "@/jobs/elasticsearch/asks/process-ask-event-job";
 import { formatStatus } from "@/jobs/websocket-events/utils";
+import { config } from "@/config/index";
 
 export class IndexerOrdersHandler extends KafkaEventHandler {
   topicName = "indexer.public.orders";
@@ -155,6 +156,37 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
   async handleSellOrder(payload: any): Promise<void> {
     try {
+      if ([1, 11155111].includes(config.chainId)) {
+        const [, contract, tokenId] = payload.after.token_set_id.split(":");
+
+        try {
+          await redis.set(
+            `ask-created-kafka-message-ts:${contract}:${tokenId}`,
+            payload.ts_ms,
+            "EX",
+            600
+          );
+
+          await redis.set(
+            `ask-created-cdc-event-start:${contract}:${tokenId}`,
+            Date.now(),
+            "EX",
+            600
+          );
+        } catch (error) {
+          logger.error(
+            "IndexerOrdersHandler",
+            JSON.stringify({
+              message: `Handle event latency error. error=${error}`,
+              contract,
+              tokenId,
+              payload: JSON.stringify(payload),
+              error,
+            })
+          );
+        }
+      }
+
       if (
         payload.after.fillability_status === "fillable" &&
         payload.after.approval_status === "approved"
