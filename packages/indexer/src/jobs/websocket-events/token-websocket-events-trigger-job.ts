@@ -15,6 +15,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { getNetworkSettings } from "@/config/network";
+import { redis } from "@/common/redis";
 
 export type TokenWebsocketEventsTriggerJobPayload =
   | {
@@ -67,6 +68,8 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
   }
 
   async processCDCEvent(data: TokenCDCEventInfo) {
+    const triggerJobStart = Date.now();
+
     const contract = data.after.contract;
     const tokenId = data.after.token_id;
 
@@ -324,6 +327,47 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         data: result,
         offset: data.offset,
       });
+
+      if ([1, 11155111].includes(config.chainId) && eventType === "token.created") {
+        try {
+          const cdcEventStart = await redis.get(
+            `token-created-cdc-event-start:${data.after.contract}:${data.after.token_id}`
+          );
+
+          if (cdcEventStart) {
+            const websocketEventPublished = Date.now();
+
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugWSEventsLatency",
+                message: `Start. collectionId=${data.after.collection_id}, contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                collectionId: data.after.collection_id,
+                contract: data.after.contract,
+                tokenId: data.after.token_id,
+                latencies: {
+                  cdcEventStart: Number(cdcEventStart) - new Date(data.after.created_at).getTime(),
+                  triggerJobStart: triggerJobStart - Number(cdcEventStart),
+                  websocketEventPublished: websocketEventPublished - triggerJobStart,
+                },
+                latency: websocketEventPublished - new Date(data.after.created_at).getTime(),
+                type: "token.created",
+              })
+            );
+          }
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              message: `Handle event latency error. error=${error}`,
+              contract: data.after.contract,
+              tokenId: data.after.token_id,
+              payload: JSON.stringify(data),
+              error,
+            })
+          );
+        }
+      }
     } catch (error) {
       logger.error(
         this.queueName,

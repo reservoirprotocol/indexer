@@ -27,6 +27,28 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       return;
     }
 
+    if ([1, 11155111].includes(config.chainId)) {
+      try {
+        await redis.set(
+          `token-created-cdc-event-start:${payload.after.contract}:${payload.after.token_id}`,
+          Date.now(),
+          "EX",
+          600
+        );
+      } catch (error) {
+        logger.error(
+          "IndexerTokensHandler",
+          JSON.stringify({
+            message: `Handle event latency error. error=${error}`,
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            payload: JSON.stringify(payload),
+            error,
+          })
+        );
+      }
+    }
+
     await WebsocketEventRouter({
       eventInfo: {
         before: payload.before,
