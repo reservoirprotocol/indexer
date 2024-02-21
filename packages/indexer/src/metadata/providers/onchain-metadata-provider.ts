@@ -45,11 +45,15 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       const resolvedMetadata = await Promise.all(
         tokens.map(async (token: any) => {
+          const getTokenMetadataFromURIStart = Date.now();
+
           const [metadata, error] = await this.getTokenMetadataFromURI(
             token.uri,
             token.contract,
             token.tokenId
           );
+
+          const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
 
           if ([1, 137].includes(config.chainId)) {
             const tokenMetadataIndexingDebug = await redis.sismember(
@@ -64,6 +68,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
                   topic: "tokenMetadataIndexingDebug",
                   message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
                   metadata: JSON.stringify(metadata),
+                  getTokenMetadataFromURILatency,
                   error,
                 })
               );

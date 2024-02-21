@@ -159,6 +159,17 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         );
 
         if (indexedLatency >= 120 && config.chainId != 204) {
+          // if (config.chainId === 137) {
+          //   const count = await redis.incr(
+          //     `token-metadata-latency-debug:${payload.after.contract}`
+          //   );
+          //   await redis.expire(`token-metadata-latency-debug:${payload.after.contract}`, 600);
+          //
+          //   if (count >= 10) {
+          //     redis.sadd("metadata-indexing-debug-contracts", payload.after.contract);
+          //   }
+          // }
+
           logger.warn(
             "token-metadata-latency-metric",
             JSON.stringify({
