@@ -166,6 +166,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
                 message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
                 tokenToProcess,
                 _getTokensMetadataUriLatency,
+                fetchTokensCount: fetchTokens.length,
               })
             );
           }

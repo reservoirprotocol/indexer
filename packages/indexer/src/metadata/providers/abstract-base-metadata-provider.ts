@@ -124,6 +124,8 @@ export abstract class AbstractBaseMetadataProvider {
             !metadata.imageUrl.startsWith("data:") &&
             !metadata.imageMimeType
           ) {
+            const _getImageMimeTypeStart = Date.now();
+
             metadata.imageMimeType = await this._getImageMimeType(
               metadata.imageUrl,
               metadata.contract,
@@ -137,6 +139,7 @@ export abstract class AbstractBaseMetadataProvider {
                   topic: "tokenMetadataIndexingDebug",
                   message: `_getImageMimeType. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}, imageMimeType=${metadata.imageMimeType}`,
                   metadata: JSON.stringify(metadata),
+                  _getImageMimeTypeStartLatency: Date.now() - _getImageMimeTypeStart,
                 })
               );
             }
@@ -165,6 +168,8 @@ export abstract class AbstractBaseMetadataProvider {
             !metadata.mediaUrl.startsWith("data:") &&
             !metadata.mediaMimeType
           ) {
+            const _getImageMimeTypeStart = Date.now();
+
             metadata.mediaMimeType = await this._getImageMimeType(
               metadata.mediaUrl,
               metadata.contract,
@@ -179,6 +184,7 @@ export abstract class AbstractBaseMetadataProvider {
                   message: `Missing media mime type. contract=${metadata.contract}, tokenId=${metadata.tokenId}, mediaUrl=${metadata.mediaUrl}`,
                   metadata: JSON.stringify(metadata),
                   method: this.method,
+                  _getImageMimeTypeStartLatency: Date.now() - _getImageMimeTypeStart,
                 })
               );
             }
@@ -237,18 +243,24 @@ export abstract class AbstractBaseMetadataProvider {
       return "";
     }
 
-    let imageMimeType = await redis.get(`imageMimeType:${url}`);
+    let _url = url;
+
+    if (_url.includes("ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
+      _url = _url.replace("ipfs.io", config.ipfsGatewayDomain);
+    }
+
+    let imageMimeType = await redis.get(`imageMimeType:${_url}`);
 
     if (!imageMimeType) {
       // use fetch
       imageMimeType = await axios
-        .head(url)
+        .head(_url)
         .then((res) => res.headers["content-type"])
         .catch((error) => {
-          const fallbackToIpfsGateway = config.ipfsGatewayDomain && url.includes("ipfs.io");
+          const fallbackToIpfsGateway = config.ipfsGatewayDomain && _url.includes("ipfs.io");
 
           if (fallbackToIpfsGateway) {
-            const ipfsGatewayUrl = url.replace("ipfs.io", config.ipfsGatewayDomain);
+            const ipfsGatewayUrl = _url.replace("ipfs.io", config.ipfsGatewayDomain);
 
             return axios
               .head(ipfsGatewayUrl)
@@ -258,7 +270,7 @@ export abstract class AbstractBaseMetadataProvider {
                   "_getImageMimeType",
                   JSON.stringify({
                     topic: "debugMissingTokenImages",
-                    message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
+                    message: `Fallback Error. contract=${contract}, tokenId=${tokenId}, url=${_url}, ipfsGatewayUrl=${ipfsGatewayUrl}, error=${error}, fallbackError=${fallbackError}`,
                     error,
                     fallbackError,
                   })
@@ -269,7 +281,7 @@ export abstract class AbstractBaseMetadataProvider {
               "_getImageMimeType",
               JSON.stringify({
                 topic: "debugMissingTokenImages",
-                message: `Error. contract=${contract}, tokenId=${tokenId}, url=${url}, error=${error}`,
+                message: `Error. contract=${contract}, tokenId=${tokenId}, url=${_url}, error=${error}`,
                 error,
               })
             );
@@ -277,7 +289,7 @@ export abstract class AbstractBaseMetadataProvider {
         });
 
       if (imageMimeType) {
-        await redis.set(`imageMimeType:${url}`, imageMimeType, "EX", 3600);
+        await redis.set(`imageMimeType:${_url}`, imageMimeType, "EX", 3600);
       }
     }
 

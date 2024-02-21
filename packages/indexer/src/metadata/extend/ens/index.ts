@@ -20,7 +20,7 @@ export const extend = async (metadata: TokenMetadata) => {
       description: data.description,
       imageUrl: data.image,
       imageOriginalUrl: data.image,
-      mediaUrl: data?.background_image,
+      mediaUrl: null,
       animationOriginalUrl: null,
       metadataOriginalUrl: url,
       attributes: data.attributes.map((attribute: any) => {
