@@ -55,7 +55,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
           const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
 
-          if ([1, 137].includes(config.chainId)) {
+          if ([1, 137, 11155111].includes(config.chainId)) {
             const tokenMetadataIndexingDebug = await redis.sismember(
               "metadata-indexing-debug-contracts",
               token.contract
@@ -662,7 +662,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       let tokenMetadataIndexingDebug = 0;
 
-      if ([1, 137].includes(config.chainId)) {
+      if ([1, 137, 11155111].includes(config.chainId)) {
         tokenMetadataIndexingDebug = await redis.sismember(
           "metadata-indexing-debug-contracts",
           contract

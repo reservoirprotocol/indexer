@@ -159,17 +159,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         );
 
         if (indexedLatency >= 120 && config.chainId != 204) {
-          // if (config.chainId === 137) {
-          //   const count = await redis.incr(
-          //     `token-metadata-latency-debug:${payload.after.contract}`
-          //   );
-          //   await redis.expire(`token-metadata-latency-debug:${payload.after.contract}`, 600);
-          //
-          //   if (count >= 10) {
-          //     redis.sadd("metadata-indexing-debug-contracts", payload.after.contract);
-          //   }
-          // }
-
           logger.warn(
             "token-metadata-latency-metric",
             JSON.stringify({
@@ -187,6 +176,52 @@ export class IndexerTokensHandler extends KafkaEventHandler {
               initializedAt: payload.after.metadata_initialized_at,
             })
           );
+
+          if ([1, 137, 11155111].includes(config.chainId)) {
+            try {
+              const count = await redis.incr(
+                `token-metadata-latency-debug:${payload.after.contract}`
+              );
+
+              if (count == 1) {
+                logger.info(
+                  "IndexerTokensHandler",
+                  JSON.stringify({
+                    topic: "tokenMetadataIndexingDebug",
+                    message: `Started tracking latency. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, indexedLatency=${indexedLatency}`,
+                    contract: payload.after.contract,
+                    tokenId: payload.after.token_id,
+                  })
+                );
+              }
+
+              await redis.expire(`token-metadata-latency-debug:${payload.after.contract}`, 600);
+
+              if (count >= 10) {
+                logger.info(
+                  "IndexerTokensHandler",
+                  JSON.stringify({
+                    topic: "tokenMetadataIndexingDebug",
+                    message: `Contract added to debug due to indexing latency. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, indexedLatency=${indexedLatency}`,
+                    contract: payload.after.contract,
+                    tokenId: payload.after.token_id,
+                  })
+                );
+
+                await redis.sadd("metadata-indexing-debug-contracts", payload.after.contract);
+                await redis.del(`token-metadata-latency-debug:${payload.after.contract}`);
+              }
+            } catch (error) {
+              logger.error(
+                "IndexerTokensHandler",
+                JSON.stringify({
+                  message: `Handle latency error. error=${error}`,
+                  payload,
+                  error,
+                })
+              );
+            }
+          }
         } else {
           logger.info(
             "token-metadata-latency-metric",
@@ -251,9 +286,8 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       }
     } catch (error) {
       logger.error(
-        "kafka-event-handler",
+        "IndexerTokensHandler",
         JSON.stringify({
-          topic: "debugAskIndex",
           message: `Handle token error. error=${error}`,
           payload,
           error,
