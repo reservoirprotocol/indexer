@@ -343,6 +343,7 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           );
 
           const websocketEventPublished = Date.now();
+          const eventLatency = websocketEventPublished - new Date(data.after.created_at).getTime();
 
           logger.info(
             this.queueName,
@@ -352,21 +353,23 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
               collectionId: data.after.collection_id,
               contract: data.after.contract,
               tokenId: data.after.token_id,
+              contractAndTokenId: `${data.after.contract}:${data.after.token_id}`,
               timestamps: {
-                kafkaMessageTs: new Date(kafkaMessageTs).toISOString(),
-                cdcEventStart: new Date(cdcEventStart).toISOString(),
-                triggerJobStart: new Date(triggerJobStart).toISOString(),
-                websocketEventPublished: new Date(websocketEventPublished).toISOString(),
+                a_createdAt: new Date(data.after.created_at).toISOString(),
+                b_kafkaMessageTs: new Date(kafkaMessageTs).toISOString(),
+                c_cdcEventStart: new Date(cdcEventStart).toISOString(),
+                d_triggerJobStart: new Date(triggerJobStart).toISOString(),
+                e_websocketEventPublished: new Date(websocketEventPublished).toISOString(),
               },
               latencies: {
-                kafkaMessageTs: kafkaMessageTs
+                a_kafkaMessageTs: kafkaMessageTs
                   ? kafkaMessageTs - new Date(data.after.created_at).getTime()
                   : 0,
-                cdcEventStart: cdcEventStart ? cdcEventStart - kafkaMessageTs : 0,
-                triggerJobStart: triggerJobStart - cdcEventStart,
-                websocketEventPublished: websocketEventPublished - triggerJobStart,
+                b_cdcEventStart: cdcEventStart ? cdcEventStart - kafkaMessageTs : 0,
+                c_triggerJobStart: triggerJobStart - cdcEventStart,
+                d_websocketEventPublished: websocketEventPublished - triggerJobStart,
               },
-              eventLatency: websocketEventPublished - new Date(data.after.created_at).getTime(),
+              eventLatency,
               eventType: "token.created",
             })
           );
