@@ -47,6 +47,7 @@ export async function startKafkaProducer(): Promise<void> {
 
 export async function startKafkaConsumer(): Promise<void> {
   logger.info(`kafka-consumer`, "Starting Kafka consumer");
+
   await consumer.connect();
 
   const topicsToSubscribe = TopicHandlers.map((topicHandler) => {
@@ -129,14 +130,36 @@ export async function startKafkaConsumer(): Promise<void> {
     },
   });
 
-  consumer.on("consumer.crash", async (error) => {
-    logger.error(`kafka-consumer`, `Consumer crashed, error=${error}`);
+  consumer.on(consumer.events.CRASH, async (event) => {
+    logger.info(
+      `kafka-consumer`,
+      JSON.stringify({
+        message: "Consumer crashed",
+        event,
+      })
+    );
     await restartKafkaConsumer();
   });
 
-  consumer.on("consumer.disconnect", async (error) => {
-    logger.error(`kafka-consumer`, `Consumer disconnected, error=${error}`);
+  consumer.on(consumer.events.DISCONNECT, async (event) => {
+    logger.info(
+      `kafka-consumer`,
+      JSON.stringify({
+        message: "Consumer disconnected",
+        event,
+      })
+    );
     await restartKafkaConsumer();
+  });
+
+  consumer.on(consumer.events.STOP, async (event) => {
+    logger.info(
+      `kafka-consumer`,
+      JSON.stringify({
+        message: "Consumer stopped",
+        event,
+      })
+    );
   });
 }
 
