@@ -21,7 +21,7 @@
     "@commitlint/cli": "^16.2.1",
     "@commitlint/config-conventional": "^16.2.1",
     "@elastic/elasticsearch": "^8.6.0",
-    "@georgeroman/evm-tx-simulator": "^0.0.27",
+    "@georgeroman/evm-tx-simulator": "^0.0.29",
     "@hapi/basic": "^6.0.0",
     "@hapi/boom": "^9.1.4",
     "@hapi/hapi": "^20.0.0",
