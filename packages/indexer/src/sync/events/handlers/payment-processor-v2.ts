@@ -448,7 +448,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             taker = attributionData.taker;
           }
 
-          onChainData.fillEvents.push({
+          onChainData.fillEventsPartial.push({
             orderId,
             orderKind: "payment-processor-v2",
             orderSide,
