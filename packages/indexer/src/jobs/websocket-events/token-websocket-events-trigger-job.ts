@@ -345,34 +345,36 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
           const websocketEventPublished = Date.now();
           const eventLatency = websocketEventPublished - new Date(data.after.created_at).getTime();
 
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "debugWSEventsLatency",
-              message: `Start. collectionId=${data.after.collection_id}, contract=${data.after.contract}, tokenId=${data.after.token_id}`,
-              collectionId: data.after.collection_id,
-              contract: data.after.contract,
-              tokenId: data.after.token_id,
-              contractAndTokenId: `${data.after.contract}:${data.after.token_id}`,
-              timestamps: {
-                a_createdAt: new Date(data.after.created_at).toISOString(),
-                b_kafkaMessageTs: new Date(kafkaMessageTs).toISOString(),
-                c_cdcEventStart: new Date(cdcEventStart).toISOString(),
-                d_triggerJobStart: new Date(triggerJobStart).toISOString(),
-                e_websocketEventPublished: new Date(websocketEventPublished).toISOString(),
-              },
-              latencies: {
-                a_kafkaMessageTs: kafkaMessageTs
-                  ? kafkaMessageTs - new Date(data.after.created_at).getTime()
-                  : 0,
-                b_cdcEventStart: cdcEventStart ? cdcEventStart - kafkaMessageTs : 0,
-                c_triggerJobStart: triggerJobStart - cdcEventStart,
-                d_websocketEventPublished: websocketEventPublished - triggerJobStart,
-              },
-              eventLatency,
-              eventType: "token.created",
-            })
-          );
+          if (eventLatency >= 1000) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugWSEventsLatency",
+                message: `Start. collectionId=${data.after.collection_id}, contract=${data.after.contract}, tokenId=${data.after.token_id}`,
+                collectionId: data.after.collection_id,
+                contract: data.after.contract,
+                tokenId: data.after.token_id,
+                contractAndTokenId: `${data.after.contract}:${data.after.token_id}`,
+                timestamps: {
+                  a_createdAt: new Date(data.after.created_at).toISOString(),
+                  b_kafkaMessageTs: new Date(kafkaMessageTs).toISOString(),
+                  c_cdcEventStart: new Date(cdcEventStart).toISOString(),
+                  d_triggerJobStart: new Date(triggerJobStart).toISOString(),
+                  e_websocketEventPublished: new Date(websocketEventPublished).toISOString(),
+                },
+                latencies: {
+                  a_kafkaMessageTs: kafkaMessageTs
+                    ? kafkaMessageTs - new Date(data.after.created_at).getTime()
+                    : 0,
+                  b_cdcEventStart: cdcEventStart ? cdcEventStart - kafkaMessageTs : 0,
+                  c_triggerJobStart: triggerJobStart - cdcEventStart,
+                  d_websocketEventPublished: websocketEventPublished - triggerJobStart,
+                },
+                eventLatency,
+                eventType: "token.created",
+              })
+            );
+          }
         } catch (error) {
           logger.error(
             this.queueName,

@@ -213,7 +213,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
           const websocketEventPublished = Date.now();
           const eventLatency = websocketEventPublished - new Date(data.after.created_at).getTime();
 
-          if (eventLatency >= 300) {
+          if (eventLatency >= 1000) {
             logger.info(
               this.queueName,
               JSON.stringify({

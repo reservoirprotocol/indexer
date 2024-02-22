@@ -161,6 +161,16 @@ export async function startKafkaConsumer(): Promise<void> {
       })
     );
   });
+
+  consumer.on(consumer.events.CONNECT, async (event) => {
+    logger.info(
+      `kafka-consumer`,
+      JSON.stringify({
+        message: "Consumer connected",
+        event,
+      })
+    );
+  });
 }
 
 // This can be used to restart the Kafka consumer, for example if the consumer is disconnected, or if we need to subscribe to new topics as
