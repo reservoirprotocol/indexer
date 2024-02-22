@@ -92,7 +92,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const tokenIdOfEvent = parsedLog.args["tokenId"].toString();
         const tokenAddressOfEvent = parsedLog.args["tokenAddress"].toLowerCase();
-        const tokenAmountOfEvent = parsedLog.args["amount"].toString();
+        const tokenAmountOfEvent = (parsedLog.args["amount"] ?? 1).toString();
         const paymentCoinOfEvent = parsedLog.args["paymentCoin"].toLowerCase();
 
         const methods = [
