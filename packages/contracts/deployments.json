@@ -234,6 +234,7 @@
   "SeaportConduit": {
     "v1": {
       "56": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
+      "137": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "204": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "999": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "1101": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
@@ -435,6 +436,11 @@
   "ReservoirErc721": {
     "v1": {
       "888888888": "0x9484a31f51108f095fcd7aa2bb8d22340d20c422"
+    }
+  },
+  "ReservoirErc1155": {
+    "v1": {
+      "888888888": "0xfeadb1a327f2963c7210daa6800430aede006501"
     }
   }
 }
