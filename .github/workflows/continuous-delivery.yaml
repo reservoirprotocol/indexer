@@ -229,8 +229,7 @@ jobs:
             ./prod/platform/indexer-api-mainnet.yaml \
             ./prod/platform/indexer-worker-mainnet.yaml \
             ./prod/platform/indexer-worker-master-mainnet.yaml \
-            ./prod/platform/indexer-websocket-ethereum.yaml \
-            ./prod/platform/indexer-kafka-worker-mainnet.yaml
+            ./prod/platform/indexer-websocket-ethereum.yaml
 
           ./utils/version_update_batch.sh indexer-mumbai ${{ github.sha }} \
             ./prod/platform/indexer-api-mumbai.yaml \
