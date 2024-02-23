@@ -14,6 +14,11 @@ import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
+  // For keeping track of all individual trades per transaction
+  const trades = {
+    order: new Map<string, number>(),
+  };
+
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
@@ -90,10 +95,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
         const exchangeAddress = exchange.contract.address;
 
-        const tokenIdOfEvent = parsedLog.args["tokenId"].toString();
-        const tokenAddressOfEvent = parsedLog.args["tokenAddress"].toLowerCase();
+        // const tokenIdOfEvent = parsedLog.args["tokenId"].toString();
+        // const tokenAddressOfEvent = parsedLog.args["tokenAddress"].toLowerCase();
         const tokenAmountOfEvent = (parsedLog.args["amount"] ?? 1).toString();
-        const paymentCoinOfEvent = parsedLog.args["paymentCoin"].toLowerCase();
+        // const paymentCoinOfEvent = parsedLog.args["paymentCoin"].toLowerCase();
 
         const methods = [
           {
@@ -287,7 +292,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const tokenId = saleDetail["tokenId"].toString();
             const currency = saleDetail["paymentMethod"].toLowerCase();
             const currencyPrice = saleDetail["itemPrice"].div(saleDetail["amount"]).toString();
-            const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
+            // const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
 
             // For bulk fill, we need to select the ones that match with current event
             if (
@@ -295,16 +300,17 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 matchedMethod.name
               )
             ) {
-              if (
-                !(
-                  tokenAddress === tokenAddressOfEvent &&
-                  tokenId === tokenIdOfEvent &&
-                  paymentMethod === paymentCoinOfEvent
-                )
-              ) {
-                // Skip
-                continue;
-              }
+              // gas out, but the event not emitted
+              // if (
+              //   !(
+              //     tokenAddress === tokenAddressOfEvent &&
+              //     tokenId === tokenIdOfEvent &&
+              //     paymentMethod === paymentCoinOfEvent
+              //   )
+              // ) {
+              //   // Skip
+              //   continue;
+              // }
             }
 
             const isBuyOrder = subKind.includes("accept-offer");
@@ -436,6 +442,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             if (attributionData.taker) {
               taker = attributionData.taker;
             }
+
+            // What if same token filled multiple times?
+            if (trades.order.has(`${txHash}-${tokenAddress}-${tokenId}`)) {
+              // Skip if processed
+              continue;
+            }
+
+            // Marke as processed
+            trades.order.set(`${txHash}-${tokenAddress}-${tokenId}`, 1);
 
             onChainData.fillEventsPartial.push({
               orderId,
