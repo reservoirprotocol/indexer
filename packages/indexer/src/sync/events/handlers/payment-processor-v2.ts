@@ -4,15 +4,16 @@ import { HashZero } from "@ethersproject/constants";
 import { searchForCalls } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { logger } from "@/common/logger";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
@@ -443,6 +444,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 order.params.sellerOrBuyer,
                 order.params.nonce
               );
+            }
+
+            if (
+              orderId &&
+              order.params.protocol ===
+                Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL
+            ) {
+              await orderFixesJob.addToQueue([{ by: "id", data: { id: orderId } }], 5000);
             }
 
             // Handle: attribution

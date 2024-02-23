@@ -1004,7 +1004,6 @@ export class Router {
           !fees?.length
       ) &&
       !options?.forceRouter &&
-      !options?.relayer &&
       !options?.usePermit
     ) {
       const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
@@ -1018,9 +1017,9 @@ export class Router {
         approval = {
           currency: details[0].currency,
           amount: details[0].price,
-          owner: taker,
+          owner: relayer,
           operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
+          txData: generateFTApprovalTxData(details[0].currency, relayer, conduit),
         };
       }
 
@@ -1036,7 +1035,7 @@ export class Router {
                 listings: { "seaport-v1.5": 1 },
               },
               txData: await exchange.fillOrderTx(
-                taker,
+                relayer,
                 order,
                 {
                   ...order.buildMatching({ amount: details[0].amount }),
@@ -1045,6 +1044,7 @@ export class Router {
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -1065,7 +1065,7 @@ export class Router {
                 listings: { "seaport-v1.5": details.length },
               },
               txData: await exchange.fillOrdersTx(
-                taker,
+                relayer,
                 orders,
                 orders.map((order, i) => ({
                   ...order.buildMatching({ amount: details[i].amount }),
@@ -1074,6 +1074,7 @@ export class Router {
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: details.map((d) => d.orderId),
@@ -1098,7 +1099,6 @@ export class Router {
           !fees?.length
       ) &&
       !options?.forceRouter &&
-      !options?.relayer &&
       !options?.usePermit
     ) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
@@ -1112,9 +1112,9 @@ export class Router {
         approval = {
           currency: details[0].currency,
           amount: details[0].price,
-          owner: taker,
+          owner: relayer,
           operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
+          txData: generateFTApprovalTxData(details[0].currency, relayer, conduit),
         };
       }
 
@@ -1130,12 +1130,13 @@ export class Router {
                 listings: { alienswap: 1 },
               },
               txData: await exchange.fillOrderTx(
-                taker,
+                relayer,
                 order,
                 order.buildMatching({ amount: details[0].amount }),
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -1156,12 +1157,13 @@ export class Router {
                 listings: { alienswap: details.length },
               },
               txData: await exchange.fillOrdersTx(
-                taker,
+                relayer,
                 orders,
                 orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: details.map((d) => d.orderId),
