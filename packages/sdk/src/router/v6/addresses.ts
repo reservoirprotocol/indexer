@@ -160,7 +160,7 @@ export const SeaportV15Module: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.EthereumSepolia]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.Polygon]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
-  [Network.Mumbai]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
+  [Network.Mumbai]: "0xc41f114b586659045263fb74079a66e79f352f5a",
   [Network.Optimism]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.Arbitrum]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",
   [Network.ArbitrumNova]: "0x00ca04c45da318d5b7e7b14d5381ca59f09c73f0",

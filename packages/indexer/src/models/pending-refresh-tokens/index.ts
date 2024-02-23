@@ -5,6 +5,7 @@ export type RefreshTokens = {
   collection: string;
   contract: string;
   tokenId: string;
+  isFallback?: boolean;
 };
 
 /**

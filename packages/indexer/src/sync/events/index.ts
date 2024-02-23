@@ -298,6 +298,10 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "fairxyz",
         data: kindToEvents.get("fairxyz") ?? [],
       },
+      {
+        kind: "operator-filter",
+        data: kindToEvents.get("operator-filter") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {

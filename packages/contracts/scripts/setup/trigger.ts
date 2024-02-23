@@ -233,7 +233,7 @@ export const trigger = {
         Sdk.SeaportV14.Addresses.Exchange[chainId],
       ]),
     SeaportV15Module: async (chainId: number) =>
-      dv("SeaportV15Module", "v2", [
+      dv("SeaportV15Module", "v3", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.SeaportV15.Addresses.Exchange[chainId],
@@ -390,5 +390,24 @@ export const trigger = {
         console.log(`Signer ${oracleSigner} configured`);
       }
     },
+  },
+  // Test NFTs
+  TestNFTs: {
+    Erc721: async () =>
+      dv("ReservoirErc721", "v1", [
+        DEPLOYER,
+        "https://test-tokens-metadata.vercel.app/api/erc721/",
+        "https://test-tokens-metadata.vercel.app/api/erc721/contract",
+        DEPLOYER,
+        1000,
+      ]),
+    Erc1155: async () =>
+      dv("ReservoirErc1155", "v1", [
+        DEPLOYER,
+        "https://test-tokens-metadata.vercel.app/api/erc1155/",
+        "https://test-tokens-metadata.vercel.app/api/erc1155/contract",
+        DEPLOYER,
+        1000,
+      ]),
   },
 };

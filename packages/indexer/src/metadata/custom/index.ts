@@ -32,7 +32,7 @@ export const customHandleContractTokens = async (contract: string, continuation:
 ////////////////
 
 // ENS
-custom["1,0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"] = ens;
+// custom["1,0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"] = ens;
 
 // Bridge to Base
 custom["8453,0xea2a41c02fa86a4901826615f9796e603c6a4491"] = bridgeToBase;

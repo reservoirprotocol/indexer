@@ -1526,10 +1526,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
             endpoint: "/execute/buy/v7",
             salt: Math.floor(Math.random() * 1000000),
           },
+          source: payload.source,
         };
 
         const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
-          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data, {
+            headers: {
+              origin: request.headers["origin"],
+            },
+          })
           .then((response) => ({
             requestId: response.data.requestId,
             shortRequestId: response.data.shortRequestId,
@@ -2504,9 +2509,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // setup they might run into errors
       if (
         buyInCurrency === Sdk.Common.Addresses.Native[config.chainId] &&
-        !unverifiedERC721CTransferValidators.length
+        !unverifiedERC721CTransferValidators.length &&
+        !steps.find(
+          (s) =>
+            s.id === "currency-approval" && s.items.find((item) => item.status === "incomplete")
+        )
       ) {
-        // Buying in ETH will never require an approval
         steps = steps.filter((s) => s.id !== "currency-approval");
       }
       if (!payload.usePermit) {

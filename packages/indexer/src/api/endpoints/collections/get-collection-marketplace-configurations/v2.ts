@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { getNetworkSettings, getSubDomain } from "@/config/network";
 import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
-import { getCurrency } from "@/utils/currencies";
+import { Currency, getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as paymentProcessor from "@/utils/payment-processor";
@@ -49,7 +49,7 @@ type Marketplace = {
       partialOrderSupported: boolean;
       minimumBidExpiry?: number;
       minimumPrecision?: string;
-      supportedBidCurrencies: string[];
+      supportedBidCurrencies: PaymentToken[];
       maxPriceRaw?: string;
       minPriceRaw?: string;
       oracleEnabled: boolean;
@@ -57,20 +57,19 @@ type Marketplace = {
   >;
 };
 
-const version = "v1";
+const version = "v2";
 
-export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
+export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 60000,
   },
   description: "Marketplace configurations by collection",
   notes: "This API returns recommended marketplace configurations given a collection id",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 5,
-      deprecated: true,
     },
   },
   validate: {
@@ -120,15 +119,22 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   "This indicates whether or not multi quantity bidding is supported"
                 ),
                 supportedBidCurrencies: Joi.array()
-                  .items(Joi.string())
+                  .items(
+                    Joi.object({
+                      address: Joi.string(),
+                      decimals: Joi.number().allow(null),
+                      name: Joi.string().allow(null),
+                      symbol: Joi.string().allow(null),
+                    })
+                  )
                   .description("erc20 contract addresses"),
                 paymentTokens: Joi.array()
                   .items(
                     Joi.object({
                       address: Joi.string(),
-                      decimals: Joi.number(),
+                      decimals: Joi.number().allow(null),
                       name: Joi.string().allow(null),
-                      symbol: Joi.string(),
+                      symbol: Joi.string().allow(null),
                     })
                   )
                   .allow(null),
@@ -146,6 +152,12 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
     const params = request.params as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query = request.query as any;
+    const convertCurrencyToToken = ({ name, symbol, contract, decimals }: Currency) => ({
+      name,
+      symbol,
+      address: contract,
+      decimals,
+    });
 
     try {
       const collectionResult = await redb.oneOrNone(
@@ -188,6 +200,14 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
       const ns = getNetworkSettings();
       const marketplaces: Marketplace[] = [];
 
+      await getCurrency(Sdk.Common.Addresses.WNative[config.chainId]);
+      const currencies = await Promise.all([
+        getCurrency(Sdk.Common.Addresses.WNative[config.chainId]),
+        ...Object.keys(ns.supportedBidCurrencies).map((contract) => getCurrency(contract)),
+      ]);
+      const currencyTokens = currencies.map((currency) => convertCurrencyToToken(currency));
+      const [wrappedNativeCurrency, ...supportedBidCurrencies] = currencyTokens;
+
       if (Sdk.LooksRareV2.Addresses.Exchange[config.chainId]) {
         marketplaces.push({
           name: "LooksRare",
@@ -203,7 +223,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               orderKind: "looks-rare-v2",
               minimumBidExpiry: 15 * 60,
               customFeesSupported: false,
-              supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
+              supportedBidCurrencies: [wrappedNativeCurrency],
               partialOrderSupported: false,
               traitBidSupported: false,
               oracleEnabled: false,
@@ -213,7 +233,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               orderKind: "seaport-v1.5",
               minimumBidExpiry: 15 * 60,
               customFeesSupported: false,
-              supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
+              supportedBidCurrencies: [wrappedNativeCurrency],
               partialOrderSupported: false,
               traitBidSupported: false,
               oracleEnabled: Boolean(
@@ -238,7 +258,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               orderKind: "x2y2",
               enabled: false,
               customFeesSupported: false,
-              supportedBidCurrencies: [Sdk.Common.Addresses.WNative[config.chainId]],
+              supportedBidCurrencies: [wrappedNativeCurrency],
               partialOrderSupported: false,
               traitBidSupported: false,
               oracleEnabled: false,
@@ -251,6 +271,15 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
 
       // Handle Reservoir
       {
+        const ppSupportedBidCurrencies =
+          config.chainId === 137 &&
+          params.collection === "0xa87dbcfa18adb7c00593e2c2469d83213c87aecd"
+            ? [
+                convertCurrencyToToken(
+                  await getCurrency("0x456f931298065b1852647de005dd27227146d8b9")
+                ),
+              ]
+            : supportedBidCurrencies;
         marketplaces.push({
           name: "Reservoir",
           imageUrl: `https://${getSubDomain()}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
@@ -271,7 +300,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               customFeesSupported: true,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
-              supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+              supportedBidCurrencies,
               partialOrderSupported: true,
               traitBidSupported: true,
               oracleEnabled: Boolean(
@@ -285,11 +314,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               numFeesSupported: 1,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
-              supportedBidCurrencies:
-                config.chainId === 137 &&
-                params.collection === "0xa87dbcfa18adb7c00593e2c2469d83213c87aecd"
-                  ? ["0x456f931298065b1852647de005dd27227146d8b9"]
-                  : Object.keys(ns.supportedBidCurrencies),
+              supportedBidCurrencies: ppSupportedBidCurrencies,
               partialOrderSupported: false,
               traitBidSupported: false,
               oracleEnabled: false,
@@ -301,11 +326,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               numFeesSupported: 1,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
-              supportedBidCurrencies:
-                config.chainId === 137 &&
-                params.collection === "0xa87dbcfa18adb7c00593e2c2469d83213c87aecd"
-                  ? ["0x456f931298065b1852647de005dd27227146d8b9"]
-                  : Object.keys(ns.supportedBidCurrencies),
+              supportedBidCurrencies: ppSupportedBidCurrencies,
               partialOrderSupported: collectionResult.contract_kind === "erc1155" ? true : false,
               traitBidSupported: false,
               oracleEnabled: true,
@@ -354,7 +375,7 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
               enabled: false,
               customFeesSupported: false,
               minimumBidExpiry: 15 * 60,
-              supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+              supportedBidCurrencies,
               paymentTokens: collectionResult.payment_tokens?.opensea,
               partialOrderSupported: true,
               traitBidSupported: true,
@@ -394,7 +415,11 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                 customFeesSupported: false,
                 minimumPrecision: "0.01",
                 minimumBidExpiry: 10 * 24 * 60 * 60,
-                supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
+                supportedBidCurrencies: [
+                  convertCurrencyToToken(
+                    await getCurrency(Sdk.Blur.Addresses.Beth[config.chainId])
+                  ),
+                ],
                 partialOrderSupported: true,
                 traitBidSupported: false,
                 oracleEnabled: false,
@@ -541,9 +566,6 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                   exchange.minPriceRaw = settings?.pricingBounds?.floorPrice;
                 }
 
-                exchange.supportedBidCurrencies = paymentTokens.filter(
-                  (p) => p !== Sdk.Common.Addresses.Native[config.chainId]
-                );
                 exchange.paymentTokens = await Promise.all(
                   paymentTokens.map(async (token) => {
                     const paymentToken = await getCurrency(token);
@@ -555,7 +577,17 @@ export const getCollectionMarketplaceConfigurationsV1Options: RouteOptions = {
                     };
                   })
                 );
+                exchange.supportedBidCurrencies = exchange.paymentTokens.filter(
+                  (p) => p.address !== Sdk.Common.Addresses.Native[config.chainId]
+                );
               }
+
+              exchange.supportedBidCurrencies.forEach(({ address, symbol, name, decimals }) => ({
+                address,
+                symbol,
+                name,
+                decimals,
+              }));
             }
           })
         );

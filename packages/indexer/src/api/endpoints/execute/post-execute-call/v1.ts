@@ -120,7 +120,11 @@ export const postExecuteCallV1Options: RouteOptions = {
       };
 
       const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
-        .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+        .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data, {
+          headers: {
+            origin: request.headers["origin"],
+          },
+        })
         .then((response) => ({
           requestId: response.data.requestId,
           shortRequestId: response.data.shortRequestId,

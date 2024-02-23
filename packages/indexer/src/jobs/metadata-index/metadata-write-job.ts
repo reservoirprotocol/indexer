@@ -90,7 +90,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    if (config.chainId === 1) {
+    if ([1, 137].includes(config.chainId)) {
       const tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         contract

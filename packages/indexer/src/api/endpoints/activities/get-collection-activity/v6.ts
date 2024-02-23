@@ -41,6 +41,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
   timeout: {
     server: 20 * 1000,
   },
+  cache: {
+    privacy: "public",
+    expiresIn: 5000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 1,

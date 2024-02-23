@@ -348,7 +348,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
               status: "incomplete",
               orderIds,
               data: {
-                sign: offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
+                sign: await offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
                   orderIds.sort()
                 ),
                 post: {

@@ -5,7 +5,7 @@ import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/payment-processor/build/utils";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
   tokenId: string;
@@ -37,7 +37,11 @@ export const build = async (options: BuildOrderOptions) => {
 
   const builder: BaseBuilder = new Sdk.PaymentProcessor.Builders.SingleToken(config.chainId);
 
-  const tokenRoyalties = await registry.getRegistryRoyalties(options.contract!, options.tokenId);
+  const tokenRoyalties = await onchain.getOnChainRoyalties(
+    options.contract!,
+    options.tokenId,
+    "onchain"
+  );
   const tokenRoyaltiesBps = tokenRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

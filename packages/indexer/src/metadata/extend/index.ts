@@ -43,6 +43,8 @@ import * as foundationShared from "./foundation-shared";
 import * as kanpaiPandas from "./kanpai-pandas";
 import * as zedRun from "./zed-run";
 import * as punks2023 from "./punks2023";
+import * as ens from "./ens";
+
 import { CollectionsOverride } from "@/models/collections-override";
 
 const extendCollection: any = {};
@@ -362,3 +364,6 @@ extend["1,0x4db1f25d3d98600140dfc18deb7515be5bd293af"] = hape;
 
 // punks2023
 extend["1,0x789e35a999c443fe6089544056f728239b8ffee7"] = punks2023;
+
+// ENS
+extend["1,0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"] = ens;
