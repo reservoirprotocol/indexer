@@ -287,7 +287,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           );
 
           // Process once if it's a bulk action
-          if (trades.order.has(`${txHash}`)) {
+          if (isBulkFill && trades.order.has(`${txHash}`)) {
             continue;
           }
 
@@ -512,7 +512,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
 
           // Marke as processed
-          trades.order.set(`${txHash}`, 1);
+          if (isBulkFill) {
+            trades.order.set(`${txHash}`, 1);
+          }
         }
 
         break;
