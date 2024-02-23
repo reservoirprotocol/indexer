@@ -35,7 +35,9 @@ export const getRoyaltiesToBePaid = async (contract: string, tokenId?: string) =
     ? await getRoyalties(contract, tokenId, "eip2981")
     : (await hasRoyalties("pp-v2-backfill", contract))
     ? await getRoyalties(contract, tokenId, "pp-v2-backfill")
-    : await getRoyalties(contract, tokenId, "onchain");
+    : (await hasRoyalties("onchain", contract))
+    ? await getRoyalties(contract, tokenId, "onchain")
+    : await getRoyalties(contract, tokenId, "opensea");
 };
 
 export const getBuildInfo = async (
