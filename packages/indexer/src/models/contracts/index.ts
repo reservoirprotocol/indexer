@@ -2,6 +2,7 @@
 
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
 
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { getContractNameAndSymbol, getContractOwner } from "@/jobs/collections/utils";
@@ -58,5 +59,18 @@ export class Contracts {
         owner: contractOwner ? toBuffer(contractOwner) : null,
       }
     );
+
+    if (contractMetadata?.metadata && contractMetadata.metadata.mintConfig) {
+      const onChainData = initOnChainData();
+      onChainData.mints.push({
+        by: "contractMetadata",
+        data: {
+          collection: contract,
+          metadata: contractMetadata.metadata,
+        },
+      });
+
+      await processOnChainData(onChainData, false);
+    }
   }
 }
