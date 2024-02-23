@@ -1017,17 +1017,19 @@ export const getUserTokensV9Options: RouteOptions = {
         };
       });
 
-      let cacheControl = 1;
       if (query.includeTopBid || query.includeAttributes) {
-        cacheControl = 60;
+        return response
+          .response({
+            tokens: await Promise.all(result),
+            continuation,
+          })
+          .header("cache-control", `max-age=60, must-revalidate, public`);
       }
 
-      return response
-        .response({
-          tokens: await Promise.all(result),
-          continuation,
-        })
-        .header("cache-control", `max-age=${cacheControl}, must-revalidate, public`);
+      return {
+        tokens: await Promise.all(result),
+        continuation,
+      };
     } catch (error) {
       logger.error(`get-user-tokens-${version}-handler`, `Handler failure: ${error}`);
       throw error;
