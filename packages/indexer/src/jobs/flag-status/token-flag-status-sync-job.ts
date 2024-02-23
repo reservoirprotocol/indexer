@@ -4,7 +4,7 @@ import cron from "node-cron";
 
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { acquireLock, redlock } from "@/common/redis";
+import { acquireLock, extendLock, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
@@ -25,7 +25,6 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
   public async process() {
     let addToQueue = false;
-    let addToQueueDelay = DEFAULT_JOB_DELAY_SECONDS;
 
     const lockAcquired = await acquireLock(this.getLockName(), DEFAULT_JOB_DELAY_SECONDS);
 
@@ -34,8 +33,6 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
       if (tokensToGetFlagStatusFor.length) {
         const tokensToGetFlagStatusForChunks = _.chunk(tokensToGetFlagStatusFor, 1);
-
-        let rateLimitExpiredIn = 0;
 
         const results = await Promise.all(
           tokensToGetFlagStatusForChunks.map((tokensToGetFlagStatusForChunk) =>
@@ -53,7 +50,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
                   })
                 );
 
-                rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.delay, 5);
+                await extendLock(this.getLockName(), Math.max(error.delay, 5));
 
                 await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
               } else {
@@ -72,28 +69,22 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
           )
         );
 
-        if (results.length || rateLimitExpiredIn) {
-          if (results.length) {
-            const tokensFlagStatus = results.flat(1);
+        if (results.length) {
+          const tokensFlagStatus = results.flat(1);
 
-            logger.info(
-              this.queueName,
-              `Debug. tokensToGetFlagStatusFor=${tokensToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
-            );
+          logger.info(
+            this.queueName,
+            `Debug. tokensToGetFlagStatusFor=${tokensToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
+          );
 
-            await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
-          }
+          await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
 
           addToQueue = true;
-
-          if (rateLimitExpiredIn) {
-            addToQueueDelay = rateLimitExpiredIn;
-          }
         }
       }
     }
 
-    return { addToQueue, addToQueueDelay };
+    return { addToQueue };
   }
 
   public getLockName() {
@@ -104,12 +95,10 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     rabbitMqMessage: RabbitMQMessage,
     processResult: {
       addToQueue: boolean;
-      addToQueueDelay: number;
     }
   ) {
     if (processResult?.addToQueue) {
-      const addToQueueDelay = processResult.addToQueueDelay ?? DEFAULT_JOB_DELAY_SECONDS;
-      await this.addToQueue(addToQueueDelay * 1000);
+      await this.addToQueue(DEFAULT_JOB_DELAY_SECONDS * 1000);
     }
   }
 
