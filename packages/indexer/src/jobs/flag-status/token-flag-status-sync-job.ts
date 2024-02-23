@@ -25,6 +25,7 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
   public async process() {
     let addToQueue = false;
+    let addToQueueDelay = DEFAULT_JOB_DELAY_SECONDS;
 
     const lockAcquired = await acquireLock(this.getLockName(), DEFAULT_JOB_DELAY_SECONDS);
 
@@ -33,6 +34,8 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
 
       if (tokensToGetFlagStatusFor.length) {
         const tokensToGetFlagStatusForChunks = _.chunk(tokensToGetFlagStatusFor, 1);
+
+        let rateLimitExpiredIn = 0;
 
         const results = await Promise.all(
           tokensToGetFlagStatusForChunks.map((tokensToGetFlagStatusForChunk) =>
@@ -49,6 +52,8 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
                     error,
                   })
                 );
+
+                rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.delay, 5);
 
                 await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
               } else {
@@ -67,22 +72,28 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
           )
         );
 
-        if (results.length) {
-          const tokensFlagStatus = results.flat(1);
+        if (results.length || rateLimitExpiredIn) {
+          if (results.length) {
+            const tokensFlagStatus = results.flat(1);
 
-          logger.info(
-            this.queueName,
-            `Debug. tokensToGetFlagStatusFor=${tokensToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
-          );
+            logger.info(
+              this.queueName,
+              `Debug. tokensToGetFlagStatusFor=${tokensToGetFlagStatusFor.length}, tokensFlagStatus=${tokensFlagStatus.length}`
+            );
 
-          await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
+            await flagStatusUpdateJob.addToQueue(tokensFlagStatus);
+          }
 
           addToQueue = true;
+
+          if (rateLimitExpiredIn) {
+            addToQueueDelay = rateLimitExpiredIn;
+          }
         }
       }
     }
 
-    return { addToQueue };
+    return { addToQueue, addToQueueDelay };
   }
 
   public getLockName() {
@@ -93,10 +104,12 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
     rabbitMqMessage: RabbitMQMessage,
     processResult: {
       addToQueue: boolean;
+      addToQueueDelay: number;
     }
   ) {
     if (processResult?.addToQueue) {
-      await this.addToQueue(DEFAULT_JOB_DELAY_SECONDS * 1000);
+      const addToQueueDelay = processResult.addToQueueDelay ?? DEFAULT_JOB_DELAY_SECONDS;
+      await this.addToQueue(addToQueueDelay * 1000);
     }
   }
 

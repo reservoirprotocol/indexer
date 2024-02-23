@@ -63,18 +63,7 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
       )
     );
 
-    if (uniqueRefreshTokens.length < refreshTokens.length) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Duplicate tokens. method=${method}, refreshTokensCount=${refreshTokens.length}, uniqueRefreshTokensCount=${uniqueRefreshTokens.length}`,
-          refreshTokens: JSON.stringify(refreshTokens),
-          uniqueRefreshTokens: JSON.stringify(uniqueRefreshTokens),
-        })
-      );
-    }
-
-    const refreshTokensChunks = _.chunk(refreshTokens, count);
+    const refreshTokensChunks = _.chunk(uniqueRefreshTokens, count);
 
     let rateLimitExpiredIn = 0;
 
@@ -94,7 +83,6 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
             );
 
             rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.delay, 5);
-            // rateLimitExpiredIn = 5;
 
             await pendingRefreshTokens.add(refreshTokensChunk, true);
           } else {
@@ -160,16 +148,6 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
             missingMetadataRefreshTokens: JSON.stringify(missingMetadataRefreshTokens),
           })
         );
-
-        // for (const missingMetadataRefreshToken of missingMetadataRefreshTokens) {
-        //   logger.info(
-        //     this.queueName,
-        //     JSON.stringify({
-        //       message: `Missing refresh token from provider. method=${method}, contract=${missingMetadataRefreshToken.contract}, tokenId=${missingMetadataRefreshToken.tokenId}`,
-        //       missingMetadataRefreshToken,
-        //     })
-        //   );
-        // }
       }
     } catch (error) {
       logger.error(
