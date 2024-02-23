@@ -3904,6 +3904,7 @@ export class Router {
       }
 
       txs.push({
+        // Ensure approvals are unique
         approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
         ftApprovals: [],
         preSignatures,
@@ -3969,7 +3970,8 @@ export class Router {
         }
 
         txs.push({
-          approvals,
+          // Ensure approvals are unique
+          approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
           ftApprovals: [],
           txTags: {
             bids: { "payment-processor-v2": orders.length },

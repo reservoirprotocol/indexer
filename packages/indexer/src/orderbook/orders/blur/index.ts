@@ -292,10 +292,6 @@ export const savePartialListings = async (
           status: "success",
           triggerKind: "new-order",
         });
-
-        if (!orderParams.fromWebsocket) {
-          logger.info("blur-debug", JSON.stringify(orderParams));
-        }
       } else {
         // Order already exists
         const wasUpdated = await idb.oneOrNone(

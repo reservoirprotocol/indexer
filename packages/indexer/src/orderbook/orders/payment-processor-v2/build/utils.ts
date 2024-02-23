@@ -29,6 +29,15 @@ type OrderBuildInfo = {
   params: BaseBuildParams;
 };
 
+export const getRoyaltiesToBePaid = async (contract: string, tokenId?: string) => {
+  // Royalty ordering: `eip2981` > `pp-v2-backfill` > `onchain`
+  return (await hasRoyalties("eip2981", contract))
+    ? await getRoyalties(contract, tokenId, "eip2981")
+    : (await hasRoyalties("pp-v2-backfill", contract))
+    ? await getRoyalties(contract, tokenId, "pp-v2-backfill")
+    : await getRoyalties(contract, tokenId, "onchain");
+};
+
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
   collection: string,
@@ -66,10 +75,7 @@ export const getBuildInfo = async (
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
 
-  // If no `onchain` royalties are set, default to `pp-v2-backfill`
-  const onChainRoyalties = (await hasRoyalties("onchain", contract))
-    ? await getRoyalties(contract, undefined, "onchain")
-    : await getRoyalties(contract, undefined, "pp-v2-backfill");
+  const royalties = await getRoyaltiesToBePaid(collection);
 
   const buildParams: BaseBuildParams = {
     protocol:
@@ -79,8 +85,8 @@ export const getBuildInfo = async (
     marketplace,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator,
-    maxRoyaltyFeeNumerator: onChainRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
-    fallbackRoyaltyRecipient: onChainRoyalties.length ? onChainRoyalties[0].recipient : undefined,
+    maxRoyaltyFeeNumerator: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+    fallbackRoyaltyRecipient: royalties.length ? royalties[0].recipient : undefined,
     maker: options.maker,
     tokenAddress: contract,
     itemPrice: options.weiPrice,

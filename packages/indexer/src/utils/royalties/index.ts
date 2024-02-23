@@ -4,7 +4,7 @@ import _ from "lodash";
 import { idb } from "@/common/db";
 import { regex, toBuffer } from "@/common/utils";
 import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 export type Royalty = {
   recipient: string;
@@ -239,7 +239,8 @@ export const refreshAllRoyaltySpecs = async (
 
   if (refreshOnChain) {
     // Refresh the on-chain royalties
-    await registry.refreshRegistryRoyalties(collection);
+    await onchain.refreshOnChainRoyalties(collection, "onchain");
+    await onchain.refreshOnChainRoyalties(collection, "eip2981");
   }
 };
 
@@ -280,10 +281,12 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   let defaultRoyalties: Royalty[] = [];
   if (royaltiesResult.new_royalties["custom"]) {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
-  } else if (royaltiesResult.new_royalties["onchain"]) {
-    defaultRoyalties = royaltiesResult.new_royalties["onchain"];
+  } else if (royaltiesResult.new_royalties["eip2981"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["eip2981"];
   } else if (royaltiesResult.new_royalties["pp-v2-backfill"]) {
     defaultRoyalties = royaltiesResult.new_royalties["pp-v2-backfill"];
+  } else if (royaltiesResult.new_royalties["onchain"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["onchain"];
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }

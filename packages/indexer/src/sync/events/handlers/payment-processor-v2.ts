@@ -12,6 +12,7 @@ import * as utils from "@/events-sync/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { logger } from "@/common/logger";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
@@ -85,7 +86,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const parsedLog = eventData.abi.parseLog(log);
 
         const txHash = baseEventParams.txHash;
-        const tx = await utils.fetchTransaction(txHash);
 
         const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
         const exchangeAddress = exchange.contract.address;
@@ -224,16 +224,35 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             for (const call of calls) {
               relevantCalls.push(call.input ?? "0x");
             }
-          } catch {
-            relevantCalls.push(tx.data);
+          } catch (error) {
+            logger.info(
+              "pp-v2",
+              JSON.stringify({
+                msg: "Could not get transaction trace",
+                log,
+                parsingError: true,
+                error,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                stack: (error as any).stack,
+              })
+            );
+            throw new Error("Could not get transaction trace");
           }
         } else {
-          relevantCalls.push(tx.data);
+          logger.info(
+            "pp-v2",
+            JSON.stringify({ msg: "Could not get transaction trace", log, isMissingTrace: true })
+          );
+          throw new Error("Could not get transaction trace");
         }
 
         for (const relevantCalldata of relevantCalls) {
           const matchedMethod = methods.find((c) => relevantCalldata.includes(c.selector));
           if (!matchedMethod) {
+            logger.info(
+              "pp-v2",
+              JSON.stringify({ msg: "Missing matched method", log, relevantCalldata })
+            );
             continue;
           }
 
