@@ -56,7 +56,7 @@ export class PendingTxsListener {
       jsonrpc: "2.0",
       id: 1,
       method: "subscribe",
-      params: ["pendingTxs", params],
+      params: ["newTxs", params],
     };
 
     this.ws.send(JSON.stringify(pendingTxQuuery));
