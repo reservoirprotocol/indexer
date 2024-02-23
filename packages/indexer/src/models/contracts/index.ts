@@ -32,13 +32,27 @@ export class Contracts {
       return;
     }
 
+    const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
+
+    if (contractMetadata?.metadata && contractMetadata.metadata.mintConfig) {
+      const onChainData = initOnChainData();
+      onChainData.mints.push({
+        by: "contractMetadata",
+        data: {
+          collection: contract,
+          metadata: contractMetadata.metadata,
+        },
+      });
+
+      await processOnChainData(onChainData, false);
+    }
+
     // if symbol and name are already set, skip
     if (contractExists.symbol && contractExists.name) {
       return;
     }
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
-    const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
     const contractOwner = await getContractOwner(contract);
 
     await idb.none(
@@ -59,18 +73,5 @@ export class Contracts {
         owner: contractOwner ? toBuffer(contractOwner) : null,
       }
     );
-
-    if (contractMetadata?.metadata && contractMetadata.metadata.mintConfig) {
-      const onChainData = initOnChainData();
-      onChainData.mints.push({
-        by: "contractMetadata",
-        data: {
-          collection: contract,
-          metadata: contractMetadata.metadata,
-        },
-      });
-
-      await processOnChainData(onChainData, false);
-    }
   }
 }
