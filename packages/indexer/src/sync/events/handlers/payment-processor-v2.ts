@@ -282,6 +282,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             tokenSetProofs = inputData.params.tokenSetProofsArray;
           }
 
+          const isBulkFill = ["bulkAcceptOffers", "bulkBuyListings", "sweepCollection"].includes(
+            matchedMethod.name
+          );
+
+          // Process once if it's a bulk action
+          if (trades.order.has(`${txHash}`)) {
+            continue;
+          }
+
           for (let i = 0; i < saleDetailsArray.length; i++) {
             const [saleDetail, saleSignature] = [saleDetailsArray[i], saleSignatures[i]];
             if (!saleDetail) {
@@ -295,11 +304,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             // const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
 
             // For bulk fill, we need to select the ones that match with current event
-            if (
-              ["bulkAcceptOffers", "bulkBuyListings", "sweepCollection"].includes(
-                matchedMethod.name
-              )
-            ) {
+            if (isBulkFill) {
               // gas out, but the event not emitted
               // if (
               //   !(
@@ -443,15 +448,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               taker = attributionData.taker;
             }
 
-            // What if same token filled multiple times?
-            if (trades.order.has(`${txHash}-${tokenAddress}-${tokenId}`)) {
-              // Skip if processed
-              continue;
-            }
-
-            // Marke as processed
-            trades.order.set(`${txHash}-${tokenAddress}-${tokenId}`, 1);
-
             onChainData.fillEventsPartial.push({
               orderId,
               orderKind: "payment-processor-v2",
@@ -514,6 +510,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               });
             }
           }
+
+          // Marke as processed
+          trades.order.set(`${txHash}`, 1);
         }
 
         break;
