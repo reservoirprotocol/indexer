@@ -95,10 +95,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
         const exchangeAddress = exchange.contract.address;
 
-        // const tokenIdOfEvent = parsedLog.args["tokenId"].toString();
-        // const tokenAddressOfEvent = parsedLog.args["tokenAddress"].toLowerCase();
         const tokenAmountOfEvent = (parsedLog.args["amount"] ?? 1).toString();
-        // const paymentCoinOfEvent = parsedLog.args["paymentCoin"].toLowerCase();
 
         const methods = [
           {
@@ -301,22 +298,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const tokenId = saleDetail["tokenId"].toString();
             const currency = saleDetail["paymentMethod"].toLowerCase();
             const currencyPrice = saleDetail["itemPrice"].div(saleDetail["amount"]).toString();
-            // const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
-
-            // For bulk fill, we need to select the ones that match with current event
-            if (isBulkFill) {
-              // gas out, but the event not emitted
-              // if (
-              //   !(
-              //     tokenAddress === tokenAddressOfEvent &&
-              //     tokenId === tokenIdOfEvent &&
-              //     paymentMethod === paymentCoinOfEvent
-              //   )
-              // ) {
-              //   // Skip
-              //   continue;
-              // }
-            }
 
             const isBuyOrder = subKind.includes("accept-offer");
             const maker = isBuyOrder
