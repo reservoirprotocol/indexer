@@ -255,8 +255,7 @@ jobs:
             ./prod/platform/indexer-api-polygon.yaml \
             ./prod/platform/indexer-worker-polygon.yaml \
             ./prod/platform/indexer-worker-master-polygon.yaml \
-            ./prod/platform/indexer-websocket-polygon.yaml \
-            ./prod/platform/indexer-kafka-worker-polygon.yaml
+            ./prod/platform/indexer-websocket-polygon.yaml
 
           ./utils/version_update_batch.sh indexer-polygon-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-api-polygon-zkevm.yaml \
