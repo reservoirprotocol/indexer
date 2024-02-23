@@ -7,6 +7,8 @@ import { initOnChainData, processOnChainData } from "@/events-sync/handlers/util
 import { collectionNewContractDeployedJob } from "@/jobs/collections/collection-contract-deployed";
 import { getContractNameAndSymbol, getContractOwner } from "@/jobs/collections/utils";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
+import { Network } from "@reservoir0x/sdk/dist/utils";
+import { config } from "@/config/index";
 
 export class Contracts {
   public static async updateContractMetadata(contract: string) {
@@ -32,24 +34,30 @@ export class Contracts {
       return;
     }
 
-    const contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
+    let contractMetadata;
+    if (config.chainId === Network.Base) {
+      contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
+      if (contractMetadata?.metadata && contractMetadata.metadata.mintConfig) {
+        const onChainData = initOnChainData();
+        onChainData.mints.push({
+          by: "contractMetadata",
+          data: {
+            collection: contract,
+            metadata: contractMetadata.metadata,
+          },
+        });
 
-    if (contractMetadata?.metadata && contractMetadata.metadata.mintConfig) {
-      const onChainData = initOnChainData();
-      onChainData.mints.push({
-        by: "contractMetadata",
-        data: {
-          collection: contract,
-          metadata: contractMetadata.metadata,
-        },
-      });
-
-      await processOnChainData(onChainData, false);
+        await processOnChainData(onChainData, false);
+      }
     }
 
     // if symbol and name are already set, skip
     if (contractExists.symbol && contractExists.name) {
       return;
+    }
+
+    if (!contractMetadata) {
+      contractMetadata = await onchainMetadataProvider._getCollectionMetadata(contract);
     }
 
     const { symbol, name } = await getContractNameAndSymbol(contract);
