@@ -1194,7 +1194,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           }
 
           // Force the client to poll
-          steps[3].items.push({
+          steps[2].items.push({
             status: "incomplete",
             tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
