@@ -8,6 +8,8 @@ export type ResyncAttributeCacheJobPayload = {
 };
 
 export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler {
+  public static maxTokensPerAttribute = 15000;
+
   queueName = "resync-attribute-cache-queue";
   maxRetries = 10;
   concurrency = 3;
@@ -15,7 +17,11 @@ export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler 
   public async process(payload: ResyncAttributeCacheJobPayload) {
     const { contract, tokenId } = payload;
 
-    const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 15000);
+    const tokenAttributes = await Tokens.getTokenAttributes(
+      contract,
+      tokenId,
+      ResyncAttributeCacheJob.maxTokensPerAttribute
+    );
 
     // Recalculate the number of tokens on sale for each attribute
     for (const tokenAttribute of tokenAttributes) {
