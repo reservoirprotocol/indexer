@@ -5,6 +5,7 @@ import _ from "lodash";
 import { redb } from "@/common/db";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 import { fromBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
 
 export interface TokenData {
   contract: string;
@@ -126,6 +127,15 @@ export class ActivitiesTokenCache {
     const cacheKey = `${ActivitiesTokenCache.prefix}:${contract}:${tokenId}`;
 
     const tokenMetadata = tokenData.metadata ? JSON.parse(tokenData.metadata) : null;
+
+    logger.info(
+      "refreshTokens",
+      JSON.stringify({
+        message: `failed to update activities token cache. contract=${contract}, tokenId=${tokenId}`,
+        tokenData,
+        tokenMetadata,
+      })
+    );
 
     await redis.set(
       cacheKey,
