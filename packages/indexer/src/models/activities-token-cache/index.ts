@@ -125,6 +125,8 @@ export class ActivitiesTokenCache {
   public static async refreshTokens(contract: string, tokenId: string, tokenData: any) {
     const cacheKey = `${ActivitiesTokenCache.prefix}:${contract}:${tokenId}`;
 
+    const tokenMetadata = tokenData.metadata ? JSON.parse(tokenData.metadata) : null;
+
     await redis.set(
       cacheKey,
       JSON.stringify({
@@ -133,7 +135,7 @@ export class ActivitiesTokenCache {
         name: tokenData.name,
         image: tokenData.image,
         image_version: tokenData.image_version,
-        image_mime_type: tokenData.metadata?.image_mime_type,
+        image_mime_type: tokenMetadata?.image_mime_type,
         metadata_disabled: tokenData.metadata_disabled,
         rarity_rank: tokenData.rarity_rank,
         rarity_score: tokenData.rarity_score,
