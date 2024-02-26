@@ -12,6 +12,7 @@ export interface TokenData {
   name: string;
   image: string;
   image_version: string;
+  image_mime_type: string;
   metadata_disabled: number;
   rarity_rank: number;
   rarity_score: number;
@@ -64,6 +65,7 @@ export class ActivitiesTokenCache {
             tokens.name,
             tokens.image,
             tokens.image_version,
+            (tokens.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
             tokens.metadata_disabled,
             tokens.rarity_score,
             tokens.rarity_rank
@@ -81,6 +83,7 @@ export class ActivitiesTokenCache {
               name: token.name,
               image: token.image,
               image_version: token.image_version,
+              image_mime_type: token.image_mime_type,
               metadata_disabled: token.metadata_disabled,
               rarity_score: token.rarity_score,
               rarity_rank: token.rarity_rank,
@@ -101,6 +104,7 @@ export class ActivitiesTokenCache {
                 name: tokenResult.name,
                 image: tokenResult.image,
                 image_version: tokenResult.image_version,
+                image_mime_type: tokenResult.image_mime_type,
                 metadata_disabled: tokenResult.metadata_disabled,
                 rarity_score: tokenResult.rarity_score,
                 rarity_rank: tokenResult.rarity_rank,
@@ -118,7 +122,7 @@ export class ActivitiesTokenCache {
     return cachedTokens;
   }
 
-  public static async refreshTokens(contract: string, tokenId: string, tokenData: TokenData) {
+  public static async refreshTokens(contract: string, tokenId: string, tokenData: any) {
     const cacheKey = `${ActivitiesTokenCache.prefix}:${contract}:${tokenId}`;
 
     await redis.set(
@@ -129,6 +133,7 @@ export class ActivitiesTokenCache {
         name: tokenData.name,
         image: tokenData.image,
         image_version: tokenData.image_version,
+        image_mime_type: tokenData.metadata?.image_mime_type,
         metadata_disabled: tokenData.metadata_disabled,
         rarity_rank: tokenData.rarity_rank,
         rarity_score: tokenData.rarity_score,
