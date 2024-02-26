@@ -128,7 +128,15 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             ].includes(value)
           )
         ) {
-          await ActivitiesTokenCache.refreshTokens(
+          logger.info(
+            "refreshToken",
+            JSON.stringify({
+              message: `failed to update activities token cache. contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+              payloadAfter: JSON.stringify(payload.after),
+            })
+          );
+
+          await ActivitiesTokenCache.refreshToken(
             payload.after.contract,
             payload.after.token_id,
             payload.after

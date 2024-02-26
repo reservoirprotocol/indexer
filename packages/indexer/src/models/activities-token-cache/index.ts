@@ -123,16 +123,16 @@ export class ActivitiesTokenCache {
     return cachedTokens;
   }
 
-  public static async refreshTokens(contract: string, tokenId: string, tokenData: any) {
+  public static async refreshToken(contract: string, tokenId: string, tokenData: any) {
     const cacheKey = `${ActivitiesTokenCache.prefix}:${contract}:${tokenId}`;
 
     const tokenMetadata = tokenData.metadata ? JSON.parse(tokenData.metadata) : null;
 
     logger.info(
-      "refreshTokens",
+      "refreshToken",
       JSON.stringify({
         message: `failed to update activities token cache. contract=${contract}, tokenId=${tokenId}`,
-        tokenData,
+        tokenData: JSON.stringify(tokenData),
         tokenMetadata,
       })
     );
