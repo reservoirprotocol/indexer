@@ -42,7 +42,7 @@ export default class ResyncAttributeCacheJob extends AbstractRabbitMqJobHandler 
 
   public async addToQueue(
     params: ResyncAttributeCacheJobPayload,
-    delay = 60 * 60 * 24 * 1000,
+    delay = 60 * 10 * 1000,
     forceRefresh = false
   ) {
     const token = `${params.contract}:${params.tokenId}`;
