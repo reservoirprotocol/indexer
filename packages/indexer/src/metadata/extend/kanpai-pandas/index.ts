@@ -30,7 +30,7 @@ export const extend = async (metadata: TokenMetadata) => {
     };
   } catch (error) {
     logger.error(
-      "artblocks-fetcher",
+      "kanpai-pandas-fetcher",
       JSON.stringify({
         message: `fetchToken get json error. error:${error}`,
         contract: metadata.contract,
