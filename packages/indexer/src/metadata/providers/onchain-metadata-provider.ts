@@ -231,16 +231,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             }
           } else if (uri.endsWith("/{id}")) {
             uri = uri.replace("{id}", idToToken[token.id].tokenId);
-
-            logger.info(
-              "_getTokensMetadataUri",
-              JSON.stringify({
-                topic: "hexTokenUriDebug",
-                message: `contract=${idToToken[token.id].contract}, tokenId=${
-                  idToToken[token.id].tokenId
-                }, uri=${uri}`,
-              })
-            );
           }
 
           return {
