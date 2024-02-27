@@ -104,10 +104,7 @@ export class CollectionDocumentBuilder {
         contractSymbol: data.contract_symbol,
         name: data.name?.trim(),
         suggest: this.getSuggest(data),
-        // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
-        // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
-        // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
-        // suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
+        suggestV2: this.getSuggest(data),
         slug: data.slug,
         image: data.image,
         imageVersion: data.image_version
