@@ -22,6 +22,7 @@ import axios from "axios";
 import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { randomUUID } from "crypto";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -132,7 +133,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       contract: string;
       tokenId: string;
       standard?: string;
-      requestId?: number;
+      requestId?: string;
     }[] = tokens;
 
     // Detect token standard, batch contract addresses together to call once per contract
@@ -162,9 +163,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     // We need to have some type of hash map to map the tokenid + contract to the tokenURI
     const idToToken: any = {};
     tokenData.forEach((token) => {
-      const randomInt = Math.floor(Math.random() * 100000);
-      idToToken[randomInt] = token;
-      token.requestId = randomInt;
+      token.requestId = randomUUID();
+      idToToken[token.requestId] = token;
     });
 
     let encodedTokens = tokenData.map((token) => {
