@@ -16,6 +16,20 @@ export const operatorUpdated: EventData = {
   ]),
 };
 
+export const operatorsUpdated: EventData = {
+  kind: "operator-filter",
+  subKind: "operator-filter-operators-updated",
+  topic: "0x02b85afdacb82d5512c6f05566b3018677ffcbd7e5f75e498bc64081131cbd6c",
+  numTopics: 3,
+  abi: new Interface([
+    `event OperatorsUpdated(
+      address indexed registrant,
+      address[] operators,
+      bool indexed filtered
+    )`,
+  ]),
+};
+
 export const subscriptionUpdated: EventData = {
   kind: "operator-filter",
   subKind: "operator-filter-subscription-updated",

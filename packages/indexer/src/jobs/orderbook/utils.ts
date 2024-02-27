@@ -210,6 +210,7 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
       JSON.stringify({
         message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
         orderKind: kind,
+        resultStatus: result[0]?.status,
       })
     );
   }

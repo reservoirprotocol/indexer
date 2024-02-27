@@ -470,7 +470,7 @@ export const getExecuteListV5Options: RouteOptions = {
 
           // PPv2 restrictions
           try {
-            if (process.env.PP_V2_ALLOWED_KEYS) {
+            if (params.orderKind === "payment-processor-v2" && process.env.PP_V2_ALLOWED_KEYS) {
               const ppv2AllowedKeys = JSON.parse(process.env.PP_V2_ALLOWED_KEYS) as string[];
               if (!apiKey || !ppv2AllowedKeys.includes(apiKey.key)) {
                 return errors.push({

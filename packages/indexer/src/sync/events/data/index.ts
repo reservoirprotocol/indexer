@@ -367,7 +367,8 @@ export type EventSubKind =
   | "highlightxyz-discrete-da-updated"
   | "fairxyz-edition-created"
   | "operator-filter-operator-updated"
-  | "operator-filter-subscription-updated";
+  | "operator-filter-subscription-updated"
+  | "operator-filter-operators-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -624,6 +625,7 @@ const allEventData = [
   fairxyz.editionCreated,
   operatorFilter.operatorUpdated,
   operatorFilter.subscriptionUpdated,
+  operatorFilter.operatorsUpdated,
 ];
 
 // Array of all addresses we're syncing events for

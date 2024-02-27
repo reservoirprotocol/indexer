@@ -127,6 +127,7 @@ export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
         JSON.stringify({
           message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
           orderKind: kind,
+          resultStatus: result[0]?.status,
         })
       );
     }
