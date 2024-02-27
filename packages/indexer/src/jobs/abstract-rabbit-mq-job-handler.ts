@@ -140,11 +140,21 @@ export abstract class AbstractRabbitMqJobHandler {
       }
 
       // Log the error
-      if (!this.disableErrorLogs || queueName === this.getDeadLetterQueue()) {
+      if (!this.disableErrorLogs && queueName !== this.getDeadLetterQueue()) {
+        logger.warn(
+          this.queueName,
+          JSON.stringify({
+            message: `Error handling event - Retrying. error=${error}`,
+            rabbitMqMessage: this.rabbitMqMessage,
+          })
+        );
+      }
+
+      if (queueName === this.getDeadLetterQueue()) {
         logger.error(
           this.queueName,
           JSON.stringify({
-            message: `Error handling event. error=${error}`,
+            message: `Error handling event - Sending to dead letter queue. error=${error}`,
             rabbitMqMessage: this.rabbitMqMessage,
           })
         );
