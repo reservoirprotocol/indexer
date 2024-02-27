@@ -144,6 +144,7 @@ export abstract class AbstractRabbitMqJobHandler {
         logger.warn(
           this.queueName,
           JSON.stringify({
+            topic: "rabbitmq",
             message: `Error handling event - Retrying. error=${error}`,
             rabbitMqMessage: this.rabbitMqMessage,
           })
@@ -154,6 +155,7 @@ export abstract class AbstractRabbitMqJobHandler {
         logger.error(
           this.queueName,
           JSON.stringify({
+            topic: "rabbitmq",
             message: `Error handling event - Sending to dead letter queue. error=${error}`,
             rabbitMqMessage: this.rabbitMqMessage,
           })
