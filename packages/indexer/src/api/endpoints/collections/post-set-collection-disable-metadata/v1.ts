@@ -7,7 +7,6 @@ import * as Boom from "@hapi/boom";
 import { ApiKeyManager } from "@/models/api-keys";
 import _ from "lodash";
 import { idb } from "@/common/db";
-import { regex } from "@/common/utils";
 import { MetadataStatus } from "@/models/metadata-status";
 
 const version = "v1";
@@ -31,13 +30,12 @@ export const postSetCollectionDisableMetadataV1Options: RouteOptions = {
         .try(
           Joi.array()
             .max(50)
-            .items(Joi.string().lowercase().pattern(regex.collectionId))
+            .items(Joi.string().lowercase())
             .description(
               "Array of collection ids to disable metadata for. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42`"
             ),
           Joi.string()
             .lowercase()
-            .pattern(regex.collectionId)
             .description(
               "Array of collection ids to disable metadata for. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x521f9c7505005cfa19a8e5786a9c3c9c9f5e6f42`"
             )
