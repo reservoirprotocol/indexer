@@ -349,6 +349,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
         fromChainId?: number;
       }[] = [];
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+
+      // Source restrictions
+      if (payload.source) {
+        const sources = await Sources.getInstance();
+        const sourceObject = sources.getByDomain(payload.source);
+        if (sourceObject && sourceObject.metadata?.allowedApiKeys?.length) {
+          if (!apiKey || !sourceObject.metadata.allowedApiKeys.includes(apiKey.key)) {
+            throw Boom.unauthorized("Restricted source");
+          }
+        }
+      }
+
       // OFAC blocklist
       if (await checkAddressIsBlockedByOFAC(payload.taker)) {
         throw Boom.unauthorized("Address is blocked by OFAC");
@@ -470,7 +484,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             const amount = formatPrice(rawAmount, currency.decimals);
 
             return {
-              ...f,
+              kind: f.kind,
+              recipient: f.recipient,
+              bps: f.bps,
               amount,
               rawAmount,
             };
@@ -2579,8 +2595,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         })
       );
 
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
         `get-execute-buy-${version}-handler`,
         JSON.stringify({

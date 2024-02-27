@@ -220,7 +220,7 @@ export class Sources {
   }
 
   public async update(domain: string, metadata: SourcesMetadata = {}, optimized?: boolean) {
-    const values: { [key: string]: string | boolean } = {
+    const values: { [key: string]: string | string[] | boolean } = {
       domain,
     };
 
@@ -231,8 +231,14 @@ export class Sources {
 
       _.forEach(metadata, (value, key) => {
         if (value) {
-          jsonBuildObject += `'${key}', $/${key}/,`;
-          values[key] = value;
+          // To cover the case when we need to empty an array
+          if (Array.isArray(value) && value.length === 0) {
+            jsonBuildObject += `'${key}', '[]'::jsonb,`;
+            values[key] = value;
+          } else {
+            jsonBuildObject += `'${key}', $/${key}/,`;
+            values[key] = value;
+          }
         }
       });
 

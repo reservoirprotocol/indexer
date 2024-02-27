@@ -29,6 +29,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { CollectionSets } from "@/models/collection-sets";
+import ResyncAttributeCacheJob from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const version = "v5";
 
@@ -1097,9 +1098,12 @@ export const getTokensV5Options: RouteOptions = {
                       value: attribute.value,
                       tokenCount: attribute.tokenCount,
                       onSaleCount: attribute.onSaleCount,
-                      floorAskPrice: attribute.floorAskPrice
-                        ? formatEth(attribute.floorAskPrice)
-                        : attribute.floorAskPrice,
+                      floorAskPrice:
+                        attribute.tokenCount > ResyncAttributeCacheJob.maxTokensPerAttribute
+                          ? null
+                          : attribute.floorAskPrice
+                          ? formatEth(attribute.floorAskPrice)
+                          : attribute.floorAskPrice,
                       topBidValue: attribute.topBidValue
                         ? formatEth(attribute.topBidValue)
                         : attribute.topBidValue,
