@@ -34,11 +34,11 @@ export const checkMarketplaceIsFiltered = async (
   if (refresh) {
     result = await updateMarketplaceBlacklist(contract);
   } else {
-    const cacheKey = `marketplace-blacklist:${contract}`;
+    const cacheKey = `marketplace-blacklist-2:${contract}`;
     result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
     if (!result) {
       result = await getMarketplaceBlacklistFromDb(contract).then((r) => r.blacklist);
-      await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
     }
   }
 

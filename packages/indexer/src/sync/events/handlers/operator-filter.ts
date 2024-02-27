@@ -11,6 +11,7 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
+      case "operator-filter-operators-updated":
       case "operator-filter-operator-updated": {
         const { args } = eventData.abi.parseLog(log);
         const registrant = args["registrant"].toLowerCase();
