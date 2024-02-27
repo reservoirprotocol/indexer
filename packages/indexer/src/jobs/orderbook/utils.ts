@@ -205,6 +205,13 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
   }
 
   if (_.random(100) <= 75) {
-    logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+    logger.debug(
+      job.queueName,
+      JSON.stringify({
+        message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
+        orderKind: kind,
+        resultStatus: result[0]?.status,
+      })
+    );
   }
 };

@@ -1004,7 +1004,6 @@ export class Router {
           !fees?.length
       ) &&
       !options?.forceRouter &&
-      !options?.relayer &&
       !options?.usePermit
     ) {
       const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
@@ -1018,9 +1017,9 @@ export class Router {
         approval = {
           currency: details[0].currency,
           amount: details[0].price,
-          owner: taker,
+          owner: relayer,
           operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
+          txData: generateFTApprovalTxData(details[0].currency, relayer, conduit),
         };
       }
 
@@ -1036,7 +1035,7 @@ export class Router {
                 listings: { "seaport-v1.5": 1 },
               },
               txData: await exchange.fillOrderTx(
-                taker,
+                relayer,
                 order,
                 {
                   ...order.buildMatching({ amount: details[0].amount }),
@@ -1045,6 +1044,7 @@ export class Router {
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -1065,7 +1065,7 @@ export class Router {
                 listings: { "seaport-v1.5": details.length },
               },
               txData: await exchange.fillOrdersTx(
-                taker,
+                relayer,
                 orders,
                 orders.map((order, i) => ({
                   ...order.buildMatching({ amount: details[i].amount }),
@@ -1074,6 +1074,7 @@ export class Router {
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: details.map((d) => d.orderId),
@@ -1098,7 +1099,6 @@ export class Router {
           !fees?.length
       ) &&
       !options?.forceRouter &&
-      !options?.relayer &&
       !options?.usePermit
     ) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
@@ -1112,9 +1112,9 @@ export class Router {
         approval = {
           currency: details[0].currency,
           amount: details[0].price,
-          owner: taker,
+          owner: relayer,
           operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
+          txData: generateFTApprovalTxData(details[0].currency, relayer, conduit),
         };
       }
 
@@ -1130,12 +1130,13 @@ export class Router {
                 listings: { alienswap: 1 },
               },
               txData: await exchange.fillOrderTx(
-                taker,
+                relayer,
                 order,
                 order.buildMatching({ amount: details[0].amount }),
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -1156,12 +1157,13 @@ export class Router {
                 listings: { alienswap: details.length },
               },
               txData: await exchange.fillOrdersTx(
-                taker,
+                relayer,
                 orders,
                 orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
                 {
                   ...options,
                   conduitKey,
+                  recipient: taker,
                 }
               ),
               orderIds: details.map((d) => d.orderId),
@@ -1919,124 +1921,213 @@ export class Router {
     if (Object.keys(seaportV15Details).length) {
       const exchange = new Sdk.SeaportV15.Exchange(this.chainId);
       for (const currency of Object.keys(seaportV15Details)) {
-        const currencyDetails = seaportV15Details[currency];
+        const rawCurrencyDetails = seaportV15Details[currency];
 
-        const orders = currencyDetails.map((d) => d.order as Sdk.SeaportV15.Order);
-        const module = this.contracts.seaportV15Module;
+        // Account private vs non-private orders separately
+        const privateDetails: Sdk.RouterV6.Types.ListingDetails[] = [];
+        const normalDetails: Sdk.RouterV6.Types.ListingDetails[] = [];
+        for (const currencyDetail of rawCurrencyDetails) {
+          if ((currencyDetail.order as Sdk.SeaportV15.Order).isPrivateOrder()) {
+            privateDetails.push(currencyDetail);
+          } else {
+            normalDetails.push(currencyDetail);
+          }
+        }
 
-        const fees = getFees(currencyDetails);
-        const price = orders
-          .map((order, i) =>
-            // Seaport orders can be partially-fillable
-            bn(order.getMatchingPrice())
-              .mul(currencyDetails[i].amount ?? 1)
-              .div(order.getInfo()!.amount)
-          )
-          .reduce((a, b) => a.add(b), bn(0));
-        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
-        const totalPrice = price.add(feeAmount);
+        const splittedDetails: Sdk.RouterV6.Types.ListingDetails[][] = [];
+        if (privateDetails.length) {
+          splittedDetails.push(privateDetails);
+        }
+        if (normalDetails.length) {
+          splittedDetails.push(normalDetails);
+        }
 
-        const currencyIsNative = isNative(this.chainId, currency);
-        const buyInCurrencyIsNative = isNative(this.chainId, buyInCurrency);
+        for (const currencyDetails of splittedDetails) {
+          const orders = currencyDetails.map((d) => d.order as Sdk.SeaportV15.Order);
+          const isPrivate = orders[0].isPrivateOrder();
 
-        executions.push({
-          info: {
-            module: module.address,
-            data:
-              orders.length === 1
-                ? module.interface.encodeFunctionData(
-                    `accept${currencyIsNative ? "ETH" : "ERC20"}Listing`,
-                    [
-                      {
-                        parameters: {
-                          ...orders[0].params,
-                          totalOriginalConsiderationItems: orders[0].params.consideration.length,
-                        },
-                        numerator: currencyDetails[0].amount ?? 1,
-                        denominator: orders[0].getInfo()!.amount,
-                        signature: orders[0].params.signature,
-                        extraData: await exchange.getExtraData(orders[0], {
-                          amount: currencyDetails[0].amount ?? 1,
-                          extraData: currencyDetails[0].extraArgs?.extraData,
-                        }),
-                      },
-                      {
-                        fillTo: taker,
-                        refundTo: relayer,
-                        revertIfIncomplete: Boolean(!options?.partial),
-                        amount: price,
-                        // Only needed for ERC20 listings
-                        token: currency,
-                      },
-                      fees,
-                    ]
-                  )
-                : module.interface.encodeFunctionData(
-                    `accept${currencyIsNative ? "ETH" : "ERC20"}Listings`,
-                    [
-                      await Promise.all(
-                        orders.map(async (order, i) => {
-                          const totalAmount = order.getInfo()!.amount;
-                          const filledAmount = currencyDetails[i].amount ?? 1;
+          const module = this.contracts.seaportV15Module;
 
-                          const orderData = {
-                            parameters: {
-                              ...order.params,
-                              totalOriginalConsiderationItems: order.params.consideration.length,
+          const fees = getFees(currencyDetails);
+          const price = orders
+            .map((order, i) =>
+              // Seaport orders can be partially-fillable
+              bn(order.getMatchingPrice())
+                .mul(currencyDetails[i].amount ?? 1)
+                .div(order.getInfo()!.amount)
+            )
+            .reduce((a, b) => a.add(b), bn(0));
+          const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+          const totalPrice = price.add(feeAmount);
+
+          const currencyIsNative = isNative(this.chainId, currency);
+          const buyInCurrencyIsNative = isNative(this.chainId, buyInCurrency);
+
+          if (isPrivate) {
+            executions.push({
+              info: {
+                module: module.address,
+                data: module.interface.encodeFunctionData(
+                  `accept${currencyIsNative ? "ETH" : "ERC20"}PrivateListings`,
+                  [
+                    await Promise.all(
+                      orders.map(async (order, i) => {
+                        const totalAmount = order.getInfo()!.amount;
+                        const filledAmount = currencyDetails[i].amount ?? 1;
+
+                        const counterOrder = order.constructPrivateListingCounterOrder(
+                          module.address,
+                          taker,
+                          HashZero
+                        );
+                        const fulfillments = order.getPrivateListingFulfillments();
+
+                        const orderData = {
+                          parameters: {
+                            ...order.params,
+                            totalOriginalConsiderationItems: order.params.consideration.length,
+                          },
+                          numerator: filledAmount,
+                          denominator: totalAmount,
+                          signature: order.params.signature,
+                          extraData: order.params.extraData ?? "0x",
+                        };
+
+                        return {
+                          orders: [
+                            orderData,
+                            {
+                              ...counterOrder,
+                              numerator: filledAmount,
+                              denominator: totalAmount,
+                              extraData: "0x",
                             },
-                            numerator: filledAmount,
-                            denominator: totalAmount,
-                            signature: order.params.signature,
-                            extraData: await exchange.getExtraData(order, {
-                              amount: filledAmount,
-                              extraData: currencyDetails[i].extraArgs?.extraData,
+                          ],
+                          fulfillments,
+                          price: currencyIsNative
+                            ? bn(orders[i].getMatchingPrice()).mul(filledAmount).div(totalAmount)
+                            : bn(0),
+                        };
+                      })
+                    ),
+                    {
+                      fillTo: taker,
+                      refundTo: relayer,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                      amount: price,
+                      // Only needed for ERC20 listings
+                      token: currency,
+                    },
+                    fees,
+                  ]
+                ),
+                value: buyInCurrencyIsNative && currencyIsNative ? totalPrice : 0,
+              },
+              orderIds: currencyDetails.map((d) => d.orderId),
+            });
+          } else {
+            executions.push({
+              info: {
+                module: module.address,
+                data:
+                  orders.length === 1
+                    ? module.interface.encodeFunctionData(
+                        `accept${currencyIsNative ? "ETH" : "ERC20"}Listing`,
+                        [
+                          {
+                            parameters: {
+                              ...orders[0].params,
+                              totalOriginalConsiderationItems:
+                                orders[0].params.consideration.length,
+                            },
+                            numerator: currencyDetails[0].amount ?? 1,
+                            denominator: orders[0].getInfo()!.amount,
+                            signature: orders[0].params.signature,
+                            extraData: await exchange.getExtraData(orders[0], {
+                              amount: currencyDetails[0].amount ?? 1,
+                              extraData: currencyDetails[0].extraArgs?.extraData,
                             }),
-                          };
+                          },
+                          {
+                            fillTo: taker,
+                            refundTo: relayer,
+                            revertIfIncomplete: Boolean(!options?.partial),
+                            amount: price,
+                            // Only needed for ERC20 listings
+                            token: currency,
+                          },
+                          fees,
+                        ]
+                      )
+                    : module.interface.encodeFunctionData(
+                        `accept${currencyIsNative ? "ETH" : "ERC20"}Listings`,
+                        [
+                          await Promise.all(
+                            orders.map(async (order, i) => {
+                              const totalAmount = order.getInfo()!.amount;
+                              const filledAmount = currencyDetails[i].amount ?? 1;
 
-                          if (currencyIsNative) {
-                            return {
-                              order: orderData,
-                              price: bn(orders[i].getMatchingPrice())
-                                .mul(filledAmount)
-                                .div(totalAmount),
-                            };
-                          } else {
-                            return orderData;
-                          }
-                        })
+                              const orderData = {
+                                parameters: {
+                                  ...order.params,
+                                  totalOriginalConsiderationItems:
+                                    order.params.consideration.length,
+                                },
+                                numerator: filledAmount,
+                                denominator: totalAmount,
+                                signature: order.params.signature,
+                                extraData: await exchange.getExtraData(order, {
+                                  amount: filledAmount,
+                                  extraData: currencyDetails[i].extraArgs?.extraData,
+                                }),
+                              };
+
+                              if (currencyIsNative) {
+                                return {
+                                  order: orderData,
+                                  price: bn(orders[i].getMatchingPrice())
+                                    .mul(filledAmount)
+                                    .div(totalAmount),
+                                };
+                              } else {
+                                return orderData;
+                              }
+                            })
+                          ),
+                          {
+                            fillTo: taker,
+                            refundTo: relayer,
+                            revertIfIncomplete: Boolean(!options?.partial),
+                            amount: price,
+                            // Only needed for ERC20 listings
+                            token: currency,
+                          },
+                          fees,
+                        ]
                       ),
-                      {
-                        fillTo: taker,
-                        refundTo: relayer,
-                        revertIfIncomplete: Boolean(!options?.partial),
-                        amount: price,
-                        // Only needed for ERC20 listings
-                        token: currency,
-                      },
-                      fees,
-                    ]
-                  ),
-            value: buyInCurrencyIsNative && currencyIsNative ? totalPrice : 0,
-          },
-          orderIds: currencyDetails.map((d) => d.orderId),
-        });
+                value: buyInCurrencyIsNative && currencyIsNative ? totalPrice : 0,
+              },
+              orderIds: currencyDetails.map((d) => d.orderId),
+            });
+          }
 
-        // Track any possibly required swap
-        swapDetails.push({
-          tokenIn: buyInCurrency,
-          tokenOut: currency,
-          tokenOutAmount: totalPrice,
-          recipient: module.address,
-          refundTo: relayer,
-          details: currencyDetails,
-          executionIndex: executions.length - 1,
-        });
+          // Track any possibly required swap
+          swapDetails.push({
+            tokenIn: buyInCurrency,
+            tokenOut: currency,
+            tokenOutAmount: totalPrice,
+            recipient: module.address,
+            refundTo: relayer,
+            details: currencyDetails,
+            executionIndex: executions.length - 1,
+          });
 
-        addRouterTags("seaport-v1.5", orders.length, fees.length);
+          addRouterTags("seaport-v1.5", orders.length, fees.length);
 
-        // Mark the listings as successfully handled
-        for (const { orderId } of currencyDetails) {
-          success[orderId] = true;
+          // Mark the listings as successfully handled
+          for (const { orderId } of currencyDetails) {
+            success[orderId] = true;
+          }
         }
       }
     }
@@ -3815,6 +3906,7 @@ export class Router {
       }
 
       txs.push({
+        // Ensure approvals are unique
         approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
         ftApprovals: [],
         preSignatures,
@@ -3880,7 +3972,8 @@ export class Router {
         }
 
         txs.push({
-          approvals,
+          // Ensure approvals are unique
+          approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
           ftApprovals: [],
           txTags: {
             bids: { "payment-processor-v2": orders.length },
@@ -5372,7 +5465,7 @@ export class Router {
     }
 
     // Transfer allowed items in batch
-    if (allowedItems) {
+    if (allowedItems.length) {
       const approvals = allowedItems.map((item) => ({
         orderIds: [],
         contract: item.token,

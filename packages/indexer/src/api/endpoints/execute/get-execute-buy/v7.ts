@@ -45,6 +45,7 @@ import * as e from "@/utils/auth/erc721c";
 import { getCurrency } from "@/utils/currencies";
 import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
+import { checkAddressIsBlockedByOFAC } from "@/utils/ofac";
 import * as onChainData from "@/utils/on-chain-data";
 import { getEphemeralPermitId, getEphemeralPermit, saveEphemeralPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
@@ -348,6 +349,25 @@ export const getExecuteBuyV7Options: RouteOptions = {
         fromChainId?: number;
       }[] = [];
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+
+      // Source restrictions
+      if (payload.source) {
+        const sources = await Sources.getInstance();
+        const sourceObject = sources.getByDomain(payload.source);
+        if (sourceObject && sourceObject.metadata?.allowedApiKeys?.length) {
+          if (!apiKey || !sourceObject.metadata.allowedApiKeys.includes(apiKey.key)) {
+            throw Boom.unauthorized("Restricted source");
+          }
+        }
+      }
+
+      // OFAC blocklist
+      if (await checkAddressIsBlockedByOFAC(payload.taker)) {
+        throw Boom.unauthorized("Address is blocked by OFAC");
+      }
+
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
       const poolPrices: { [pool: string]: string[] } = {};
       // Keep track of the remaining quantities as orders are filled
@@ -464,7 +484,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
             const amount = formatPrice(rawAmount, currency.decimals);
 
             return {
-              ...f,
+              kind: f.kind,
+              recipient: f.recipient,
+              bps: f.bps,
               amount,
               rawAmount,
             };
@@ -1526,10 +1548,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
             endpoint: "/execute/buy/v7",
             salt: Math.floor(Math.random() * 1000000),
           },
+          source: payload.source,
         };
 
         const { requestId, shortRequestId, price, relayerFee, depositGasFee } = await axios
-          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data)
+          .post(`${config.crossChainSolverBaseUrl}/intents/quote`, data, {
+            headers: {
+              origin: request.headers["origin"],
+            },
+          })
           .then((response) => ({
             requestId: response.data.requestId,
             shortRequestId: response.data.shortRequestId,
@@ -2504,9 +2531,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // setup they might run into errors
       if (
         buyInCurrency === Sdk.Common.Addresses.Native[config.chainId] &&
-        !unverifiedERC721CTransferValidators.length
+        !unverifiedERC721CTransferValidators.length &&
+        !steps.find(
+          (s) =>
+            s.id === "currency-approval" && s.items.find((item) => item.status === "incomplete")
+        )
       ) {
-        // Buying in ETH will never require an approval
         steps = steps.filter((s) => s.id !== "currency-approval");
       }
       if (!payload.usePermit) {
@@ -2565,8 +2595,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         })
       );
 
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
         `get-execute-buy-${version}-handler`,
         JSON.stringify({

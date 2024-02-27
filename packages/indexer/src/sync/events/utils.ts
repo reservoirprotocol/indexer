@@ -360,6 +360,11 @@ export const _getTransactionTraces = async (Txs: { hash: string }[], block: numb
 
   // traces don't have the transaction hash, so we need to add it by using the txs array we are passing in by using the index of the trace
   traces = traces.map((trace, index) => {
+    if (!Txs[index]) {
+      logger.error(`get-transactions-traces`, `Failed to get tx for trace ${trace}`);
+      return null;
+    }
+
     return {
       ...trace,
       hash: Txs[index].hash,

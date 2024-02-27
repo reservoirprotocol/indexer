@@ -17,6 +17,7 @@ import * as nftx from "@/events-sync/data/nftx";
 import * as nftxV3 from "@/events-sync/data/nftx-v3";
 import * as nouns from "@/events-sync/data/nouns";
 import * as okex from "@/events-sync/data/okex";
+import * as operatorFilter from "@/events-sync/data/operator-filter";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
@@ -79,6 +80,7 @@ export type EventKind =
   | "nftx-v3"
   | "nouns"
   | "okex"
+  | "operator-filter"
   | "quixotic"
   | "rarible"
   | "seaport"
@@ -363,7 +365,9 @@ export type EventSubKind =
   | "highlightxyz-discrete-da-created"
   | "highlightxyz-mechanic-vector-registered"
   | "highlightxyz-discrete-da-updated"
-  | "fairxyz-edition-created";
+  | "fairxyz-edition-created"
+  | "operator-filter-operator-updated"
+  | "operator-filter-subscription-updated";
 
 export type EventData = {
   kind: EventKind;
@@ -618,9 +622,11 @@ const allEventData = [
   ditto.dittoPoolInitialized,
   mooar.orderFulfilled,
   fairxyz.editionCreated,
+  operatorFilter.operatorUpdated,
+  operatorFilter.subscriptionUpdated,
 ];
 
-// array of all addresses we're syncing events for
+// Array of all addresses we're syncing events for
 export const allEventsAddresses = allEventData
   .filter(({ addresses }) => !!addresses)
   .map(({ addresses }) => addresses && Object.keys(addresses))

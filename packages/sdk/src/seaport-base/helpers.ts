@@ -107,7 +107,9 @@ export const isCosignedOrder = (params: Types.OrderComponents, chainId: number) 
   [BaseAddresses.ReservoirCancellationZone[chainId]].includes(params.zone);
 
 export const constructPrivateListingCounterOrder = (
+  orderMaker: string,
   privateSaleRecipient: string,
+  conduitKey: string,
   params: Types.OrderComponents
 ): Types.OrderWithCounter => {
   // Counter order offers up all the items in the private listing consideration
@@ -140,8 +142,9 @@ export const constructPrivateListingCounterOrder = (
     parameters: {
       ...params,
       zone: AddressZero,
+      conduitKey,
       orderType: 0,
-      offerer: privateSaleRecipient,
+      offerer: orderMaker,
       offer: [
         {
           itemType: paymentItems[0].itemType,

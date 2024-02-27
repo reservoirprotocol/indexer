@@ -168,7 +168,7 @@ export const getMarketplaceBlacklistFromDb = async (
   return { blacklist: result?.filtered_operators || [] };
 };
 
-const updateMarketplaceBlacklist = async (contract: string) => {
+export const updateMarketplaceBlacklist = async (contract: string) => {
   const blacklist = await getMarketplaceBlacklist(contract);
   await idb.none(
     `

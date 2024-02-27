@@ -1,7 +1,7 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import _ from "lodash";
 import { config } from "@/config/index";
-import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
+import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import { logger } from "@/common/logger";
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import { metadataIndexWriteJob } from "@/jobs/metadata-index/metadata-write-job";
@@ -53,7 +53,17 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
       return;
     }
 
-    const refreshTokensChunks = _.chunk(refreshTokens, count);
+    const uniqueRefreshTokens: RefreshTokens[] = Object.values(
+      refreshTokens.reduce(
+        (acc, refreshToken) => ({
+          ...acc,
+          [`${refreshToken.contract}:${refreshToken.tokenId}`]: refreshToken,
+        }),
+        {}
+      )
+    );
+
+    const refreshTokensChunks = _.chunk(uniqueRefreshTokens, count);
 
     let rateLimitExpiredIn = 0;
 
@@ -73,7 +83,6 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
             );
 
             rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.delay, 5);
-            // rateLimitExpiredIn = 5;
 
             await pendingRefreshTokens.add(refreshTokensChunk, true);
           } else {
@@ -94,29 +103,61 @@ export default class MetadataIndexProcessJob extends AbstractRabbitMqJobHandler 
       )
     );
 
-    const metadata = results.flat(1);
-
-    if (metadata.length < refreshTokens.length) {
-      const missingMetadata = refreshTokens.filter(
-        (obj1) =>
-          !metadata.some((obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId)
-      );
-
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          message: `Debug. method=${method}, refreshTokensCount=${refreshTokens.length}, metadataCount=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
-          missingMetadata,
-        })
-      );
-    }
+    const refreshTokensMetadata = results.flat(1);
 
     await metadataIndexWriteJob.addToQueue(
-      metadata.map((m) => ({
+      refreshTokensMetadata.map((m) => ({
         ...m,
         metadataMethod: method,
       }))
     );
+
+    try {
+      // for (const refreshTokenMetadata of refreshTokensMetadata) {
+      //   const uniqueRefreshToken = uniqueRefreshTokens.find(
+      //     (uniqueRefreshToken) =>
+      //       refreshTokenMetadata.contract === uniqueRefreshToken.contract &&
+      //       refreshTokenMetadata.tokenId === uniqueRefreshToken.tokenId
+      //   );
+      //
+      //   if (uniqueRefreshToken?.isFallback && refreshTokenMetadata.imageUrl == null) {
+      //     logger.info(
+      //       this.queueName,
+      //       JSON.stringify({
+      //         message: `Fallback Refresh token missing image. method=${method}, contract=${uniqueRefreshToken.contract}, tokenId=${uniqueRefreshToken.tokenId}`,
+      //         uniqueRefreshToken,
+      //         refreshTokenMetadata: JSON.stringify(refreshTokenMetadata),
+      //       })
+      //     );
+      //   }
+      // }
+
+      if (refreshTokensMetadata.length < uniqueRefreshTokens.length) {
+        const missingMetadataRefreshTokens = uniqueRefreshTokens.filter(
+          (obj1) =>
+            !refreshTokensMetadata.some(
+              (obj2) => obj1.contract === obj2.contract && obj1.tokenId === obj2.tokenId
+            )
+        );
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Debug. method=${method}, refreshTokensCount=${uniqueRefreshTokens.length}, metadataCount=${refreshTokensMetadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`,
+            uniqueRefreshTokens: JSON.stringify(uniqueRefreshTokens),
+            missingMetadataRefreshTokens: JSON.stringify(missingMetadataRefreshTokens),
+          })
+        );
+      }
+    } catch (error) {
+      logger.error(
+        this.queueName,
+        JSON.stringify({
+          message: `Fallback error. method=${method}, error=${error}`,
+          error,
+        })
+      );
+    }
 
     // If there are potentially more tokens to process trigger another job
     if (rateLimitExpiredIn || _.size(refreshTokens) == countTotal) {

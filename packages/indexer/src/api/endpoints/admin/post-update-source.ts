@@ -22,6 +22,7 @@ export const postUpdateSourceOptions: RouteOptions = {
         .description("The source domain to sync. Example: `reservoir.market`"),
       icon: Joi.string().allow(""),
       title: Joi.string().allow(""),
+      allowedApiKeys: Joi.array().items(Joi.string()),
       optimized: Joi.boolean(),
     }),
   },
@@ -39,6 +40,7 @@ export const postUpdateSourceOptions: RouteOptions = {
         {
           adminTitle: payload.title,
           adminIcon: payload.icon,
+          allowedApiKeys: payload.allowedApiKeys,
         },
         payload.optimized
       );

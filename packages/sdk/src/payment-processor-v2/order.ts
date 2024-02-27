@@ -39,6 +39,11 @@ export class Order {
     return _TypedDataEncoder.hashStruct(structName, types, value);
   }
 
+  public hashDigest() {
+    const [types, value] = this.getEip712TypesAndValue();
+    return _TypedDataEncoder.hash(EIP712_DOMAIN(this.chainId), types, value);
+  }
+
   public isBuyOrder() {
     return [
       "item-offer-approval",

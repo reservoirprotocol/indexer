@@ -12,7 +12,7 @@ import {
   orderUpdatesByIdJob,
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
-import { Royalty } from "@/utils/royalties";
+import { getRoyaltiesToBePaid } from "@/orderbook/orders/payment-processor-v2/build/utils";
 
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
@@ -506,25 +506,9 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                   const order = new Sdk.PaymentProcessorV2.Order(config.chainId, result.raw_data);
 
                   // Also check the royalty built into the order vs the actual on-chain royalties of the collection
-                  let royaltyBpsToPay = 0;
-                  const royalties = await idb.oneOrNone(
-                    `
-                      SELECT
-                        COALESCE(collections.new_royalties, '{}') AS new_royalties
-                      FROM collections
-                      WHERE collections.id = $/collection/
-                    `,
-                    { collection: order.params.tokenAddress }
-                  );
-                  if (royalties.new_royalties["onchain"]) {
-                    royaltyBpsToPay = (royalties.new_royalties["onchain"] as Royalty[])
-                      .map((r) => r.bps)
-                      .reduce((a, b) => a + b, 0);
-                  } else if (royalties.new_royalties["pp-v2-backfill"]) {
-                    royaltyBpsToPay = (royalties.new_royalties["pp-v2-backfill"] as Royalty[])
-                      .map((r) => r.bps)
-                      .reduce((a, b) => a + b, 0);
-                  }
+                  const royaltyBpsToPay = await getRoyaltiesToBePaid(
+                    order.params.tokenAddress
+                  ).then((r) => r.map((r) => r.bps).reduce((a, b) => a + b, 0));
 
                   if (
                     order.params.maxRoyaltyFeeNumerator !== undefined &&
@@ -670,11 +654,12 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(orderFixInfos: OrderFixesJobPayload[]) {
+  public async addToQueue(orderFixInfos: OrderFixesJobPayload[], delay?: number) {
     await this.sendBatch(
       orderFixInfos.map((info) => {
         return {
           payload: info,
+          delay: delay ? delay * 1000 : undefined,
         };
       })
     );

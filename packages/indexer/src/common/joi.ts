@@ -603,7 +603,11 @@ export const getJoiOrderObject = async (order: {
     source = sources.get(Number(order.sourceIdInt));
   }
 
-  const feeBreakdown = order.feeBreakdown;
+  const feeBreakdown = order.feeBreakdown?.map((f: any) => ({
+    kind: f.kind,
+    recipient: f.recipient,
+    bps: f.bps,
+  }));
 
   let feeBps = Number(order.feeBps);
   if (order.normalizeRoyalties && order.missingRoyalties) {
@@ -679,7 +683,7 @@ export const getJoiOrderObject = async (order: {
     criteria: order.criteria,
     source: getJoiSourceObject(source),
     feeBps: Number(feeBps.toString()),
-    feeBreakdown: feeBreakdown,
+    feeBreakdown,
     expiration: Math.floor(Number(order.expiration)),
     isReservoir: order.isReservoir,
     isDynamic:

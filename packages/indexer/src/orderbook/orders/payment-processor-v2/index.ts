@@ -1,6 +1,5 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
@@ -12,6 +11,7 @@ import {
   OrderUpdatesByIdJobPayload,
   orderUpdatesByIdJob,
 } from "@/jobs/order-updates/order-updates-by-id-job";
+import { getRoyaltiesToBePaid } from "@/orderbook/orders/payment-processor-v2/build/utils";
 import { offChainCheck } from "@/orderbook/orders/payment-processor-v2/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
@@ -19,9 +19,9 @@ import * as erc721c from "@/utils/erc721c";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import * as royalties from "@/utils/royalties";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 import { getExternalCosigner } from "@/utils/offchain-cancel/external-cosign";
+import { Royalty } from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -311,16 +311,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle: currency
       const currency = order.params.paymentMethod;
 
+      const defaultRoyalties =
+        side === "sell"
+          ? await getRoyaltiesToBePaid(order.params.tokenAddress, order.params.tokenId)
+          : await getRoyaltiesToBePaid(order.params.tokenAddress, undefined, tokenSetId);
+
       // Handle: fees
       const feeBreakdown: {
         kind: string;
         recipient: string;
         bps: number;
-      }[] = (
-        side === "sell"
-          ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "onchain")
-          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain")
-      ).map((r) => ({ kind: "royalty", ...r }));
+      }[] = defaultRoyalties.map((r) => ({ kind: "royalty", ...r }));
 
       if (
         order.params.marketplace !== AddressZero &&
@@ -333,44 +334,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Handle: royalties on top
-      const defaultRoyalties =
-        side === "sell"
-          ? await royalties.getRoyalties(order.params.tokenAddress, order.params.tokenId, "default")
-          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "default");
+      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
-      const totalBuiltInBps = feeBreakdown
-        .map(({ bps, kind }) => (kind === "royalty" ? bps : 0))
-        .reduce((a, b) => a + b, 0);
-      const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+      // Handle: royalties on top
+      const missingRoyalties: Royalty[] = [];
+      const missingRoyaltyAmount = bn(0);
 
       const currencyPrice = bn(order.params.itemPrice).div(order.params.amount).toString();
-
-      const missingRoyalties = [];
-      let missingRoyaltyAmount = bn(0);
-      if (totalBuiltInBps < totalDefaultBps) {
-        const validRecipients = defaultRoyalties.filter(
-          ({ bps, recipient }) => bps && recipient !== AddressZero
-        );
-        if (validRecipients.length) {
-          const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(currencyPrice).mul(bpsDiff).div(10000);
-          missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
-
-          // Split the missing royalties pro-rata across all royalty recipients
-          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
-          for (const { bps, recipient } of validRecipients) {
-            // TODO: Handle lost precision (by paying it to the last or first recipient)
-            missingRoyalties.push({
-              bps: Math.floor((bpsDiff * bps) / totalBps),
-              amount: amount.mul(bps).div(totalBps).toString(),
-              recipient,
-            });
-          }
-        }
-      }
-
-      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
       let currencyValue: string;

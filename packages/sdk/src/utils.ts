@@ -121,6 +121,7 @@ export type TxData = {
   to: string;
   data: string;
   value?: string;
+  gas?: string;
 };
 
 export enum Network {
@@ -153,6 +154,7 @@ export enum Network {
   ImmutableZkevmTestnet = 13472,
   FrameTestnet = 68840142,
   BaseSepolia = 84532,
+  BlastSepolia = 168587773,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

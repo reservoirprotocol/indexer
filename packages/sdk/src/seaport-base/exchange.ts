@@ -80,7 +80,11 @@ export abstract class SeaportBaseExchange {
     if (info.side === "sell") {
       if (order.isPrivateOrder()) {
         info = info as BaseOrderInfo;
-        const counterOrder = order.constructPrivateListingCounterOrder(taker);
+        const counterOrder = order.constructPrivateListingCounterOrder(
+          taker,
+          recipient,
+          conduitKey
+        );
         const fulfillments = order.getPrivateListingFulfillments();
 
         const advancedOrder = {
@@ -123,8 +127,8 @@ export abstract class SeaportBaseExchange {
       }
 
       if (
-        // Order is not private
-        recipient === AddressZero &&
+        // The recipient is the taker
+        (recipient === AddressZero || recipient === taker) &&
         // Order is single quantity
         info.amount === "1" &&
         // Order has no criteria
@@ -214,8 +218,8 @@ export abstract class SeaportBaseExchange {
       }
     } else {
       if (
-        // Order is not private
-        recipient === AddressZero &&
+        // The recipient is the taker
+        (recipient === AddressZero || recipient === taker) &&
         // Order is single quantity
         info.amount === "1" &&
         // Order has no criteria

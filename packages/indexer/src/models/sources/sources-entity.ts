@@ -15,6 +15,7 @@ export type SourcesMetadata = {
   title?: string;
   icon?: string;
   url?: string;
+  allowedApiKeys?: string[];
   description?: string;
   twitterUsername?: string;
   socialImage?: string;
@@ -43,6 +44,7 @@ export type SourcesMetadata = {
   tokenUrlAncient8Testnet?: string;
   tokenUrlAncient8?: string;
   tokenUrlBaseSepolia?: string;
+  tokenUrlBlastSepolia?: string;
 };
 
 export class SourcesEntity {

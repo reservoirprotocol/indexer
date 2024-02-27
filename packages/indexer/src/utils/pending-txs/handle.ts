@@ -1,27 +1,17 @@
 import { redis } from "@/common/redis";
-import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/calldata";
 import * as es from "@/events-sync/storage";
 import { PendingItem, PendingMessage, PendingToken } from "@/utils/pending-txs/types";
 import {
   pendingTxWebsocketEventsTriggerQueueJob,
   PendingTxWebsocketEventsTriggerQueueJobPayload,
 } from "@/jobs/websocket-events/pending-tx-websocket-events-trigger-job";
+import { parseTokensFromCalldata } from "@/utils/pending-txs/parser";
 
 export const handlePendingMessage = async (message: PendingMessage) => {
   try {
     const { txContents, txHash } = message;
 
-    // Parse pending tokens from the calldata of pending transactions
-    const parsedOrders = await extractOrdersFromCalldata(txContents.input);
-    const pendingTokens = parsedOrders
-      .map((c) => {
-        return {
-          contract: c.contract,
-          tokenId: c.tokenId,
-        };
-      })
-      .filter((c) => c.tokenId) as PendingToken[];
-
+    const pendingTokens = await parseTokensFromCalldata(txContents.input);
     if (pendingTokens.length) {
       await addPendingItems(pendingTokens, txHash);
     }
@@ -30,6 +20,8 @@ export const handlePendingMessage = async (message: PendingMessage) => {
   } catch {
     // Skip errors
   }
+
+  return [];
 };
 
 export const addPendingItems = async (tokens: PendingToken[], txHash: string) => {

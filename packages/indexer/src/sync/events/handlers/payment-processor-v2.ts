@@ -1,24 +1,21 @@
 import { Result, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { HashZero } from "@ethersproject/constants";
-import { searchForCall } from "@georgeroman/evm-tx-simulator";
+import { searchForCalls } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
-  // For keeping track of all individual trades per transaction
-  const trades = {
-    order: new Map<string, number>(),
-  };
-
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
@@ -48,21 +45,19 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "payment-processor-v2-order-digest-invalidated": {
-        const parsedLog = eventData.abi.parseLog(log);
-        const orderId = parsedLog.args["orderDigest"].toLowerCase();
-        const wasCancellation = parsedLog.args["wasCancellation"];
+      // TODO: The `orderDigest` is not the order id, we should handle this
+      // case "payment-processor-v2-order-digest-invalidated": {
+      //   const parsedLog = eventData.abi.parseLog(log);
+      //   const orderId = parsedLog.args["orderDigest"].toLowerCase();
 
-        if (wasCancellation) {
-          onChainData.cancelEvents.push({
-            orderKind: "payment-processor-v2",
-            orderId,
-            baseEventParams,
-          });
-        }
+      //   onChainData.cancelEvents.push({
+      //     orderKind: "payment-processor-v2",
+      //     orderId,
+      //     baseEventParams,
+      //   });
 
-        break;
-      }
+      //   break;
+      // }
 
       case "payment-processor-v2-master-nonce-invalidated": {
         const parsedLog = eventData.abi.parseLog(log);
@@ -92,16 +87,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const parsedLog = eventData.abi.parseLog(log);
 
         const txHash = baseEventParams.txHash;
-        const tx = await utils.fetchTransaction(txHash);
 
         const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
         const exchangeAddress = exchange.contract.address;
 
         const tokenIdOfEvent = parsedLog.args["tokenId"].toString();
         const tokenAddressOfEvent = parsedLog.args["tokenAddress"].toLowerCase();
+        const tokenAmountOfEvent = (parsedLog.args["amount"] ?? 1).toString();
         const paymentCoinOfEvent = parsedLog.args["paymentCoin"].toLowerCase();
 
-        let relevantCalldata: string | undefined;
         const methods = [
           {
             selector: "0xc32dacae",
@@ -218,299 +212,320 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           },
         ];
 
+        const relevantCalls: string[] = [];
+
         const txTrace = await utils.fetchTransactionTrace(txHash);
         if (txTrace) {
           try {
-            const tradeRank = trades.order.get(`${txHash}-${exchangeAddress}`) ?? 0;
-            const executeCallTrace = searchForCall(
-              txTrace.calls,
-              {
-                to: exchangeAddress,
-                type: "CALL",
-                sigHashes: methods.map((c) => c.selector),
-              },
-              tradeRank
-            );
-
-            if (executeCallTrace) {
-              relevantCalldata = executeCallTrace.input ?? "0x";
-              trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
+            const calls = searchForCalls(txTrace.calls, {
+              to: exchangeAddress,
+              type: "CALL",
+              sigHashes: methods.map((c) => c.selector),
+            });
+            for (const call of calls) {
+              relevantCalls.push(call.input ?? "0x");
             }
-          } catch {
-            relevantCalldata = tx.data;
+          } catch (error) {
+            logger.info(
+              "pp-v2",
+              JSON.stringify({
+                msg: "Could not get transaction trace",
+                log,
+                parsingError: true,
+                error,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                stack: (error as any).stack,
+              })
+            );
+            throw new Error("Could not get transaction trace");
           }
         } else {
-          relevantCalldata = tx.data;
+          logger.info(
+            "pp-v2",
+            JSON.stringify({ msg: "Could not get transaction trace", log, isMissingTrace: true })
+          );
+          throw new Error("Could not get transaction trace");
         }
 
-        if (!relevantCalldata) {
-          break;
-        }
-
-        const matchedMethod = methods.find((c) => relevantCalldata!.includes(c.selector));
-        if (!matchedMethod) {
-          break;
-        }
-
-        const args = exchange.contract.interface.decodeFunctionData(
-          matchedMethod.name,
-          relevantCalldata!
-        );
-
-        const inputData = defaultAbiCoder.decode(matchedMethod.abi, args.data);
-        let saleDetailsArray = [inputData.saleDetails];
-        let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
-        let tokenSetProofs = [inputData.tokenSetProof];
-        const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
-
-        if (matchedMethod.name === "sweepCollection") {
-          const sweepOrder = inputData.sweepOrder;
-          saleSignatures = inputData.signedSellOrders;
-          saleDetailsArray = inputData.items.map((c: Result) => {
-            return {
-              protocol: sweepOrder.protocol,
-              tokenAddress: sweepOrder.tokenAddress,
-              paymentMethod: sweepOrder.paymentMethod,
-              beneficiary: sweepOrder.beneficiary,
-              maker: c.maker,
-              itemPrice: c.itemPrice,
-              tokenId: c.tokenId,
-              amount: c.amount,
-              marketplace: c.marketplace,
-              marketplaceFeeNumerator: c.marketplaceFeeNumerator,
-              maxRoyaltyFeeNumerator: c.maxRoyaltyFeeNumerator,
-              expiration: c.expiration,
-              nonce: c.nonce,
-            };
-          });
-        } else if (matchedMethod.name === "bulkBuyListings") {
-          saleDetailsArray = inputData.saleDetailsArray;
-          saleSignatures = inputData.sellerSignatures;
-        } else if (matchedMethod.name === "bulkAcceptOffers") {
-          saleDetailsArray = inputData.params.saleDetailsArray;
-          saleSignatures = inputData.params.buyerSignaturesArray;
-          tokenSetProofs = inputData.params.tokenSetProofsArray;
-        }
-
-        for (let i = 0; i < saleDetailsArray.length; i++) {
-          const [saleDetail, saleSignature] = [saleDetailsArray[i], saleSignatures[i]];
-          if (!saleDetail) {
+        for (const relevantCalldata of relevantCalls) {
+          const matchedMethod = methods.find((c) => relevantCalldata.includes(c.selector));
+          if (!matchedMethod) {
+            logger.info(
+              "pp-v2",
+              JSON.stringify({ msg: "Missing matched method", log, relevantCalldata })
+            );
             continue;
           }
 
-          const tokenAddress = saleDetail["tokenAddress"].toLowerCase();
-          const tokenId = saleDetail["tokenId"].toString();
-          const amount = saleDetail["amount"].toString();
-          const currency = saleDetail["paymentMethod"].toLowerCase();
-          const currencyPrice = saleDetail["itemPrice"].div(saleDetail["amount"]).toString();
-          const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
+          const args = exchange.contract.interface.decodeFunctionData(
+            matchedMethod.name,
+            relevantCalldata
+          );
 
-          // For bulk fill, we need to select the ones that match with current event
-          if (
-            ["bulkAcceptOffers", "bulkBuyListings", "sweepCollection"].includes(matchedMethod.name)
-          ) {
-            if (
-              !(
-                tokenAddress === tokenAddressOfEvent &&
-                tokenId === tokenIdOfEvent &&
-                paymentMethod === paymentCoinOfEvent
-              )
-            ) {
-              // Skip
+          const inputData = defaultAbiCoder.decode(matchedMethod.abi, args.data);
+          let saleDetailsArray = [inputData.saleDetails];
+          let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
+          let tokenSetProofs = [inputData.tokenSetProof];
+          const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
+
+          if (matchedMethod.name === "sweepCollection") {
+            const sweepOrder = inputData.sweepOrder;
+            saleSignatures = inputData.signedSellOrders;
+            saleDetailsArray = inputData.items.map((c: Result) => {
+              return {
+                protocol: sweepOrder.protocol,
+                tokenAddress: sweepOrder.tokenAddress,
+                paymentMethod: sweepOrder.paymentMethod,
+                beneficiary: sweepOrder.beneficiary,
+                maker: c.maker,
+                itemPrice: c.itemPrice,
+                tokenId: c.tokenId,
+                amount: c.amount,
+                marketplace: c.marketplace,
+                marketplaceFeeNumerator: c.marketplaceFeeNumerator,
+                maxRoyaltyFeeNumerator: c.maxRoyaltyFeeNumerator,
+                expiration: c.expiration,
+                nonce: c.nonce,
+              };
+            });
+          } else if (matchedMethod.name === "bulkBuyListings") {
+            saleDetailsArray = inputData.saleDetailsArray;
+            saleSignatures = inputData.sellerSignatures;
+          } else if (matchedMethod.name === "bulkAcceptOffers") {
+            saleDetailsArray = inputData.params.saleDetailsArray;
+            saleSignatures = inputData.params.buyerSignaturesArray;
+            tokenSetProofs = inputData.params.tokenSetProofsArray;
+          }
+
+          for (let i = 0; i < saleDetailsArray.length; i++) {
+            const [saleDetail, saleSignature] = [saleDetailsArray[i], saleSignatures[i]];
+            if (!saleDetail) {
               continue;
             }
-          }
 
-          const isBuyOrder = subKind.includes("accept-offer");
-          const maker = isBuyOrder
-            ? parsedLog.args["buyer"].toLowerCase()
-            : parsedLog.args["seller"].toLowerCase();
+            const tokenAddress = saleDetail["tokenAddress"].toLowerCase();
+            const tokenId = saleDetail["tokenId"].toString();
+            const currency = saleDetail["paymentMethod"].toLowerCase();
+            const currencyPrice = saleDetail["itemPrice"].div(saleDetail["amount"]).toString();
+            const paymentMethod = saleDetail["paymentMethod"].toLowerCase();
 
-          let taker = isBuyOrder
-            ? parsedLog.args["seller"].toLowerCase()
-            : parsedLog.args["buyer"].toLowerCase();
+            // For bulk fill, we need to select the ones that match with current event
+            if (
+              ["bulkAcceptOffers", "bulkBuyListings", "sweepCollection"].includes(
+                matchedMethod.name
+              )
+            ) {
+              if (
+                !(
+                  tokenAddress === tokenAddressOfEvent &&
+                  tokenId === tokenIdOfEvent &&
+                  paymentMethod === paymentCoinOfEvent
+                )
+              ) {
+                // Skip
+                continue;
+              }
+            }
 
-          const orderSide = !isBuyOrder ? "sell" : "buy";
-          const makerMinNonce = await commonHelpers.getMinNonce("payment-processor-v2", maker);
+            const isBuyOrder = subKind.includes("accept-offer");
+            const maker = isBuyOrder
+              ? parsedLog.args["buyer"].toLowerCase()
+              : parsedLog.args["seller"].toLowerCase();
 
-          const orderSignature = saleSignature;
-          const signature = {
-            r: orderSignature.r,
-            s: orderSignature.s,
-            v: orderSignature.v,
-          };
+            let taker = isBuyOrder
+              ? parsedLog.args["seller"].toLowerCase()
+              : parsedLog.args["buyer"].toLowerCase();
 
-          let order: Sdk.PaymentProcessorV2.Order;
-          if (isCollectionLevelOffer) {
-            const tokenSetProof = tokenSetProofs[i];
-            if (tokenSetProof.rootHash === HashZero) {
-              const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
-              order = builder.build({
-                protocol: saleDetail["protocol"],
-                marketplace: saleDetail["marketplace"],
-                beneficiary: saleDetail["beneficiary"],
-                marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
-                maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-                maker: saleDetail["maker"],
-                tokenAddress: saleDetail["tokenAddress"],
-                amount: saleDetail["amount"],
-                itemPrice: saleDetail["itemPrice"],
-                expiration: saleDetail["expiration"],
-                nonce: saleDetail["nonce"],
-                paymentMethod: saleDetail["paymentMethod"],
-                masterNonce: makerMinNonce,
-                ...signature,
-              });
+            const orderSide = !isBuyOrder ? "sell" : "buy";
+            const makerMinNonce = await commonHelpers.getMinNonce("payment-processor-v2", maker);
+
+            const orderSignature = saleSignature;
+            const signature = {
+              r: orderSignature.r,
+              s: orderSignature.s,
+              v: orderSignature.v,
+            };
+
+            let order: Sdk.PaymentProcessorV2.Order;
+            if (isCollectionLevelOffer) {
+              const tokenSetProof = tokenSetProofs[i];
+              if (tokenSetProof.rootHash === HashZero) {
+                const builder = new Sdk.PaymentProcessorV2.Builders.ContractWide(config.chainId);
+                order = builder.build({
+                  protocol: saleDetail["protocol"],
+                  marketplace: saleDetail["marketplace"],
+                  beneficiary: saleDetail["beneficiary"],
+                  marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                  maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                  maker: saleDetail["maker"],
+                  tokenAddress: saleDetail["tokenAddress"],
+                  amount: saleDetail["amount"],
+                  itemPrice: saleDetail["itemPrice"],
+                  expiration: saleDetail["expiration"],
+                  nonce: saleDetail["nonce"],
+                  paymentMethod: saleDetail["paymentMethod"],
+                  masterNonce: makerMinNonce,
+                  ...signature,
+                });
+              } else {
+                const builder = new Sdk.PaymentProcessorV2.Builders.TokenList(config.chainId);
+                order = builder.build({
+                  protocol: saleDetail["protocol"],
+                  marketplace: saleDetail["marketplace"],
+                  beneficiary: saleDetail["beneficiary"],
+                  marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
+                  maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
+                  maker: saleDetail["maker"],
+                  tokenAddress: saleDetail["tokenAddress"],
+                  amount: saleDetail["amount"],
+                  itemPrice: saleDetail["itemPrice"],
+                  expiration: saleDetail["expiration"],
+                  nonce: saleDetail["nonce"],
+                  paymentMethod: saleDetail["paymentMethod"],
+                  masterNonce: makerMinNonce,
+                  tokenSetMerkleRoot: tokenSetProof.rootHash,
+                  tokenIds: [],
+                  ...signature,
+                });
+              }
             } else {
-              const builder = new Sdk.PaymentProcessorV2.Builders.TokenList(config.chainId);
+              const builder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
               order = builder.build({
                 protocol: saleDetail["protocol"],
                 marketplace: saleDetail["marketplace"],
-                beneficiary: saleDetail["beneficiary"],
                 marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
                 maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-                maker: saleDetail["maker"],
                 tokenAddress: saleDetail["tokenAddress"],
                 amount: saleDetail["amount"],
-                itemPrice: saleDetail["itemPrice"],
+                tokenId: saleDetail["tokenId"],
                 expiration: saleDetail["expiration"],
+                itemPrice: saleDetail["itemPrice"],
+                maker: saleDetail["maker"],
+                ...(isBuyOrder
+                  ? {
+                      beneficiary: saleDetail["beneficiary"],
+                    }
+                  : {}),
                 nonce: saleDetail["nonce"],
                 paymentMethod: saleDetail["paymentMethod"],
                 masterNonce: makerMinNonce,
-                tokenSetMerkleRoot: tokenSetProof.rootHash,
-                tokenIds: [],
                 ...signature,
               });
             }
-          } else {
-            const builder = new Sdk.PaymentProcessorV2.Builders.SingleToken(config.chainId);
-            order = builder.build({
-              protocol: saleDetail["protocol"],
-              marketplace: saleDetail["marketplace"],
-              marketplaceFeeNumerator: saleDetail["marketplaceFeeNumerator"],
-              maxRoyaltyFeeNumerator: saleDetail["maxRoyaltyFeeNumerator"],
-              tokenAddress: saleDetail["tokenAddress"],
-              amount: saleDetail["amount"],
-              tokenId: saleDetail["tokenId"],
-              expiration: saleDetail["expiration"],
-              itemPrice: saleDetail["itemPrice"],
-              maker: saleDetail["maker"],
-              ...(isBuyOrder
-                ? {
-                    beneficiary: saleDetail["beneficiary"],
-                  }
-                : {}),
-              nonce: saleDetail["nonce"],
-              paymentMethod: saleDetail["paymentMethod"],
-              masterNonce: makerMinNonce,
-              ...signature,
-            });
-          }
 
-          let isValidated = false;
-          for (let nonce = Number(order.params.masterNonce); nonce >= 0; nonce--) {
-            order.params.masterNonce = nonce.toString();
-            try {
-              order.checkSignature();
-              isValidated = true;
-              break;
-            } catch {
-              // Skip errors
+            let isValidated = false;
+            for (let nonce = Number(order.params.masterNonce); nonce >= 0; nonce--) {
+              order.params.masterNonce = nonce.toString();
+              try {
+                order.checkSignature();
+                isValidated = true;
+                break;
+              } catch {
+                // Skip errors
+              }
             }
-          }
 
-          const priceData = await getUSDAndNativePrices(
-            currency,
-            currencyPrice,
-            baseEventParams.timestamp
-          );
-          if (!priceData.nativePrice) {
-            // We must always have the native price
-            break;
-          }
-
-          let orderId = isValidated ? order.hash() : undefined;
-
-          // If we couldn't parse the order id from the calldata try to get it from our db
-          if (!orderId) {
-            orderId = await commonHelpers.getOrderIdFromNonce(
-              "payment-processor-v2",
-              order.params.sellerOrBuyer,
-              order.params.nonce
+            const priceData = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
             );
-          }
+            if (!priceData.nativePrice) {
+              // We must always have the native price
+              break;
+            }
 
-          // Handle: attribution
-          const orderKind = "payment-processor-v2";
-          const attributionData = await utils.extractAttributionData(
-            baseEventParams.txHash,
-            orderKind,
-            { orderId }
-          );
-          if (attributionData.taker) {
-            taker = attributionData.taker;
-          }
+            let orderId = isValidated ? order.hash() : undefined;
 
-          onChainData.fillEvents.push({
-            orderId,
-            orderKind: "payment-processor-v2",
-            orderSide,
-            maker,
-            taker,
-            price: priceData.nativePrice,
-            currency,
-            currencyPrice,
-            usdPrice: priceData.usdPrice,
-            contract: tokenAddress,
-            tokenId,
-            amount,
-            orderSourceId: attributionData.orderSource?.id,
-            aggregatorSourceId: attributionData.aggregatorSource?.id,
-            fillSourceId: attributionData.fillSource?.id,
-            baseEventParams,
-          });
+            // If we couldn't parse the order id from the calldata try to get it from our db
+            if (!orderId) {
+              orderId = await commonHelpers.getOrderIdFromNonce(
+                "payment-processor-v2",
+                order.params.sellerOrBuyer,
+                order.params.nonce
+              );
+            }
 
-          onChainData.fillInfos.push({
-            context: `${orderId}-${baseEventParams.txHash}`,
-            orderId: orderId,
-            orderSide,
-            contract: tokenAddress,
-            tokenId,
-            amount,
-            price: priceData.nativePrice,
-            timestamp: baseEventParams.timestamp,
-            maker,
-            taker,
-          });
+            if (
+              orderId &&
+              order.params.protocol ===
+                Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL
+            ) {
+              await orderFixesJob.addToQueue([{ by: "id", data: { id: orderId } }], 5000);
+            }
 
-          onChainData.orderInfos.push({
-            context: `filled-${orderId}-${baseEventParams.txHash}`,
-            id: orderId,
-            trigger: {
-              kind: "sale",
-              txHash: baseEventParams.txHash,
-              txTimestamp: baseEventParams.timestamp,
-            },
-          });
+            // Handle: attribution
+            const orderKind = "payment-processor-v2";
+            const attributionData = await utils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind,
+              { orderId }
+            );
+            if (attributionData.taker) {
+              taker = attributionData.taker;
+            }
 
-          // If an ERC20 transfer occured in the same transaction as a sale
-          // then we need resync the maker's ERC20 approval to the exchange
-          const erc20 = getERC20Transfer(currentTxLogs);
-          if (erc20) {
-            onChainData.makerInfos.push({
-              context: `${baseEventParams.txHash}-buy-approval`,
+            onChainData.fillEventsPartial.push({
+              orderId,
+              orderKind: "payment-processor-v2",
+              orderSide,
               maker,
+              taker,
+              price: priceData.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: priceData.usdPrice,
+              contract: tokenAddress,
+              tokenId,
+              amount: tokenAmountOfEvent,
+              orderSourceId: attributionData.orderSource?.id,
+              aggregatorSourceId: attributionData.aggregatorSource?.id,
+              fillSourceId: attributionData.fillSource?.id,
+              baseEventParams,
+            });
+
+            onChainData.fillInfos.push({
+              context: `${orderId}-${baseEventParams.txHash}`,
+              orderId: orderId,
+              orderSide,
+              contract: tokenAddress,
+              tokenId,
+              amount: tokenAmountOfEvent,
+              price: priceData.nativePrice,
+              timestamp: baseEventParams.timestamp,
+              maker,
+              taker,
+            });
+
+            onChainData.orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
               trigger: {
-                kind: "approval-change",
+                kind: "sale",
                 txHash: baseEventParams.txHash,
                 txTimestamp: baseEventParams.timestamp,
               },
-              data: {
-                kind: "buy-approval",
-                contract: erc20,
-                orderKind,
-              },
             });
+
+            // If an ERC20 transfer occured in the same transaction as a sale
+            // then we need resync the maker's ERC20 approval to the exchange
+            const erc20 = getERC20Transfer(currentTxLogs);
+            if (erc20) {
+              onChainData.makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker,
+                trigger: {
+                  kind: "approval-change",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                data: {
+                  kind: "buy-approval",
+                  contract: erc20,
+                  orderKind,
+                },
+              });
+            }
           }
         }
 

@@ -1,0 +1,250 @@
+name: Continuous Delivery kafka worker
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'packages/indexer/src/jobs/cdc/**'
+
+env:
+  NODE_VERSION: "18.x"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+
+    # outputs:
+    #   version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      # - name: Setup node
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: ${{ env.NODE_VERSION }}
+      #     cache: "yarn"
+
+      # - name: Install dependencies
+      #   run: "yarn install"
+
+      # - name: Get Release Versions
+      #   uses: cycjimmy/semantic-release-action@v3
+      #   id: semantic
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.DEVOPSBOT_TOKEN }}
+
+      - name: Set up Docker Buildx
+        # if: steps.semantic.outputs.new_release_version != ''
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        # if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        # if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: |
+            ghcr.io/reservoirprotocol/indexer:latest
+            ghcr.io/reservoirprotocol/indexer:${{ github.sha }}
+          # ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
+          # build-args: |
+          #   VERSION=${{ steps.semantic.outputs.new_release_version }}
+
+      # - name: Publish github release
+      #   if: steps.semantic.outputs.new_release_version != ''
+      #   uses: cycjimmy/semantic-release-action@v3
+
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-build
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          payload: |
+            {
+              "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub build result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: dev
+    # if: github.ref == 'refs/heads/development' && needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/development'
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
+          path: k8s-configs
+
+      - name: Deploy to Dev Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update_batch.sh indexer-sepolia ${{ github.sha }} \
+            ./dev/platform/indexer-kafka-worker-sepolia.yaml
+
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-dev
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy dev result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: prod
+    # if: github.ref == 'refs/heads/main' && needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
+          path: k8s-configs
+
+      - name: Deploy to Prod Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update_batch.sh indexer-ancient8-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-ancient8-testnet.yaml
+
+          ./utils/version_update_batch.sh indexer-arbitrum ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-arbitrum.yaml
+
+          ./utils/version_update_batch.sh indexer-arbitrum-nova ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-arbitrum-nova.yaml
+
+          ./utils/version_update_batch.sh indexer-avalanche ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-avalanche.yaml
+
+          ./utils/version_update_batch.sh indexer-base ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-base.yaml
+
+          ./utils/version_update_batch.sh indexer-bsc ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-bsc.yaml
+
+          ./utils/version_update_batch.sh indexer-frame-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-frame-testnet.yaml
+
+          ./utils/version_update_batch.sh indexer-goerli ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-goerli.yaml
+
+          ./utils/version_update_batch.sh indexer-immutable-zkevm-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-immutable-zkevm-testnet.yaml
+
+          ./utils/version_update_batch.sh indexer-linea ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-linea.yaml
+
+          ./utils/version_update_batch.sh indexer-mainnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-mainnet.yaml
+
+          ./utils/version_update_batch.sh indexer-mumbai ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-mumbai.yaml
+
+          ./utils/version_update_batch.sh indexer-opbnb ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-opbnb.yaml
+
+          ./utils/version_update_batch.sh indexer-optimism ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-optimism.yaml
+
+          ./utils/version_update_batch.sh indexer-polygon ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-polygon.yaml
+
+          ./utils/version_update_batch.sh indexer-polygon-zkevm ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-polygon-zkevm.yaml
+
+          ./utils/version_update_batch.sh indexer-scroll ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-scroll.yaml
+
+          ./utils/version_update_batch.sh indexer-sepolia ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-sepolia.yaml
+
+          ./utils/version_update_batch.sh indexer-zksync ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-zksync.yaml
+
+          ./utils/version_update_batch.sh indexer-zora ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-zora.yaml
+
+          ./utils/version_update_batch.sh indexer-ancient8 ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-ancient8.yaml
+
+          ./utils/version_update_batch.sh indexer-base-sepolia ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-base-sepolia.yaml
+
+          ./utils/version_update_batch.sh indexer-blast-sepolia ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-blast-sepolia.yaml
+
+      - name: Post to Slack
+        if: ${{ always() }}
+        id: slack-deploy-prod
+        uses: unevenlabs/slack-github-action@v1.0.2
+        with:
+          channel-id: "ci"
+          update-ts: ${{ steps.slack-build.outputs.ts }}
+          payload: |
+            {
+              "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub deploy prod result: <status-${{ job.status }}-status>\nAuthor: <author-${{ github.actor }}-author>\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

@@ -36,6 +36,7 @@ import { Collections } from "@/models/collections";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { getListedTokensFromES } from "@/api/endpoints/tokens/get-tokens/v6";
 import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
+import ResyncAttributeCacheJob from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const version = "v7";
 
@@ -1582,22 +1583,24 @@ export const getTokensV7Options: RouteOptions = {
                         value: attribute.value,
                         tokenCount: attribute.tokenCount,
                         onSaleCount: attribute.onSaleCount,
-                        floorAskPrice: attribute.floorAskValue
-                          ? await getJoiPriceObject(
-                              {
-                                gross: {
-                                  amount: String(
-                                    attribute.floorAskCurrencyValue ?? attribute.floorAskValue
-                                  ),
-                                  nativeAmount: String(attribute.floorAskValue),
+                        floorAskPrice:
+                          attribute.tokenCount <= ResyncAttributeCacheJob.maxTokensPerAttribute &&
+                          attribute.floorAskValue
+                            ? await getJoiPriceObject(
+                                {
+                                  gross: {
+                                    amount: String(
+                                      attribute.floorAskCurrencyValue ?? attribute.floorAskValue
+                                    ),
+                                    nativeAmount: String(attribute.floorAskValue),
+                                  },
                                 },
-                              },
-                              attribute.floorAskCurrency
-                                ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
-                                : Sdk.Common.Addresses.Native[config.chainId],
-                              query.displayCurrency
-                            )
-                          : null,
+                                attribute.floorAskCurrency
+                                  ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
+                                  : Sdk.Common.Addresses.Native[config.chainId],
+                                query.displayCurrency
+                              )
+                            : null,
                         topBidValue: attribute.topBidValue
                           ? formatEth(attribute.topBidValue)
                           : attribute.topBidValue,

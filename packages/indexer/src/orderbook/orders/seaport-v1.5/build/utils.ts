@@ -13,7 +13,7 @@ import {
 } from "@/orderbook/orders/seaport-base/build/utils";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 export const getConduitKeyWithDefault = (conduitKey?: string) => {
   // Priority of conduits:
@@ -129,7 +129,11 @@ export const getBuildInfo = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tokenId = (options as any)["tokenId"];
       if (tokenId !== undefined) {
-        const tokenRoyalties = await registry.getRegistryRoyalties(options.contract!, tokenId);
+        const tokenRoyalties = await onchain.getOnChainRoyalties(
+          options.contract!,
+          tokenId,
+          "onchain"
+        );
         if (tokenRoyalties.length) {
           royalties = tokenRoyalties;
         }

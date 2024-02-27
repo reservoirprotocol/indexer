@@ -556,6 +556,15 @@ export const postOrderV4Options: RouteOptions = {
 
             case "payment-processor": {
               if (orderbook !== "reservoir") {
+                logger.debug(
+                  `post-order-${version}-handler`,
+                  JSON.stringify({
+                    message: `[${order.kind}] Order save result.`,
+                    orderKind: order.kind,
+                    resultStatus: "unsupported-orderbook",
+                  })
+                );
+
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
@@ -568,6 +577,16 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessor.save([orderInfo]);
+
+              logger.debug(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  message: `[${order.kind}] Order save result: ${JSON.stringify(result)}`,
+                  orderKind: order.kind,
+                  resultStatus: result.status,
+                })
+              );
+
               if (["already-exists", "success"].includes(result.status)) {
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {
@@ -577,6 +596,15 @@ export const postOrderV4Options: RouteOptions = {
 
             case "payment-processor-v2": {
               if (orderbook !== "reservoir") {
+                logger.debug(
+                  `post-order-${version}-handler`,
+                  JSON.stringify({
+                    message: `[${order.kind}] Order save result.`,
+                    orderKind: order.kind,
+                    resultStatus: "unsupported-orderbook",
+                  })
+                );
+
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
@@ -589,6 +617,16 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessorV2.save([orderInfo]);
+
+              logger.debug(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  message: `[${order.kind}] Order save result: ${JSON.stringify(result)}`,
+                  orderKind: order.kind,
+                  resultStatus: result.status,
+                })
+              );
+
               if (["already-exists", "success"].includes(result.status)) {
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {

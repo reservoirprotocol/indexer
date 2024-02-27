@@ -12,7 +12,7 @@ import {
 } from "@/jobs/collections/utils";
 import { onchainMetadataProvider } from "@/metadata/providers/onchain-metadata-provider";
 import * as royalties from "@/utils/royalties";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 export type CollectionContractDeployed = {
   contract: string;
@@ -153,7 +153,8 @@ export class CollectionNewContractDeployedJob extends AbstractRabbitMqJobHandler
     if (name) {
       try {
         // Refresh the on-chain royalties
-        await registry.refreshRegistryRoyalties(contract);
+        await onchain.refreshOnChainRoyalties(contract, "onchain");
+        await onchain.refreshOnChainRoyalties(contract, "eip2981");
         await royalties.refreshDefaultRoyalties(contract);
       } catch (error) {
         logger.error(

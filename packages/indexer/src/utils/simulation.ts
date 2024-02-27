@@ -35,7 +35,8 @@ export const ensureBuyTxSucceeds = async (
       data: tx.data,
       value: tx.value ?? 0,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         [taker]: tx.value ?? 0,
       },
@@ -89,7 +90,8 @@ export const ensureSellTxSucceeds = async (
       data: tx.data,
       value: 0,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         // For gas cost
         [taker]: parseEther("0.1"),

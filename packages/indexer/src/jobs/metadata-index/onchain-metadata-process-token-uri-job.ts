@@ -21,11 +21,11 @@ export type OnchainMetadataProcessTokenUriJobPayload = {
 
 export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-process-token-uri-queue";
-  maxRetries = 10;
-  concurrency = 15;
+  maxRetries = 5;
+  concurrency = 30;
   timeout = 5 * 60 * 1000;
   backoff = {
-    type: "fixed",
+    type: "exponential",
     delay: 5000,
   } as BackoffStrategy;
   disableErrorLogs = true;
@@ -36,7 +36,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
     let tokenMetadataIndexingDebug = 0;
 
-    if (config.chainId === 1) {
+    if ([1, 137, 11155111].includes(config.chainId)) {
       tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         contract
@@ -95,12 +95,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-image-encoding",
                 },
               ],
               true,
-              10
+              30
             );
 
             return;
@@ -137,11 +138,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-missing-mime-type",
                 },
               ],
-              true
+              true,
+              30
             );
 
             return;
@@ -175,11 +178,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-gif",
                 },
               ],
-              true
+              true,
+              30
             );
 
             return;
@@ -267,11 +272,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             contract,
             tokenId,
             collection: contract,
+            isFallback: true,
           },
           context: "onchain-fallback-get-metadata-error",
         },
       ],
-      true
+      true,
+      30
     );
   }
 

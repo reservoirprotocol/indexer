@@ -98,6 +98,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 84532:
         url = "https://sepolia.base.org";
         break;
+      case 168587773:
+        url = "https://sepolia.blast.io";
+        break;
       default:
         throw new Error("Unsupported chain id");
     }
@@ -182,6 +185,7 @@ const config: HardhatUserConfig = {
     frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(28122024),
     baseSepolia: getNetworkConfig(84532),
+    blastSepolia: getNetworkConfig(168587773),
   },
   etherscan: {
     apiKey: {
@@ -212,6 +216,7 @@ const config: HardhatUserConfig = {
       frameTestnet: "0x",
       ancient8Testnet: "0x",
       baseSepolia: "0x",
+      blastSepolia: "0x",
     },
     customChains: [
       // Mainnets
@@ -359,6 +364,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://sepolia.basescan.org/api",
           browserURL: "https://sepolia.basescan.org/",
+        },
+      },
+      {
+        network: "blastSepolia",
+        chainId: 168587773,
+        urls: {
+          apiURL: "https://testnet.blastscan.io/api",
+          browserURL: "https://testnet.blastscan.io/",
         },
       },
     ],

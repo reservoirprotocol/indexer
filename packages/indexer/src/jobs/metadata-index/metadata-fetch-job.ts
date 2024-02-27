@@ -28,6 +28,7 @@ export type MetadataIndexFetchJobPayload =
         collection: string;
         contract: string;
         tokenId: string;
+        isFallback?: boolean;
       };
       context?: string;
     };
@@ -49,7 +50,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if (config.chainId === 1) {
+    if ([1, 137, 11155111].includes(config.chainId)) {
       const tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
         payload.data.collection
@@ -133,6 +134,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         collection: data.collection,
         contract: data.contract,
         tokenId: data.tokenId,
+        isFallback: data.isFallback,
       });
     }
 

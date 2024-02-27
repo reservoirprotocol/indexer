@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { cosigner } from "@/utils/offchain-cancel";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
-import { getRoyalties } from "@/utils/royalties";
+import { getRoyalties, getRoyaltiesByTokenSet, hasRoyalties } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -27,6 +27,27 @@ export interface BaseOrderBuildOptions {
 
 type OrderBuildInfo = {
   params: BaseBuildParams;
+};
+
+export const getRoyaltiesToBePaid = async (
+  contract: string,
+  tokenId?: string,
+  tokenSetId?: string
+) => {
+  const has = async (spec: string) => hasRoyalties(spec, contract);
+  const get = async (spec: string) =>
+    tokenSetId ? getRoyaltiesByTokenSet(tokenSetId, spec) : getRoyalties(contract, tokenId, spec);
+
+  // Royalty ordering: `eip2981` > `pp-v2-backfill` > `onchain` > `opensea` > `custom`
+  return (await has("eip2981"))
+    ? await get("eip2981")
+    : (await has("pp-v2-backfill"))
+    ? await get("pp-v2-backfill")
+    : (await has("onchain"))
+    ? await get("onchain")
+    : (await has("opensea"))
+    ? await get("opensea")
+    : await get("custom");
 };
 
 export const getBuildInfo = async (
@@ -66,7 +87,8 @@ export const getBuildInfo = async (
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
 
-  const onChainRoyalties = await getRoyalties(contract, undefined, "onchain");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const royalties = await getRoyaltiesToBePaid(collection, (options as any).tokenId);
 
   const buildParams: BaseBuildParams = {
     protocol:
@@ -76,8 +98,8 @@ export const getBuildInfo = async (
     marketplace,
     amount: options.quantity ?? "1",
     marketplaceFeeNumerator,
-    maxRoyaltyFeeNumerator: onChainRoyalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
-    fallbackRoyaltyRecipient: onChainRoyalties.length ? onChainRoyalties[0].recipient : undefined,
+    maxRoyaltyFeeNumerator: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+    fallbackRoyaltyRecipient: royalties.length ? royalties[0].recipient : undefined,
     maker: options.maker,
     tokenAddress: contract,
     itemPrice: options.weiPrice,

@@ -279,7 +279,8 @@ const getEmittedEvents = async (txData: TxData, chainId: number) => {
       data: txData.data,
       value,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         [txData.from]: value,
       },
@@ -301,7 +302,8 @@ const triggerCall = async (txData: TxData) => {
       data: txData.data,
       value,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         [txData.from]: value,
       },

@@ -45,13 +45,17 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       const resolvedMetadata = await Promise.all(
         tokens.map(async (token: any) => {
+          const getTokenMetadataFromURIStart = Date.now();
+
           const [metadata, error] = await this.getTokenMetadataFromURI(
             token.uri,
             token.contract,
             token.tokenId
           );
 
-          if (config.chainId === 1) {
+          const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
+
+          if ([1, 137, 11155111].includes(config.chainId)) {
             const tokenMetadataIndexingDebug = await redis.sismember(
               "metadata-indexing-debug-contracts",
               token.contract
@@ -64,6 +68,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
                   topic: "tokenMetadataIndexingDebug",
                   message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
                   metadata: JSON.stringify(metadata),
+                  getTokenMetadataFromURILatency,
                   error,
                 })
               );
@@ -226,16 +231,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             }
           } else if (uri.endsWith("/{id}")) {
             uri = uri.replace("{id}", idToToken[token.id].tokenId);
-
-            logger.info(
-              "_getTokensMetadataUri",
-              JSON.stringify({
-                topic: "hexTokenUriDebug",
-                message: `contract=${idToToken[token.id].contract}, tokenId=${
-                  idToToken[token.id].tokenId
-                }, uri=${uri}`,
-              })
-            );
           }
 
           return {
@@ -657,7 +652,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       let tokenMetadataIndexingDebug = 0;
 
-      if (config.chainId === 1) {
+      if ([1, 137, 11155111].includes(config.chainId)) {
         tokenMetadataIndexingDebug = await redis.sismember(
           "metadata-indexing-debug-contracts",
           contract
@@ -696,6 +691,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, "Invalid URI"];
       }
 
+      if (uri.includes("ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
+        uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+      }
+
       return axios
         .get(uri, {
           headers: {
@@ -704,6 +703,26 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         })
         .then((res) => {
           if (res.data !== null && typeof res.data === "object") {
+            if (
+              config.chainId === 1 &&
+              contract === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401" &&
+              "message" in res.data
+            ) {
+              logger.info(
+                "getTokenMetadataFromURI",
+                JSON.stringify({
+                  topic: "tokenMetadataIndexingDebug",
+                  message: `ENS Invalid response. contract=${contract}, tokenId=${tokenId}`,
+                  contract,
+                  tokenId,
+                  uri,
+                  resData: res.data,
+                })
+              );
+
+              return [null, 404];
+            }
+
             return [res.data, null];
           }
 

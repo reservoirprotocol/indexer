@@ -11,6 +11,7 @@ import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { redis } from "@/common/redis";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -37,6 +38,8 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
   } as BackoffStrategy;
 
   public async process(payload: AskWebsocketEventsTriggerQueueJobPayload) {
+    const triggerJobStart = Date.now();
+
     const { data } = payload;
 
     try {
@@ -194,6 +197,62 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         data: result,
         offset: data.offset,
       });
+
+      if ([1, 11155111].includes(config.chainId) && eventType === "ask.created") {
+        try {
+          const [, contract, tokenId] = data.after.token_set_id.split(":");
+
+          const kafkaMessageTs = Number(
+            await redis.get(`ask-created-kafka-message-ts:${contract}:${tokenId}`)
+          );
+
+          const cdcEventStart = Number(
+            await redis.get(`ask-created-cdc-event-start:${contract}:${tokenId}`)
+          );
+
+          const websocketEventPublished = Date.now();
+          const eventLatency = websocketEventPublished - new Date(data.after.created_at).getTime();
+
+          if (eventLatency >= 1000) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "debugWSEventsLatency",
+                message: `Start. contract=${contract}, tokenId=${tokenId}`,
+                contract,
+                tokenId,
+                contractAndTokenId: `${contract}:${tokenId}`,
+                timestamps: {
+                  a_createdAt: new Date(data.after.created_at).toISOString(),
+                  b_kafkaMessageTs: new Date(kafkaMessageTs).toISOString(),
+                  c_cdcEventStart: new Date(cdcEventStart).toISOString(),
+                  d_triggerJobStart: new Date(triggerJobStart).toISOString(),
+                  e_websocketEventPublished: new Date(websocketEventPublished).toISOString(),
+                },
+                latencies: {
+                  a_kafkaMessageTs: kafkaMessageTs
+                    ? kafkaMessageTs - new Date(data.after.created_at).getTime()
+                    : 0,
+                  b_cdcEventStart: cdcEventStart ? cdcEventStart - kafkaMessageTs : 0,
+                  c_triggerJobStart: triggerJobStart - cdcEventStart,
+                  d_websocketEventPublished: websocketEventPublished - triggerJobStart,
+                },
+                eventLatency,
+                eventType: "ask.created",
+              })
+            );
+          }
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              message: `Handle event latency error. error=${error}`,
+              payload: JSON.stringify(data),
+              error,
+            })
+          );
+        }
+      }
     } catch (error) {
       logger.error(
         this.queueName,

@@ -4,7 +4,7 @@ import cron from "node-cron";
 
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import { acquireLock, redlock } from "@/common/redis";
+import { acquireLock, extendLock, redlock } from "@/common/redis";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { getTokenFlagStatus } from "@/jobs/flag-status/utils";
@@ -49,6 +49,8 @@ export class TokenFlagStatusSyncJob extends AbstractRabbitMqJobHandler {
                     error,
                   })
                 );
+
+                await extendLock(this.getLockName(), Math.max(error.delay, 5));
 
                 await PendingFlagStatusSyncTokens.add(tokensToGetFlagStatusForChunk, true);
               } else {
