@@ -21,6 +21,7 @@ import { redis } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { add, isAfter } from "date-fns";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -609,7 +610,10 @@ const getTransferActivities = async (
 
       const activity = eventHandler.buildDocument(result);
 
-      if (activity.type === "mint") {
+      if (
+        activity.type === "mint" &&
+        isAfter(add(new Date(activity.createdAt), { days: -1 }), Date.now())
+      ) {
         const existingActivity = await ActivitiesIndex.getActivityById(activity.id);
 
         logger.info(
