@@ -612,7 +612,7 @@ const getTransferActivities = async (
 
       if (
         activity.type === "mint" &&
-        isAfter(add(new Date(activity.createdAt), { days: -1 }), Date.now())
+        isAfter(add(new Date(activity.createdAt), { days: -7 }), Date.now())
       ) {
         const existingActivity = await ActivitiesIndex.getActivityById(activity.id);
 
