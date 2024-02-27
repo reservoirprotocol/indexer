@@ -616,15 +616,6 @@ const getTransferActivities = async (
       ) {
         const existingActivity = await ActivitiesIndex.getActivityById(activity.id);
 
-        logger.info(
-          "backfillIsMinting",
-          JSON.stringify({
-            message: `Backfilled actibity. activityId=${activity.id}`,
-            activity: JSON.stringify(activity),
-            existingActivity: JSON.stringify(existingActivity),
-          })
-        );
-
         if (existingActivity) {
           activity.event = existingActivity.event;
         }
