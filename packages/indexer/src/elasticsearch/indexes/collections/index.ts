@@ -10,6 +10,7 @@ import * as CONFIG from "@/elasticsearch/indexes/collections/config";
 import { CollectionDocument } from "@/elasticsearch/indexes/collections/base";
 import { acquireLockCrossChain } from "@/common/redis";
 import { config } from "@/config/index";
+import { isRetryableError } from "@/elasticsearch/indexes/utils";
 
 const INDEX_NAME = `collections`;
 
@@ -185,15 +186,18 @@ export const initIndex = async (): Promise<void> => {
   }
 };
 
-export const autocomplete = async (params: {
-  prefix: string;
-  collectionIds?: string[];
-  communities?: string[];
-  excludeSpam?: boolean;
-  excludeNsfw?: boolean;
-  fuzzy?: boolean;
-  limit?: number;
-}): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
+export const autocomplete = async (
+  params: {
+    prefix: string;
+    collectionIds?: string[];
+    communities?: string[];
+    excludeSpam?: boolean;
+    excludeNsfw?: boolean;
+    fuzzy?: boolean;
+    limit?: number;
+  },
+  retries = 0
+): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
   let esQuery = undefined;
   let esSuggest = undefined;
 
@@ -298,16 +302,52 @@ export const autocomplete = async (params: {
       return { results };
     }
   } catch (error) {
-    logger.error(
-      "elasticsearch-collections",
-      JSON.stringify({
-        topic: "autocompleteCollections",
-        params,
-        esQuery,
-        esSuggest,
-        error,
-      })
-    );
+    if (isRetryableError(error)) {
+      logger.warn(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Retrying...",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return autocomplete(params, retries);
+      }
+
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Max retries reached.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    } else {
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Unexpected error.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+        })
+      );
+    }
 
     throw error;
   }
