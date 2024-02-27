@@ -236,6 +236,9 @@ export abstract class AbstractBaseMetadataProvider {
     if (url.endsWith(".svg")) {
       return "image/svg+xml";
     }
+    if (url.endsWith(".webp")) {
+      return "image/webp";
+    }
     if (url.endsWith(".mp4")) {
       return "video/mp4";
     }
