@@ -78,6 +78,7 @@ import SudoswapV2ModuleAbi from "./abis/SudoswapV2Module.json";
 import CaviarV1ModuleAbi from "./abis/CaviarV1Module.json";
 import CryptoPunksModuleAbi from "./abis/CryptoPunksModule.json";
 import PaymentProcessorModuleAbi from "./abis/PaymentProcessorModule.json";
+import PaymentProcessorV2ModuleAbi from "./abis/PaymentProcessorV2Module.json";
 import MintModuleAbi from "./abis/MintModule.json";
 import MintProxyAbi from "./abis/MintProxy.json";
 // Exchanges
@@ -238,6 +239,11 @@ export class Router {
       mintModule: new Contract(
         Addresses.MintModule[chainId] ?? AddressZero,
         MintModuleAbi,
+        provider
+      ),
+      paymentProcessorV2Module: new Contract(
+        Addresses.PaymentProcessorV2Module[chainId] ?? AddressZero,
+        PaymentProcessorV2ModuleAbi,
         provider
       ),
     };
@@ -466,11 +472,42 @@ export class Router {
       }
     }
 
-    // We don't have a module for PaymentProcessorV2 listings
-    if (details.some(({ kind }) => kind === "payment-processor-v2")) {
-      const splittedDetails: ListingDetails[][] = [];
+    // Detect which contracts block SCs via PaymentProcessor
+    const blockedPaymentProcessorV2Details: ListingDetails[] = [];
+    await Promise.all(
+      details
+        .filter((d) => d.kind === "payment-processor-v2")
+        .map(async (d) => {
+          const exchange = new Sdk.PaymentProcessor.Exchange(this.chainId);
+          if (d.extraArgs?.trustedChannel) {
+            blockedPaymentProcessorV2Details.push(d);
+          } else {
+            const module = Sdk.RouterV6.Addresses.PaymentProcessorV2Module[this.chainId];
+            if (module) {
+              try {
+                // Ensure transferring via the module is allowed
+                const isAllowed = await exchange.isTransferAllowed(
+                  this.provider,
+                  d.contract,
+                  module,
+                  module,
+                  exchange.contract.address
+                );
+                if (!isAllowed) {
+                  blockedPaymentProcessorV2Details.push(d);
+                }
+              } catch {
+                blockedPaymentProcessorV2Details.push(d);
+              }
+            }
+          }
+        })
+    );
 
-      const allPPv2Details = details.filter(({ kind }) => kind === "payment-processor-v2");
+    // Fill directly PaymentProcessorV2 listings for which SCs are blocked
+    if (blockedPaymentProcessorV2Details.length) {
+      const splittedDetails: ListingDetails[][] = [];
+      const allPPv2Details = blockedPaymentProcessorV2Details;
 
       // Aggregate trusted channel listings by the channel they're using
       const trustedChannelDetails = allPPv2Details.filter((c) => c.extraArgs?.trustedChannel);
@@ -1202,6 +1239,7 @@ export class Router {
     const zeroexV4Erc721Details: PerCurrencyListingDetails = {};
     const zeroexV4Erc1155Details: PerCurrencyListingDetails = {};
     const paymentProcessorDetails: PerCurrencyListingDetails = {};
+    const paymentProcessorV2Details: PerCurrencyListingDetails = {};
     const seaportDetails: PerCurrencyListingDetails = {};
     const seaportV14Details: PerCurrencyListingDetails = {};
     const seaportV15Details: PerCurrencyListingDetails = {};
@@ -1331,6 +1369,14 @@ export class Router {
             paymentProcessorDetails[currency] = [];
           }
           detailsRef = paymentProcessorDetails[currency];
+          break;
+        }
+
+        case "payment-processor-v2": {
+          if (!paymentProcessorV2Details[currency]) {
+            paymentProcessorV2Details[currency] = [];
+          }
+          detailsRef = paymentProcessorV2Details[currency];
           break;
         }
 
@@ -3425,8 +3471,83 @@ export class Router {
       }
     }
 
-    // Handle any needed swaps
+    // Handle PaymentProcessor listings
+    if (Object.keys(paymentProcessorV2Details).length) {
+      for (const currency of Object.keys(paymentProcessorV2Details)) {
+        const currencyDetails = paymentProcessorV2Details[currency];
 
+        const orders = currencyDetails.map((d) => d.order as Sdk.PaymentProcessorV2.Order);
+        const module = this.contracts.paymentProcessorV2Module;
+        const exchange = new Sdk.PaymentProcessorV2.Exchange(this.chainId);
+
+        const fees = getFees(currencyDetails);
+        const price = orders
+          .map((order) => bn(order.params.itemPrice))
+          .reduce((a, b) => a.add(b), bn(0));
+        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+        const totalPrice = price.add(feeAmount);
+
+        const currencyIsNative = isNative(this.chainId, currency);
+        const buyInCurrencyIsNative = isNative(this.chainId, buyInCurrency);
+
+        executions.push({
+          info: {
+            module: module.address,
+            data: module.interface.encodeFunctionData(
+              `accept${currencyIsNative ? "ETH" : "ERC20"}Listings`,
+              [
+                orders.map((order) => {
+                  const matchedOrder = order.buildMatching({
+                    taker: module.address,
+                  });
+                  return {
+                    domainSeparator: exchange.domainSeparator,
+                    saleDetails: matchedOrder,
+                    signature: matchedOrder.signature,
+                    cosignature: order.getCosignature(),
+                    feeOnTop: {
+                      recipient: AddressZero,
+                      amount: "0",
+                    },
+                  };
+                }),
+                {
+                  fillTo: taker,
+                  refundTo: relayer,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                  amount: price,
+                  // Only needed for ERC20 listings
+                  token: currency,
+                },
+                fees,
+              ]
+            ),
+            value: buyInCurrencyIsNative && currencyIsNative ? totalPrice : 0,
+          },
+          orderIds: currencyDetails.map((d) => d.orderId),
+        });
+
+        // Track any possibly required swap
+        swapDetails.push({
+          tokenIn: buyInCurrency,
+          tokenOut: currency,
+          tokenOutAmount: totalPrice,
+          recipient: module.address,
+          refundTo: relayer,
+          details: currencyDetails,
+          executionIndex: executions.length - 1,
+        });
+
+        addRouterTags("payment-processor-v2", currencyDetails.length, fees.length);
+
+        // Mark the listings as successfully handled
+        for (const { orderId } of currencyDetails) {
+          success[orderId] = true;
+        }
+      }
+    }
+
+    // Handle any needed swaps
     const successfulSwapInfos: SwapInfo[] = [];
     const unsuccessfulDependentExecutionIndexes: number[] = [];
     const unsuccessfulDependentTxIndexes: number[] = [];

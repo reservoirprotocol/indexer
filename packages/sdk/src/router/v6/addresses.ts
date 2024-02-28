@@ -281,3 +281,7 @@ export const PaymentProcessorModule: ChainIdToAddress = {
   [Network.Polygon]: "0x806ccd909e94218a08545eb9ea88a5a0dde6e0c6",
   [Network.Mumbai]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
 };
+
+export const PaymentProcessorV2Module: ChainIdToAddress = {
+  [Network.Ethereum]: "",
+};
