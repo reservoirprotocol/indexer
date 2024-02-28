@@ -38,6 +38,9 @@ export const getSearchCollectionsV3Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Return result in given currency"),
+      excludeSpam: Joi.boolean()
+        .default(false)
+        .description("If true, will filter any collections marked as spam."),
       fuzzy: Joi.boolean()
         .default(false)
         .description("If true, fuzzy search to help with misspellings."),
