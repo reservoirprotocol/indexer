@@ -217,8 +217,8 @@ export class CollectionDocumentBuilder {
           isSpam: [Number(data.is_spam) > 0],
           isNsfw: [Number(data.nsfw_status) > 0],
           metadataDisabled: [Number(data.metadata_disabled) > 0],
-          context: [
-            config.chainId,
+          filters: [
+            `${config.chainId}`,
             `*|${Number(data.is_spam) > 0}`,
             `${config.chainId}|${Number(data.is_spam) > 0}`,
           ],
@@ -238,8 +238,8 @@ export class CollectionDocumentBuilder {
           isSpam: [Number(data.is_spam) > 0],
           isNsfw: [Number(data.nsfw_status) > 0],
           metadataDisabled: [Number(data.metadata_disabled) > 0],
-          context: [
-            config.chainId,
+          filters: [
+            `${config.chainId}`,
             `*|${Number(data.is_spam) > 0}`,
             `${config.chainId}|${Number(data.is_spam) > 0}`,
           ],

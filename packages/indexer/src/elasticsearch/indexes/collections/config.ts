@@ -84,6 +84,10 @@ export const CONFIG_DEFAULT = {
             name: "metadataDisabled",
             type: "category",
           },
+          {
+            name: "filters",
+            type: "category",
+          },
         ],
       },
       slug: { type: "keyword" },
