@@ -16,10 +16,6 @@ import { CollectionSets } from "@/models/collection-sets";
 const version = "v3";
 
 export const getSearchCollectionsV3Options: RouteOptions = {
-  cache: {
-    privacy: "public",
-    expiresIn: 10000,
-  },
   description: "Search Collections",
   tags: ["api", "x-deprecated"],
   plugins: {
@@ -108,13 +104,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
     let results = [];
 
     if (debug) {
-      logger.info(
-        "getSearchCollectionsV3",
-        JSON.stringify({
-          message: `autocompleteV2`,
-        })
-      );
-
       results = (
         await collectionsIndex.autocompleteV2({
           prefix: query.prefix,
@@ -127,13 +116,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
         })
       ).results;
     } else {
-      logger.info(
-        "getSearchCollectionsV3",
-        JSON.stringify({
-          message: `autocomplete`,
-        })
-      );
-
       results = (
         await collectionsIndex.autocomplete({
           prefix: query.prefix,
