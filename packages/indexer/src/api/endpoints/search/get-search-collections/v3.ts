@@ -36,7 +36,7 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Return result in given currency."),
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any collections marked as spam."),
