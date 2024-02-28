@@ -103,7 +103,7 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name?.trim(),
-        suggest: this.getSuggest(data),
+        // suggest: this.getSuggest(data),
         suggestV2: this.getSuggest(data),
         slug: data.slug,
         image: data.image,
