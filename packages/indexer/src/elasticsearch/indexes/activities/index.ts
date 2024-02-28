@@ -854,6 +854,30 @@ export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
   }
 };
 
+export const getActivityById = async (id: string): Promise<ActivityDocument | undefined> => {
+  let activityDocument;
+
+  try {
+    const response = await elasticsearch.get<ActivityDocument>({
+      index: INDEX_NAME,
+      id,
+    });
+
+    activityDocument = response._source;
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "getActivityById",
+        id,
+        error,
+      })
+    );
+  }
+
+  return activityDocument;
+};
+
 export const search = async (
   params: {
     types?: ActivityType[];

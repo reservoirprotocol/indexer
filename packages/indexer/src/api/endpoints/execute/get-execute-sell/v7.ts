@@ -793,8 +793,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           let quantityToFill = item.quantity;
           let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            // To make sure we don't run into number overflow
+            const quantityRemaining = bn(result.quantity_remaining).gt(1000000)
+              ? 1000000
+              : Number(result.quantity_remaining);
+
             if (fromBuffer(result.maker) === payload.taker) {
-              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              makerEqualsTakerQuantity += quantityRemaining;
               continue;
             }
 
@@ -844,7 +849,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
 
             // Account for the already filled order's quantity
-            let availableQuantity = Number(result.quantity_remaining);
+            let availableQuantity = quantityRemaining;
             if (quantityFilled[result.id]) {
               availableQuantity -= quantityFilled[result.id];
             }

@@ -140,6 +140,7 @@ export enum Network {
   Scroll = 534352,
   Opbnb = 204,
   Ancient8 = 888888888,
+  Apex = 70700,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,

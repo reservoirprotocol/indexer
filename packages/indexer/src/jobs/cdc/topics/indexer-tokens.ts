@@ -128,7 +128,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             ].includes(value)
           )
         ) {
-          await ActivitiesTokenCache.refreshTokens(
+          await ActivitiesTokenCache.refreshToken(
             payload.after.contract,
             payload.after.token_id,
             payload.after

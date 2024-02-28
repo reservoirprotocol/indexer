@@ -45,6 +45,7 @@ export type SourcesMetadata = {
   tokenUrlAncient8?: string;
   tokenUrlBaseSepolia?: string;
   tokenUrlBlastSepolia?: string;
+  tokenUrlApex?: string;
 };
 
 export class SourcesEntity {

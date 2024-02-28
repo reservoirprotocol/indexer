@@ -25,11 +25,11 @@ export const checkMarketplaceIsFiltered = async (
   if (refresh) {
     result = await updateMarketplaceBlacklist(contract);
   } else {
-    const cacheKey = `marketplace-blacklist-2:${contract}`;
+    const cacheKey = `marketplace-blacklist:${contract}`;
     result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
     if (!result) {
       result = await getMarketplaceBlacklistFromDb(contract).then((r) => r.blacklist);
-      await redis.set(cacheKey, JSON.stringify(result), "EX", 5 * 60);
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 60 * 60);
     }
   }
 
@@ -56,7 +56,7 @@ export const isBlockedByCustomLogic = async (
   operators: string[],
   refresh?: boolean
 ) => {
-  const cacheKey = `marketplace-blacklist-custom-logic-3:${contract}:${JSON.stringify(operators)}`;
+  const cacheKey = `marketplace-blacklist-custom-logic:${contract}:${JSON.stringify(operators)}`;
   let cache = await redis.get(cacheKey);
   if (refresh || !cache) {
     const iface = new Interface([
@@ -153,12 +153,12 @@ export const isBlockedByCustomLogic = async (
         ]);
       }
 
-      await redis.set(cacheKey, "1", "EX", 5 * 60);
+      await redis.set(cacheKey, "1", "EX", 24 * 60 * 60);
       return result;
     }
 
     // Negative case
-    await redis.set(cacheKey, "0", "EX", 5 * 60);
+    await redis.set(cacheKey, "0", "EX", 24 * 60 * 60);
     cache = "0";
   }
 

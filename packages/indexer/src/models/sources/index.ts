@@ -629,6 +629,16 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
+    } else if (config.chainId == 70700) {
+      if (sourceEntity.metadata.tokenUrlApex && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlApex,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
     } else {
       if (sourceEntity.metadata.tokenUrlGoerli && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(

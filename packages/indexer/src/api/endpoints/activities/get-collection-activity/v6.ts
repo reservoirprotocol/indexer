@@ -379,7 +379,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
           tokenImageUrl = Assets.getResizedImageUrl(
             originalImageUrl,
             undefined,
-            tokenMetadata?.image_version
+            tokenMetadata?.image_version,
+            tokenMetadata?.image_mime_type
           );
         }
 

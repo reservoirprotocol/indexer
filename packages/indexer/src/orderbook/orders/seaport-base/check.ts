@@ -44,6 +44,9 @@ export const offChainCheck = async (
   if (!kind) {
     throw new Error("invalid-target");
   }
+  if (!["erc1155", "erc721", "erc721-like"].includes(kind)) {
+    throw new Error("invalid-target");
+  }
   if (["erc1155"].includes(kind) && info.tokenKind !== "erc1155") {
     throw new Error("invalid-target");
   }

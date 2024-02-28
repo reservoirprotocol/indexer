@@ -28,6 +28,26 @@ export const offChainCheck = async (
   if (!kind) {
     throw new Error("invalid-target");
   }
+  if (!["erc1155", "erc721", "erc721-like"].includes(kind)) {
+    throw new Error("invalid-target");
+  }
+  if (
+    ["erc1155"].includes(kind) &&
+    ![
+      Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+    ].includes(order.params.protocol)
+  ) {
+    throw new Error("invalid-target");
+  }
+  if (
+    ["erc721", "erc721-like"].includes(kind) &&
+    ![Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC721_FILL_OR_KILL].includes(
+      order.params.protocol
+    )
+  ) {
+    throw new Error("invalid-target");
+  }
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
