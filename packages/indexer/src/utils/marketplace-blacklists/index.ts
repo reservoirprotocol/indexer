@@ -21,15 +21,6 @@ export const checkMarketplaceIsFiltered = async (
   operators: string[],
   refresh?: boolean
 ) => {
-  // Custom rules
-  if (
-    config.chainId === 1 &&
-    contract === "0x0c86cdc978b7d191f11b36731107e924c699af10" &&
-    operators.includes(Sdk.BlurV2.Addresses.Delegate[config.chainId])
-  ) {
-    return true;
-  }
-
   let result: string[] | null = [];
   if (refresh) {
     result = await updateMarketplaceBlacklist(contract);
@@ -38,7 +29,7 @@ export const checkMarketplaceIsFiltered = async (
     result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
     if (!result) {
       result = await getMarketplaceBlacklistFromDb(contract).then((r) => r.blacklist);
-      await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 60 * 60);
     }
   }
 
@@ -75,6 +66,37 @@ export const isBlockedByCustomLogic = async (
     const nft = new Contract(contract, iface, baseProvider);
 
     let result = false;
+    let blacklist: string[] = [];
+
+    // CUSTOM RULES
+    const BLUR = Sdk.BlurV2.Addresses.Delegate[config.chainId];
+    const OPENSEA = "0x1e0049783f008a0085193e00003d00cd54003c71";
+    if (
+      config.chainId === 1 &&
+      [
+        "0x0c86cdc978b7d191f11b36731107e924c699af10",
+        "0x4d7d2e237d64d1484660b55c0a4cc092fa5e6716",
+        "0x4b15a9c28034dc83db40cd810001427d3bd7163d",
+        "0x2358693f4faec9d658bb97fc9cd8885f62105dc1",
+        "0x8f1b132e9fd2b9a2b210baa186bf1ae650adf7ac",
+        "0xd4b7d9bb20fa20ddada9ecef8a7355ca983cccb1",
+        "0x572e33ffa523865791ab1c26b42a86ac244df784",
+        "0x7daec605e9e2a1717326eedfd660601e2753a057",
+      ].includes(contract) &&
+      (operators.includes(BLUR) || operators.includes(OPENSEA))
+    ) {
+      result = true;
+      blacklist = [BLUR, OPENSEA];
+    }
+
+    if (
+      config.chainId === 1 &&
+      ["0xc379e535caff250a01caa6c3724ed1359fe5c29b"].includes(contract) &&
+      operators.includes(OPENSEA)
+    ) {
+      result = true;
+      blacklist = [OPENSEA];
+    }
 
     // `registry()`
     try {
@@ -88,6 +110,10 @@ export const isBlockedByCustomLogic = async (
 
       const allowed = await Promise.all(operators.map((c) => registry.isAllowedOperator(c)));
       result = allowed.some((c) => !c);
+
+      if (result) {
+        blacklist = operators;
+      }
     } catch {
       // Skip errors
     }
@@ -104,18 +130,35 @@ export const isBlockedByCustomLogic = async (
         .getDenylistOperators()
         .then((ops: string[]) => ops.map((op) => op.toLowerCase()));
       result = operators.every((c) => blockedOperators.includes(c));
+
+      blacklist = blockedOperators;
     } catch {
       // Skip errors
     }
 
     // Positive case
     if (result) {
-      await redis.set(cacheKey, "1", "EX", 24 * 3600);
+      // Invalid any orders relying on the blacklisted operator
+      if (blacklist.length) {
+        await orderRevalidationsJob.addToQueue([
+          {
+            by: "operator",
+            data: {
+              origin: "marketplace-blacklist",
+              contract,
+              blacklistedOperators: blacklist,
+              status: "inactive",
+            },
+          },
+        ]);
+      }
+
+      await redis.set(cacheKey, "1", "EX", 24 * 60 * 60);
       return result;
     }
 
     // Negative case
-    await redis.set(cacheKey, "0", "EX", 24 * 3600);
+    await redis.set(cacheKey, "0", "EX", 24 * 60 * 60);
     cache = "0";
   }
 

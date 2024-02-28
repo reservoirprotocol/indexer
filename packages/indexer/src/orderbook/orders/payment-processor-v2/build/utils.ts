@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { cosigner } from "@/utils/offchain-cancel";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
-import { getRoyalties, hasRoyalties } from "@/utils/royalties";
+import { getRoyalties, getRoyaltiesByTokenSet, hasRoyalties } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -29,17 +29,25 @@ type OrderBuildInfo = {
   params: BaseBuildParams;
 };
 
-export const getRoyaltiesToBePaid = async (contract: string, tokenId?: string) => {
+export const getRoyaltiesToBePaid = async (
+  contract: string,
+  tokenId?: string,
+  tokenSetId?: string
+) => {
+  const has = async (spec: string) => hasRoyalties(spec, contract);
+  const get = async (spec: string) =>
+    tokenSetId ? getRoyaltiesByTokenSet(tokenSetId, spec) : getRoyalties(contract, tokenId, spec);
+
   // Royalty ordering: `eip2981` > `pp-v2-backfill` > `onchain` > `opensea` > `custom`
-  return (await hasRoyalties("eip2981", contract))
-    ? await getRoyalties(contract, tokenId, "eip2981")
-    : (await hasRoyalties("pp-v2-backfill", contract))
-    ? await getRoyalties(contract, tokenId, "pp-v2-backfill")
-    : (await hasRoyalties("onchain", contract))
-    ? await getRoyalties(contract, tokenId, "onchain")
-    : (await hasRoyalties("opensea", contract))
-    ? await getRoyalties(contract, tokenId, "opensea")
-    : await getRoyalties(contract, tokenId, "custom");
+  return (await has("eip2981"))
+    ? await get("eip2981")
+    : (await has("pp-v2-backfill"))
+    ? await get("pp-v2-backfill")
+    : (await has("onchain"))
+    ? await get("onchain")
+    : (await has("opensea"))
+    ? await get("opensea")
+    : await get("custom");
 };
 
 export const getBuildInfo = async (
@@ -79,7 +87,8 @@ export const getBuildInfo = async (
   const contract = fromBuffer(collectionResult.address);
   const nonce = await paymentProcessorV2.getAndIncrementUserNonce(options.maker, marketplace);
 
-  const royalties = await getRoyaltiesToBePaid(collection);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const royalties = await getRoyaltiesToBePaid(collection, (options as any).tokenId);
 
   const buildParams: BaseBuildParams = {
     protocol:

@@ -27,4 +27,5 @@ export const Exchange: ChainIdToAddress = {
   [Network.Ancient8]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.BaseSepolia]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.BlastSepolia]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
+  [Network.Apex]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
 };

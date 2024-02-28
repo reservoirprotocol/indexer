@@ -96,6 +96,9 @@ export const getNetworkName = () => {
     case 168587773:
       return "blast-sepolia";
 
+    case 70700:
+      return "apex";
+
     default:
       return "unknown";
   }
@@ -274,6 +277,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
+          // Blend
+          "0x29469395eaf6f95920e59f858042f0e28d98a20b",
         ],
         washTradingBlacklistedAddresses: [
           "0xac335e6855df862410f96f345f93af4f96351a87",
@@ -1799,6 +1804,38 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         isTestnet: true,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'Ether',
+                      'ETH',
+                      18,
+                      '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
+            ),
+          ]);
+        },
+      };
+    }
+    // Apex
+    case 70700: {
+      return {
+        ...defaultNetworkSettings,
         enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,

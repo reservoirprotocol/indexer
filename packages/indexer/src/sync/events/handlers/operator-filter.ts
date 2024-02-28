@@ -11,6 +11,7 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
+      case "operator-filter-operators-updated":
       case "operator-filter-operator-updated": {
         const { args } = eventData.abi.parseLog(log);
         const registrant = args["registrant"].toLowerCase();
@@ -24,14 +25,15 @@ export const handleEvents = async (events: EnhancedEvent[]) => {
             baseProvider
           );
 
+          // TODO: Use a job queue for these updates
           const subscribers: string[] = await registry.subscribers(registrant);
-          if (subscribers.length <= 1000) {
-            await Promise.all(
-              subscribers.map((subscriber) =>
+          await Promise.all(
+            subscribers
+              .slice(0, 1000)
+              .map((subscriber) =>
                 marketplaceBlacklists.updateMarketplaceBlacklist(subscriber.toLowerCase())
               )
-            );
-          }
+          );
         } catch (error) {
           logger.info(
             "debug",
