@@ -57,34 +57,6 @@ export const CONFIG_DEFAULT = {
         search_analyzer: "standard",
         contexts: [
           {
-            name: "chainId",
-            type: "category",
-          },
-          {
-            name: "id",
-            type: "category",
-          },
-          {
-            name: "community",
-            type: "category",
-          },
-          {
-            name: "hasTokens",
-            type: "category",
-          },
-          {
-            name: "isSpam",
-            type: "category",
-          },
-          {
-            name: "isNsfw",
-            type: "category",
-          },
-          {
-            name: "metadataDisabled",
-            type: "category",
-          },
-          {
             name: "filters",
             type: "category",
           },
