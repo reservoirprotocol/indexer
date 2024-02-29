@@ -103,8 +103,7 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name?.trim(),
-        suggest: this.getSuggest(data),
-        suggestV2: this.getSuggestV2(data),
+        suggestV2: this.getSuggest(data),
         slug: data.slug,
         image: data.image,
         imageVersion: data.image_version
@@ -184,63 +183,6 @@ export class CollectionDocumentBuilder {
   }
 
   getSuggest(data: BuildCollectionDocumentData): any {
-    const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
-    const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
-    const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
-    const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
-
-    let weight =
-      day1VolumeDecimal * 0.3 +
-      day7VolumeDecimal * 0.2 +
-      day30VolumeDecimal * 0.06 +
-      allTimeVolumeDecimal * 0.04;
-
-    if (weight > 0) {
-      if (Number.isInteger(weight)) {
-        weight += 1;
-      } else {
-        weight = Math.ceil(weight);
-      }
-    }
-
-    const suggest = [];
-
-    if (data.name) {
-      suggest.push({
-        input: this.generateInputValues(data),
-        weight,
-        contexts: {
-          chainId: [config.chainId],
-          id: [data.id],
-          community: data.community ? [data.community] : [],
-          hasTokens: [Number(data.token_count) > 0],
-          isSpam: [Number(data.is_spam) > 0],
-          isNsfw: [Number(data.nsfw_status) > 0],
-          metadataDisabled: [Number(data.metadata_disabled) > 0],
-        },
-      });
-    }
-
-    if (data.contract_symbol) {
-      suggest.push({
-        input: [data.contract_symbol],
-        weight,
-        contexts: {
-          chainId: [config.chainId],
-          id: [data.id],
-          community: data.community ? [data.community] : [],
-          hasTokens: [Number(data.token_count) > 0],
-          isSpam: [Number(data.is_spam) > 0],
-          isNsfw: [Number(data.nsfw_status) > 0],
-          metadataDisabled: [Number(data.metadata_disabled) > 0],
-        },
-      });
-    }
-
-    return suggest;
-  }
-
-  getSuggestV2(data: BuildCollectionDocumentData): any {
     const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
     const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
     const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;

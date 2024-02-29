@@ -3,7 +3,6 @@
 import { logger } from "@/common/logger";
 // import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
-import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { BigNumber } from "ethers";
 
@@ -14,15 +13,6 @@ export abstract class KafkaEventHandler {
   async handle(payload: any, offset: string): Promise<void> {
     try {
       // convert any hex strings to strings
-
-      if (
-        payload.op === "u" &&
-        config.chainId === 137 &&
-        this.topicName === "indexer.public.nft_transfer_events"
-      ) {
-        return;
-      }
-
       switch (payload.op) {
         case "c":
           this.convertPayloadHexToString(payload);

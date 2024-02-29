@@ -97,7 +97,7 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       }
     }
 
-    const { results } = await collectionsIndex.autocompleteV2({
+    const { results } = await collectionsIndex.autocomplete({
       prefix: query.prefix,
       collectionIds: collectionIds,
       communities: query.community ? [query.community] : undefined,

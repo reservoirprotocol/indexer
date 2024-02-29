@@ -45,9 +45,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
         .integer()
         .min(1)
         .default(50)
-        .description(
-          "Amount of items returned in response. If `includeMetadata=true` max limit is 50, otherwise max limit is 1,000."
-        )
+        .description("Amount of items returned. Max limit is 50.")
         .when("includeMetadata", {
           is: true,
           then: Joi.number().integer().max(50),
@@ -154,11 +152,25 @@ export const getCollectionActivityV5Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
+      let limit = query.limit;
+
+      if (limit > 50) {
+        limit = 50;
+
+        logger.info(
+          `get-collection-activity-${version}-handler`,
+          JSON.stringify({
+            message: `Force limit.`,
+            query,
+          })
+        );
+      }
+
       const { activities, continuation } = await ActivitiesIndex.search({
         types: query.types,
         collections: query.collection,
         sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-        limit: query.limit,
+        limit,
         continuation: query.continuation,
       });
 
