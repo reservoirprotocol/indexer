@@ -24,9 +24,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
     },
   },
   validate: {
-    headers: Joi.object({
-      "x-debug": Joi.string(),
-    }).options({ allowUnknown: true }),
     query: Joi.object({
       prefix: Joi.string()
         .lowercase()
@@ -89,7 +86,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-    const debug = request.headers["x-debug"] ?? false;
 
     let collectionIds: string[] = [];
 
@@ -101,33 +97,15 @@ export const getSearchCollectionsV3Options: RouteOptions = {
       }
     }
 
-    let results = [];
-
-    if (debug) {
-      results = (
-        await collectionsIndex.autocompleteV2({
-          prefix: query.prefix,
-          collectionIds: collectionIds,
-          communities: query.community ? [query.community] : undefined,
-          excludeSpam: query.excludeSpam,
-          excludeNsfw: query.excludeNsfw,
-          fuzzy: query.fuzzy,
-          limit: query.limit,
-        })
-      ).results;
-    } else {
-      results = (
-        await collectionsIndex.autocomplete({
-          prefix: query.prefix,
-          collectionIds: collectionIds,
-          communities: query.community ? [query.community] : undefined,
-          excludeSpam: query.excludeSpam,
-          excludeNsfw: query.excludeNsfw,
-          fuzzy: query.fuzzy,
-          limit: query.limit,
-        })
-      ).results;
-    }
+    const { results } = await collectionsIndex.autocompleteV2({
+      prefix: query.prefix,
+      collectionIds: collectionIds,
+      communities: query.community ? [query.community] : undefined,
+      excludeSpam: query.excludeSpam,
+      excludeNsfw: query.excludeNsfw,
+      fuzzy: query.fuzzy,
+      limit: query.limit,
+    });
 
     return {
       collections: await Promise.all(
