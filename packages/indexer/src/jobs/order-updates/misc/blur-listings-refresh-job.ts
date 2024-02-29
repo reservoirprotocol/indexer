@@ -149,14 +149,14 @@ export default class BlurListingsRefreshJob extends AbstractRabbitMqJobHandler {
 export const blurListingsRefreshJob = new BlurListingsRefreshJob();
 
 if (config.chainId === 1 && config.doBackgroundWork) {
-  cron.schedule(
-    // Every 10 minutes
-    "*/10 * * * *",
-    async () => {
-      const keys = await redis.keys("blur-collection-with-listings:*");
-      await Promise.all(keys.map((key) => blurListingsRefreshJob.addToQueue(key.split(":")[1])));
-    }
-  );
+  // cron.schedule(
+  //   // Every 10 minutes
+  //   "*/10 * * * *",
+  //   async () => {
+  //     const keys = await redis.keys("blur-collection-with-listings:*");
+  //     await Promise.all(keys.map((key) => blurListingsRefreshJob.addToQueue(key.split(":")[1])));
+  //   }
+  // );
 
   cron.schedule(
     // Every hour

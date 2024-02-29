@@ -43,11 +43,11 @@ export const getRoyaltiesToBePaid = async (
     ? await get("eip2981")
     : (await has("pp-v2-backfill"))
     ? await get("pp-v2-backfill")
+    : (await has("custom"))
+    ? await get("custom")
     : (await has("onchain"))
     ? await get("onchain")
-    : (await has("opensea"))
-    ? await get("opensea")
-    : await get("custom");
+    : await get("opensea");
 };
 
 export const getBuildInfo = async (
