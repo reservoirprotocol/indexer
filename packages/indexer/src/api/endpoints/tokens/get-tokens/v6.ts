@@ -2058,7 +2058,11 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
         fromBuffer(tokenResult.contract) == ask.contract && tokenResult.token_id == ask.token.id
     );
 
-    const feeBreakdown = r.top_buy_fee_breakdown;
+    const feeBreakdown = r.top_buy_fee_breakdown?.map((f: any) => ({
+      kind: f.kind,
+      recipient: f.recipient,
+      bps: f.bps,
+    }));
 
     if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
       for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
