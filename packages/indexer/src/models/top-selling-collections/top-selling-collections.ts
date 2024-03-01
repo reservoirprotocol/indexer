@@ -10,7 +10,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 
 const VERSION = "v2";
-const expireTimeInSeconds = 1800;
+const EXPIRE_TIME_IN_SECONDS = 1800;
 
 export type Period = "5m" | "10m" | "30m" | "1h" | "6h" | "1d" | "7d" | "30d";
 type FillSort = "volume" | "sales";
@@ -113,6 +113,10 @@ export class TopSellingCollections {
     results.forEach(({ period, collections, fillSort }: TopSellingCollectionWindow) => {
       const key = `top-selling-collections:${VERSION}:${period}:sale:${fillSort}`;
       const value = JSON.stringify(collections);
+      const expireTimeInSeconds = ["7d", "30d"].includes(period)
+        ? EXPIRE_TIME_IN_SECONDS * 2
+        : EXPIRE_TIME_IN_SECONDS;
+
       pipeline.set(key, value, "EX", expireTimeInSeconds);
     });
 

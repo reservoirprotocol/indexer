@@ -279,12 +279,12 @@ export const refreshDefaultRoyalties = async (collection: string) => {
 
   // Default royalties priority: custom, on-chain, opensea
   let defaultRoyalties: Royalty[] = [];
-  if (royaltiesResult.new_royalties["custom"]) {
-    defaultRoyalties = royaltiesResult.new_royalties["custom"];
-  } else if (royaltiesResult.new_royalties["eip2981"]) {
+  if (royaltiesResult.new_royalties["eip2981"]) {
     defaultRoyalties = royaltiesResult.new_royalties["eip2981"];
   } else if (royaltiesResult.new_royalties["pp-v2-backfill"]) {
     defaultRoyalties = royaltiesResult.new_royalties["pp-v2-backfill"];
+  } else if (royaltiesResult.new_royalties["custom"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["custom"];
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
   } else if (royaltiesResult.new_royalties["opensea"]) {

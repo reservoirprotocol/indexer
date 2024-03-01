@@ -2439,13 +2439,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const totalBuyInCurrencyPrice = bn(txData.value ?? 0);
 
           // Include the BETH balance when filling Blur orders
-          const beth = new Sdk.Common.Helpers.Erc20(
-            baseProvider,
-            Sdk.Blur.Addresses.Beth[config.chainId]
-          );
           const [nativeBalance, bethBalance] = await Promise.all([
             baseProvider.getBalance(txSender),
-            hasBlurListings ? beth.getBalance(txSender) : Promise.resolve(bn(0)),
+            hasBlurListings
+              ? new Sdk.Common.Helpers.Erc20(
+                  baseProvider,
+                  Sdk.Blur.Addresses.Beth[config.chainId]
+                ).getBalance(txSender)
+              : Promise.resolve(bn(0)),
           ]);
 
           const balance = nativeBalance.add(bethBalance);

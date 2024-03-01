@@ -433,9 +433,8 @@ async function formatCollections(
 
       if (floorAskPercentChangeEnabled) {
         floorAskPercentChange =
-          Number(metadata.previous_floor_sell_currency_value) &&
-          Number(metadata.floor_sell_currency_value)
-            ? ((metadata.floor_sell_currency_value - metadata.previous_floor_sell_currency_value) /
+          Number(metadata.previous_floor_sell_currency_value) && Number(metadata.floor_sell_value)
+            ? ((metadata.floor_sell_value - metadata.previous_floor_sell_currency_value) /
                 metadata.previous_floor_sell_currency_value) *
               100
             : null;
@@ -520,9 +519,20 @@ async function getCollectionsResult(request: Request) {
   const cachedResults = await redis.get(cacheKey);
 
   if (cachedResults) {
+    logger.info(
+      `get-trending-collections-${version}-handler`,
+      `Getting results from cache. period=${period}, fillType=${fillType}, sortBy=${sortBy},cacheKey=${cacheKey}`
+    );
+
     collectionsResult = JSON.parse(cachedResults).slice(0, limit);
   } else {
+    logger.info(
+      `get-trending-collections-${version}-handler`,
+      `Getting results from elasticsearch. period=${period}, fillType=${fillType}, sortBy=${sortBy},cacheKey=${cacheKey}`
+    );
+
     const startTime = getStartTime(period);
+
     collectionsResult = await getTopSellingCollections({
       startTime,
       fillType,

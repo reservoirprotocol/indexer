@@ -859,7 +859,7 @@ export const getActivityById = async (id: string): Promise<ActivityDocument | un
 
   try {
     const response = await elasticsearch.get<ActivityDocument>({
-      index: INDEX_NAME,
+      index: config.chainId === 1 ? "mainnet.activities-1702050564025" : INDEX_NAME,
       id,
     });
 
