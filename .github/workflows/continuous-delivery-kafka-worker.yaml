@@ -229,6 +229,9 @@ jobs:
           ./utils/version_update_batch.sh indexer-apex ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-apex.yaml
 
+          ./utils/version_update_batch.sh indexer-blast ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-blast.yaml
+
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

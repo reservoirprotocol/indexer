@@ -218,8 +218,8 @@ export class Order implements IOrder {
     }
   }
 
-  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
-    return getPrivateListingFulfillments(this.params);
+  public getPrivateListingFulfillments(orderIndex = 0): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params, orderIndex);
   }
 
   public isPrivateOrder() {

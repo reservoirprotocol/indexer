@@ -10,9 +10,11 @@ import {
   extractByTx,
 } from "../../orderbook/mints/calldata/detector/highlightxyz";
 import * as utils from "@/events-sync/utils";
-import { processEventsBatch } from "@/events-sync/handlers";
-import { getEnhancedEventsFromTx } from "../utils/events";
-import { extractEventsBatches } from "@/events-sync/index";
+import {
+  getEnhancedEventsFromTx,
+  extractOnChainData,
+} from "@/events-sync/handlers/royalties/utils";
+import { simulateCollectionMint } from "@/orderbook/mints/simulation";
 
 jest.setTimeout(60 * 1000);
 
@@ -88,11 +90,24 @@ if (config.chainId === Network.Ethereum) {
 
       for (const txHash of data) {
         const enhancedEvents = await getEnhancedEventsFromTx(txHash);
-        const eventBatches = await extractEventsBatches(enhancedEvents, true);
-        for (const batch of eventBatches) {
-          const onChainData = await processEventsBatch(batch, true);
-          expect(onChainData.mints[0]).not.toBe(null);
-        }
+        const [onChainData] = await extractOnChainData(enhancedEvents);
+        expect(onChainData.mints[0]).not.toBe(null);
+      }
+    });
+
+    it("dutch", async () => {
+      // Mainnet
+      const transcation = await utils.fetchTransaction(
+        "0x73685c9cb691cfbf182464e6782385b36a2327be10f45c082813f502186fc94c"
+      );
+      const collectionMints = await extractByTx(
+        "0x86c2e9543a39e6c031cd41f2c5b650e693ef0f38",
+        transcation
+      );
+      expect(collectionMints.length).not.toBe(0);
+      for (const collectionMint of collectionMints) {
+        const result = await simulateCollectionMint(collectionMint);
+        expect(result).toBe(true);
       }
     });
   });

@@ -5,7 +5,7 @@ import { idb } from "@/common/db";
 
 if (
   config.doBackgroundWork &&
-  [43114, 59144, 888888888, 84532, 168587773, 70700].includes(config.chainId)
+  [43114, 59144, 888888888, 84532, 168587773, 70700, 81457].includes(config.chainId)
 ) {
   cron.schedule("*/5 * * * *", async () => {
     // Log backfill progress for new chains

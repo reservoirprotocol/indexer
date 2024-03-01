@@ -22,6 +22,7 @@ export interface Info {
   prices?: string[];
   pricePeriodDuration?: number;
   lowestPriceIndex?: number;
+  platformFee?: string;
 }
 
 interface MechanicVectorMetadata {
@@ -209,10 +210,9 @@ export const extractByCollectionERC721 = async (
 
       results.push(item);
     } else {
-      // Skipping this for now
-      // // "Mechanics" are equivalent to the "Strategy" pattern
-      // const vector: MechanicVectorMetadata = await mintManager.mechanicVectorMetadata(vectorId);
-      // await tryDetectDutchAuction(results, mintManager, collection, vectorId, vector);
+      // "Mechanics" are equivalent to the "Strategy" pattern
+      const vector: MechanicVectorMetadata = await mintManager.mechanicVectorMetadata(vectorId);
+      await tryDetectDutchAuction(results, mintManager, collection, vectorId, vector);
     }
   } catch (error) {
     logger.error("mint-detector", JSON.stringify({ kind: STANDARD, error }));
@@ -255,34 +255,32 @@ const tryDetectDutchAuction = async (
     new Interface([
       `function getVectorState(
         bytes32 mechanicVectorId
-      )
-        view
-        returns (
-            (
-              uint48 startTimestamp,
-              uint48 endTimestamp,
-              uint32 periodDuration,
-              uint32 maxUserClaimableViaVector,
-              uint48 maxTotalClaimableViaVector,
-              uint48 currentSupply,
-              uint32 lowestPriceSoldAtIndex,
-              uint32 tokenLimitPerTx,
-              uint32 numPrices,
-              address paymentRecipient,
-              uint240 totalSales,
-              uint8 bytesPerPrice,
-              bool auctionExhausted,
-              bool payeeRevenueHasBeenWithdrawn
-            ) rawVector,
-            uint200[] prices,
-            uint200 currentPrice,
-            uint256 payeePotentialEscrowedFunds,
-            uint256 collectionSupply,
-            uint256 collectionSize,
-            bool escrowedFundsAmountFinalized,
-            bool auctionExhausted,
-            bool auctionInFPP
-        )`,
+      ) view returns (
+        (
+          uint48 startTimestamp,
+          uint48 endTimestamp,
+          uint32 periodDuration,
+          uint32 maxUserClaimableViaVector,
+          uint48 maxTotalClaimableViaVector,
+          uint48 currentSupply,
+          uint32 lowestPriceSoldAtIndex,
+          uint32 tokenLimitPerTx,
+          uint32 numPrices,
+          address paymentRecipient,
+          uint240 totalSales,
+          uint8 bytesPerPrice,
+          bool auctionExhausted,
+          bool payeeRevenueHasBeenWithdrawn
+        ) rawVector,
+        uint200[] prices,
+        uint200 currentPrice,
+        uint256 payeePotentialEscrowedFunds,
+        uint256 collectionSupply,
+        uint256 collectionSize,
+        bool escrowedFundsAmountFinalized,
+        bool auctionExhausted,
+        bool auctionInFPP
+      )`,
     ]),
     baseProvider
   );
@@ -296,6 +294,11 @@ const tryDetectDutchAuction = async (
   const currentSupply = rawVector.currentSupply;
   const maxUserClaimableViaVector = toSafeNumber(rawVector.maxUserClaimableViaVector);
   const tokenLimitPerTx = toSafeNumber(rawVector.tokenLimitPerTx);
+
+  // Get the platform fee (not available via a public method se we have to read the storage slot directly)
+  const platformFee = await baseProvider
+    .getStorageAt(mintManager.address, 166)
+    .then((value) => bn(value));
 
   // "mechanicVector" data
   const price = daState.currentPrice.toString();
@@ -344,6 +347,7 @@ const tryDetectDutchAuction = async (
         prices: daState.prices.map((price) => price.toString()),
         pricePeriodDuration: rawVector.periodDuration,
         lowestPriceIndex: rawVector.lowestPriceSoldAtIndex,
+        platformFee: platformFee.toString(),
       },
     },
     maxSupply,
@@ -410,4 +414,20 @@ export const extractByTx = async (
   }
 
   return [];
+};
+
+export const getPrice = async (mint: CollectionMint) => {
+  const info = mint.details.info as Info;
+
+  const latestBlock = await baseProvider.getBlockNumber();
+  const timestamp = await baseProvider.getBlock(latestBlock - 1).then((b) => b.timestamp);
+
+  const hypotheticalIndex = Math.ceil((timestamp - mint.startTime!) / info.pricePeriodDuration!);
+
+  const priceList = info.prices ?? [];
+  const priceIndex =
+    hypotheticalIndex >= priceList.length ? priceList.length - 1 : hypotheticalIndex;
+  const dutchPrice = priceList[priceIndex];
+
+  return bn(dutchPrice).add(bn(info.platformFee!)).toString();
 };

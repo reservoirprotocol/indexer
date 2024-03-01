@@ -141,6 +141,7 @@ export enum Network {
   Opbnb = 204,
   Ancient8 = 888888888,
   Apex = 70700,
+  Blast = 81457,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,

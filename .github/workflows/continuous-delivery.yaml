@@ -289,6 +289,11 @@ jobs:
             ./prod/platform/indexer-worker-apex.yaml \
             ./prod/platform/indexer-worker-master-apex.yaml
 
+          ./utils/version_update_batch.sh indexer-blast ${{ github.sha }} \
+            ./prod/platform/indexer-api-blast.yaml \
+            ./prod/platform/indexer-worker-blast.yaml \
+            ./prod/platform/indexer-worker-master-blast.yaml
+
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod

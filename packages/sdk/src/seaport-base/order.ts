@@ -23,7 +23,7 @@ export interface IOrder {
     privateSaleRecipient: string,
     conduitKey: string
   ): Types.OrderWithCounter;
-  getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[];
+  getPrivateListingFulfillments(orderIndex?: number): Types.MatchOrdersFulfillment[];
 
   // For cosigned orders
   isCosignedOrder(): boolean;

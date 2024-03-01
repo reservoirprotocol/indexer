@@ -99,6 +99,9 @@ export const getNetworkName = () => {
     case 70700:
       return "apex";
 
+    case 81457:
+      return "blast";
+
     default:
       return "unknown";
   }
@@ -1836,6 +1839,38 @@ export const getNetworkSettings = (): NetworkSettings => {
     }
     // Apex
     case 70700: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: true,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                    INSERT INTO currencies (
+                      contract,
+                      name,
+                      symbol,
+                      decimals,
+                      metadata
+                    ) VALUES (
+                      '\\x0000000000000000000000000000000000000000',
+                      'Ether',
+                      'ETH',
+                      18,
+                      '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                    ) ON CONFLICT DO NOTHING
+                  `
+            ),
+          ]);
+        },
+      };
+    }
+    // Blast
+    case 81457: {
       return {
         ...defaultNetworkSettings,
         enableWebSocket: true,

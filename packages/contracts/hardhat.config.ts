@@ -70,6 +70,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 70700:
         url = "https://rpc.apex.proofofplay.com";
         break;
+      case 81457:
+        url = "https://blast.blockpi.network/v1/rpc/public";
+        break;
       // Testnets
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
@@ -178,6 +181,7 @@ const config: HardhatUserConfig = {
     opBnb: getNetworkConfig(204),
     ancient8: getNetworkConfig(888888888),
     apex: getNetworkConfig(70700),
+    blast: getNetworkConfig(81457),
     // Testnets
     goerli: getNetworkConfig(5),
     zoraTestnet: getNetworkConfig(999),
@@ -210,6 +214,7 @@ const config: HardhatUserConfig = {
       ancient8: "0x",
       opBnb: "0x",
       apex: "0x",
+      blast: "0x",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
       zoraTestnet: "0x",
@@ -311,6 +316,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://explorer.apex.proofofplay.com/api",
           browserURL: "https://explorer.apex.proofofplay.com/",
+        },
+      },
+      {
+        network: "blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io/",
         },
       },
       // Testnets
