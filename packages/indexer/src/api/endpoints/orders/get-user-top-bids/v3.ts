@@ -313,7 +313,11 @@ export const getUserTopBidsV3Options: RouteOptions = {
             query.optimizeCheckoutURL
           );
 
-          const feeBreakdown = r.fee_breakdown;
+          const feeBreakdown = r.fee_breakdown?.map((f: any) => ({
+            kind: f.kind,
+            recipient: f.recipient,
+            bps: f.bps,
+          }));
 
           if (query.normalizeRoyalties && r.missing_royalties) {
             for (let i = 0; i < r.missing_royalties.length; i++) {
