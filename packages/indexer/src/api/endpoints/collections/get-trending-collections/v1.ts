@@ -520,8 +520,18 @@ async function getCollectionsResult(request: Request) {
   const cachedResults = await redis.get(cacheKey);
 
   if (cachedResults) {
+    logger.info(
+      "getCollectionsResult",
+      `Getting from cache. period=${period}, fillType=${fillType}, sortBy=${sortBy},cacheKey=${cacheKey}`
+    );
+
     collectionsResult = JSON.parse(cachedResults).slice(0, limit);
   } else {
+    logger.info(
+      "getCollectionsResult",
+      `Getting from elasticsearch. period=${period}, fillType=${fillType}, sortBy=${sortBy},cacheKey=${cacheKey}`
+    );
+
     const startTime = getStartTime(period);
     collectionsResult = await getTopSellingCollections({
       startTime,
