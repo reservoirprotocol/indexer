@@ -63,7 +63,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         contract: toBuffer(data.after.contract),
         tokenId: data.after.token_id,
         name: r?.name,
-        image: Assets.getResizedImageUrl(r.image, undefined, r.image_version, r.image_mime_type),
+        image: Assets.getResizedImageUrl(r?.image, undefined, r?.image_version, r?.image_mime_type),
         collectionId: r?.collection_id,
         collectionName: r?.collection_name,
         washTradingScore: data.after.wash_trading_score,
