@@ -143,9 +143,6 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
             criteria.data.token.image_version,
             criteria.data.token.image_mime_type
           );
-
-          delete criteria.data.token.image_version;
-          delete criteria.data.token.image_mime_type;
         } catch (error) {
           logger.error(
             this.queueName,
@@ -156,6 +153,9 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
               error,
             })
           );
+        } finally {
+          delete criteria.data.token.image_version;
+          delete criteria.data.token.image_mime_type;
         }
       }
 
