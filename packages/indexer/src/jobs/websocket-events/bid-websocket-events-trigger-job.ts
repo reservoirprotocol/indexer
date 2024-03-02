@@ -134,9 +134,9 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int));
       }
 
-      const criteria = rawResult.criteria;
+      const criteria = rawResult?.criteria;
 
-      if (criteria.data.token?.image) {
+      if (criteria?.data.token?.image) {
         try {
           criteria.data.token.image = Assets.getResizedImageUrl(
             criteria.data.token.image,
