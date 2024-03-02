@@ -12,6 +12,7 @@ import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
 import { redis } from "@/common/redis";
+import { Assets } from "@/utils/assets";
 
 export type AskWebsocketEventsTriggerQueueJobPayload = {
   data: OrderWebsocketEventInfo;
@@ -109,7 +110,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         }
       }
 
-      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", true);
+      const criteriaBuildQuery = Orders.buildCriteriaQueryV2("orders", "token_set_id", true);
 
       const rawResult = await idb.oneOrNone(
         `
@@ -130,6 +131,32 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         source = sources.get(Number(data.after.source_id_int), contract, tokenId);
       } else {
         source = sources.get(Number(data.after.source_id_int));
+      }
+
+      const criteria = rawResult.criteria;
+
+      if (criteria.data.token?.image) {
+        try {
+          criteria.data.token.image = Assets.getResizedImageUrl(
+            criteria.data.token.image,
+            undefined,
+            criteria.data.token.image_version,
+            criteria.data.token.image_mime_type
+          );
+
+          delete criteria.data.token.image_version;
+          delete criteria.data.token.image_mime_type;
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              message: `getResizedImageUrl error. error=${error}`,
+              data: JSON.stringify(data),
+              criteria: JSON.stringify(criteria),
+              error,
+            })
+          );
+        }
       }
 
       const result = {
@@ -170,7 +197,7 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         ...formatValidBetween(data.after.valid_between),
         quantityFilled: Number(data.after.quantity_filled),
         quantityRemaining: Number(data.after.quantity_remaining),
-        criteria: rawResult.criteria,
+        criteria,
         source: getJoiSourceObject(source),
         feeBps: Number(data.after.fee_bps.toString()),
         feeBreakdown: data.after.fee_breakdown ? JSON.parse(data.after.fee_breakdown) : undefined,
