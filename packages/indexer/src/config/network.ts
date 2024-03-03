@@ -1813,7 +1813,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
-        customTokenAddresses: ["0xaf57145e0c09a75ca4a2dc65ac80c91920e537ce"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
@@ -1846,6 +1845,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        customTokenAddresses: ["0xaf57145e0c09a75ca4a2dc65ac80c91920e537ce"],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
