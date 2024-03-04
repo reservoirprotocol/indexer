@@ -558,6 +558,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           collection,
           key: String(key),
           value: String(value),
+          kind,
         }
       );
 
