@@ -293,7 +293,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     const attributeIds = [];
     const attributeKeysIds = await ridb.manyOrNone(
       `
-        SELECT key, id, info
+        SELECT key, id, info, kind
         FROM attribute_keys
         WHERE collection_id = $/collection/
           AND key IN ('${_.join(
@@ -305,7 +305,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     );
 
     const attributeKeysIdsMap = new Map(
-      _.map(attributeKeysIds, (a) => [a.key, { id: a.id, info: a.info }])
+      _.map(attributeKeysIds, (a) => [a.key, { id: a.id, info: a.info, kind: a.kind }])
     );
 
     // Token attributes
@@ -340,7 +340,6 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             UPDATE attribute_keys
             SET info = ${infoUpdate},
                 kind = $/kind/,
-                rank = $/rank/,
                 updated_at = now()
             WHERE collection_id = $/collection/
               AND key = $/key/
@@ -350,7 +349,38 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             key: String(key),
             value,
             kind,
-            rank: rank || null,
+          }
+        );
+
+        if (attributeKeysIdsMap.has(key) && attributeKeysIdsMap.get(key)?.kind !== kind) {
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "attributeKindChangeDebug",
+              message: `Kind changed - Updating attribute_keys. collection=${collection}, tokenId=${tokenId}`,
+              payload,
+              key,
+              value,
+              kind,
+              rank,
+              attributeKeysId: JSON.stringify(attributeKeysIdsMap.get(key)),
+            })
+          );
+        }
+        // If kind has changed, update it
+        await idb.oneOrNone(
+          `
+            UPDATE attribute_keys
+            SET kind = $/kind/,
+                updated_at = now()
+            WHERE collection_id = $/collection/
+              AND key = $/key/
+              AND kind IS DISTINCT FROM $/kind/
+          `,
+          {
+            collection,
+            key: String(key),
+            kind,
           }
         );
       }
@@ -396,7 +426,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         }
 
         // Add the new key and id to the map
-        attributeKeysIdsMap.set(key, { id: attributeKeyResult.id, info });
+        attributeKeysIdsMap.set(key, { id: attributeKeyResult.id, info, kind });
       }
 
       // Fetch the attribute from the database (will succeed in the common case)
@@ -435,7 +465,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                 $/kind/,
                 $/key/
               )
-              ON CONFLICT (attribute_key_id, value) DO UPDATE SET kind = EXCLUDED.kind
+              ON CONFLICT DO NOTHING
               RETURNING "id"
             )
             UPDATE attribute_keys
@@ -475,10 +505,35 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         `;
       }
 
+      let kindUpdate = "";
+      if (attributeResult.kind !== kind) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "attributeKindChangeDebug",
+            message: `Kind changed - Updating attributes. collection=${collection}, tokenId=${tokenId}`,
+            payload,
+            key,
+            value,
+            kind,
+            rank,
+            attributeResult: JSON.stringify(attributeResult),
+          })
+        );
+
+        kindUpdate = `
+          UPDATE attributes
+          SET kind = $/kind/, updated_at = now()
+          WHERE id = $/attributeId/
+            AND kind IS DISTINCT FROM $/kind/;
+        `;
+      }
+
       // Associate the attribute with the token
       const tokenAttributeResult = await idb.oneOrNone(
         `
           ${sampleImageUpdate}
+          ${kindUpdate}
           INSERT INTO "token_attributes" (
             "contract",
             "token_id",
