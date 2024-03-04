@@ -121,12 +121,15 @@
   "ElementModule": {
     "v1": {
       "1": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+      "10": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
       "56": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
       "137": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+      "204": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
       "8453": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
       "42161": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
       "43114": "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
-      "59144": "0x5587785c61a284d51df41dbff4d5d42b05058613"
+      "59144": "0x5587785c61a284d51df41dbff4d5d42b05058613",
+      "81457": "0x5587785c61a284d51df41dbff4d5d42b05058613"
     }
   },
   "NFTXModule": {

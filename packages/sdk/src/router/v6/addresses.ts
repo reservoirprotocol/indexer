@@ -254,6 +254,9 @@ export const ElementModule: ChainIdToAddress = {
   [Network.Linea]: "0x5587785c61a284d51df41dbff4d5d42b05058613",
   [Network.Base]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
   [Network.Zksync]: "0x83eb1219e74a4f87742b7a8ecf0f81a5200efaa7",
+  [Network.Optimism]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Opbnb]: "0x5d92ac3936b6a02a684b214d2ecbc2e75fd9e0b4",
+  [Network.Blast]: "0x5587785c61a284d51df41dbff4d5d42b05058613",
 };
 
 export const NFTXModule: ChainIdToAddress = {

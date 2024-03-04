@@ -34,6 +34,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 137:
         url = "https://rpc-mainnet.matic.quiknode.pro";
         break;
+      case 204:
+        url = "https://opbnb-mainnet-rpc.bnbchain.org";
+        break;
       case 324:
         url = "https://mainnet.era.zksync.io";
         break;
@@ -100,9 +103,6 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 28122024:
         url = "https://rpcv2-testnet.ancient8.gg/";
-        break;
-      case 204:
-        url = "https://opbnb-mainnet-rpc.bnbchain.org";
         break;
       case 84532:
         url = "https://sepolia.base.org";
@@ -219,7 +219,7 @@ const config: HardhatUserConfig = {
       ancient8: "0x",
       opBnb: "0x",
       apex: "0x",
-      blast: "0x",
+      blast: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
       zoraTestnet: "0x",
@@ -231,7 +231,7 @@ const config: HardhatUserConfig = {
       frameTestnet: "0x",
       ancient8Testnet: "0x",
       baseSepolia: "0x",
-      blastSepolia: "0x",
+      blastSepolia: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
     },
     customChains: [
       // Mainnets

@@ -105,6 +105,15 @@ export const isBlockedByCustomLogic = async (
       blacklist = [OPENSEA];
     }
 
+    if (
+      config.chainId === 1 &&
+      ["0xcc7542d4736fca6df3a13615a49d0e1f510ef510"].includes(contract) &&
+      !operators.includes(OPENSEA)
+    ) {
+      result = true;
+      blacklist = operators;
+    }
+
     // `registry()`
     try {
       const registry = new Contract(

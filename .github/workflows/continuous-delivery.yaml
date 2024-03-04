@@ -291,7 +291,8 @@ jobs:
           
           ./utils/version_update_batch.sh indexer-astar-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-api-astar-zkevm.yaml \
-            ./prod/platform/indexer-worker-astar-zkevm.yaml
+            ./prod/platform/indexer-worker-astar-zkevm.yaml \
+            ./prod/platform/indexer-worker-master-astar-zkevm.yaml
 
           ./utils/version_update_batch.sh indexer-blast ${{ github.sha }} \
             ./prod/platform/indexer-api-blast.yaml \
