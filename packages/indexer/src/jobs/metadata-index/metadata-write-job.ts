@@ -469,7 +469,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             UPDATE attribute_keys
             SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x"), updated_at = now()
             WHERE id = $/attributeKeyId/
-            RETURNING (SELECT x.id, x.kind FROM "x"), "attribute_count"
+            RETURNING (SELECT x.id FROM "x"), "attribute_count"
           `,
           {
             attributeKeyId: attributeKeysIdsMap.get(key)?.id,
@@ -479,6 +479,10 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             key: String(key),
           }
         );
+
+        if (attributeResult?.id) {
+          attributeResult.kind = kind;
+        }
       }
 
       if (!attributeResult?.id) {
