@@ -349,31 +349,40 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             kind,
           }
         );
+      }
 
-        if (attributeKeysIdsMap.has(key) && attributeKeysIdsMap.get(key)?.kind !== kind) {
-          logger.info(
-            this.queueName,
-            JSON.stringify({
-              topic: "attributeKindChangeDebug",
-              message: `Kind changed - Updating attribute_keys. collection=${collection}, tokenId=${tokenId}`,
-              payload,
-              key,
-              value,
-              kind,
-              rank,
-              attributeKeysId: JSON.stringify(attributeKeysIdsMap.get(key)),
-            })
-          );
-        }
+      if (attributeKeysIdsMap.has(key) && attributeKeysIdsMap.get(key)?.kind !== kind) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "attributeKindChangeDebug",
+            message: `Kind changed . collection=${collection}, tokenId=${tokenId}`,
+            payload,
+            key,
+            value,
+            kind,
+            rank,
+            attributeKeysId: JSON.stringify(attributeKeysIdsMap.get(key)),
+          })
+        );
+
         // If kind has changed, update it
         await idb.oneOrNone(
           `
-            UPDATE attribute_keys
-            SET kind = $/kind/,
-                updated_at = now()
-            WHERE collection_id = $/collection/
-              AND key = $/key/
-              AND kind IS DISTINCT FROM $/kind/
+            WITH "x" AS (
+                UPDATE attribute_keys
+                SET kind = $/kind/,
+                    updated_at = now()
+                WHERE collection_id = $/collection/
+                AND key = $/key/
+                AND kind IS DISTINCT FROM $/kind/
+                RETURNING id
+            )
+            UPDATE attributes
+            SET kind = $/kind/, updated_at = now()
+            FROM x
+            WHERE attribute_key_id = x.id
+            AND attributes.kind IS DISTINCT FROM $/kind/;
           `,
           {
             collection,
@@ -464,7 +473,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                 $/key/
               )
               ON CONFLICT DO NOTHING
-              RETURNING "id", "kind"
+              RETURNING "id"
             )
             UPDATE attribute_keys
             SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x"), updated_at = now()
@@ -479,10 +488,6 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             key: String(key),
           }
         );
-
-        if (attributeResult?.id) {
-          attributeResult.kind = kind;
-        }
       }
 
       if (!attributeResult?.id) {
@@ -507,35 +512,10 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         `;
       }
 
-      let kindUpdate = "";
-      if (attributeResult.kind !== kind) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "attributeKindChangeDebug",
-            message: `Kind changed - Updating attributes. collection=${collection}, tokenId=${tokenId}`,
-            payload,
-            key,
-            value,
-            kind,
-            rank,
-            attributeResult: JSON.stringify(attributeResult),
-          })
-        );
-
-        kindUpdate = `
-          UPDATE attributes
-          SET kind = $/kind/, updated_at = now()
-          WHERE id = $/attributeId/
-            AND kind IS DISTINCT FROM $/kind/;
-        `;
-      }
-
       // Associate the attribute with the token
       const tokenAttributeResult = await idb.oneOrNone(
         `
           ${sampleImageUpdate}
-          ${kindUpdate}
           INSERT INTO "token_attributes" (
             "contract",
             "token_id",
