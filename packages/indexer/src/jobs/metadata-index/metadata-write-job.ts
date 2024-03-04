@@ -91,23 +91,21 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    if ([1, 137].includes(config.chainId)) {
-      const tokenMetadataIndexingDebug = await redis.sismember(
-        "metadata-indexing-debug-contracts",
-        contract
-      );
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
+      contract
+    );
 
-      if (tokenMetadataIndexingDebug) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "tokenMetadataIndexingDebug",
-            message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
-            payload,
-            metadataMethod,
-          })
-        );
-      }
+    if (tokenMetadataIndexingDebug) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "tokenMetadataIndexingDebug",
+          message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
+          payload,
+          metadataMethod,
+        })
+      );
     }
 
     if (metadataMethod === "simplehash") {
@@ -432,7 +430,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       // Fetch the attribute from the database (will succeed in the common case)
       let attributeResult = await ridb.oneOrNone(
         `
-          SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
+          SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length", kind
           FROM attributes
           WHERE attribute_key_id = $/attributeKeyId/
             AND value = $/value/

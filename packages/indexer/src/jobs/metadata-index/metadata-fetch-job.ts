@@ -50,24 +50,22 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    if ([1, 137, 11155111].includes(config.chainId)) {
-      const tokenMetadataIndexingDebug = await redis.sismember(
-        "metadata-indexing-debug-contracts",
-        payload.data.collection
-      );
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
+      payload.data.collection
+    );
 
-      if (tokenMetadataIndexingDebug) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "tokenMetadataIndexingDebug",
-            message: `Start. collection=${payload.data.collection}, tokenId=${
-              payload.kind === "single-token" ? payload.data.tokenId : ""
-            }`,
-            payload,
-          })
-        );
-      }
+    if (tokenMetadataIndexingDebug) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "tokenMetadataIndexingDebug",
+          message: `Start. collection=${payload.data.collection}, tokenId=${
+            payload.kind === "single-token" ? payload.data.tokenId : ""
+          }`,
+          payload,
+        })
+      );
     }
 
     const { kind, data } = payload;

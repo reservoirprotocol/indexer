@@ -54,21 +54,19 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       tokenMetadataIndexingDebug: number;
     }[] = [];
 
-    if ([1, 137, 11155111].includes(config.chainId)) {
-      tokenMetadataIndexingDebugContracts = fetchTokens.map((fetchToken) => ({
-        contract: fetchToken.contract,
-        tokenMetadataIndexingDebug: 0,
-      }));
+    tokenMetadataIndexingDebugContracts = fetchTokens.map((fetchToken) => ({
+      contract: fetchToken.contract,
+      tokenMetadataIndexingDebug: 0,
+    }));
 
-      const tokenMetadataIndexingDebugs = await redis.smismember(
-        "metadata-indexing-debug-contracts",
-        ...tokenMetadataIndexingDebugContracts.map((token) => token.contract)
-      );
+    const tokenMetadataIndexingDebugs = await redis.smismember(
+      "metadata-indexing-debug-contracts",
+      ...tokenMetadataIndexingDebugContracts.map((token) => token.contract)
+    );
 
-      for (let i = 0; i < tokenMetadataIndexingDebugContracts.length; i++) {
-        tokenMetadataIndexingDebugContracts[i].tokenMetadataIndexingDebug =
-          tokenMetadataIndexingDebugs[i];
-      }
+    for (let i = 0; i < tokenMetadataIndexingDebugContracts.length; i++) {
+      tokenMetadataIndexingDebugContracts[i].tokenMetadataIndexingDebug =
+        tokenMetadataIndexingDebugs[i];
     }
 
     let results: {
