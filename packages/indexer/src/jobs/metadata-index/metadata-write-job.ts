@@ -464,12 +464,12 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                 $/key/
               )
               ON CONFLICT DO NOTHING
-              RETURNING "id"
+              RETURNING "id", "kind"
             )
             UPDATE attribute_keys
             SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x"), updated_at = now()
             WHERE id = $/attributeKeyId/
-            RETURNING (SELECT x.id FROM "x"), "attribute_count"
+            RETURNING (SELECT x.id, x.kind FROM "x"), "attribute_count"
           `,
           {
             attributeKeyId: attributeKeysIdsMap.get(key)?.id,
