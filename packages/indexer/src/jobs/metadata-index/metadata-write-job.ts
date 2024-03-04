@@ -338,7 +338,10 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
         await idb.oneOrNone(
           `
             UPDATE attribute_keys
-            SET info = ${infoUpdate}
+            SET info = ${infoUpdate},
+                kind = $/kind/,
+                rank = $/rank/,
+                updated_at = now()
             WHERE collection_id = $/collection/
               AND key = $/key/
           `,
@@ -346,6 +349,8 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
             collection,
             key: String(key),
             value,
+            kind,
+            rank: rank || null,
           }
         );
       }
@@ -430,11 +435,11 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
                 $/kind/,
                 $/key/
               )
-              ON CONFLICT DO NOTHING
+              ON CONFLICT (attribute_key_id, value) DO UPDATE SET kind = EXCLUDED.kind
               RETURNING "id"
             )
             UPDATE attribute_keys
-            SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x")
+            SET attribute_count = "attribute_count" + (SELECT COUNT(*) FROM "x"), updated_at = now()
             WHERE id = $/attributeKeyId/
             RETURNING (SELECT x.id FROM "x"), "attribute_count"
           `,
@@ -463,7 +468,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       if (imageUrl && attributeResult.sample_images_length < 4) {
         sampleImageUpdate = `
           UPDATE attributes
-          SET sample_images = array_prepend($/image/, sample_images)
+          SET sample_images = array_prepend($/image/, sample_images), updated_at = now()
           WHERE id = $/attributeId/
             AND (sample_images IS NULL OR array_length(sample_images, 1) < 4)
             AND array_position(sample_images, $/image/) IS NULL;

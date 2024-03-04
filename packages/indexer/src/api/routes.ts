@@ -259,6 +259,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/set-contract-indexing-debug",
+    options: adminEndpoints.postSetContractIndexingDebugOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/calc-rarity",
     options: adminEndpoints.postCalcRarityOptions,
   });

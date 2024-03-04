@@ -119,6 +119,9 @@ export const generateOpenApiSpec = async () => {
       {
         url: "https://api-opbnb.reservoir.tools",
       },
+      {
+        url: "https://api-blast.reservoir.tools",
+      },
     ];
 
     // Preset list of tags.
