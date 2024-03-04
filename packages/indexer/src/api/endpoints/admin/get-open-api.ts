@@ -122,6 +122,9 @@ export const generateOpenApiSpec = async () => {
       {
         url: "https://api-blast.reservoir.tools",
       },
+      {
+        url: "https://api-blast-sepolia.reservoir.tools",
+      },
     ];
 
     // Preset list of tags.
