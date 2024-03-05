@@ -46,7 +46,6 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
       twitterUrl: Joi.string().allow(null).optional(),
       discordUrl: Joi.string().allow(null).optional(),
       externalUrl: Joi.string().allow(null).optional(),
-      magicedenVerificationStatus: Joi.string().allow(null).optional(),
       royalties: Joi.array()
         .items(
           Joi.object({
@@ -84,11 +83,7 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
       throw Boom.unauthorized("Invalid API key");
     }
 
-    if (
-      !apiKey.permissions?.entity_data_override ||
-      (payload.magicedenVerificationStatus &&
-        !apiKey.permissions?.set_collection_magiceden_verification_status)
-    ) {
+    if (!apiKey.permissions?.entity_data_override) {
       throw Boom.unauthorized("Not allowed");
     }
 
@@ -108,7 +103,6 @@ export const postCollectionsOverrideV1Options: RouteOptions = {
           twitterUrl: payload.twitterUrl,
           discordUrl: payload.discordUrl,
           externalUrl: payload.externalUrl,
-          magicedenVerificationStatus: payload.magicedenVerificationStatus,
         },
         payload.royalties
       );

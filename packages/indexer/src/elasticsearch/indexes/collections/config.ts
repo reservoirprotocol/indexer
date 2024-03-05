@@ -62,22 +62,6 @@ export const CONFIG_DEFAULT = {
           },
         ],
       },
-      suggestV3: {
-        type: "completion",
-        preserve_separators: false,
-        analyzer: "standard",
-        search_analyzer: "standard",
-        contexts: [
-          {
-            name: "filters",
-            type: "category",
-          },
-          {
-            name: "isVerified",
-            type: "category",
-          },
-        ],
-      },
       slug: { type: "keyword" },
       image: { type: "keyword" },
       contract: { type: "keyword" },

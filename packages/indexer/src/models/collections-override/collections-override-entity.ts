@@ -7,7 +7,6 @@ export type CollectionsOverrideMetadata = {
   twitterUrl?: string | null;
   discordUrl?: string | null;
   externalUrl?: string | null;
-  magicedenVerificationStatus?: string | null;
 };
 
 export type CollectionsOverrideRoyalties = {
@@ -33,7 +32,6 @@ export class CollectionsOverrideEntity {
       twitterUrl?: string | null;
       discordUrl?: string | null;
       externalUrl?: string | null;
-      magicedenVerificationStatus?: string | null;
     };
     royalties?: CollectionsOverrideRoyalties[];
   };
@@ -53,7 +51,6 @@ export class CollectionsOverrideEntity {
                 twitterUrl: params.metadata?.twitterUrl,
                 discordUrl: params.metadata?.discordUrl,
                 externalUrl: params.metadata?.externalUrl,
-                magicedenVerificationStatus: params.metadata?.magicedenVerificationStatus,
               },
               _.isUndefined
             ),

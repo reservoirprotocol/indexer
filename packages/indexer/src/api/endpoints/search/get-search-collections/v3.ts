@@ -74,7 +74,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
             }).description("Total volume in given time period."),
             floorAskPrice: JoiPrice.allow(null).description("Current floor ask price."),
             openseaVerificationStatus: Joi.string().allow("", null),
-            magicedenVerificationStatus: Joi.string().allow("", null),
           }),
           score: Joi.number().unsafe().allow(null),
         })
@@ -196,7 +195,6 @@ export const getSearchCollectionsV3Options: RouteOptions = {
                     )
                   : undefined,
                 openseaVerificationStatus: collection.openseaVerificationStatus,
-                magicedenVerificationStatus: collection.magicedenVerificationStatus,
               },
               collection.metadataDisabled
             ),

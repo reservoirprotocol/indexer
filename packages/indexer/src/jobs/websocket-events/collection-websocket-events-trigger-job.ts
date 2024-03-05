@@ -238,9 +238,6 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
           openseaVerificationStatus: !metadataDisabled ? metadata?.safelistRequestStatus : null,
-          magicedenVerificationStatus: !metadataDisabled
-            ? metadata?.magicedenVerificationStatus
-            : null,
           royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,

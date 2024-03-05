@@ -80,7 +80,6 @@ export const getTrendingMintsV1Options: RouteOptions = {
           banner: Joi.string().allow("", null),
           isSpam: Joi.boolean().default(false),
           openseaVerificationStatus: Joi.string().allow("", null),
-          magicedenVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           contract: Joi.string().lowercase().pattern(regex.address),
@@ -318,7 +317,6 @@ async function formatCollections(
         oneHourCount: r.oneHourResult?.mintCount || 0,
         mintVolume: r.volume,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
-        magicedenVerificationStatus: metadata?.metadata?.magicedenVerificationStatus || null,
         mintStages:
           mintData?.mint_stages?.length > 0
             ? await Promise.all(

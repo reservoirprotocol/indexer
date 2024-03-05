@@ -50,7 +50,6 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
               (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
               (collections.metadata ->> 'twitterUrl')::TEXT AS "twitter_url",
               (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-              (collections.metadata ->> 'magicedenVerificationStatus')::TEXT AS "magiceden_verification_status",
               extract(epoch from collections.image_version) AS "image_version",
               collections.contract,
               contracts.symbol AS "contract_symbol",
@@ -112,7 +111,6 @@ export class ProcessCollectionEventJob extends AbstractRabbitMqJobHandler {
           floor_sell_currency: rawResult.floor_sell_currency,
           floor_sell_currency_price: rawResult.floor_sell_currency_price,
           opensea_verification_status: rawResult.opensea_verification_status,
-          magiceden_verification_status: rawResult.magiceden_verification_status,
           image_version: rawResult.image_version,
         });
       }

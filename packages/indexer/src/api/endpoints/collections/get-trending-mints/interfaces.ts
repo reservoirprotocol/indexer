@@ -80,7 +80,6 @@ export interface Metadata {
     bannerImageUrl: string;
     description: string;
     openseaVerificationStatus: string;
-    magicedenVerificationStatus: string;
   };
   non_flagged_floor_sell_id: string;
   non_flagged_floor_sell_value: string;
