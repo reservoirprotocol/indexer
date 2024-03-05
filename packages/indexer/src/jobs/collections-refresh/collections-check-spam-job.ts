@@ -31,13 +31,17 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
         return;
       }
 
+      const collectionIsVerified =
+        collection.metadata?.safelistRequestStatus === "verified" ||
+        collection.metadata?.magicedenVerificationStatus === "verified";
+
       // if the collection is verified and marked as not spam -> do nothing
-      if (collection.metadata?.safelistRequestStatus === "verified" && collection.isSpam <= 0) {
+      if (collectionIsVerified && collection.isSpam <= 0) {
         return;
       }
 
       // if the collection is verified and marked as spam -> unspam the collection
-      if (collection.metadata?.safelistRequestStatus === "verified" && collection.isSpam > 0) {
+      if (collectionIsVerified && collection.isSpam > 0) {
         await this.updateSpamStatus(collection.id, -1);
 
         logger.info(this.queueName, `collection ${collection.id} is spam but marked as verified`);
@@ -59,11 +63,7 @@ export default class CollectionCheckSpamJob extends AbstractRabbitMqJobHandler {
       }
 
       // If collection marked as verified or not spam by a user or already mark as spam
-      if (
-        collection.metadata?.safelistRequestStatus === "verified" ||
-        collection.isSpam < -1 ||
-        collection.isSpam > 0
-      ) {
+      if (collectionIsVerified || collection.isSpam < -1 || collection.isSpam > 0) {
         return;
       }
 
