@@ -1036,6 +1036,7 @@ export const getJoiCollectionObject = (
       externalUrl: null,
       twitterUsername: null,
       openseaVerificationStatus: null,
+      magicedenVerificationStatus: null,
       community: null,
       tokenIdRange: null,
       tokenSetId: `contract:${collectionContract}`,

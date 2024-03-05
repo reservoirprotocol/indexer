@@ -46,8 +46,8 @@ export interface CollectionDocument extends BaseDocument {
     currency?: string;
     currencyPrice?: string;
   };
-
   openseaVerificationStatus?: string;
+  magicedenVerificationStatus?: string;
 }
 
 export interface BuildCollectionDocumentData extends BuildDocumentData {
@@ -77,6 +77,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   floor_sell_currency?: Buffer;
   floor_sell_currency_price?: string;
   opensea_verification_status?: string;
+  magiceden_verification_status?: string;
 }
 
 export class CollectionDocumentBuilder {
@@ -104,6 +105,7 @@ export class CollectionDocumentBuilder {
         contractSymbol: data.contract_symbol,
         name: data.name?.trim(),
         suggestV2: this.getSuggest(data),
+        suggestV3: this.getSuggestV3(data),
         slug: data.slug,
         image: data.image,
         imageVersion: data.image_version
@@ -144,6 +146,7 @@ export class CollectionDocumentBuilder {
             }
           : undefined,
         openseaVerificationStatus: data.opensea_verification_status,
+        magicedenVerificationStatus: data.magiceden_verification_status,
       } as CollectionDocument;
 
       return document;
@@ -234,6 +237,68 @@ export class CollectionDocumentBuilder {
 
     return suggest;
   }
+
+  getSuggestV3(data: BuildCollectionDocumentData): any {
+    const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
+    const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
+    const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
+    const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
+
+    let weight =
+      day1VolumeDecimal * 0.3 +
+      day7VolumeDecimal * 0.2 +
+      day30VolumeDecimal * 0.06 +
+      allTimeVolumeDecimal * 0.04;
+
+    if (weight > 0) {
+      if (Number.isInteger(weight)) {
+        weight += 1;
+      } else {
+        weight = Math.ceil(weight);
+      }
+    }
+
+    const suggest = [];
+
+    const isVerified =
+      data.opensea_verification_status === "verified" ||
+      data.magiceden_verification_status === "verified";
+
+    if (data.name) {
+      suggest.push({
+        input: this.generateInputValues(data),
+        weight,
+        contexts: {
+          filters: [
+            `${config.chainId}`,
+            `*|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
+          ],
+          isVerified: [isVerified],
+        },
+      });
+    }
+
+    if (data.contract_symbol) {
+      suggest.push({
+        input: [data.contract_symbol],
+        weight,
+        contexts: {
+          filters: [
+            `${config.chainId}`,
+            `*|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
+          ],
+          isVerified: [isVerified],
+        },
+      });
+    }
+
+    return suggest;
+  }
+
   generateInputValues(data: BuildCollectionDocumentData): string[] {
     const words = data.name.trim().split(" ");
     const combinations: string[] = [];

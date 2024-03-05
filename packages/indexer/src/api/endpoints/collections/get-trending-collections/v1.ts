@@ -85,6 +85,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
           countPercentChange: Joi.number().unsafe().allow(null),
           creator: Joi.string().allow("", null),
           openseaVerificationStatus: Joi.string().allow("", null),
+          magicedenVerificationStatus: Joi.string().allow("", null),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
           onSaleCount: Joi.number().integer(),
           floorAsk: {
@@ -226,7 +227,8 @@ export async function getCollectionsMetadata(
         'imageUrl', (collections.metadata ->> 'imageUrl')::TEXT,
         'bannerImageUrl', (collections.metadata ->> 'bannerImageUrl')::TEXT,
         'description', (collections.metadata ->> 'description')::TEXT,
-        'openseaVerificationStatus', (collections.metadata ->> 'safelistRequestStatus')::TEXT
+        'openseaVerificationStatus', (collections.metadata ->> 'safelistRequestStatus')::TEXT,
+        'magicedenVerificationStatus', (collections.metadata ->> 'magicedenVerificationStatus')::TEXT
       ) AS metadata,
       collections.image_version,
       collections.non_flagged_floor_sell_id,
@@ -453,6 +455,7 @@ async function formatCollections(
             : [],
         isSpam: Number(metadata.is_spam) > 0,
         openseaVerificationStatus: metadata?.metadata?.openseaVerificationStatus || null,
+        magicedenVerificationStatus: metadata?.metadata?.magicedenVerificationStatus || null,
         name: metadata?.name || "",
         onSaleCount: Number(metadata.on_sale_count) || 0,
         volumeChange: {
