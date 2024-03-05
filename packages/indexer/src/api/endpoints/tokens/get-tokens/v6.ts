@@ -332,6 +332,10 @@ export const getTokensV6Options: RouteOptions = {
                 })
               )
               .optional(),
+            decimals: Joi.number()
+              .allow(null)
+              .description("Can be set for ERC1155 tokens according to the standard")
+              .optional(),
             mintStages: Joi.array().items(
               Joi.object({
                 stage: Joi.string().required(),
@@ -2328,6 +2332,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
                   }))
               : []
             : undefined,
+          decimals: !_.isNull(r.decimals) ? r.decimals : null,
           mintStages: r.mint_stages
             ? await Promise.all(
                 r.mint_stages.map(async (m: any) => ({
