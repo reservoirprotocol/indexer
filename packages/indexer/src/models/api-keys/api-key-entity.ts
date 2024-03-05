@@ -8,6 +8,7 @@ export enum ApiKeyPermission {
   update_nsfw_status = "update_nsfw_status",
   entity_data_override = "entity_data_override",
   invalidate_orders = "invalidate_orders",
+  set_collection_magiceden_verification_status = "set_collection_magiceden_verification_status",
 }
 
 // Define the fields we can update

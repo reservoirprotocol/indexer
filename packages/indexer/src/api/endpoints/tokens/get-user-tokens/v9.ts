@@ -191,6 +191,7 @@ export const getUserTokensV9Options: RouteOptions = {
               isNsfw: Joi.boolean().default(false),
               metadataDisabled: Joi.boolean().default(false),
               openseaVerificationStatus: Joi.string().allow("", null),
+              magicedenVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
               royalties: Joi.array()
@@ -682,7 +683,7 @@ export const getUserTokensV9Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.nsfw_status AS c_nsfw_status, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
+               (c.metadata ->> 'magicedenVerificationStatus')::TEXT AS "magiceden_verification_status", c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.nsfw_status AS c_nsfw_status, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                c.image_version AS "collection_image_version",
                ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
                 date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
@@ -883,6 +884,7 @@ export const getUserTokensV9Options: RouteOptions = {
                 isNsfw: Number(r.c_nsfw_status) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,
+                magicedenVerificationStatus: r.magiceden_verification_status,
                 floorAskPrice: r.collection_floor_sell_value
                   ? await getJoiPriceObject(
                       {
