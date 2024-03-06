@@ -3657,6 +3657,8 @@ export class Router {
           }
         }
 
+        const orderIds = [...new Set(executions.map((e) => e.orderIds).flat())];
+
         // The swap execution should always be the first tx in the list
         txs = [
           {
@@ -3690,8 +3692,16 @@ export class Router {
                       .reduce((a, b) => a.add(b))
                       .toHexString(),
                   }),
+              // Hardcode gas for element sweeps
+              gas:
+                elementErc721Details.length +
+                  elementErc721V2Details.length +
+                  elementErc1155Details.length >
+                1
+                  ? String(150000 + orderIds.length * 200000)
+                  : undefined,
             },
-            orderIds: [...new Set(executions.map((e) => e.orderIds).flat())],
+            orderIds,
           },
           ...txs,
         ];
