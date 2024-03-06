@@ -244,19 +244,21 @@ export class CollectionDocumentBuilder {
     const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
     const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
 
-    let weight =
-      day1VolumeDecimal * 0.3 +
-      day7VolumeDecimal * 0.2 +
-      day30VolumeDecimal * 0.06 +
-      allTimeVolumeDecimal * 0.04;
+    function normalize(volume: number) {
+      // Change of base formula for log base 10
+      const log10 = (x: number) => Math.log(x) / Math.log(10);
+      const result = 1 / (1 + Math.exp(-log10(1 + volume)));
 
-    if (weight > 0) {
-      if (Number.isInteger(weight)) {
-        weight += 1;
-      } else {
-        weight = Math.ceil(weight);
-      }
+      return result;
     }
+
+    const normalizedVolume =
+      normalize(day1VolumeDecimal) * 0.3 +
+      normalize(day7VolumeDecimal) * 0.2 +
+      normalize(day30VolumeDecimal) * 0.06 +
+      normalize(allTimeVolumeDecimal) * 0.04;
+
+    const weight = Math.ceil(normalizedVolume * 1000000000);
 
     const suggest = [];
 
