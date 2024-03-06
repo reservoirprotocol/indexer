@@ -270,12 +270,11 @@ export class CollectionDocumentBuilder {
         weight,
         contexts: {
           filters: [
-            `${config.chainId}`,
-            `*|${Number(data.is_spam) > 0}`,
-            `${config.chainId}|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|*|*`,
+            `${config.chainId}|*|${isVerified}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|*`,
             `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
           ],
-          isVerified: [isVerified],
         },
       });
     }
@@ -286,12 +285,11 @@ export class CollectionDocumentBuilder {
         weight,
         contexts: {
           filters: [
-            `${config.chainId}`,
-            `*|${Number(data.is_spam) > 0}`,
-            `${config.chainId}|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|*|*`,
+            `${config.chainId}|*|${isVerified}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|*`,
             `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
           ],
-          isVerified: [isVerified],
         },
       });
     }

@@ -72,10 +72,6 @@ export const CONFIG_DEFAULT = {
             name: "filters",
             type: "category",
           },
-          {
-            name: "isVerified",
-            type: "category",
-          },
         ],
       },
       slug: { type: "keyword" },
@@ -116,6 +112,8 @@ export const CONFIG_DEFAULT = {
           currencyPrice: { type: "keyword" },
         },
       },
+      openseaVerificationStatus: { type: "keyword" },
+      magicedenVerificationStatus: { type: "keyword" },
     },
   } as MappingTypeMapping,
   settings: {
