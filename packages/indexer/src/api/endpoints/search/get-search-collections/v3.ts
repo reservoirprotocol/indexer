@@ -113,6 +113,7 @@ export const getSearchCollectionsV3Options: RouteOptions = {
           excludeNsfw: query.excludeNsfw,
           fuzzy: query.fuzzy,
           limit: query.limit,
+          boostVerified: query.boostVerified,
         })
       ).results;
     } else {
