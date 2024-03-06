@@ -11,6 +11,7 @@ import {
 import { Sources } from "@/models/sources";
 
 import { default as entitiesFromJson } from "@/models/fee-recipients/feeRecipients.json";
+import { logger } from "@/common/logger";
 
 export class FeeRecipients {
   private static instance: FeeRecipients;
@@ -135,6 +136,24 @@ export class FeeRecipients {
       return new FeeRecipientEntity(entity);
     }
 
+    // THIS IS A DEBUG LOG Check if this address already exist but with different kind
+    entity = await redb.oneOrNone(
+      `
+        SELECT
+          *
+        FROM fee_recipients
+        WHERE address = $/address/
+      `,
+      {
+        address: toBuffer(address),
+      }
+    );
+
+    if (entity) {
+      logger.warn("fee-recipients", `address ${address} already exist with kind ${entity.kind}`);
+    }
+
+    // Create the new fee recipient
     const source = await Sources.getInstance();
     const sourceId = domain ? source.getByDomain(domain)?.id : undefined;
 
