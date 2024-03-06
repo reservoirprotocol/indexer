@@ -676,6 +676,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         uri = uri.replace("json:\n", "");
       }
 
+      if (uri.startsWith("ar://")) {
+        uri = uri.replace("ar://", "https://arweave.net/");
+      }
+
       uri = this.parseIPFSURI(uri);
 
       if (uri.startsWith("data:application/json;base64,")) {
