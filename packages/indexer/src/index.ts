@@ -17,17 +17,23 @@ if (Number(process.env.LOCAL_TESTING)) {
     .then(async () => {
       // Sync the pods so rabbit queues assertion will run only once per deployment by a single pod
       if (await acquireLock(config.imageTag, 75)) {
-        const start = _.now();
+        const hash = await RabbitMq.assertQueuesAndExchangesHash();
+        logger.info("rabbit-timing", `rabbit assertion hash ${hash}`);
+        if (await redis.get(RabbitMq.hashKey) !== hash) {
+          const start = _.now();
 
-        logger.info("rabbit-timing", `rabbit assertion starting in ${start}`);
-        await RabbitMq.assertQueuesAndExchanges();
-        logger.info("rabbit-timing", `rabbit assertion done in ${_.now() - start}ms`);
+          logger.info("rabbit-timing", `rabbit assertion starting in ${start}`);
+          await RabbitMq.assertQueuesAndExchanges();
+          logger.info("rabbit-timing", `rabbit assertion done in ${_.now() - start}ms`);
 
-        // Clean any not in use queues
-        try {
-          await RabbitMq.deleteQueues(`${__dirname}/jobs`, true);
-        } catch (error) {
-          logger.error("rabbit-delete-queue", `Error deleting queue ${error}`);
+          // Clean any not in use queues
+          try {
+            await RabbitMq.deleteQueues(`${__dirname}/jobs`, true);
+          } catch (error) {
+            logger.error("rabbit-delete-queue", `Error deleting queue ${error}`);
+          }
+
+          await redis.set(RabbitMq.hashKey, hash);
         }
 
         await redis.set(config.imageTag, "DONE", "EX", 60 * 60 * 24); // Update the lock ttl

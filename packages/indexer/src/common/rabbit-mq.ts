@@ -14,6 +14,7 @@ import axios from "axios";
 import pLimit from "p-limit";
 import { FailedPublishMessages } from "@/models/failed-publish-messages-list";
 import { randomUUID } from "crypto";
+import { sha256 } from "@/common/utils";
 import fs from "fs";
 import path from "path";
 
@@ -57,6 +58,8 @@ export class RabbitMq {
 
   private static maxPublisherChannelsCount = 10;
   private static rabbitMqPublisherChannels: ChannelWrapper[] = [];
+
+  public static hashKey = "rabbit_assert_queues_exchanges_hash";
 
   public static async connect() {
     RabbitMq.rabbitMqPublisherConnection = amqplibConnectionManager.connect(
@@ -251,6 +254,18 @@ export class RabbitMq {
     const url = `${config.rabbitHttpUrl}/api/queues/${vhost}/${queueName}`;
     const queueData = await axios.get(url);
     return Number(queueData.data.messages);
+  }
+
+  public static async assertQueuesAndExchangesHash() {
+    const abstract = await import("@/jobs/abstract-rabbit-mq-job-handler");
+    const jobsIndex = await import("@/jobs/index");
+    return sha256(
+      [
+        RabbitMq.delayedExchangeName,
+        jobsIndex.RabbitMqJobsConsumer.getQueuesHash(),
+        abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
+      ].join('-')
+    )
   }
 
   public static async assertQueuesAndExchanges() {

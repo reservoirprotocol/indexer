@@ -18,6 +18,7 @@ import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job"
 import { config } from "@/config/index";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 import { getNetworkSettings } from "@/config/network";
+import { burnedTokenJob } from "@/jobs/token-updates/burned-token-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -166,6 +167,16 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             true
           );
         }
+      }
+
+      // If the token was burned
+      if (
+        changed.some((value) => ["remaining_supply"].includes(value)) &&
+        payload.after.remaining_supply === "0"
+      ) {
+        await burnedTokenJob.addToQueue([
+          { contract: payload.after.contract, tokenId: payload.after.token_id },
+        ]);
       }
 
       // If the token was listed or listing was removed update the onSaleCount

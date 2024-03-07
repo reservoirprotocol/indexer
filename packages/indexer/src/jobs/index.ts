@@ -24,6 +24,7 @@ import amqplibConnectionManager, {
 } from "amqp-connection-manager";
 
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
+import * as backfillWrongERC1155Balances from "@/jobs/backfill/backfill-wrong-erc1155-balances";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillRefreshCollectionMetadata from "@/jobs/backfill/backfill-refresh-collections-metadata";
@@ -46,6 +47,7 @@ import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { RabbitMq, RabbitMQMessage } from "@/common/rabbit-mq";
 import { getNetworkName } from "@/config/network";
 import { logger } from "@/common/logger";
+import { sha256 } from "@/common/utils";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
@@ -189,9 +191,11 @@ import { pendingTxWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events
 import { fixTokensMissingCollectionJob } from "@/jobs/token-updates/fix-tokens-missing-collection";
 import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill-tokens-with-missing-collection-job";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
+import { burnedTokenJob } from "@/jobs/token-updates/burned-token-job";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
+  backfillWrongERC1155Balances.queue,
   backfillExpiredOrders.queue,
   backfillExpiredOrders2.queue,
   backfillRefreshCollectionMetadata.queue,
@@ -361,7 +365,16 @@ export class RabbitMqJobsConsumer {
       fixTokensMissingCollectionJob,
       backfillTokensWithMissingCollectionJob,
       recalcOnSaleCountQueueJob,
+      burnedTokenJob,
     ];
+  }
+
+  public static getQueuesHash(): string {
+    return sha256(
+      RabbitMqJobsConsumer.getQueues().map(queue => {
+        return queue.getHash();
+      }).join('-')
+    );
   }
 
   public static getSharedChannelName(connectionIndex: number) {

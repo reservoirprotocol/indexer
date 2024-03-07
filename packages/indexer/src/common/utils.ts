@@ -40,6 +40,10 @@ export const decrypt = (text: string) => {
   return decryptedAsset.toString();
 };
 
+export const sha256 = (text: string) : string => {
+  return crypto.createHash("sha256").update(text).digest("hex");
+}
+
 // --- Buffers ---
 
 export const fromBuffer = (buffer: Buffer) => "0x" + buffer.toString("hex");

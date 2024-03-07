@@ -25,7 +25,7 @@ export default class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler
     const continuation = fromTokenId ? `AND token_id > $/fromTokenId/` : "";
 
     let { totalCurrentCount } = payload;
-    totalCurrentCount = Number(totalCurrentCount);
+    totalCurrentCount = Number(totalCurrentCount ?? 0);
     const [contract] = _.split(collection, ":"); // Get the contract from the collection
 
     const tokenQuery = `
@@ -96,15 +96,15 @@ export default class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler
     }
   }
 
-  public async addToQueue(collection: RecalcTokenCountQueueJobPayload, delay = 5 * 60 * 1000) {
-    collection.totalCurrentCount = collection.totalCurrentCount ?? 0;
+  public async addToQueue(payload: RecalcTokenCountQueueJobPayload, delay = 5 * 60 * 1000) {
+    payload.totalCurrentCount = payload.totalCurrentCount ?? 0;
 
     await this.send(
       {
-        payload: collection,
-        jobId: collection.force ? undefined : `${collection.collection}:${collection.fromTokenId}`,
+        payload,
+        jobId: payload.force ? undefined : `${payload.collection}:${payload.fromTokenId}`,
       },
-      collection.force ? 0 : delay
+      payload.force ? 0 : delay
     );
   }
 }

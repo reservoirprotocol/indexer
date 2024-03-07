@@ -166,6 +166,8 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.Zora]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Scroll]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Apex]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.AstarZkevm]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.Blast]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
 };
 
 export const OkxCancellationZone: ChainIdToAddress = {
