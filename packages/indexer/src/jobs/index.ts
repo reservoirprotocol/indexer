@@ -371,9 +371,11 @@ export class RabbitMqJobsConsumer {
 
   public static getQueuesHash(): string {
     return sha256(
-      RabbitMqJobsConsumer.getQueues().map(queue => {
-        return queue.getHash();
-      }).join('-')
+      RabbitMqJobsConsumer.getQueues()
+        .map((queue) => {
+          return queue.getHash();
+        })
+        .join("-")
     );
   }
 

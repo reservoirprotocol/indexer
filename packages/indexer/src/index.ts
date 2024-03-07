@@ -19,7 +19,7 @@ if (Number(process.env.LOCAL_TESTING)) {
       if (await acquireLock(config.imageTag, 75)) {
         const hash = await RabbitMq.assertQueuesAndExchangesHash();
         logger.info("rabbit-timing", `rabbit assertion hash ${hash}`);
-        if (await redis.get(RabbitMq.hashKey) !== hash) {
+        if ((await redis.get(RabbitMq.hashKey)) !== hash) {
           const start = _.now();
 
           logger.info("rabbit-timing", `rabbit assertion starting in ${start}`);

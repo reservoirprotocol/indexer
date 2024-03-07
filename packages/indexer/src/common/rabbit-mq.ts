@@ -264,8 +264,8 @@ export class RabbitMq {
         RabbitMq.delayedExchangeName,
         jobsIndex.RabbitMqJobsConsumer.getQueuesHash(),
         abstract.AbstractRabbitMqJobHandler.defaultMaxDeadLetterQueue,
-      ].join('-')
-    )
+      ].join("-")
+    );
   }
 
   public static async assertQueuesAndExchanges() {

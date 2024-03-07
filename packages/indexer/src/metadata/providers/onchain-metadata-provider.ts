@@ -234,6 +234,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               "{id}",
               Number(idToToken[token.id].tokenId).toString(16).padStart(64, "0")
             );
+          } else if (uri.endsWith("/{id}.json")) {
+            uri = uri.replace("{id}", idToToken[token.id].tokenId);
           }
 
           return {

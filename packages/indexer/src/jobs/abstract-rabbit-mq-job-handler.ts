@@ -328,7 +328,7 @@ export abstract class AbstractRabbitMqJobHandler {
         this.getDeadLetterQueue(),
         this.isLazyMode(),
         this.getConsumerTimeout(),
-      ].join('-')
+      ].join("-")
     );
   }
 }
