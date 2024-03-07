@@ -32,6 +32,10 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
   public async process(payload: MintQueueJobPayload) {
     const { contract, tokenId, mintedTimestamp } = payload;
 
+    if (config.chainId === 137 && contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
+      return;
+    }
+
     if ([1, 137, 11155111].includes(config.chainId)) {
       const tokenMetadataIndexingDebug = await redis.sismember(
         "metadata-indexing-debug-contracts",
