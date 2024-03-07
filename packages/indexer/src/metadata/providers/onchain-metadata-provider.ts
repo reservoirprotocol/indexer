@@ -674,15 +674,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         }
       }
 
-      if (uri.startsWith("json:")) {
-        uri = uri.replace("json:\n", "");
-      }
-
-      if (uri.startsWith("ar://")) {
-        uri = uri.replace("ar://", "https://arweave.net/");
-      }
-
-      uri = this.parseIPFSURI(uri);
+      uri = uri.trim();
 
       if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");
@@ -693,7 +685,23 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [JSON.parse(uri), null];
       }
 
-      uri = uri.trim();
+      if (uri.startsWith("{") && uri.endsWith("}")) {
+        try {
+          return [JSON.parse(uri), null];
+        } catch {
+          return [null, "Invalid URI"];
+        }
+      }
+
+      if (uri.startsWith("json:")) {
+        uri = uri.replace("json:\n", "");
+      }
+
+      if (uri.startsWith("ar://")) {
+        uri = uri.replace("ar://", "https://arweave.net/");
+      }
+
+      uri = this.parseIPFSURI(uri);
 
       if (!uri.startsWith("http")) {
         // if the uri is not a valid url, return null
