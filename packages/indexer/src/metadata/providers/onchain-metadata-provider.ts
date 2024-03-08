@@ -357,7 +357,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       tokenURI: metadata.uri,
       tokenId: metadata.tokenId,
       collection: _.toLower(metadata.contract),
-      name: metadata?.name || null,
+      name: metadata?.name || metadata?.tokenName || null,
       flagged: null,
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
@@ -365,6 +365,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       imageUrl:
         normalizeLink(metadata?.image) ||
         normalizeLink(metadata?.image_url) ||
+        normalizeLink(metadata?.imageUrl) ||
         normalizeLink(metadata?.image_data) ||
         null,
       imageOriginalUrl: metadata?.image || metadata?.image_url || null,
