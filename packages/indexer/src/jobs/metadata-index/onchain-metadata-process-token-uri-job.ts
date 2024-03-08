@@ -54,6 +54,17 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
       }
     }
 
+    if (uri === tokenId) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "tokenMetadataIndexingDebug",
+          message: `Skip. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          payload,
+        })
+      );
+    }
+
     let fallbackError;
 
     try {
