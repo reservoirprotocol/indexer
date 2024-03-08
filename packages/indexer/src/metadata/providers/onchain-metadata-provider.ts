@@ -329,27 +329,27 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   // parsers
   _parseToken(metadata: any): TokenMetadata {
-    // add handling for metadata.properties, convert to attributes
-    if (metadata?.properties && !metadata?.attributes) {
-      metadata.attributes = Object.keys(metadata.properties).map((key) => {
-        if (typeof metadata.properties[key] === "object") {
+    let attributes = metadata?.attributes || metadata?.properties || [];
+
+    if (typeof attributes === "string") {
+      attributes = JSON.parse(attributes);
+    }
+
+    if (!Array.isArray(attributes)) {
+      attributes = Object.keys(attributes).map((key) => {
+        if (typeof attributes[key] === "object") {
           return {
             trait_type: key,
-            value: metadata.properties[key],
+            value: attributes[key],
           };
         } else {
           return {
             trait_type: key,
-            value: metadata.properties[key],
+            value: attributes[key],
           };
         }
       });
     }
-
-    const attributes =
-      typeof metadata.attributes === "string"
-        ? JSON.parse(metadata.attributes)
-        : metadata?.attributes || [];
 
     return {
       contract: metadata.contract,
