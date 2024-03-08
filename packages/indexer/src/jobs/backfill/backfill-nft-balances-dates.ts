@@ -70,10 +70,6 @@ export class BackfillNftBalancesDatesJob extends AbstractRabbitMqJobHandler {
         createdAtValue = "WHERE created_at = '2024-01-09 19:39:22.132056+00'";
         break;
 
-      case 534353:
-        createdAtValue = "WHERE created_at = '2024-01-09 19:39:38.475734+00'";
-        break;
-
       case 11155111:
         createdAtValue = "WHERE created_at = '2024-01-09 19:39:37.536578+00'";
         break;
@@ -82,16 +78,8 @@ export class BackfillNftBalancesDatesJob extends AbstractRabbitMqJobHandler {
         createdAtValue = "WHERE created_at = '2024-01-09 19:39:37.56473+00'";
         break;
 
-      case 84531:
-        createdAtValue = "WHERE created_at = '2024-01-09 19:39:23.973227+00'";
-        break;
-
       case 42170:
         createdAtValue = "WHERE created_at = '2024-01-09 19:39:22.234949+00'";
-        break;
-
-      case 999:
-        createdAtValue = "WHERE created_at = '2024-01-09 19:39:23.972381+00'";
         break;
 
       case 7777777:

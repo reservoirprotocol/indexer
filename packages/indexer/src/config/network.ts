@@ -33,9 +33,6 @@ export const getNetworkName = () => {
     case 42161:
       return "arbitrum";
 
-    case 534353:
-      return "scroll-alpha";
-
     case 5001:
       return "mantle-testnet";
 
@@ -48,14 +45,8 @@ export const getNetworkName = () => {
     case 80001:
       return "mumbai";
 
-    case 84531:
-      return "base-goerli";
-
     case 42170:
       return "arbitrum-nova";
-
-    case 999:
-      return "zora-testnet";
 
     case 7777777:
       return "zora";
@@ -134,12 +125,8 @@ export const getOpenseaNetworkName = () => {
       return "mumbai";
     case 8453:
       return "base";
-    case 84531:
-      return "base_goerli";
     case 7777777:
       return "zora";
-    case 999:
-      return "zora_testnet";
     case 84532:
       return "base_sepolia";
     default:
@@ -1046,40 +1033,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
-    // Scroll Alpha
-    case 534353: {
-      return {
-        ...defaultNetworkSettings,
-        isTestnet: true,
-        enableWebSocket: true,
-        realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
-        lastBlockLatency: 5,
-        headBlockDelay: 10,
-        onStartup: async () => {
-          // Insert the native currency
-          await Promise.all([
-            idb.none(
-              `
-                INSERT INTO currencies (
-                  contract,
-                  name,
-                  symbol,
-                  decimals,
-                  metadata
-                ) VALUES (
-                  '\\x0000000000000000000000000000000000000000',
-                  'Ether',
-                  'ETH',
-                  18,
-                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
-                ) ON CONFLICT DO NOTHING
-              `
-            ),
-          ]);
-        },
-      };
-    }
     case 5001: {
       return {
         ...defaultNetworkSettings,
@@ -1275,39 +1228,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
-    // Base Goerli
-    case 84531: {
-      return {
-        ...defaultNetworkSettings,
-        isTestnet: true,
-        enableWebSocket: true,
-        realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
-        lastBlockLatency: 5,
-        onStartup: async () => {
-          // Insert the native currency
-          await Promise.all([
-            idb.none(
-              `
-                INSERT INTO currencies (
-                  contract,
-                  name,
-                  symbol,
-                  decimals,
-                  metadata
-                ) VALUES (
-                  '\\x0000000000000000000000000000000000000000',
-                  'Ether',
-                  'ETH',
-                  18,
-                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
-                ) ON CONFLICT DO NOTHING
-              `
-            ),
-          ]);
-        },
-      };
-    }
     // Arbitrum Nova
     case 42170: {
       return {
@@ -1320,39 +1240,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "arbitrum-nova",
         },
-        onStartup: async () => {
-          // Insert the native currency
-          await Promise.all([
-            idb.none(
-              `
-                INSERT INTO currencies (
-                  contract,
-                  name,
-                  symbol,
-                  decimals,
-                  metadata
-                ) VALUES (
-                  '\\x0000000000000000000000000000000000000000',
-                  'Ether',
-                  'ETH',
-                  18,
-                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
-                ) ON CONFLICT DO NOTHING
-              `
-            ),
-          ]);
-        },
-      };
-    }
-    // Zora Testnet
-    case 999: {
-      return {
-        ...defaultNetworkSettings,
-        isTestnet: true,
-        enableWebSocket: true,
-        realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
-        lastBlockLatency: 5,
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

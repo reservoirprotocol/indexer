@@ -83,6 +83,7 @@ export const getOrdersAllV2Options: RouteOptions = {
                 // Should be `Joi.number().allow(null)` but we set to `Joi.any()` to cover
                 // objects eith wrong schema that were inserted by mistake into the db
                 bps: Joi.any(),
+                required: Joi.boolean().optional(),
               })
             )
             .allow(null),

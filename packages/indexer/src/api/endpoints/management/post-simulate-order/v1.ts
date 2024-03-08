@@ -257,6 +257,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
         // ENS on mainnet
         ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
           config.chainId === Network.Ethereum) ||
+          // Quirklings on mainnet
+          (fromBuffer(orderResult.contract) === "0x8f1b132e9fd2b9a2b210baa186bf1ae650adf7ac" &&
+            config.chainId === Network.Ethereum) ||
           // y00ts on polygon
           (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
             config.chainId === Network.Polygon))
@@ -443,6 +446,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
                 ORDER BY nft_approval_events.block DESC
                 LIMIT 1
               )
+            ORDER BY tokens.created_at DESC
             LIMIT 1
           `,
           {
