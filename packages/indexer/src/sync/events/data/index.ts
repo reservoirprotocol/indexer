@@ -56,6 +56,7 @@ import * as highlightxyz from "@/events-sync/data/highlightxyz";
 import * as ditto from "@/events-sync/data/ditto";
 import * as mooar from "@/events-sync/data/mooar";
 import * as fairxyz from "@/events-sync/data/fairxyz";
+import * as paymentProcessorV201 from "@/events-sync/data/payment-processor-v2.0.1";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -116,7 +117,8 @@ export type EventKind =
   | "titlesxyz"
   | "ditto"
   | "highlightxyz"
-  | "fairxyz";
+  | "fairxyz"
+  | "payment-processor-v2.0.1";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -368,7 +370,23 @@ export type EventSubKind =
   | "fairxyz-edition-created"
   | "operator-filter-operator-updated"
   | "operator-filter-subscription-updated"
-  | "operator-filter-operators-updated";
+  | "operator-filter-operators-updated"
+  | "payment-processor-v2.0.1-buy-listing-erc721"
+  | "payment-processor-v2.0.1-buy-listing-erc1155"
+  | "payment-processor-v2.0.1-accept-offer-erc721"
+  | "payment-processor-v2.0.1-accept-offer-erc1155"
+  | "payment-processor-v2.0.1-master-nonce-invalidated"
+  | "payment-processor-v2.0.1-nonce-invalidated"
+  | "payment-processor-v2.0.1-order-digest-invalidated"
+  | "payment-processor-v2.0.1-payment-method-added-to-whitelist"
+  | "payment-processor-v2.0.1-payment-method-removed-from-whitelist"
+  | "payment-processor-v2.0.1-updated-collection-level-pricing-boundaries"
+  | "payment-processor-v2.0.1-updated-collection-payment-settings"
+  | "payment-processor-v2.0.1-updated-token-level-pricing-boundaries"
+  | "payment-processor-v2.0.1-trusted-channel-removed-for-collection"
+  | "payment-processor-v2.0.1-trusted-channel-added-for-collection"
+  | "payment-processor-v2.0.1-banned-account-removed-for-collection"
+  | "payment-processor-v2.0.1-banned-account-added-for-collection";
 
 export type EventData = {
   kind: EventKind;
@@ -626,6 +644,22 @@ const allEventData = [
   operatorFilter.operatorUpdated,
   operatorFilter.subscriptionUpdated,
   operatorFilter.operatorsUpdated,
+  paymentProcessorV201.acceptOfferERC1155,
+  paymentProcessorV201.acceptOfferERC721,
+  paymentProcessorV201.buyListingERC1155,
+  paymentProcessorV201.buyListingERC721,
+  paymentProcessorV201.masterNonceInvalidated,
+  paymentProcessorV201.nonceInvalidated,
+  paymentProcessorV201.orderDigestInvalidated,
+  paymentProcessorV201.paymentMethodAddedToWhitelist,
+  paymentProcessorV201.paymentMethodRemovedFromWhitelist,
+  paymentProcessorV201.updatedTokenLevelPricingBoundaries,
+  paymentProcessorV201.updatedCollectionLevelPricingBoundaries,
+  paymentProcessorV201.updatedCollectionPaymentSettings,
+  paymentProcessorV201.trustedChannelAddedForCollection,
+  paymentProcessorV201.trustedChannelRemovedForCollection,
+  paymentProcessorV201.bannedAccountAddedForCollection,
+  paymentProcessorV201.bannedAccountRemovedForCollection,
 ];
 
 // Array of all addresses we're syncing events for

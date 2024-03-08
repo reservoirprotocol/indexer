@@ -599,6 +599,139 @@ export class Router {
       }
     }
 
+    // We don't have a module for PaymentProcessorV201 listings
+    if (details.some(({ kind }) => kind === "payment-processor-v2.0.1")) {
+      const splittedDetails: ListingDetails[][] = [];
+
+      const allPPv2Details = details.filter(({ kind }) => kind === "payment-processor-v2.0.1");
+
+      // Aggregate trusted channel listings by the channel they're using
+      const trustedChannelDetails = allPPv2Details.filter((c) => c.extraArgs?.trustedChannel);
+      if (trustedChannelDetails.length) {
+        const channelDetails: { [channel: string]: ListingDetails[] } = {};
+        for (const detail of trustedChannelDetails) {
+          const channel = detail.extraArgs?.trustedChannel;
+          if (!channelDetails[channel]) {
+            channelDetails[channel] = [];
+          }
+          channelDetails[channel].push(detail);
+        }
+
+        if (Object.keys(channelDetails).length) {
+          for (const channel of Object.keys(channelDetails)) {
+            splittedDetails.push(channelDetails[channel]);
+          }
+        }
+      }
+
+      // All other non-trusted channel listings are handled separately
+      const nonChannelDetails = allPPv2Details.filter((c) => !c.extraArgs?.trustedChannel);
+      if (nonChannelDetails.length) {
+        splittedDetails.push(nonChannelDetails);
+      }
+
+      for (const ppv2Details of splittedDetails) {
+        const exchange = new Sdk.PaymentProcessorV201.Exchange(this.chainId);
+        const operator = exchange.contract.address;
+
+        const allFees = ppv2Details.map((c) => getFees([c]));
+        const trustedChannel = ppv2Details[0].extraArgs?.trustedChannel;
+
+        const orders: Sdk.PaymentProcessorV201.Order[] = ppv2Details.map(
+          (c) => c.order as Sdk.PaymentProcessorV201.Order
+        );
+
+        const useSweepCollection =
+          ppv2Details.length > 1 &&
+          ppv2Details.every((c) => c.contract === details[0].contract) &&
+          ppv2Details.every((c) => c.currency === details[0].currency) &&
+          ppv2Details.every((c) => (c.fees ? c.fees.length === 0 : true)) &&
+          orders.every((c) => !c.isPartial());
+
+        for (const detail of ppv2Details) {
+          const order = detail.order as Sdk.PaymentProcessorV201.Order;
+          if (buyInCurrency !== detail.currency) {
+            swapDetails.push({
+              tokenIn: buyInCurrency,
+              tokenOut: detail.currency,
+              tokenOutAmount: order.params.itemPrice,
+              recipient: taker,
+              refundTo: taker,
+              details: [detail],
+              txIndex: txs.length,
+            });
+          }
+        }
+
+        const approvals: FTApproval[] = [];
+        for (const { currency, price } of ppv2Details) {
+          if (!isNative(this.chainId, currency)) {
+            approvals.push({
+              currency,
+              amount: price,
+              owner: taker,
+              operator,
+              txData: generateFTApprovalTxData(currency, taker, operator),
+            });
+          }
+        }
+
+        // Ensure approvals are unique
+        const uniqueApprovals = uniqBy(
+          approvals,
+          ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
+        );
+
+        if (useSweepCollection) {
+          txs.push({
+            approvals: uniqueApprovals,
+            permits: [],
+            txTags: {
+              listings: { "payment-processor-v2.0.1": orders.length },
+            },
+            preSignatures: [],
+            txData: exchange.sweepCollectionTx(taker, orders, {
+              trustedChannel,
+              source: options?.source,
+              fee: allFees[0][0],
+              relayer: options?.relayer,
+            }),
+            orderIds: ppv2Details.map((d) => d.orderId),
+          });
+        } else {
+          txs.push({
+            approvals: uniqueApprovals,
+            permits: [],
+            txTags: {
+              listings: { "payment-processor-v2.0.1": orders.length },
+            },
+            preSignatures: [],
+            txData: exchange.fillOrdersTx(
+              taker,
+              orders,
+              orders.map((_, i) => {
+                return {
+                  taker,
+                  amount: ppv2Details[i].amount ?? 1,
+                };
+              }),
+              {
+                trustedChannel,
+                source: options?.source,
+                fees: allFees.map((c) => c[0]),
+                relayer: options?.relayer,
+              }
+            ),
+            orderIds: ppv2Details.map((d) => d.orderId),
+          });
+        }
+
+        for (const { orderId } of ppv2Details) {
+          success[orderId] = true;
+        }
+      }
+    }
+
     // Detect which contracts block SCs via PaymentProcessor
     const blockedPaymentProcessorDetails: ListingDetails[] = [];
     await Promise.all(
@@ -3957,6 +4090,93 @@ export class Router {
 
         const orders: Sdk.PaymentProcessorV2.Order[] = ppv2Details.map(
           (c) => c.order as Sdk.PaymentProcessorV2.Order
+        );
+        const allFees = ppv2Details.map((c) => getFees(c));
+
+        const approvals: NFTApproval[] = [];
+        for (const { orderId, contract } of ppv2Details) {
+          approvals.push({
+            orderIds: [orderId],
+            contract: contract,
+            owner: taker,
+            operator,
+            txData: generateNFTApprovalTxData(contract, taker, operator),
+          });
+        }
+
+        txs.push({
+          // Ensure approvals are unique
+          approvals: uniqBy(approvals, ({ txData: { from, to, data } }) => `${from}-${to}-${data}`),
+          ftApprovals: [],
+          txTags: {
+            bids: { "payment-processor-v2": orders.length },
+          },
+          preSignatures: [],
+          txData: exchange.fillOrdersTx(
+            taker,
+            orders,
+            orders.map((_, i) => {
+              return {
+                taker,
+                tokenId: details[i].tokenId,
+                amount: details[i].amount ?? 1,
+                ...(details[i].extraArgs ?? {}),
+              };
+            }),
+            {
+              trustedChannel,
+              source: options?.source,
+              fees: allFees.map((c) => c[0]),
+            }
+          ),
+          orderIds: [...new Set(ppv2Details.map((d) => d.orderId))],
+        });
+
+        for (const { orderId } of ppv2Details) {
+          success[orderId] = true;
+        }
+      }
+    }
+
+    // Fill PaymentProcessorV201 offers directly
+    if (details.some(({ kind }) => kind === "payment-processor-v2.0.1")) {
+      const splittedDetails: BidDetails[][] = [];
+
+      const allPPv2Details = details.filter(({ kind }) => kind === "payment-processor-v2.0.1");
+
+      // Aggregate trusted channel bids by the channel they're using
+      const trustedChannelDetails = allPPv2Details.filter((c) => c.extraArgs?.trustedChannel);
+      if (trustedChannelDetails.length) {
+        const channelDetails: { [channel: string]: BidDetails[] } = {};
+        for (const detail of trustedChannelDetails) {
+          const channel = detail.extraArgs?.trustedChannel;
+          if (!channelDetails[channel]) {
+            channelDetails[channel] = [];
+          }
+          channelDetails[channel].push(detail);
+        }
+
+        if (Object.keys(channelDetails).length) {
+          for (const channel of Object.keys(channelDetails)) {
+            splittedDetails.push(channelDetails[channel]);
+          }
+        }
+      }
+
+      // All other non-trusted channel bids are handled separately
+      const nonChannelDetails = allPPv2Details.filter((c) => !c.extraArgs?.trustedChannel);
+      if (nonChannelDetails.length) {
+        splittedDetails.push(nonChannelDetails);
+      }
+
+      for (const ppv2Details of splittedDetails) {
+        const exchange = new Sdk.PaymentProcessorV201.Exchange(this.chainId);
+        const operator = exchange.contract.address;
+
+        const trustedChannel = ppv2Details[0].extraArgs?.trustedChannel;
+
+        const orders: Sdk.PaymentProcessorV201.Order[] = ppv2Details.map(
+          (c) => c.order as Sdk.PaymentProcessorV201.Order
         );
         const allFees = ppv2Details.map((c) => getFees(c));
 

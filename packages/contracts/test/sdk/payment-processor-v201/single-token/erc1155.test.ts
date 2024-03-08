@@ -2,7 +2,7 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk/src";
 import * as Common from "@reservoir0x/sdk/src/common";
-import * as PaymentProcessorV2 from "@reservoir0x/sdk/src/payment-processor-v2";
+import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -10,7 +10,7 @@ import { constants } from "ethers";
 
 import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
-describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
+describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
   const chainId = getChainId();
 
   let deployer: SignerWithAddress;
@@ -39,18 +39,18 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
 
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
       maxRoyaltyFeeNumerator: "0",
@@ -98,7 +98,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     await weth.deposit(buyer, price);
 
     // Approve the exchange contract for the buyer
-    await weth.approve(buyer, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await weth.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
     // Mint erc1155 to seller
     await erc1155.connect(seller).mint(boughtTokenId);
@@ -106,17 +106,17 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
       beneficiary: buyer.address,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
@@ -169,18 +169,18 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
 
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
       maxRoyaltyFeeNumerator: "0",
@@ -230,7 +230,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     await weth.deposit(buyer, price.mul(amount));
 
     // Approve the exchange contract for the buyer
-    await weth.approve(buyer, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await weth.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
     // Mint erc1155 to seller
     await erc1155.connect(seller).mint(boughtTokenId);
@@ -240,17 +240,17 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
       beneficiary: buyer.address,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
@@ -303,7 +303,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     await weth.deposit(buyer, price.mul(amount));
 
     // Approve the exchange contract for the buyer
-    await weth.approve(buyer, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await weth.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
     // Mint erc1155 to seller
     await erc1155.connect(seller).mint(boughtTokenId);
@@ -315,17 +315,17 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
       beneficiary: buyer.address,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
@@ -348,7 +348,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
 
     // Build buy order
     const buyOrder2 = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
       beneficiary: buyer.address,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
@@ -376,7 +376,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
       [
         {
           orderId: "0",
-          kind: "payment-processor-v2",
+          kind: "payment-processor-v2.0.1",
           contractKind: "erc721",
           contract: erc1155.address,
           tokenId: boughtTokenId.toString(),
@@ -386,7 +386,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
         },
         {
           orderId: "2",
-          kind: "payment-processor-v2",
+          kind: "payment-processor-v2.0.1",
           contractKind: "erc721",
           contract: erc1155.address,
           tokenId: boughtTokenId2.toString(),
@@ -436,18 +436,18 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the exchange
-    await nft.approve(seller, PaymentProcessorV2.Addresses.Exchange[chainId]);
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
 
-    const exchange = new PaymentProcessorV2.Exchange(chainId);
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
 
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV2.Builders.SingleToken(chainId);
+    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
       maxRoyaltyFeeNumerator: "0",
@@ -467,7 +467,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     await sellOrder.checkFillability(ethers.provider);
 
     const sellOrder2 = builder.build({
-      protocol: PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
       marketplace: constants.AddressZero,
       marketplaceFeeNumerator: "0",
       maxRoyaltyFeeNumerator: "0",
@@ -488,13 +488,13 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
 
     // Create matching params
     const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
-
+ 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
     const nonPartialTx = await router.fillListingsTx(
       [
         {
           orderId: "0",
-          kind: "payment-processor-v2",
+          kind: "payment-processor-v2.0.1",
           contractKind: "erc721",
           contract: erc1155.address,
           tokenId: soldTokenId.toString(),
@@ -504,7 +504,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
         },
         {
           orderId: "2",
-          kind: "payment-processor-v2",
+          kind: "payment-processor-v2.0.1",
           contractKind: "erc721",
           contract: erc1155.address,
           tokenId: soldTokenId2.toString(),
@@ -524,7 +524,10 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
 
     for (const tx of nonPartialTx.txs) {
       delete tx.txData.gas
-      await buyer.sendTransaction(tx.txData);
+      await buyer.sendTransaction({
+        ...tx.txData,
+        gasLimit: 1000000
+      });
     }
 
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);

@@ -24,6 +24,7 @@ export * as sudoswapV2 from "@/orderbook/orders/sudoswap-v2";
 export * as caviarV1 from "@/orderbook/orders/caviar-v1";
 export * as paymentProcessor from "@/orderbook/orders/payment-processor";
 export * as paymentProcessorV2 from "@/orderbook/orders/payment-processor-v2";
+export * as paymentProcessorV201 from "@/orderbook/orders/payment-processor-v2.0.1";
 
 // Imports
 
@@ -92,7 +93,8 @@ export type OrderKind =
   | "blur-v2"
   | "joepeg"
   | "payment-processor-v2"
-  | "mooar";
+  | "mooar"
+  | "payment-processor-v2.0.1";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol

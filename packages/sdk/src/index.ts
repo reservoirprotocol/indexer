@@ -52,6 +52,7 @@ import * as ArtBlocks from "./artblocks";
 import * as Mooar from "./mooar";
 import * as HighlightXyz from "./highlightxyz";
 import * as FairXyz from "./fairxyz";
+import * as PaymentProcessorV201 from "./payment-processor-v2.0.1";
 
 export {
   // Common
@@ -110,4 +111,5 @@ export {
   Mooar,
   HighlightXyz,
   FairXyz,
+  PaymentProcessorV201,
 };
