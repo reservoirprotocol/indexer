@@ -66,6 +66,10 @@ export const safeOracleTimestamp = async () => {
   return block.timestamp;
 };
 
+export const delay = async (ms: number) => {
+  return await new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 // --- Misc ---
 
 export const concat = <T>(...items: (T[] | undefined)[]) => {
