@@ -19,16 +19,7 @@ export class MetadataProviderRouter {
       return await MetadataProvidersMap["onchain"].getCollectionMetadata(contract, tokenId);
     }
 
-    let indexingMethod = options?.indexingMethod ?? this.getCollectionIndexingMethod(community);
-
-    //TODO: Remove when adding proper support for overriding indexing method
-    if (config.chainId === 1 && contract === "0xd532b88607b1877fe20c181cba2550e3bbd6b31c") {
-      indexingMethod = "simplehash";
-    }
-
-    if (config.chainId === 137 && contract === "0x2953399124f0cbb46d2cbacd8a89cf0599974963") {
-      indexingMethod = "simplehash";
-    }
+    const indexingMethod = options?.indexingMethod ?? this.getCollectionIndexingMethod(community);
 
     const collection: CollectionMetadata = await MetadataProvidersMap[
       indexingMethod
