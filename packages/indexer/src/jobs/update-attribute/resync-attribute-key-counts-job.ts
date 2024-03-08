@@ -13,7 +13,6 @@ export default class ResyncAttributeKeyCountsJob extends AbstractRabbitMqJobHand
   queueName = "resync-attribute-key-counts-queue";
   maxRetries = 10;
   concurrency = 3;
-  useSharedChannel = true;
 
   public async process(payload: ResyncAttributeKeyCountsJobPayload) {
     const { collection, key } = payload;

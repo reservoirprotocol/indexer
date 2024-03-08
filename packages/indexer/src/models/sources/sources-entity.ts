@@ -29,11 +29,8 @@ export type SourcesMetadata = {
   tokenUrlZora?: string;
   tokenUrlSepolia?: string;
   tokenUrlMumbai?: string;
-  tokenUrlBaseGoerli?: string;
   tokenUrlArbitrumNova?: string;
   tokenUrlAvalanche?: string;
-  tokenUrlScrollAlpha?: string;
-  tokenUrlZoraTestnet?: string;
   tokenUrlBase?: string;
   tokenUrlZksync?: string;
   tokenUrlPolygonZkevm?: string;

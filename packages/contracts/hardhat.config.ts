@@ -83,9 +83,6 @@ const getNetworkConfig = (chainId?: number) => {
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
         break;
-      case 999:
-        url = "https://testnet.rpc.zora.co";
-        break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
         break;
@@ -94,9 +91,6 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 80001:
         url = "https://rpc-mumbai.maticvigil.com";
-        break;
-      case 84531:
-        url = "https://goerli.base.org";
         break;
       case 11155111:
         url = "https://1rpc.io/sepolia";
@@ -188,11 +182,9 @@ const config: HardhatUserConfig = {
     blast: getNetworkConfig(81457),
     // Testnets
     goerli: getNetworkConfig(5),
-    zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
-    baseGoerli: getNetworkConfig(84531),
     sepolia: getNetworkConfig(11155111),
     frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(28122024),
@@ -222,11 +214,9 @@ const config: HardhatUserConfig = {
       blast: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
-      zoraTestnet: "0x",
       mantleTestnet: "0x",
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
       mumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
-      baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       frameTestnet: "0x",
       ancient8Testnet: "0x",
@@ -341,14 +331,6 @@ const config: HardhatUserConfig = {
       },
       // Testnets
       {
-        network: "zoraTestnet",
-        chainId: 999,
-        urls: {
-          apiURL: "https://testnet.explorer.zora.energy/api",
-          browserURL: "https://testnet.explorer.zora.energy",
-        },
-      },
-      {
         network: "mantleTestnet",
         chainId: 5001,
         urls: {
@@ -370,14 +352,6 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-mumbai.polygonscan.com/api",
           browserURL: "https://mumbai.polygonscan.com",
-        },
-      },
-      {
-        network: "baseGoerli",
-        chainId: 84531,
-        urls: {
-          apiURL: "https://api-goerli.basescan.org/api",
-          browserURL: "https://goerli.basescan.org",
         },
       },
       // This isn't working, couldn't find any valid API for their explorer

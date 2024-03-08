@@ -6,6 +6,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
+import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
@@ -628,6 +629,25 @@ export const postOrderV4Options: RouteOptions = {
               );
 
               if (["already-exists", "success"].includes(result.status)) {
+                try {
+                  const response = await inject({
+                    method: "POST",
+                    url: "/management/orders/simulate/v1",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    payload: {
+                      id: result.id,
+                    },
+                  });
+                  logger.info(
+                    "validate-order-on-creation",
+                    JSON.stringify({ id: result.id, response: response.payload })
+                  );
+                } catch {
+                  // Skip errors
+                }
+
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {
                 return results.push({ message: result.status, orderIndex: i, orderId: result.id });

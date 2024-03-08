@@ -8,6 +8,7 @@ import { ConsumeMessage } from "amqplib";
 import { extendLock, releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
 import { config } from "@/config/index";
+import { sha256 } from "@/common/utils";
 
 export type BackoffStrategy =
   | {
@@ -314,5 +315,20 @@ export abstract class AbstractRabbitMqJobHandler {
     if (!_.isEmpty(prioritizedMessages)) {
       await RabbitMq.sendBatch(this.getPriorityQueue(), prioritizedMessages);
     }
+  }
+
+  public getHash(): string {
+    return sha256(
+      [
+        this.getQueue(),
+        this.getQueueType(),
+        this.getSingleActiveConsumer(),
+        this.getPriorityQueue(),
+        this.isPriorityQueue(),
+        this.getDeadLetterQueue(),
+        this.isLazyMode(),
+        this.getConsumerTimeout(),
+      ].join("-")
+    );
   }
 }

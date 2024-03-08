@@ -84,6 +84,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         revalidate?: boolean;
         createdTime?: number;
         tokenSetId?: string;
+        side?: string;
       }
     ) => {
       if (!payload.skipRevalidation && options?.revalidate) {
@@ -109,6 +110,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
               payload: options?.payload,
               orderId: id,
               tokenSetId: options?.tokenSetId,
+              side: options?.side,
             })
           );
         }
@@ -257,6 +259,15 @@ export const postSimulateOrderV1Options: RouteOptions = {
         // ENS on mainnet
         ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
           config.chainId === Network.Ethereum) ||
+          // Quirklings on mainnet
+          (fromBuffer(orderResult.contract) === "0x8f1b132e9fd2b9a2b210baa186bf1ae650adf7ac" &&
+            config.chainId === Network.Ethereum) ||
+          // Quirklings on mainnet
+          (fromBuffer(orderResult.contract) === "0xd4b7d9bb20fa20ddada9ecef8a7355ca983cccb1" &&
+            config.chainId === Network.Ethereum) ||
+          // Creepz on mainner
+          (fromBuffer(orderResult.contract) === "0x5946aeaab44e65eb370ffaa6a7ef2218cff9b47d" &&
+            config.chainId === Network.Ethereum) ||
           // y00ts on polygon
           (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
             config.chainId === Network.Polygon))
@@ -411,6 +422,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             revalidate: needRevalidation,
             createdTime: orderResult.created_at,
             tokenSetId: orderResult.token_set_id,
+            side: orderResult.side,
           });
 
           return { message: "Order is not fillable" };
@@ -443,6 +455,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
                 ORDER BY nft_approval_events.block DESC
                 LIMIT 1
               )
+            ORDER BY tokens.created_at DESC
             LIMIT 1
           `,
           {
@@ -452,7 +465,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           }
         );
         if (!tokenResult) {
-          throw Boom.internal("Could not simulate order");
+          throw Boom.badRequest("Could not simulate order");
         }
 
         const owner = fromBuffer(tokenResult.owner);
@@ -542,7 +555,10 @@ export const postSimulateOrderV1Options: RouteOptions = {
         }
       }
     } catch (error) {
-      logger.error(`post-simulate-order-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`post-simulate-order-${version}-handler`, `Handler failure: ${error}`);
+      }
+
       throw error;
     }
   },

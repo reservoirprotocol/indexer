@@ -163,14 +163,16 @@ export class Tokens {
             AND key = $/key/
             AND value = $/value/
           LIMIT 1
-        ) AS attributeId,
+        ) AS "attributeId",
         (
           SELECT COUNT(*)
-          FROM token_attributes
-          WHERE collection_id = $/collection/
-            AND key = $/key/
-            AND value = $/value/
-        ) AS count
+          FROM token_attributes ta
+          JOIN tokens t on ta.contract = t.contract and ta.token_id = t.token_id 
+          WHERE ta.collection_id = $/collection/
+            AND ta.key = $/key/
+            AND ta.value = $/value/
+            AND (t.remaining_supply > 0 OR t.remaining_supply IS null)
+        ) AS "count"
     `;
 
     return await redb.oneOrNone(query, {
