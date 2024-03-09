@@ -3,7 +3,6 @@ import { idb } from "@/common/db";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { fromBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
 
 export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
@@ -14,19 +13,27 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  public async process() {
+  public async process(payload: { collectionId?: string }) {
     const values = {
+      collectionId: payload.collectionId,
       limit: 250,
     };
 
     const tokensToSync = [];
 
+    let whereFilter = "";
+
+    if (payload.collectionId) {
+      whereFilter = `WHERE collection_id = $/collectionId/`;
+    } else {
+      whereFilter = "WHERE supply IS NULL";
+    }
+
     const tokens = await idb.manyOrNone(
       `
         SELECT contract, token_id
         FROM tokens
-        WHERE supply IS NULL
-        ${config.chainId === 56 ? "AND updated_at > '2023-07-18 01:42:31'" : ""}
+        ${whereFilter}
         ORDER BY updated_at ASC
         LIMIT $/limit/
         `,
@@ -58,24 +65,13 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
     }
   ) {
     if (processResult.addToQueue) {
-      await this.addToQueue(10 * 1000);
+      await this.addToQueue(rabbitMqMessage.payload.collectionId, 10 * 1000);
     }
   }
 
-  public async addToQueue(delay = 0) {
-    await this.send({ payload: {} }, delay);
+  public async addToQueue(collectionId?: string, delay = 0) {
+    await this.send({ payload: { collectionId } }, delay);
   }
 }
 
 export const backfillTokenSupplyJob = new BackfillTokenSupplyJob();
-
-// if (config.chainId !== 1) {
-//   redlock
-//     .acquire(["backfill-token-supply-lock"], 60 * 60 * 24 * 30 * 1000)
-//     .then(async () => {
-//       await backfillTokenSupplyJob.addToQueue();
-//     })
-//     .catch(() => {
-//       // Skip on any errors
-//     });
-// }
