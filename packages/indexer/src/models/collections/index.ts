@@ -305,13 +305,16 @@ export class Collections {
     const openseaFees = collection.openseaFees as royalties.Royalty[] | undefined;
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
 
+    // Delete any contract blacklists caches
+    await marketplaceBlacklist.deleteCollectionCaches(collection.contract);
+
     // Refresh any contract blacklists
     await marketplaceBlacklist.checkMarketplaceIsFiltered(collection.contract, [], true);
 
-    // Refresh ERC721C config
+    // Refresh ERC721C configs
     await erc721c.refreshConfig(collection.contract);
 
-    // Refresh Payment Processor
+    // Refresh PaymentProcessor configs
     await Promise.all([
       paymentProcessor.getConfigByContract(collection.contract, true),
       paymentProcessorV2.getConfigByContract(collection.contract, true),

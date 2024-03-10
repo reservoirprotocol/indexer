@@ -15,6 +15,7 @@ export type SourcesMetadata = {
   title?: string;
   icon?: string;
   url?: string;
+  allowedApiKeys?: string[];
   description?: string;
   twitterUsername?: string;
   socialImage?: string;
@@ -28,11 +29,8 @@ export type SourcesMetadata = {
   tokenUrlZora?: string;
   tokenUrlSepolia?: string;
   tokenUrlMumbai?: string;
-  tokenUrlBaseGoerli?: string;
   tokenUrlArbitrumNova?: string;
   tokenUrlAvalanche?: string;
-  tokenUrlScrollAlpha?: string;
-  tokenUrlZoraTestnet?: string;
   tokenUrlBase?: string;
   tokenUrlZksync?: string;
   tokenUrlPolygonZkevm?: string;
@@ -43,6 +41,10 @@ export type SourcesMetadata = {
   tokenUrlAncient8Testnet?: string;
   tokenUrlAncient8?: string;
   tokenUrlBaseSepolia?: string;
+  tokenUrlBlastSepolia?: string;
+  tokenUrlApex?: string;
+  tokenUrlBlast?: string;
+  tokenUrlAstarZkevm?: string;
 };
 
 export class SourcesEntity {

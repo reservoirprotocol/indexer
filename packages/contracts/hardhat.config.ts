@@ -34,11 +34,17 @@ const getNetworkConfig = (chainId?: number) => {
       case 137:
         url = "https://rpc-mainnet.matic.quiknode.pro";
         break;
+      case 204:
+        url = "https://opbnb-mainnet-rpc.bnbchain.org";
+        break;
       case 324:
         url = "https://mainnet.era.zksync.io";
         break;
       case 1101:
         url = "https://zkevm-rpc.com";
+        break;
+      case 3776:
+        url = "https://rpc.startale.com/astar-zkevm";
         break;
       case 8453:
         url = "https://developer-access-mainnet.base.org";
@@ -67,12 +73,15 @@ const getNetworkConfig = (chainId?: number) => {
       case 888888888:
         url = "https://rpc.ancient8.gg/";
         break;
+      case 70700:
+        url = "https://rpc.apex.proofofplay.com";
+        break;
+      case 81457:
+        url = "https://blast.blockpi.network/v1/rpc/public";
+        break;
       // Testnets
       case 5:
         url = "https://goerli.blockpi.network/v1/rpc/public";
-        break;
-      case 999:
-        url = "https://testnet.rpc.zora.co";
         break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
@@ -83,20 +92,17 @@ const getNetworkConfig = (chainId?: number) => {
       case 80001:
         url = "https://rpc-mumbai.maticvigil.com";
         break;
-      case 84531:
-        url = "https://goerli.base.org";
-        break;
       case 11155111:
         url = "https://1rpc.io/sepolia";
         break;
       case 28122024:
         url = "https://rpcv2-testnet.ancient8.gg/";
         break;
-      case 204:
-        url = "https://opbnb-mainnet-rpc.bnbchain.org";
-        break;
       case 84532:
         url = "https://sepolia.base.org";
+        break;
+      case 168587773:
+        url = "https://sepolia.blast.io";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -161,6 +167,7 @@ const config: HardhatUserConfig = {
     bsc: getNetworkConfig(56),
     polygon: getNetworkConfig(137),
     zkSync: getNetworkConfig(324),
+    astarZkevm: getNetworkConfig(3776),
     polygonZkevm: getNetworkConfig(1101),
     base: getNetworkConfig(8453),
     arbitrum: getNetworkConfig(42161),
@@ -171,17 +178,18 @@ const config: HardhatUserConfig = {
     zora: getNetworkConfig(7777777),
     opBnb: getNetworkConfig(204),
     ancient8: getNetworkConfig(888888888),
+    apex: getNetworkConfig(70700),
+    blast: getNetworkConfig(81457),
     // Testnets
     goerli: getNetworkConfig(5),
-    zoraTestnet: getNetworkConfig(999),
     mantleTestnet: getNetworkConfig(5001),
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
-    baseGoerli: getNetworkConfig(84531),
     sepolia: getNetworkConfig(11155111),
     frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(28122024),
     baseSepolia: getNetworkConfig(84532),
+    blastSepolia: getNetworkConfig(168587773),
   },
   etherscan: {
     apiKey: {
@@ -191,6 +199,7 @@ const config: HardhatUserConfig = {
       bsc: process.env.ETHERSCAN_API_KEY_BSC ?? "",
       polygon: process.env.ETHERSCAN_API_KEY_POLYGON ?? "",
       zkSync: "0x",
+      astarZkevm: "0x",
       polygonZkevm: process.env.ETHERSCAN_API_KEY_POLYGON_ZKEVM ?? "",
       base: process.env.ETHERSCAN_API_KEY_BASE ?? "",
       arbitrumOne: process.env.ETHERSCAN_API_KEY_ARBITRUM ?? "",
@@ -201,17 +210,18 @@ const config: HardhatUserConfig = {
       zora: "0x",
       ancient8: "0x",
       opBnb: "0x",
+      apex: "0x",
+      blast: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
       // Testnets
       goerli: process.env.ETHERSCAN_API_KEY_GOERLI ?? "",
-      zoraTestnet: "0x",
       mantleTestnet: "0x",
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
       mumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
-      baseGoerli: process.env.ETHERSCAN_API_KEY_BASE_GOERLI ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
       frameTestnet: "0x",
       ancient8Testnet: "0x",
       baseSepolia: "0x",
+      blastSepolia: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
     },
     customChains: [
       // Mainnets
@@ -229,6 +239,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-zkevm.polygonscan.com/api",
           browserURL: "https://zkevm.polygonscan.com",
+        },
+      },
+      {
+        network: "astarZkevm",
+        chainId: 3776,
+        urls: {
+          apiURL: "https://astar-zkevm.explorer.startale.com/api",
+          browserURL: "https://astar-zkevm.explorer.startale.com",
         },
       },
       {
@@ -295,15 +313,23 @@ const config: HardhatUserConfig = {
           browserURL: "https://opbnb.bscscan.com/",
         },
       },
-      // Testnets
       {
-        network: "zoraTestnet",
-        chainId: 999,
+        network: "apex",
+        chainId: 70700,
         urls: {
-          apiURL: "https://testnet.explorer.zora.energy/api",
-          browserURL: "https://testnet.explorer.zora.energy",
+          apiURL: "https://explorer.apex.proofofplay.com/api",
+          browserURL: "https://explorer.apex.proofofplay.com/",
         },
       },
+      {
+        network: "blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io/",
+        },
+      },
+      // Testnets
       {
         network: "mantleTestnet",
         chainId: 5001,
@@ -326,14 +352,6 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-mumbai.polygonscan.com/api",
           browserURL: "https://mumbai.polygonscan.com",
-        },
-      },
-      {
-        network: "baseGoerli",
-        chainId: 84531,
-        urls: {
-          apiURL: "https://api-goerli.basescan.org/api",
-          browserURL: "https://goerli.basescan.org",
         },
       },
       // This isn't working, couldn't find any valid API for their explorer
@@ -359,6 +377,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://sepolia.basescan.org/api",
           browserURL: "https://sepolia.basescan.org/",
+        },
+      },
+      {
+        network: "blastSepolia",
+        chainId: 168587773,
+        urls: {
+          apiURL: "https://testnet.blastscan.io/api",
+          browserURL: "https://testnet.blastscan.io/",
         },
       },
     ],

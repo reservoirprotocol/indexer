@@ -71,6 +71,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/activity/v7",
+    options: activitiesEndpoints.getCollectionActivityV7Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/{token}/activity/v1",
     options: activitiesEndpoints.getTokenActivityV1Options,
   });
@@ -645,6 +651,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/marketplace-configurations/v1",
     options: collectionsEndpoints.getCollectionMarketplaceConfigurationsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/{collection}/marketplace-configurations/v2",
+    options: collectionsEndpoints.getCollectionMarketplaceConfigurationsV2Options,
   });
 
   server.route({

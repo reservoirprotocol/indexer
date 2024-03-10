@@ -21,7 +21,7 @@ import { redis } from "@/common/redis";
 import crypto from "crypto";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-// import cron from "node-cron";
+import { add, isAfter } from "date-fns";
 
 export type BackfillSaveActivitiesElasticsearchJobPayload = {
   type: "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer";
@@ -610,6 +610,17 @@ const getTransferActivities = async (
 
       const activity = eventHandler.buildDocument(result);
 
+      if (
+        activity.type === "mint" &&
+        isAfter(new Date(activity.createdAt), add(Date.now(), { days: -7 }))
+      ) {
+        const existingActivity = await ActivitiesIndex.getActivityById(activity.id);
+
+        if (existingActivity) {
+          activity.event = existingActivity.event;
+        }
+      }
+
       activities.push(activity);
     }
 
@@ -625,68 +636,3 @@ const getTransferActivities = async (
 
   return { activities, nextCursor };
 };
-
-// if (config.doBackgroundWork && config.doElasticsearchWork) {
-//   cron.schedule(
-//     "*/5 * * * *",
-//     async () =>
-//       await redlock
-//         .acquire(["backfill-activities-lock"], (5 * 60 - 5) * 1000)
-//         .then(async () => {
-//           const lastRunsJson = await redis.hgetall(
-//             `${backfillSaveActivitiesElasticsearchJob.queueName}-last-run`
-//           );
-//
-//           for (const lastRunType in lastRunsJson) {
-//             const lastRunTimestamp = new Date(lastRunsJson[lastRunType]);
-//             const lastRunDelay = new Date().getTime() - lastRunTimestamp.getTime() > 5 * 60 * 1000;
-//
-//             logger.info(
-//               backfillSaveActivitiesElasticsearchJob.queueName,
-//               JSON.stringify({
-//                 topic: "backfill-activities",
-//                 message: `Delay check! type=${lastRunType}, delay=${lastRunDelay}`,
-//               })
-//             );
-//
-//             if (lastRunDelay) {
-//               const payloadJson = await redis.hget(
-//                 `${backfillSaveActivitiesElasticsearchJob.queueName}-last-payload`,
-//                 lastRunType
-//               );
-//
-//               if (payloadJson) {
-//                 const payload = JSON.parse(payloadJson);
-//
-//                 await backfillSaveActivitiesElasticsearchJob.addToQueue(
-//                   lastRunType as "ask" | "ask-cancel" | "bid" | "bid-cancel" | "sale" | "transfer",
-//                   payload.cursor ?? undefined,
-//                   payload.fromTimestamp,
-//                   payload.toTimestamp,
-//                   payload.indexName
-//                 );
-//
-//                 logger.info(
-//                   backfillSaveActivitiesElasticsearchJob.queueName,
-//                   JSON.stringify({
-//                     topic: "backfill-activities",
-//                     message: `Backfill delayed, retriggering! type=${lastRunType}`,
-//                     payload,
-//                   })
-//                 );
-//               }
-//             }
-//           }
-//         })
-//         .catch((error) => {
-//           logger.error(
-//             backfillSaveActivitiesElasticsearchJob.queueName,
-//             JSON.stringify({
-//               topic: "backfill-activities",
-//               message: `cron error. error=${error}`,
-//               error,
-//             })
-//           );
-//         })
-//   );
-// }

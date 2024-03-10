@@ -20,7 +20,7 @@ export const assignSourceToFillEvents = async (fillEvents: es.fills.Event[]) => 
       const orders = [];
 
       // Get the associated source for each of the above orders
-      const orderIdChunks = _.chunk(orderIds, 100);
+      const orderIdChunks = _.chunk(orderIds, 500);
       for (const chunk of orderIdChunks) {
         const ordersChunk = await redb.manyOrNone(
           `

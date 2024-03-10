@@ -251,6 +251,12 @@ export const getUserTopBidsV2Options: RouteOptions = {
           query.optimizeCheckoutURL
         );
 
+        const feeBreakdown = r.fee_breakdown?.map((f: any) => ({
+          kind: f.kind,
+          recipient: f.recipient,
+          bps: f.bps,
+        }));
+
         return {
           id: r.top_bid_id,
           price: formatEth(r.top_bid_price),
@@ -261,7 +267,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
           validUntil: r.top_bid_valid_until,
           floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
           source: getJoiSourceObject(source),
-          feeBreakdown: r.fee_breakdown,
+          feeBreakdown,
           criteria: r.bid_criteria,
           token: {
             contract: contract,

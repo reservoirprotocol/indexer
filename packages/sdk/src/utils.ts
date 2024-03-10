@@ -121,6 +121,7 @@ export type TxData = {
   to: string;
   data: string;
   value?: string;
+  gas?: string;
 };
 
 export enum Network {
@@ -139,20 +140,21 @@ export enum Network {
   Scroll = 534352,
   Opbnb = 204,
   Ancient8 = 888888888,
+  Apex = 70700,
+  Blast = 81457,
+  AstarZkevm = 3776,
   // Testnets
   EthereumGoerli = 5,
-  ZoraTestnet = 999,
   MantleTestnet = 5001,
   LineaTestnet = 59140,
   Mumbai = 80001,
-  BaseGoerli = 84531,
-  ScrollAlpha = 534353,
   EthereumSepolia = 11155111,
   Zksync = 324,
   Ancient8Testnet = 28122024,
   ImmutableZkevmTestnet = 13472,
   FrameTestnet = 68840142,
   BaseSepolia = 84532,
+  BlastSepolia = 168587773,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

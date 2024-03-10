@@ -181,17 +181,19 @@ export const refreshOperatorWhitelist = async (transferValidator: string, id: st
   );
 
   // Invalid any orders relying on the blacklisted operator
-  await orderRevalidationsJob.addToQueue(
-    relevantContracts.map((c) => ({
-      by: "operator",
-      data: {
-        origin: "erc721c",
-        contract: fromBuffer(c.contract),
-        whitelistedOperators: whitelist,
-        status: "inactive",
-      },
-    }))
-  );
+  if (whitelist.length) {
+    await orderRevalidationsJob.addToQueue(
+      relevantContracts.map((c) => ({
+        by: "operator",
+        data: {
+          origin: "erc721c",
+          contract: fromBuffer(c.contract),
+          whitelistedOperators: whitelist,
+          status: "inactive",
+        },
+      }))
+    );
+  }
 
   return whitelist;
 };

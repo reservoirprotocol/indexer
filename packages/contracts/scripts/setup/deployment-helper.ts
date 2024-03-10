@@ -11,7 +11,7 @@ import { Network } from "@reservoir0x/sdk/src/utils";
 import hre, { ethers } from "hardhat";
 
 export const getGasConfigs = (chainId: number) => {
-  if ([Network.Zora, Network.ZoraTestnet, Network.Ancient8Testnet].includes(chainId)) {
+  if ([Network.Zora, Network.Ancient8Testnet, Network.Ancient8].includes(chainId)) {
     return {
       maxFeePerGas: "2000000000",
       maxPriorityFeePerGas: "500000000",

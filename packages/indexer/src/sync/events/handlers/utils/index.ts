@@ -184,6 +184,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   const endPersistOtherEvents = Date.now();
 
+  const startAddingToQueues = Date.now();
   // Trigger further processes:
   // - revalidate potentially-affected orders
   // - store on-chain orders
@@ -200,15 +201,20 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       orderbookOrdersJob.addToQueue(data.orders),
     ]);
   }
+  const endAddingToQueues = Date.now();
 
   // Mints and last sales
+  const startAddingToQueuesMintAndLastSales = Date.now();
   await transferUpdatesJob.addToQueue(nonFillTransferEvents);
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
+  const endAddingToQueuesMintAndLastSales = Date.now();
 
+  const startMintProcess = Date.now();
   if (!backfill) {
     await mintsProcessJob.addToQueue(data.mints);
   }
+  const endMintProcess = Date.now();
 
   const startFillPostProcess = Date.now();
   if (allFillEvents.length) {
@@ -228,9 +234,11 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     }));
 
+  const startProcessRecalcOwnerCount = Date.now();
   if (recalcCollectionOwnerCountInfo.length) {
     await recalcOwnerCountQueueJob.addToQueue(recalcCollectionOwnerCountInfo);
   }
+  const endProcessRecalcOwnerCount = Date.now();
 
   // Process fill activities
   const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
@@ -281,7 +289,12 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   const endProcessTransferActivityEvent = Date.now();
 
   return {
+    addingToQueues: endAddingToQueues - startAddingToQueues,
+    addingToQueuesMintAndLastSales:
+      endAddingToQueuesMintAndLastSales - startAddingToQueuesMintAndLastSales,
+    mintProcess: endMintProcess - startMintProcess,
     // Return the time it took to process each step
+    processRecalcOwnerCount: endProcessRecalcOwnerCount - startProcessRecalcOwnerCount,
     assignMintCommentToFillEvents:
       endAssignMintCommentToFillEvents - startAssignMintCommentToFillEvents,
     assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,

@@ -292,10 +292,6 @@ export const savePartialListings = async (
           status: "success",
           triggerKind: "new-order",
         });
-
-        if (!orderParams.fromWebsocket) {
-          logger.info("blur-debug", JSON.stringify(orderParams));
-        }
       } else {
         // Order already exists
         const wasUpdated = await idb.oneOrNone(
@@ -491,13 +487,14 @@ export const savePartialBids = async (
           schemaHash = generateSchemaHash(schema);
 
           // Cache the token-set for efficiency
+          const MISSING_TOKEN_SET_VALUE = "NULL";
           const tokenSetCacheKey = `blur-trait-bid-token-set:${orderParams.collection}:${
             orderParams.attribute!.key
           }:${orderParams.attribute!.value}`;
           const tokenSetCache = await redis.get(tokenSetCacheKey);
-          if (tokenSetCache) {
+          if (tokenSetCache && tokenSetCache !== MISSING_TOKEN_SET_VALUE) {
             tokenSetId = tokenSetCache;
-          } else {
+          } else if (tokenSetCache !== MISSING_TOKEN_SET_VALUE) {
             // Fetch all tokens matching the attributes
             const tokens = await redb.manyOrNone(
               `
@@ -534,6 +531,8 @@ export const savePartialBids = async (
               ]);
 
               await redis.set(tokenSetCacheKey, tokenSetId, "EX", 24 * 3600);
+            } else {
+              await redis.set(tokenSetCacheKey, MISSING_TOKEN_SET_VALUE, "EX", 24 * 3600);
             }
           }
         } else {

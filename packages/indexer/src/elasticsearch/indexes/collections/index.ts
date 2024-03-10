@@ -10,6 +10,7 @@ import * as CONFIG from "@/elasticsearch/indexes/collections/config";
 import { CollectionDocument } from "@/elasticsearch/indexes/collections/base";
 import { acquireLockCrossChain } from "@/common/redis";
 import { config } from "@/config/index";
+import { isRetryableError } from "@/elasticsearch/indexes/utils";
 
 const INDEX_NAME = `collections`;
 
@@ -185,15 +186,18 @@ export const initIndex = async (): Promise<void> => {
   }
 };
 
-export const autocomplete = async (params: {
-  prefix: string;
-  collectionIds?: string[];
-  communities?: string[];
-  excludeSpam?: boolean;
-  excludeNsfw?: boolean;
-  fuzzy?: boolean;
-  limit?: number;
-}): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
+export const autocomplete = async (
+  params: {
+    prefix: string;
+    collectionIds?: string[];
+    communities?: string[];
+    excludeSpam?: boolean;
+    excludeNsfw?: boolean;
+    fuzzy?: boolean;
+    limit?: number;
+  },
+  retries = 0
+): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
   let esQuery = undefined;
   let esSuggest = undefined;
 
@@ -210,9 +214,6 @@ export const autocomplete = async (params: {
             },
             {
               term: { contract: params.prefix },
-            },
-            {
-              range: { tokenCount: { gt: 0 } },
             },
           ],
         },
@@ -266,18 +267,11 @@ export const autocomplete = async (params: {
         prefix_suggestion: {
           prefix: params.prefix,
           completion: {
-            field: "suggest",
-            fuzzy: {
-              fuzziness: params.fuzzy ? 1 : 0,
-            },
+            field: "suggestV2",
+            fuzzy: !!params.fuzzy,
             size: params.limit ?? 20,
             contexts: {
-              chainId: [config.chainId],
-              // hasTokens: [true],
-              // metadataDisabled: [false],
-              // isSpam: params.excludeSpam ? [false] : [true, false],
-              // isNsfw: params.excludeNsfw ? [false] : [true, false],
-              // id: params.collectionIds?.length ? params.collectionIds : [],
+              filters: params.excludeSpam ? [`${config.chainId}|false`] : [`${config.chainId}`],
             },
           },
         },
@@ -300,16 +294,228 @@ export const autocomplete = async (params: {
       return { results };
     }
   } catch (error) {
-    logger.error(
-      "elasticsearch-collections",
-      JSON.stringify({
-        topic: "autocompleteCollections",
-        params,
-        esQuery,
-        esSuggest,
-        error,
-      })
-    );
+    if (isRetryableError(error)) {
+      logger.warn(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Retrying...",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return autocomplete(params, retries);
+      }
+
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Max retries reached.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    } else {
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Unexpected error.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+        })
+      );
+    }
+
+    throw error;
+  }
+};
+
+export const autocompleteV2 = async (
+  params: {
+    prefix: string;
+    collectionIds?: string[];
+    communities?: string[];
+    excludeSpam?: boolean;
+    excludeNsfw?: boolean;
+    boostVerified?: boolean;
+    fuzzy?: boolean;
+    limit?: number;
+  },
+  retries = 0
+): Promise<{ results: { collection: CollectionDocument; score: number }[] }> => {
+  let esQuery = undefined;
+  let esSuggest = undefined;
+
+  try {
+    if (isAddress(params.prefix)) {
+      esQuery = {
+        bool: {
+          filter: [
+            {
+              term: { ["chain.id"]: config.chainId },
+            },
+            {
+              term: { metadataDisabled: false },
+            },
+            {
+              term: { contract: params.prefix },
+            },
+          ],
+        },
+      };
+
+      if (params.collectionIds?.length) {
+        const collections = params.collectionIds.map((collectionId) => collectionId.toLowerCase());
+
+        (esQuery as any).bool.filter.push({
+          terms: { "collection.id": collections },
+        });
+      }
+
+      if (params.communities?.length) {
+        const communities = params.communities?.map((community) => community.toLowerCase());
+
+        (esQuery as any).bool.filter.push({
+          terms: { community: communities },
+        });
+      }
+
+      if (params.excludeSpam) {
+        (esQuery as any).bool.filter.push({
+          term: { isSpam: false },
+        });
+      }
+
+      if (params.excludeNsfw) {
+        (esQuery as any).bool.filter.push({
+          term: { isNsfw: false },
+        });
+      }
+
+      const esSearchParams = {
+        index: INDEX_NAME,
+        query: esQuery,
+        size: params.limit,
+      };
+
+      const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
+
+      const results: { collection: CollectionDocument; score: number }[] = esResult.hits.hits.map(
+        (hit) => {
+          return { collection: hit._source!, score: hit._score! };
+        }
+      );
+
+      return { results };
+    } else {
+      const filters = [];
+
+      if (params.boostVerified) {
+        if (params.excludeSpam) {
+          filters.push({ context: `${config.chainId}|false|false`, boost: 1 });
+          filters.push({ context: `${config.chainId}|false|true`, boost: 1000000000 });
+        } else {
+          filters.push({ context: `${config.chainId}|*|false`, boost: 1 });
+          filters.push({ context: `${config.chainId}|*|true`, boost: 1000000000 });
+        }
+      } else if (params.excludeSpam) {
+        filters.push({ context: `${config.chainId}|false|*`, boost: 1 });
+      } else {
+        filters.push({ context: `${config.chainId}|*|*`, boost: 1 });
+      }
+
+      esSuggest = {
+        prefix_suggestion: {
+          prefix: params.prefix,
+          completion: {
+            field: "suggestV3",
+            fuzzy: !!params.fuzzy,
+            size: params.limit ?? 20,
+            contexts: {
+              filters,
+            },
+          },
+        },
+      };
+
+      const esSearchParams = {
+        index: INDEX_NAME,
+        suggest: esSuggest,
+      };
+
+      const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
+
+      const results: { collection: CollectionDocument; score: number }[] =
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        esResult.suggest?.prefix_suggestion[0].options.map((option: any) => {
+          return { collection: option._source!, score: option._score! };
+        });
+
+      return { results };
+    }
+  } catch (error) {
+    if (isRetryableError(error)) {
+      logger.warn(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Retrying...",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return autocomplete(params, retries);
+      }
+
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Max retries reached.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+          retries,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    } else {
+      logger.error(
+        "elasticsearch-collections",
+        JSON.stringify({
+          topic: "autocompleteCollections",
+          message: "Unexpected error.",
+          params,
+          esQuery,
+          esSuggest,
+          error,
+        })
+      );
+    }
 
     throw error;
   }

@@ -35,7 +35,9 @@ export const postMetadataIndexOptions: RouteOptions = {
 
       const [contract, tokenId] = token.split(":");
 
-      await mintQueueJob.addToQueue([{ contract, tokenId, mintedTimestamp: now() }]);
+      await mintQueueJob.addToQueue([
+        { contract, tokenId, mintedTimestamp: now(), context: "post-metadata-index-handler" },
+      ]);
 
       return { message: "Success" };
     } catch (error) {

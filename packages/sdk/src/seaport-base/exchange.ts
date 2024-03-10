@@ -8,9 +8,9 @@ import { BaseOrderInfo } from "./builders/base";
 import { IOrder } from "./order";
 import * as Types from "./types";
 import * as CommonAddresses from "../common/addresses";
-import { TxData, bn, generateSourceBytes, lc, n, s } from "../utils";
-
 import { ConduitController } from "../seaport-base";
+import { constructListingCounterOrderAndFulfillments } from "../seaport-base/helpers";
+import { TxData, bn, generateSourceBytes, lc, n, s } from "../utils";
 
 export abstract class SeaportBaseExchange {
   public chainId: number;
@@ -80,7 +80,11 @@ export abstract class SeaportBaseExchange {
     if (info.side === "sell") {
       if (order.isPrivateOrder()) {
         info = info as BaseOrderInfo;
-        const counterOrder = order.constructPrivateListingCounterOrder(taker);
+        const counterOrder = order.constructPrivateListingCounterOrder(
+          taker,
+          recipient,
+          conduitKey
+        );
         const fulfillments = order.getPrivateListingFulfillments();
 
         const advancedOrder = {
@@ -123,8 +127,8 @@ export abstract class SeaportBaseExchange {
       }
 
       if (
-        // Order is not private
-        recipient === AddressZero &&
+        // The recipient is the taker
+        (recipient === AddressZero || recipient === taker) &&
         // Order is single quantity
         info.amount === "1" &&
         // Order has no criteria
@@ -214,8 +218,8 @@ export abstract class SeaportBaseExchange {
       }
     } else {
       if (
-        // Order is not private
-        recipient === AddressZero &&
+        // The recipient is the taker
+        (recipient === AddressZero || recipient === taker) &&
         // Order is single quantity
         info.amount === "1" &&
         // Order has no criteria
@@ -320,6 +324,113 @@ export abstract class SeaportBaseExchange {
   ): Promise<TxData> {
     const recipient = options?.recipient ?? AddressZero;
     const conduitKey = options?.conduitKey ?? HashZero;
+
+    const containsPrivateOrders = orders.some((c) => c.isPrivateOrder());
+    if (containsPrivateOrders) {
+      const allAdvancedOrders: Types.AdvancedOrder[] = [];
+      const allFulfillments: Types.MatchOrdersFulfillment[] = [];
+
+      const fillOrders = orders;
+      for (let i = 0; i < fillOrders.length; i++) {
+        const order = fillOrders[i];
+        const match = matchParams[i];
+
+        const info = order.getInfo();
+        if (!info) {
+          throw new Error("Could not get order info");
+        }
+
+        if (!order.isPrivateOrder()) {
+          const { order: counterOrder, fulfillments } = constructListingCounterOrderAndFulfillments(
+            order.params,
+            taker,
+            allAdvancedOrders.length
+          );
+
+          const advancedOrder = {
+            parameters: {
+              ...order.params,
+              totalOriginalConsiderationItems: order.params.consideration.length,
+            },
+            signature: order.params.signature!,
+            numerator: match.amount?.toString() ?? "1",
+            denominator: info.amount,
+            extraData: match.extraData ?? order.params.extraData ?? "0x",
+          };
+
+          allAdvancedOrders.push(advancedOrder);
+          allAdvancedOrders.push({
+            ...counterOrder,
+            numerator: match.amount?.toString() ?? "1",
+            denominator: info.amount,
+            extraData: "0x",
+          });
+
+          for (const fulfillment of fulfillments) {
+            allFulfillments.push(fulfillment);
+          }
+        } else {
+          const counterOrder = order.constructPrivateListingCounterOrder(
+            taker,
+            recipient,
+            conduitKey
+          );
+          const fulfillments = order.getPrivateListingFulfillments(allAdvancedOrders.length);
+
+          const advancedOrder = {
+            parameters: {
+              ...order.params,
+              totalOriginalConsiderationItems: order.params.consideration.length,
+            },
+            signature: order.params.signature!,
+            numerator: match.amount?.toString() ?? "1",
+            denominator: info.amount,
+            extraData: match.extraData ?? order.params.extraData ?? "0x",
+          };
+
+          allAdvancedOrders.push(advancedOrder);
+          allAdvancedOrders.push({
+            ...counterOrder,
+            numerator: match.amount?.toString() ?? "1",
+            denominator: info.amount,
+            extraData: "0x",
+          });
+
+          for (const fulfillment of fulfillments) {
+            allFulfillments.push(fulfillment);
+          }
+        }
+      }
+
+      return {
+        from: taker,
+        to: this.contract.address,
+        data:
+          this.contract.interface.encodeFunctionData("matchAdvancedOrders", [
+            allAdvancedOrders,
+            [],
+            allFulfillments,
+            taker,
+          ]) + generateSourceBytes(options?.source),
+        value: bn(
+          orders
+            .filter((order) => {
+              const info = order.getInfo();
+              return (
+                info &&
+                info.side === "sell" &&
+                info.paymentToken === CommonAddresses.Native[this.chainId]
+              );
+            })
+            .map((order, i) =>
+              bn(order.getMatchingPrice(options?.timestampOverride))
+                .mul(matchParams[i].amount || "1")
+                .div(order.getInfo()!.amount)
+            )
+            .reduce((a, b) => bn(a).add(b), bn(0))
+        ).toHexString(),
+      };
+    }
 
     return {
       from: taker,

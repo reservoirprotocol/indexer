@@ -17,6 +17,8 @@ import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
+import { getNetworkSettings } from "@/config/network";
+import { burnedTokenJob } from "@/jobs/token-updates/burned-token-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
   topicName = "indexer.public.tokens";
@@ -24,6 +26,35 @@ export class IndexerTokensHandler extends KafkaEventHandler {
   protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
+    }
+
+    if ([1, 11155111].includes(config.chainId)) {
+      try {
+        await redis.set(
+          `token-created-kafka-message-ts:${payload.after.contract}:${payload.after.token_id}`,
+          payload.ts_ms,
+          "EX",
+          600
+        );
+
+        await redis.set(
+          `token-created-cdc-event-start:${payload.after.contract}:${payload.after.token_id}`,
+          Date.now(),
+          "EX",
+          600
+        );
+      } catch (error) {
+        logger.error(
+          "IndexerTokensHandler",
+          JSON.stringify({
+            message: `Handle event latency error. error=${error}`,
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            payload: JSON.stringify(payload),
+            error,
+          })
+        );
+      }
     }
 
     await WebsocketEventRouter({
@@ -42,6 +73,37 @@ export class IndexerTokensHandler extends KafkaEventHandler {
       return;
     }
 
+    const changed = [];
+
+    for (const key in payload.after) {
+      const beforeValue = payload.before[key];
+      const afterValue = payload.after[key];
+
+      if (beforeValue !== afterValue) {
+        changed.push(key);
+      }
+    }
+
+    if (
+      [1, 11155111].includes(config.chainId) &&
+      config.debugWsApiKey &&
+      getNetworkSettings().multiCollectionContracts.includes(payload.after.contract)
+    ) {
+      if (changed.some((value) => ["normalized_floor_sell_id"].includes(value))) {
+        logger.info(
+          "IndexerTokensHandler",
+          JSON.stringify({
+            topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
+            message: `normalizedFloorSellIdChanged. collectionId=${payload.after.collection_id}, contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
+            collectionId: payload.after.collection_id,
+            contract: payload.after.contract,
+            tokenId: payload.after.token_id,
+            payload: JSON.stringify(payload),
+          })
+        );
+      }
+    }
+
     await WebsocketEventRouter({
       eventInfo: {
         before: payload.before,
@@ -53,18 +115,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
     });
 
     try {
-      // Update the elasticsearch activities token cache
-      const changed = [];
-
-      for (const key in payload.after) {
-        const beforeValue = payload.before[key];
-        const afterValue = payload.after[key];
-
-        if (beforeValue !== afterValue) {
-          changed.push(key);
-        }
-      }
-
       try {
         // Update the elasticsearch activities token cache
         if (
@@ -79,7 +129,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
             ].includes(value)
           )
         ) {
-          await ActivitiesTokenCache.refreshTokens(
+          await ActivitiesTokenCache.refreshToken(
             payload.after.contract,
             payload.after.token_id,
             payload.after
@@ -89,7 +139,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         logger.error(
           "IndexerTokensHandler",
           JSON.stringify({
-            message: `failed to update activities token cache. collectionId=${payload.after.id}, error=${error}`,
+            message: `failed to update activities token cache. contract=${payload.after.contract}, tokenId=${payload.after.token_id}, error=${error}`,
             error,
           })
         );
@@ -119,6 +169,16 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         }
       }
 
+      // If the token was burned
+      if (
+        changed.some((value) => ["remaining_supply"].includes(value)) &&
+        payload.after.remaining_supply === "0"
+      ) {
+        await burnedTokenJob.addToQueue([
+          { contract: payload.after.contract, tokenId: payload.after.token_id },
+        ]);
+      }
+
       // If the token was listed or listing was removed update the onSaleCount
       if (
         payload.after.collection_id &&
@@ -132,27 +192,49 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         payload.before.metadata_initialized_at !== payload.after.metadata_initialized_at;
 
       if (metadataInitializedAtChanged && _.random(100) <= 25) {
-        logger.info(
-          "token-metadata-latency-metric",
-          JSON.stringify({
-            topic: "latency-metrics",
-            contract: payload.after.contract,
-            tokenId: payload.after.token_id,
-            indexedLatency: Math.floor(
-              (new Date(payload.after.metadata_indexed_at).getTime() -
-                new Date(payload.after.created_at).getTime()) /
-                1000
-            ),
-            initializedLatency: Math.floor(
-              (new Date(payload.after.metadata_initialized_at).getTime() -
-                new Date(payload.after.created_at).getTime()) /
-                1000
-            ),
-            createdAt: payload.after.created_at,
-            indexedAt: payload.after.metadata_indexed_at,
-            initializedAt: payload.after.metadata_initialized_at,
-          })
+        const indexedLatency = Math.floor(
+          (new Date(payload.after.metadata_indexed_at).getTime() -
+            new Date(payload.after.created_at).getTime()) /
+            1000
         );
+
+        if (indexedLatency >= 120 && config.chainId != 204) {
+          logger.warn(
+            "token-metadata-latency-metric",
+            JSON.stringify({
+              topic: "latency-metrics",
+              contract: payload.after.contract,
+              tokenId: payload.after.token_id,
+              indexedLatency,
+              initializedLatency: Math.floor(
+                (new Date(payload.after.metadata_initialized_at).getTime() -
+                  new Date(payload.after.created_at).getTime()) /
+                  1000
+              ),
+              createdAt: payload.after.created_at,
+              indexedAt: payload.after.metadata_indexed_at,
+              initializedAt: payload.after.metadata_initialized_at,
+            })
+          );
+        } else {
+          logger.info(
+            "token-metadata-latency-metric",
+            JSON.stringify({
+              topic: "latency-metrics",
+              contract: payload.after.contract,
+              tokenId: payload.after.token_id,
+              indexedLatency,
+              initializedLatency: Math.floor(
+                (new Date(payload.after.metadata_initialized_at).getTime() -
+                  new Date(payload.after.created_at).getTime()) /
+                  1000
+              ),
+              createdAt: payload.after.created_at,
+              indexedAt: payload.after.metadata_indexed_at,
+              initializedAt: payload.after.metadata_initialized_at,
+            })
+          );
+        }
       }
 
       if (
@@ -191,15 +273,15 @@ export class IndexerTokensHandler extends KafkaEventHandler {
                 context: "IndexerTokensHandler",
               },
             ],
-            true
+            true,
+            30
           );
         }
       }
     } catch (error) {
       logger.error(
-        "kafka-event-handler",
+        "IndexerTokensHandler",
         JSON.stringify({
-          topic: "debugAskIndex",
           message: `Handle token error. error=${error}`,
           payload,
           error,

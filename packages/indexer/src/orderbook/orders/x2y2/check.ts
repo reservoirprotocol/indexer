@@ -23,14 +23,23 @@ export const offChainCheck = async (
 ) => {
   const id = order.params.itemHash;
 
-  const operator =
-    order.params.delegateType === Sdk.X2Y2.Types.DelegationType.ERC721
-      ? Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId]
-      : Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId];
+  const isERC721 = order.params.delegateType === Sdk.X2Y2.Types.DelegationType.ERC721;
+  const operator = isERC721
+    ? Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId]
+    : Sdk.X2Y2.Addresses.Erc1155Delegate[config.chainId];
 
   // Check: order has a valid target
   const kind = await commonHelpers.getContractKind(order.params.nft.token);
   if (!kind) {
+    throw new Error("invalid-target");
+  }
+  if (!["erc1155", "erc721", "erc721-like"].includes(kind)) {
+    throw new Error("invalid-target");
+  }
+  if (["erc1155"].includes(kind) && isERC721) {
+    throw new Error("invalid-target");
+  }
+  if (["erc721", "erc721-like"].includes(kind) && !isERC721) {
     throw new Error("invalid-target");
   }
 

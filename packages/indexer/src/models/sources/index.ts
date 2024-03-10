@@ -220,7 +220,7 @@ export class Sources {
   }
 
   public async update(domain: string, metadata: SourcesMetadata = {}, optimized?: boolean) {
-    const values: { [key: string]: string | boolean } = {
+    const values: { [key: string]: string | string[] | boolean } = {
       domain,
     };
 
@@ -231,8 +231,14 @@ export class Sources {
 
       _.forEach(metadata, (value, key) => {
         if (value) {
-          jsonBuildObject += `'${key}', $/${key}/,`;
-          values[key] = value;
+          // To cover the case when we need to empty an array
+          if (Array.isArray(value) && value.length === 0) {
+            jsonBuildObject += `'${key}', '[]'::jsonb,`;
+            values[key] = value;
+          } else {
+            jsonBuildObject += `'${key}', $/${key}/,`;
+            values[key] = value;
+          }
         }
       });
 
@@ -473,16 +479,6 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
-    } else if (config.chainId == 84531) {
-      if (sourceEntity.metadata.tokenUrlBaseGoerli && contract && tokenId) {
-        sourceEntity.metadata.url = _.replace(
-          sourceEntity.metadata.tokenUrlBaseGoerli,
-          "${contract}",
-          contract
-        );
-
-        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
-      }
     } else if (config.chainId == 42170) {
       if (sourceEntity.metadata.tokenUrlArbitrumNova && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
@@ -497,26 +493,6 @@ export class Sources {
       if (sourceEntity.metadata.tokenUrlAvalanche && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
           sourceEntity.metadata.tokenUrlAvalanche,
-          "${contract}",
-          contract
-        );
-
-        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
-      }
-    } else if (config.chainId == 534353) {
-      if (sourceEntity.metadata.tokenUrlScrollAlpha && contract && tokenId) {
-        sourceEntity.metadata.url = _.replace(
-          sourceEntity.metadata.tokenUrlScrollAlpha,
-          "${contract}",
-          contract
-        );
-
-        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
-      }
-    } else if (config.chainId == 999) {
-      if (sourceEntity.metadata.tokenUrlZoraTestnet && contract && tokenId) {
-        sourceEntity.metadata.url = _.replace(
-          sourceEntity.metadata.tokenUrlZoraTestnet,
           "${contract}",
           contract
         );
@@ -607,6 +583,46 @@ export class Sources {
       if (sourceEntity.metadata.tokenUrlBaseSepolia && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
           sourceEntity.metadata.tokenUrlBaseSepolia,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 168587773) {
+      if (sourceEntity.metadata.tokenUrlBlastSepolia && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlBlastSepolia,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 70700) {
+      if (sourceEntity.metadata.tokenUrlApex && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlApex,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 81457) {
+      if (sourceEntity.metadata.tokenUrlBlast && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlBlast,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else if (config.chainId == 3776) {
+      if (sourceEntity.metadata.tokenUrlAstarZkevm && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlAstarZkevm,
           "${contract}",
           contract
         );

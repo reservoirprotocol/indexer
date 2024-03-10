@@ -46,8 +46,8 @@ export interface CollectionDocument extends BaseDocument {
     currency?: string;
     currencyPrice?: string;
   };
-
   openseaVerificationStatus?: string;
+  magicedenVerificationStatus?: string;
 }
 
 export interface BuildCollectionDocumentData extends BuildDocumentData {
@@ -77,6 +77,7 @@ export interface BuildCollectionDocumentData extends BuildDocumentData {
   floor_sell_currency?: Buffer;
   floor_sell_currency_price?: string;
   opensea_verification_status?: string;
+  magiceden_verification_status?: string;
 }
 
 export class CollectionDocumentBuilder {
@@ -103,11 +104,8 @@ export class CollectionDocumentBuilder {
         contract: fromBuffer(data.contract),
         contractSymbol: data.contract_symbol,
         name: data.name?.trim(),
-        suggest: this.getSuggest(data),
-        // suggestDay1Rank: this.getSuggest(data, data.day1_rank),
-        // suggestDay7Rank: this.getSuggest(data, data.day7_rank),
-        // suggestDay30Rank: this.getSuggest(data, data.day30_rank),
-        // suggestAllTimeRank: this.getSuggest(data, data.all_time_rank),
+        suggestV2: this.getSuggest(data),
+        suggestV3: this.getSuggestV3(data),
         slug: data.slug,
         image: data.image,
         imageVersion: data.image_version
@@ -148,6 +146,7 @@ export class CollectionDocumentBuilder {
             }
           : undefined,
         openseaVerificationStatus: data.opensea_verification_status,
+        magicedenVerificationStatus: data.magiceden_verification_status,
       } as CollectionDocument;
 
       return document;
@@ -213,13 +212,11 @@ export class CollectionDocumentBuilder {
         input: this.generateInputValues(data),
         weight,
         contexts: {
-          chainId: [config.chainId],
-          id: [data.id],
-          community: data.community ? [data.community] : [],
-          hasTokens: [Number(data.token_count) > 0],
-          isSpam: [Number(data.is_spam) > 0],
-          isNsfw: [Number(data.nsfw_status) > 0],
-          metadataDisabled: [Number(data.metadata_disabled) > 0],
+          filters: [
+            `${config.chainId}`,
+            `*|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}`,
+          ],
         },
       });
     }
@@ -229,13 +226,72 @@ export class CollectionDocumentBuilder {
         input: [data.contract_symbol],
         weight,
         contexts: {
-          chainId: [config.chainId],
-          id: [data.id],
-          community: data.community ? [data.community] : [],
-          hasTokens: [Number(data.token_count) > 0],
-          isSpam: [Number(data.is_spam) > 0],
-          isNsfw: [Number(data.nsfw_status) > 0],
-          metadataDisabled: [Number(data.metadata_disabled) > 0],
+          filters: [
+            `${config.chainId}`,
+            `*|${Number(data.is_spam) > 0}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}`,
+          ],
+        },
+      });
+    }
+
+    return suggest;
+  }
+
+  getSuggestV3(data: BuildCollectionDocumentData): any {
+    const day1VolumeDecimal = data.day1_volume ? formatEth(data.day1_volume) : 0;
+    const day7VolumeDecimal = data.day7_volume ? formatEth(data.day7_volume) : 0;
+    const day30VolumeDecimal = data.day30_volume ? formatEth(data.day30_volume) : 0;
+    const allTimeVolumeDecimal = data.all_time_volume ? formatEth(data.all_time_volume) : 0;
+
+    function normalize(volume: number) {
+      // Change of base formula for log base 10
+      const log10 = (x: number) => Math.log(x) / Math.log(10);
+      const result = 1 / (1 + Math.exp(-log10(1 + volume)));
+
+      return result;
+    }
+
+    const normalizedVolume =
+      normalize(day1VolumeDecimal) * 0.3 +
+      normalize(day7VolumeDecimal) * 0.2 +
+      normalize(day30VolumeDecimal) * 0.06 +
+      normalize(allTimeVolumeDecimal) * 0.04;
+
+    const weight = Math.ceil(normalizedVolume * 1000000000);
+
+    const suggest = [];
+
+    const isVerified =
+      data.opensea_verification_status === "verified" ||
+      data.magiceden_verification_status === "verified";
+
+    if (data.name) {
+      suggest.push({
+        input: this.generateInputValues(data),
+        weight,
+        contexts: {
+          filters: [
+            `${config.chainId}|*|*`,
+            `${config.chainId}|*|${isVerified}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|*`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
+          ],
+        },
+      });
+    }
+
+    if (data.contract_symbol) {
+      suggest.push({
+        input: [data.contract_symbol],
+        weight,
+        contexts: {
+          filters: [
+            `${config.chainId}|*|*`,
+            `${config.chainId}|*|${isVerified}`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|*`,
+            `${config.chainId}|${Number(data.is_spam) > 0}|${isVerified}`,
+          ],
         },
       });
     }

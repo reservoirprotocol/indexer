@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 
@@ -21,11 +23,11 @@ export type OnchainMetadataProcessTokenUriJobPayload = {
 
 export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-process-token-uri-queue";
-  maxRetries = 10;
-  concurrency = 15;
+  maxRetries = 5;
+  concurrency = 30;
   timeout = 5 * 60 * 1000;
   backoff = {
-    type: "fixed",
+    type: "exponential",
     delay: 5000,
   } as BackoffStrategy;
   disableErrorLogs = true;
@@ -34,20 +36,24 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    const tokenMetadataIndexingDebug = await redis.sismember(
-      "metadata-indexing-debug-contracts",
-      contract
-    );
+    let tokenMetadataIndexingDebug = 0;
 
-    if (tokenMetadataIndexingDebug) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "tokenMetadataIndexingDebug",
-          message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-          payload,
-        })
+    if ([1, 137, 11155111].includes(config.chainId)) {
+      tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        contract
       );
+
+      if (tokenMetadataIndexingDebug) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "tokenMetadataIndexingDebug",
+            message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+            payload,
+          })
+        );
+      }
     }
 
     let fallbackError;
@@ -91,11 +97,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-image-encoding",
                 },
               ],
-              true
+              true,
+              30
             );
 
             return;
@@ -132,11 +140,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-missing-mime-type",
                 },
               ],
-              true
+              true,
+              30
             );
 
             return;
@@ -170,11 +180,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                     contract,
                     tokenId,
                     collection: contract,
+                    isFallback: true,
                   },
                   context: "onchain-fallback-gif",
                 },
               ],
-              true
+              true,
+              30
             );
 
             return;
@@ -213,7 +225,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
       }
 
-      fallbackError = `${error}`;
+      fallbackError = `${(error as any).message}`;
 
       logger.warn(
         this.queueName,
@@ -224,12 +236,25 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
           contract,
           tokenId,
-          error: `${error}`,
+          error: fallbackError,
         })
       );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {
+      return;
+    }
+
+    if (fallbackError === "Invalid URI") {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "simpleHashFallbackDebug",
+          message: `Skip Fallback. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          payload,
+        })
+      );
+
       return;
     }
 
@@ -262,11 +287,13 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             contract,
             tokenId,
             collection: contract,
+            isFallback: true,
           },
           context: "onchain-fallback-get-metadata-error",
         },
       ],
-      true
+      true,
+      30
     );
   }
 

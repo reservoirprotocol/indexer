@@ -3,11 +3,40 @@ import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { regex, toBuffer } from "@/common/utils";
-import * as registry from "@/utils/royalties/registry";
+import { orderFixesJob } from "@/jobs/order-fixes/order-fixes-job";
+import * as onchain from "@/utils/royalties/onchain";
 
 export type Royalty = {
   recipient: string;
   bps: number;
+};
+
+export const hasRoyalties = async (
+  spec: string,
+  contract: string,
+  tokenId?: string
+): Promise<boolean> => {
+  const royaltiesResult = await idb.oneOrNone(
+    `
+      SELECT
+        collections.new_royalties
+      FROM tokens
+      JOIN collections
+        ON tokens.collection_id = collections.id
+      WHERE tokens.contract = $/contract/
+        ${tokenId ? " AND tokens.token_id = $/tokenId/" : ""}
+      LIMIT 1
+    `,
+    {
+      contract: toBuffer(contract),
+      tokenId,
+    }
+  );
+  if (!royaltiesResult) {
+    return false;
+  }
+
+  return Boolean(royaltiesResult.new_royalties?.[spec]);
 };
 
 export const getRoyalties = async (
@@ -210,7 +239,8 @@ export const refreshAllRoyaltySpecs = async (
 
   if (refreshOnChain) {
     // Refresh the on-chain royalties
-    await registry.refreshRegistryRoyalties(collection);
+    await onchain.refreshOnChainRoyalties(collection, "onchain");
+    await onchain.refreshOnChainRoyalties(collection, "eip2981");
   }
 };
 
@@ -236,6 +266,7 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   const royaltiesResult = await idb.oneOrNone(
     `
       SELECT
+        collections.royalties,
         COALESCE(collections.new_royalties, '{}') AS new_royalties
       FROM collections
       WHERE collections.id = $/collection/
@@ -248,28 +279,39 @@ export const refreshDefaultRoyalties = async (collection: string) => {
 
   // Default royalties priority: custom, on-chain, opensea
   let defaultRoyalties: Royalty[] = [];
-  if (royaltiesResult.new_royalties["custom"]) {
+  if (royaltiesResult.new_royalties["eip2981"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["eip2981"];
+  } else if (royaltiesResult.new_royalties["pp-v2-backfill"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["pp-v2-backfill"];
+  } else if (royaltiesResult.new_royalties["custom"]) {
     defaultRoyalties = royaltiesResult.new_royalties["custom"];
   } else if (royaltiesResult.new_royalties["onchain"]) {
     defaultRoyalties = royaltiesResult.new_royalties["onchain"];
-  } else if (royaltiesResult.new_royalties["pp-v2-backfill"]) {
-    defaultRoyalties = royaltiesResult.new_royalties["pp-v2-backfill"];
   } else if (royaltiesResult.new_royalties["opensea"]) {
     defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
 
-  await idb.none(
-    `
-      UPDATE collections SET
-        royalties = $/royalties:json/,
-        royalties_bps = $/royaltiesBps/,
-        updated_at = now()
-      WHERE collections.id = $/id/
-    `,
-    {
-      id: collection,
-      royalties: defaultRoyalties,
-      royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
-    }
-  );
+  // Assume `JSON.stringify` is deterministic
+  if (JSON.stringify(royaltiesResult.royalties ?? {}) !== JSON.stringify(defaultRoyalties)) {
+    await idb.none(
+      `
+        UPDATE collections SET
+          royalties = $/royalties:json/,
+          royalties_bps = $/royaltiesBps/,
+          updated_at = now()
+        WHERE collections.id = $/id/
+      `,
+      {
+        id: collection,
+        royalties: defaultRoyalties,
+        royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
+      }
+    );
+
+    // Every time the royalties change we refresh all orders on the collection
+    // in order to cover the cases when the royalty change might result in the
+    // orders becoming unfillable (eg. `pp-v1` and `pp-v2` orders have the max
+    // royalty allowed to pay built into the order)
+    await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection } }]);
+  }
 };

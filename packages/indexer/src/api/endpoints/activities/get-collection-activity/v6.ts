@@ -41,6 +41,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
   timeout: {
     server: 20 * 1000,
   },
+  cache: {
+    privacy: "public",
+    expiresIn: 5000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -74,9 +78,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         .integer()
         .min(1)
         .default(50)
-        .description(
-          "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
-        )
+        .description("Amount of items returned. Max limit is 50.")
         .when("includeMetadata", {
           is: true,
           then: Joi.number().integer().max(50),
@@ -239,6 +241,21 @@ export const getCollectionActivityV6Options: RouteOptions = {
         contracts.push(fromBuffer(tokensResult[0].contract));
       }
 
+      let limit = query.limit;
+
+      if (limit > 50) {
+        limit = 50;
+
+        logger.info(
+          `get-collection-activity-${version}-handler`,
+          JSON.stringify({
+            message: `Force limit.`,
+            query,
+            apiKey,
+          })
+        );
+      }
+
       const { activities, continuation } = await ActivitiesIndex.search(
         {
           types: query.types,
@@ -248,7 +265,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           excludeNsfw: query.excludeNsfw,
           collections: query.collection,
           sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-          limit: query.limit,
+          limit,
           continuation: query.continuation,
         },
         debug
@@ -375,7 +392,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
           tokenImageUrl = Assets.getResizedImageUrl(
             originalImageUrl,
             undefined,
-            tokenMetadata?.image_version
+            tokenMetadata?.image_version,
+            tokenMetadata?.image_mime_type
           );
         }
 

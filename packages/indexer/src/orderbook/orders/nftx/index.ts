@@ -161,8 +161,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           if (priceList.length) {
             // Handle: prices
-            const { price, feeBps: bps } = priceList[0];
-            const value = bn(price).sub(bn(price).mul(bps).div(10000)).toString();
+            const { price } = priceList[0];
+            const value = bn(price).toString();
 
             const prices: string[] = [];
             for (let i = 0; i < priceList.length; i++) {
@@ -174,12 +174,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             }
 
             // Handle: fees
-            feeBps = Number(bps);
-            feeBreakdown.push({
-              kind: "marketplace",
-              recipient: pool.address,
-              bps: feeBps,
-            });
+            feeBps = Number(0);
 
             // Handle: royalties on top
             const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
@@ -283,7 +278,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 taker: toBuffer(AddressZero),
                 price: price.toString(),
                 value,
-                currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
+                currency: toBuffer(Sdk.Common.Addresses.WNative[config.chainId]),
                 currency_price: price.toString(),
                 currency_value: value,
                 needs_conversion: null,
@@ -368,7 +363,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   currencyNormalizedValue: normalizedValue.toString(),
                   feeBps,
                   feeBreakdown,
-                  currency: toBuffer(Sdk.Common.Addresses.Native[config.chainId]),
+                  currency: toBuffer(Sdk.Common.Addresses.WNative[config.chainId]),
                   blockNumber: orderParams.txBlock,
                   logIndex: orderParams.logIndex,
                 }

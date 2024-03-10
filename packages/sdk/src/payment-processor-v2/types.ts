@@ -85,6 +85,7 @@ export type BaseOrder = {
   amount: string;
   itemPrice: string;
   expiration: string;
+  fallbackRoyaltyRecipient?: string;
   marketplaceFeeNumerator: string;
   nonce: string;
   masterNonce: string;
@@ -103,7 +104,6 @@ export type BaseOrder = {
   tokenSetProof?: string[];
   // Internally we store the token-sets based on the Seaport logic
   seaportStyleMerkleRoot?: string;
-  fallbackRoyaltyRecipient?: string;
 
   cosignature?: Cosignature;
 

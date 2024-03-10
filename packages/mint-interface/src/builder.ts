@@ -48,6 +48,8 @@ export class Builder {
       // Set defaults if needed
       if (!phase.tx.to) {
         phase.tx.to = this.config.collection;
+      } else if (phase.tx.to.toLowerCase() !== this.config.collection.toLowerCase()) {
+        throw new Error("The destination address must match the collection address");
       }
 
       if (phase.tx.params) {

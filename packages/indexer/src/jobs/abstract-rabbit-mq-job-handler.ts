@@ -8,6 +8,7 @@ import { ConsumeMessage } from "amqplib";
 import { extendLock, releaseLock } from "@/common/redis";
 import { ChannelWrapper } from "amqp-connection-manager";
 import { config } from "@/config/index";
+import { sha256 } from "@/common/utils";
 
 export type BackoffStrategy =
   | {
@@ -140,11 +141,23 @@ export abstract class AbstractRabbitMqJobHandler {
       }
 
       // Log the error
-      if (!this.disableErrorLogs || queueName === this.getDeadLetterQueue()) {
+      if (!this.disableErrorLogs && queueName !== this.getDeadLetterQueue()) {
+        logger.warn(
+          this.queueName,
+          JSON.stringify({
+            topic: "rabbitmq",
+            message: `Error handling event - Retrying. error=${error}`,
+            rabbitMqMessage: this.rabbitMqMessage,
+          })
+        );
+      }
+
+      if (queueName === this.getDeadLetterQueue()) {
         logger.error(
           this.queueName,
           JSON.stringify({
-            message: `Error handling event. error=${error}`,
+            topic: "rabbitmq",
+            message: `Error handling event - Sending to dead letter queue. error=${error}`,
             rabbitMqMessage: this.rabbitMqMessage,
           })
         );
@@ -302,5 +315,20 @@ export abstract class AbstractRabbitMqJobHandler {
     if (!_.isEmpty(prioritizedMessages)) {
       await RabbitMq.sendBatch(this.getPriorityQueue(), prioritizedMessages);
     }
+  }
+
+  public getHash(): string {
+    return sha256(
+      [
+        this.getQueue(),
+        this.getQueueType(),
+        this.getSingleActiveConsumer(),
+        this.getPriorityQueue(),
+        this.isPriorityQueue(),
+        this.getDeadLetterQueue(),
+        this.isLazyMode(),
+        this.getConsumerTimeout(),
+      ].join("-")
+    );
   }
 }

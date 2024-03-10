@@ -50,142 +50,30 @@ export const CONFIG_DEFAULT = {
           },
         ],
       },
-      // suggestDay1Rank: {
-      //   type: "completion",
-      //   preserve_separators: false,
-      //   contexts: [
-      //     {
-      //       name: "chainId",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "id",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "community",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "hasTokens",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isSpam",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isNsfw",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "metadataDisabled",
-      //       type: "category",
-      //     },
-      //   ],
-      // },
-      // suggestDay7Rank: {
-      //   type: "completion",
-      //   preserve_separators: false,
-      //   contexts: [
-      //     {
-      //       name: "chainId",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "id",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "community",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "hasTokens",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isSpam",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isNsfw",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "metadataDisabled",
-      //       type: "category",
-      //     },
-      //   ],
-      // },
-      // suggestDay30Rank: {
-      //   type: "completion",
-      //   preserve_separators: false,
-      //   contexts: [
-      //     {
-      //       name: "chainId",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "id",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "community",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "hasTokens",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isSpam",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isNsfw",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "metadataDisabled",
-      //       type: "category",
-      //     },
-      //   ],
-      // },
-      // suggestAllTimeRank: {
-      //   type: "completion",
-      //   preserve_separators: false,
-      //   contexts: [
-      //     {
-      //       name: "chainId",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "id",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "community",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "hasTokens",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isSpam",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "isNsfw",
-      //       type: "category",
-      //     },
-      //     {
-      //       name: "metadataDisabled",
-      //       type: "category",
-      //     },
-      //   ],
-      // },
+      suggestV2: {
+        type: "completion",
+        preserve_separators: false,
+        analyzer: "standard",
+        search_analyzer: "standard",
+        contexts: [
+          {
+            name: "filters",
+            type: "category",
+          },
+        ],
+      },
+      suggestV3: {
+        type: "completion",
+        preserve_separators: false,
+        analyzer: "standard",
+        search_analyzer: "standard",
+        contexts: [
+          {
+            name: "filters",
+            type: "category",
+          },
+        ],
+      },
       slug: { type: "keyword" },
       image: { type: "keyword" },
       contract: { type: "keyword" },
@@ -224,6 +112,8 @@ export const CONFIG_DEFAULT = {
           currencyPrice: { type: "keyword" },
         },
       },
+      openseaVerificationStatus: { type: "keyword" },
+      magicedenVerificationStatus: { type: "keyword" },
     },
   } as MappingTypeMapping,
   settings: {

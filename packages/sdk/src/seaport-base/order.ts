@@ -18,8 +18,12 @@ export interface IOrder {
 
   // For private orders
   isPrivateOrder(): boolean;
-  constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter;
-  getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[];
+  constructPrivateListingCounterOrder(
+    orderMaker: string,
+    privateSaleRecipient: string,
+    conduitKey: string
+  ): Types.OrderWithCounter;
+  getPrivateListingFulfillments(orderIndex?: number): Types.MatchOrdersFulfillment[];
 
   // For cosigned orders
   isCosignedOrder(): boolean;

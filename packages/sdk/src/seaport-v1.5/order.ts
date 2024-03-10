@@ -383,8 +383,8 @@ export class Order implements IOrder {
     }
   }
 
-  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
-    return getPrivateListingFulfillments(this.params);
+  public getPrivateListingFulfillments(orderIndex = 0): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params, orderIndex);
   }
 
   public isPrivateOrder() {
@@ -404,8 +404,17 @@ export class Order implements IOrder {
     this.params.extraData = extraDataComponent.toString();
   }
 
-  public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
-    return constructPrivateListingCounterOrder(privateSaleRecipient, this.params);
+  public constructPrivateListingCounterOrder(
+    orderMaker: string,
+    privateSaleRecipient: string,
+    conduitKey: string
+  ): Types.OrderWithCounter {
+    return constructPrivateListingCounterOrder(
+      orderMaker,
+      privateSaleRecipient,
+      conduitKey,
+      this.params
+    );
   }
 }
 

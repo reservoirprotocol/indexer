@@ -28,6 +28,7 @@ export type MetadataIndexFetchJobPayload =
         collection: string;
         contract: string;
         tokenId: string;
+        isFallback?: boolean;
       };
       context?: string;
     };
@@ -49,22 +50,24 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    const tokenMetadataIndexingDebug = await redis.sismember(
-      "metadata-indexing-debug-contracts",
-      payload.data.collection
-    );
-
-    if (tokenMetadataIndexingDebug) {
-      logger.info(
-        this.queueName,
-        JSON.stringify({
-          topic: "tokenMetadataIndexingDebug",
-          message: `Start. collection=${payload.data.collection}, tokenId=${
-            payload.kind === "single-token" ? payload.data.tokenId : ""
-          }`,
-          payload,
-        })
+    if ([1, 137, 11155111].includes(config.chainId)) {
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        payload.data.collection
       );
+
+      if (tokenMetadataIndexingDebug) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "tokenMetadataIndexingDebug",
+            message: `Start. collection=${payload.data.collection}, tokenId=${
+              payload.kind === "single-token" ? payload.data.tokenId : ""
+            }`,
+            payload,
+          })
+        );
+      }
     }
 
     const { kind, data } = payload;
@@ -131,6 +134,7 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         collection: data.collection,
         contract: data.contract,
         tokenId: data.tokenId,
+        isFallback: data.isFallback,
       });
     }
 

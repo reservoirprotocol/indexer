@@ -12,7 +12,8 @@ export const isCurrencyItem = ({ itemType }: { itemType: Types.ItemType }) =>
   [Types.ItemType.NATIVE, Types.ItemType.ERC20].includes(itemType);
 
 export const getPrivateListingFulfillments = (
-  privateListingOrder: Types.OrderComponents
+  privateListingOrder: Types.OrderComponents,
+  startOrderIndex = 0
 ): Types.MatchOrdersFulfillment[] => {
   const nftRelatedFulfillments: Types.MatchOrdersFulfillment[] = [];
 
@@ -33,13 +34,13 @@ export const getPrivateListingFulfillments = (
     nftRelatedFulfillments.push({
       offerComponents: [
         {
-          orderIndex: 0,
+          orderIndex: startOrderIndex,
           itemIndex: offerIndex,
         },
       ],
       considerationComponents: [
         {
-          orderIndex: 0,
+          orderIndex: startOrderIndex,
           itemIndex: considerationIndex,
         },
       ],
@@ -59,13 +60,13 @@ export const getPrivateListingFulfillments = (
     currencyRelatedFulfillments.push({
       offerComponents: [
         {
-          orderIndex: 1,
+          orderIndex: startOrderIndex + 1,
           itemIndex: 0,
         },
       ],
       considerationComponents: [
         {
-          orderIndex: 0,
+          orderIndex: startOrderIndex,
           itemIndex: considerationIndex,
         },
       ],
@@ -107,7 +108,9 @@ export const isCosignedOrder = (params: Types.OrderComponents, chainId: number) 
   [BaseAddresses.ReservoirCancellationZone[chainId]].includes(params.zone);
 
 export const constructPrivateListingCounterOrder = (
+  orderMaker: string,
   privateSaleRecipient: string,
+  conduitKey: string,
   params: Types.OrderComponents
 ): Types.OrderWithCounter => {
   // Counter order offers up all the items in the private listing consideration
@@ -140,8 +143,9 @@ export const constructPrivateListingCounterOrder = (
     parameters: {
       ...params,
       zone: AddressZero,
+      conduitKey,
       orderType: 0,
-      offerer: privateSaleRecipient,
+      offerer: orderMaker,
       offer: [
         {
           itemType: paymentItems[0].itemType,
@@ -310,4 +314,113 @@ export const computeDynamicPrice = (
   }
 
   return price;
+};
+
+export const constructListingCounterOrderAndFulfillments = (
+  params: Types.OrderComponents,
+  taker: string,
+  startOrderIndex = 0
+): {
+  order: Types.OrderWithCounter;
+  fulfillments: Types.MatchOrdersFulfillment[];
+} => {
+  const paymentItems = params.consideration.filter(
+    (item) => item.recipient.toLowerCase() !== taker.toLowerCase()
+  );
+
+  const { aggregatedStartAmount, aggregatedEndAmount } = paymentItems.reduce(
+    ({ aggregatedStartAmount, aggregatedEndAmount }, item) => ({
+      aggregatedStartAmount: aggregatedStartAmount.add(item.startAmount),
+      aggregatedEndAmount: aggregatedEndAmount.add(item.endAmount),
+    }),
+    {
+      aggregatedStartAmount: BigNumber.from(0),
+      aggregatedEndAmount: BigNumber.from(0),
+    }
+  );
+
+  const counterOrder = {
+    parameters: {
+      ...params,
+      zone: AddressZero,
+      orderType: 0,
+      offerer: taker,
+      offer: [
+        {
+          itemType: paymentItems[0].itemType,
+          token: paymentItems[0].token,
+          identifierOrCriteria: paymentItems[0].identifierOrCriteria,
+          startAmount: aggregatedStartAmount.toString(),
+          endAmount: aggregatedEndAmount.toString(),
+        },
+      ],
+      consideration: params.offer.map((item) => {
+        return {
+          itemType: item.itemType,
+          token: item.token,
+          identifierOrCriteria: item.identifierOrCriteria,
+          startAmount: item.startAmount.toString(),
+          endAmount: item.endAmount.toString(),
+          recipient: taker,
+        };
+      }),
+      salt: generateRandomSalt(),
+      totalOriginalConsiderationItems: params.offer.length,
+    },
+    signature: "0x",
+  };
+
+  return {
+    order: counterOrder,
+    fulfillments: getListingFulfillments(params, startOrderIndex),
+  };
+};
+
+export const getListingFulfillments = (
+  listingOrder: Types.OrderComponents,
+  startOrderIndex = 0
+): Types.MatchOrdersFulfillment[] => {
+  const nftRelatedFulfillments: Types.MatchOrdersFulfillment[] = [];
+
+  listingOrder.offer.forEach((_, offerIndex) => {
+    nftRelatedFulfillments.push({
+      offerComponents: [
+        {
+          orderIndex: startOrderIndex,
+          itemIndex: offerIndex,
+        },
+      ],
+      considerationComponents: [
+        {
+          orderIndex: startOrderIndex + 1,
+          itemIndex: offerIndex,
+        },
+      ],
+    });
+  });
+
+  const currencyRelatedFulfillments: Types.MatchOrdersFulfillment[] = [];
+
+  listingOrder.consideration.forEach((considerationItem, considerationIndex) => {
+    if (!isCurrencyItem(considerationItem)) {
+      return;
+    }
+
+    currencyRelatedFulfillments.push({
+      offerComponents: [
+        {
+          orderIndex: startOrderIndex + 1,
+          itemIndex: 0,
+        },
+      ],
+      considerationComponents: [
+        {
+          orderIndex: startOrderIndex,
+          itemIndex: considerationIndex,
+        },
+      ],
+    });
+  });
+
+  return [...nftRelatedFulfillments, ...currencyRelatedFulfillments];
 };

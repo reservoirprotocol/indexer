@@ -82,6 +82,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             contract: baseEventParams.address,
             tokenId,
             mintedTimestamp: baseEventParams.timestamp,
+            context: "erc721",
           });
           onChainData.mints.push({
             by: "tx",
@@ -160,6 +161,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               contract: baseEventParams.address,
               tokenId,
               mintedTimestamp: baseEventParams.timestamp,
+              context: "erc721",
             });
             onChainData.mints.push({
               by: "tx",

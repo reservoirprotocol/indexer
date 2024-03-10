@@ -40,6 +40,7 @@ export type CollectionsMetadata = {
   bannerImageUrl?: string | undefined;
   twitterUsername?: string | undefined;
   safelistRequestStatus?: string | undefined;
+  magicedenVerificationStatus?: string | undefined;
 };
 
 export type CollectionsRoyalties = {

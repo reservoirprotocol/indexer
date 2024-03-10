@@ -33,9 +33,13 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Avalanche]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.PolygonZkevm]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Ancient8Testnet]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.Ancient8]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Scroll]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.FrameTestnet]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Opbnb]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.Apex]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.BlastSepolia]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.AstarZkevm]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
@@ -47,9 +51,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumSepolia]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.ArbitrumNova]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.ZoraTestnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Mumbai]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.BaseGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.MantleTestnet]: "0x9c390efb05e09982e23993ebfa3b32c190e25f4b",
   [Network.LineaTestnet]: "0xc04dd964ed36c0e4796f53a7168393ed4fc38ff6",
   [Network.Zora]: "0x00000000f9490004c11cef243f5400493c00ad63",
@@ -65,6 +67,10 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Opbnb]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Ancient8]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.BaseSepolia]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.BlastSepolia]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.Apex]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.Blast]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.AstarZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
@@ -77,8 +83,6 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Polygon]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.ArbitrumNova]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Arbitrum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
-  [Network.ZoraTestnet]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
-  [Network.BaseGoerli]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Mumbai]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.MantleTestnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
   [Network.LineaTestnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
@@ -95,6 +99,10 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Opbnb]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Ancient8]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.BaseSepolia]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.BlastSepolia]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.Apex]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.Blast]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.AstarZkevm]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {
@@ -123,8 +131,6 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Zora]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.ArbitrumNova]: "0x000000e7ec00e7b300774b00001314b8610022b8",
   [Network.Mumbai]: "0x000000e7ec00e7b300774b00001314b8610022b8",
-  [Network.BaseGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
-  [Network.ZoraTestnet]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };
 
 export const FxHashPausableZone: ChainIdToAddress = {
@@ -149,10 +155,11 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.Linea]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.LineaTestnet]: "0xfb2b693819e866ec87e574903f6e4943723c8ff7",
   [Network.Ancient8Testnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
-  [Network.BaseGoerli]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
-  [Network.ZoraTestnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Zora]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Scroll]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.Apex]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.AstarZkevm]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.Blast]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
 };
 
 export const OkxCancellationZone: ChainIdToAddress = {

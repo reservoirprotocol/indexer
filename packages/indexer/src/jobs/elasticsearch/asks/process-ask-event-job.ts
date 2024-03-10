@@ -33,18 +33,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
     const askCreatedEventHandler = new AskCreatedEventHandler(data.id);
 
     if (kind === EventKind.SellOrderInactive) {
-      if (await askCreatedEventHandler.isAskActive()) {
-        const [, contract, tokenId] = data.token_set_id.split(":");
-
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `Ask is active - Skipping delete. orderId=${data.id}, contract=${contract}, tokenId=${tokenId}`,
-            topic: "debugStaleAsks",
-            payload,
-          })
-        );
-      } else {
+      if (!(await askCreatedEventHandler.isAskActive())) {
         const askDocumentId = askCreatedEventHandler.getAskId();
         await pendingAskEventsQueue.add([{ info: { id: askDocumentId }, kind: "delete" }]);
       }
@@ -53,7 +42,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
 
       if (askDocumentInfo) {
         await pendingAskEventsQueue.add([{ info: askDocumentInfo, kind: "index" }]);
-      } else if (!["element-erc721", "element-erc1155"].includes(data.kind)) {
+      } else {
         const [, contract, tokenId] = data.token_set_id.split(":");
 
         const orderExists = await idb.oneOrNone(

@@ -38,5 +38,5 @@ As in the previous step, once the script is finalized, make sure to update the c
 - [`Sdk.RouterV6.Addresses.Router`](../../sdk/src/router/v6/addresses.ts)
 - [`Sdk.RouterV6.Addresses.ApprovalProxy`](../../sdk/src/router/v6/addresses.ts)
 - [`Sdk.SeaportBase.Addresses.ReservoirConduitKey`](../../sdk/src/seaport-base/addresses.ts)
-- [`Sdk.Common.Addresses.RoyaltyEngine`](../../sdk/src/common/addresses.ts)
+- [`Sdk.SeaportBase.Addresses.ReservoirCancellationZone`](../../sdk/src/seaport-base/addresses.ts)
 - `Sdk.*` (for every deployed router module)

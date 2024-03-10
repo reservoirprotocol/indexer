@@ -42,6 +42,7 @@ export class ContractWideBuilder extends BaseBuilder {
       cosigner: params.cosigner,
       sellerOrBuyer: params.maker,
       marketplace: params.marketplace ?? AddressZero,
+      fallbackRoyaltyRecipient: params.fallbackRoyaltyRecipient ?? AddressZero,
       paymentMethod: params.paymentMethod,
       tokenAddress: params.tokenAddress,
       amount: s(params.amount),

@@ -75,12 +75,14 @@ export class BackfillTokensWithMissingCollectionJob extends AbstractRabbitMqJobH
             contract: fromBuffer(token.contract),
             tokenId: token.token_id,
             mintedTimestamp: token.minted_timestamp || now(),
+            context: this.queueName,
           });
         } else {
           tokensToUpdate.push({
             contract: token.contract,
             token_id: token.token_id,
             collection: fromBuffer(token.contract),
+            context: this.queueName,
           });
         }
       }

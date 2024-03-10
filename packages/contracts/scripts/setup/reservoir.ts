@@ -33,7 +33,10 @@ const main = async () => {
   // 3. Deploy the conduit and grant access for the approval proxy
   await trigger.Router.SeaportConduit(chainId);
 
-  // 4. Deploy any modules that depend on the router
+  // 4. Deploy the seaport off-chain cancellation zone
+  await trigger.Utilities.OffChainCancellationZone(chainId);
+
+  // 5. Deploy any modules that depend on the router
   for (const deploy of Object.values(trigger.Modules)) {
     await deploy(chainId);
   }

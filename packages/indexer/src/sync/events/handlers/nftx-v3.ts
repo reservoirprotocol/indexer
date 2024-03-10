@@ -44,7 +44,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               },
               metadata: {},
             },
-            delayBeforeProcessing: 20,
+            delayBeforeProcessing: 30,
           });
 
           nftCount += amount;
@@ -255,7 +255,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
-              delayBeforeProcessing: 20,
+              delayBeforeProcessing: 30,
             });
 
             const orderInfo = dbOrders.find((c) => c.id === orderId);
@@ -459,7 +459,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
-              delayBeforeProcessing: 20,
+              delayBeforeProcessing: 30,
             });
           }
 
@@ -478,7 +478,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
-              delayBeforeProcessing: 20,
+              delayBeforeProcessing: 30,
             });
           });
         }
@@ -504,7 +504,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             },
             metadata: {},
           },
-          delayBeforeProcessing: 20,
+          delayBeforeProcessing: 60,
         });
 
         break;
@@ -530,7 +530,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
-              delayBeforeProcessing: 20,
+              delayBeforeProcessing: 30,
             });
           }
 
@@ -551,7 +551,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 },
                 metadata: {},
               },
-              delayBeforeProcessing: 20,
+              delayBeforeProcessing: 30,
             });
           }
         }

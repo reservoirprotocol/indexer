@@ -22,6 +22,7 @@ import axios from "axios";
 import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { randomUUID } from "crypto";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -45,27 +46,34 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     try {
       const resolvedMetadata = await Promise.all(
         tokens.map(async (token: any) => {
+          const getTokenMetadataFromURIStart = Date.now();
+
           const [metadata, error] = await this.getTokenMetadataFromURI(
             token.uri,
             token.contract,
             token.tokenId
           );
 
-          const tokenMetadataIndexingDebug = await redis.sismember(
-            "metadata-indexing-debug-contracts",
-            token.contract
-          );
+          const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
 
-          if (tokenMetadataIndexingDebug) {
-            logger.info(
-              "_getTokensMetadata",
-              JSON.stringify({
-                topic: "tokenMetadataIndexingDebug",
-                message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
-                metadata: JSON.stringify(metadata),
-                error,
-              })
+          if ([1, 137, 11155111].includes(config.chainId)) {
+            const tokenMetadataIndexingDebug = await redis.sismember(
+              "metadata-indexing-debug-contracts",
+              token.contract
             );
+
+            if (tokenMetadataIndexingDebug) {
+              logger.info(
+                "_getTokensMetadata",
+                JSON.stringify({
+                  topic: "tokenMetadataIndexingDebug",
+                  message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
+                  metadata: JSON.stringify(metadata),
+                  getTokenMetadataFromURILatency,
+                  error,
+                })
+              );
+            }
           }
 
           if (!metadata) {
@@ -125,7 +133,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       contract: string;
       tokenId: string;
       standard?: string;
-      requestId?: number;
+      requestId?: string;
     }[] = tokens;
 
     // Detect token standard, batch contract addresses together to call once per contract
@@ -155,9 +163,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     // We need to have some type of hash map to map the tokenid + contract to the tokenURI
     const idToToken: any = {};
     tokenData.forEach((token) => {
-      const randomInt = Math.floor(Math.random() * 100000);
-      idToToken[randomInt] = token;
-      token.requestId = randomInt;
+      token.requestId = randomUUID();
+      idToToken[token.requestId] = token;
     });
 
     let encodedTokens = tokenData.map((token) => {
@@ -223,17 +230,12 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
               }/${idToToken[token.id].tokenId}`;
             }
           } else if (uri.endsWith("/{id}")) {
-            uri = uri.replace("{id}", idToToken[token.id].tokenId);
-
-            logger.info(
-              "_getTokensMetadataUri",
-              JSON.stringify({
-                topic: "hexTokenUriDebug",
-                message: `contract=${idToToken[token.id].contract}, tokenId=${
-                  idToToken[token.id].tokenId
-                }, uri=${uri}`,
-              })
+            uri = uri.replace(
+              "{id}",
+              Number(idToToken[token.id].tokenId).toString(16).padStart(64, "0")
             );
+          } else if (uri.endsWith("/{id}.json")) {
+            uri = uri.replace("{id}", idToToken[token.id].tokenId);
           }
 
           return {
@@ -355,12 +357,17 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       tokenURI: metadata.uri,
       tokenId: metadata.tokenId,
       collection: _.toLower(metadata.contract),
-      name: metadata?.name || null,
+      name: metadata?.name || metadata?.tokenName || null,
       flagged: null,
       // Token descriptions are a waste of space for most collections we deal with
       // so by default we ignore them (this behaviour can be overridden if needed).
       description: metadata.description || null,
-      imageUrl: normalizeLink(metadata?.image) || normalizeLink(metadata?.image_url) || null,
+      imageUrl:
+        normalizeLink(metadata?.image) ||
+        normalizeLink(metadata?.image_url) ||
+        normalizeLink(metadata?.imageUrl) ||
+        normalizeLink(metadata?.image_data) ||
+        null,
       imageOriginalUrl: metadata?.image || metadata?.image_url || null,
       animationOriginalUrl: metadata?.animation_url || null,
       mediaUrl: normalizeLink(metadata?.animation_url) || null,
@@ -649,26 +656,26 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      const tokenMetadataIndexingDebug = await redis.sismember(
-        "metadata-indexing-debug-contracts",
-        contract
-      );
+      let tokenMetadataIndexingDebug = 0;
 
-      if (tokenMetadataIndexingDebug) {
-        logger.info(
-          "getTokenMetadataFromURI",
-          JSON.stringify({
-            topic: "tokenMetadataIndexingDebug",
-            message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
-          })
+      if ([1, 137, 11155111].includes(config.chainId)) {
+        tokenMetadataIndexingDebug = await redis.sismember(
+          "metadata-indexing-debug-contracts",
+          contract
         );
+
+        if (tokenMetadataIndexingDebug) {
+          logger.info(
+            "getTokenMetadataFromURI",
+            JSON.stringify({
+              topic: "tokenMetadataIndexingDebug",
+              message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
+            })
+          );
+        }
       }
 
-      if (uri.startsWith("json:")) {
-        uri = uri.replace("json:\n", "");
-      }
-
-      uri = this.parseIPFSURI(uri);
+      uri = uri.trim();
 
       if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");
@@ -679,11 +686,31 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [JSON.parse(uri), null];
       }
 
-      uri = uri.trim();
+      if (uri.startsWith("{") && uri.endsWith("}")) {
+        try {
+          return [JSON.parse(uri), null];
+        } catch {
+          return [null, "Invalid URI"];
+        }
+      }
+
+      if (uri.startsWith("json:")) {
+        uri = uri.replace("json:\n", "");
+      }
+
+      if (uri.startsWith("ar://")) {
+        uri = uri.replace("ar://", "https://arweave.net/");
+      }
+
+      uri = this.parseIPFSURI(uri);
 
       if (!uri.startsWith("http")) {
         // if the uri is not a valid url, return null
         return [null, "Invalid URI"];
+      }
+
+      if (uri.includes("ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
+        uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
       }
 
       return axios
@@ -694,6 +721,26 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         })
         .then((res) => {
           if (res.data !== null && typeof res.data === "object") {
+            if (
+              config.chainId === 1 &&
+              contract === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401" &&
+              "message" in res.data
+            ) {
+              logger.info(
+                "getTokenMetadataFromURI",
+                JSON.stringify({
+                  topic: "tokenMetadataIndexingDebug",
+                  message: `ENS Invalid response. contract=${contract}, tokenId=${tokenId}`,
+                  contract,
+                  tokenId,
+                  uri,
+                  resData: res.data,
+                })
+              );
+
+              return [null, 404];
+            }
+
             return [res.data, null];
           }
 

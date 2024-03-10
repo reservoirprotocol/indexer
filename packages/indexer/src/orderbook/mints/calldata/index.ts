@@ -375,7 +375,7 @@ export const generateCollectionMintTxData = async (
 
   let price = collectionMint.price;
 
-  // Compute the price just-in-time
+  // For DA mints, compute the price just-in-time
   if (
     collectionMint.standard === "artblocks" &&
     (collectionMint.details.info as mints.artblocks.Info).daConfig
@@ -383,6 +383,12 @@ export const generateCollectionMintTxData = async (
     price = await mints.artblocks.getPrice(
       (collectionMint.details.info as mints.artblocks.Info).daConfig!
     );
+  }
+  if (
+    collectionMint.standard === "highlightxyz" &&
+    (collectionMint.details.info as mints.highlightxyz.Info).pricePeriodDuration
+  ) {
+    price = await mints.highlightxyz.getPrice(collectionMint);
   }
 
   // If the price is not available on the main `CollectionMint`
@@ -482,6 +488,14 @@ export const refreshMintsForCollection = async (collection: string) => {
 
       case "bueno":
         await mints.bueno.refreshByCollection(collection);
+        break;
+
+      case "fairxyz":
+        await mints.fairxyz.refreshByCollection(collection);
+        break;
+
+      case "fabric":
+        await mints.fabric.refreshByCollection(collection);
         break;
     }
   }

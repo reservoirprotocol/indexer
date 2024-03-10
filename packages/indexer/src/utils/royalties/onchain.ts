@@ -17,8 +17,10 @@ import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 // deduce the percentage taken as royalties from that
 const DEFAULT_PRICE = "1000000000000000000";
 
-// Assume there are no per-token royalties but everything is per-contract
-export const refreshRegistryRoyalties = async (collection: string) => {
+// EIP2981 or Registry
+type Spec = "eip2981" | "onchain";
+
+export const refreshOnChainRoyalties = async (collection: string, spec: Spec) => {
   try {
     // Fetch the collection's contract
     const collectionResult = await idb.oneOrNone(
@@ -50,8 +52,9 @@ export const refreshRegistryRoyalties = async (collection: string) => {
 
     // Get the royalties of all selected tokens
     const tokenRoyalties = await Promise.all(
-      tokenResults.map(async (r) => getRegistryRoyalties(token, r.token_id))
+      tokenResults.map(async (r) => getOnChainRoyalties(token, r.token_id, spec))
     );
+
     const uniqueRoyalties = _.uniqBy(tokenRoyalties, (r) => stringify(r));
 
     let latestRoyalties: Royalty[] = [];
@@ -69,7 +72,7 @@ export const refreshRegistryRoyalties = async (collection: string) => {
 
       try {
         const randomTokenId = String(Math.floor(Math.random() * 10000000000000));
-        const randomTokenRoyalties = await getRegistryRoyalties(token, randomTokenId);
+        const randomTokenRoyalties = await getOnChainRoyalties(token, randomTokenId, spec);
         if (uniqueRoyalties.find((r) => stringify(r) === stringify(randomTokenRoyalties))) {
           latestRoyalties = randomTokenRoyalties;
         } else {
@@ -82,20 +85,16 @@ export const refreshRegistryRoyalties = async (collection: string) => {
     }
 
     // Save the retrieved royalty spec
-    await updateRoyaltySpec(
-      collection,
-      "onchain",
-      latestRoyalties.length ? latestRoyalties : undefined
-    );
+    await updateRoyaltySpec(collection, spec, latestRoyalties.length ? latestRoyalties : undefined);
   } catch {
     // Skip errors
   }
 };
 
-const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
+const internalGetOnChainRoyalties = async (token: string, tokenId: string, spec: Spec) => {
   const latestRoyalties: Royalty[] = [];
 
-  if (Sdk.Common.Addresses.RoyaltyEngine[config.chainId]) {
+  if (spec === "onchain" && Sdk.Common.Addresses.RoyaltyEngine[config.chainId]) {
     // When configured / available, use the royalty engine
 
     const royaltyEngine = new Contract(
@@ -135,7 +134,7 @@ const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
         "getRegistryRoyalties",
         JSON.stringify({
           topic: "debugRoyalties",
-          message: `Error. token=${token}, tokenId=${tokenId}, error=${error}`,
+          message: `Error. token=${token}, tokenId=${tokenId}, spec=${spec}, error=${error}`,
         })
       );
     }
@@ -177,15 +176,15 @@ const internalGetRegistryRoyalties = async (token: string, tokenId: string) => {
   return latestRoyalties;
 };
 
-export const getRegistryRoyalties = async (contract: string, tokenId: string) => {
-  const cacheKey = `token-royalties:${contract}:${tokenId}`;
+export const getOnChainRoyalties = async (contract: string, tokenId: string, spec: Spec) => {
+  const cacheKey = `token-royalties:${spec}:${contract}:${tokenId}`;
 
   let result = await redis
     .get(cacheKey)
     .then((r) => (r ? (JSON.parse(r) as Royalty[]) : undefined));
 
   if (!result) {
-    result = await internalGetRegistryRoyalties(contract, tokenId);
+    result = await internalGetOnChainRoyalties(contract, tokenId, spec);
     await redis.set(cacheKey, JSON.stringify(result), "EX", 5 * 60);
   }
 

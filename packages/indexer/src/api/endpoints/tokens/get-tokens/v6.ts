@@ -37,6 +37,7 @@ import * as AsksIndex from "@/elasticsearch/indexes/asks";
 import { OrderComponents } from "@reservoir0x/sdk/dist/seaport-base/types";
 import { hasExtendCollectionHandler } from "@/metadata/extend";
 import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
+import ResyncAttributeCacheJob from "@/jobs/update-attribute/resync-attribute-cache-job";
 
 const version = "v6";
 
@@ -330,6 +331,10 @@ export const getTokensV6Options: RouteOptions = {
                   createdAt: Joi.string(),
                 })
               )
+              .optional(),
+            decimals: Joi.number()
+              .allow(null)
+              .description("Can be set for ERC1155 tokens according to the standard")
               .optional(),
             mintStages: Joi.array().items(
               Joi.object({
@@ -1337,7 +1342,11 @@ export const getTokensV6Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const feeBreakdown = r.top_buy_fee_breakdown;
+        const feeBreakdown = r.top_buy_fee_breakdown?.map((f: any) => ({
+          kind: f.kind,
+          recipient: f.recipient,
+          bps: f.bps,
+        }));
 
         if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
           for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
@@ -1575,9 +1584,12 @@ export const getTokensV6Options: RouteOptions = {
                       value: attribute.value,
                       tokenCount: attribute.tokenCount,
                       onSaleCount: attribute.onSaleCount,
-                      floorAskPrice: attribute.floorAskPrice
-                        ? formatEth(attribute.floorAskPrice)
-                        : attribute.floorAskPrice,
+                      floorAskPrice:
+                        attribute.tokenCount > ResyncAttributeCacheJob.maxTokensPerAttribute
+                          ? null
+                          : attribute.floorAskPrice
+                          ? formatEth(attribute.floorAskPrice)
+                          : attribute.floorAskPrice,
                       topBidValue: attribute.topBidValue
                         ? formatEth(attribute.topBidValue)
                         : attribute.topBidValue,
@@ -2050,7 +2062,11 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
         fromBuffer(tokenResult.contract) == ask.contract && tokenResult.token_id == ask.token.id
     );
 
-    const feeBreakdown = r.top_buy_fee_breakdown;
+    const feeBreakdown = r.top_buy_fee_breakdown?.map((f: any) => ({
+      kind: f.kind,
+      recipient: f.recipient,
+      bps: f.bps,
+    }));
 
     if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
       for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
@@ -2276,22 +2292,24 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
                       value: attribute.value,
                       tokenCount: attribute.tokenCount,
                       onSaleCount: attribute.onSaleCount,
-                      floorAskPrice: attribute.floorAskValue
-                        ? await getJoiPriceObject(
-                            {
-                              gross: {
-                                amount: String(
-                                  attribute.floorAskCurrencyValue ?? attribute.floorAskValue
-                                ),
-                                nativeAmount: String(attribute.floorAskValue),
+                      floorAskPrice:
+                        attribute.tokenCount <= ResyncAttributeCacheJob.maxTokensPerAttribute &&
+                        attribute.floorAskValue
+                          ? await getJoiPriceObject(
+                              {
+                                gross: {
+                                  amount: String(
+                                    attribute.floorAskCurrencyValue ?? attribute.floorAskValue
+                                  ),
+                                  nativeAmount: String(attribute.floorAskValue),
+                                },
                               },
-                            },
-                            attribute.floorAskCurrency
-                              ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
-                              : Sdk.Common.Addresses.Native[config.chainId],
-                            query.displayCurrency
-                          )
-                        : null,
+                              attribute.floorAskCurrency
+                                ? _.replace(attribute.floorAskCurrency, "\\x", "0x")
+                                : Sdk.Common.Addresses.Native[config.chainId],
+                              query.displayCurrency
+                            )
+                          : null,
                       topBidValue: attribute.topBidValue
                         ? formatEth(attribute.topBidValue)
                         : attribute.topBidValue,
@@ -2314,6 +2332,7 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
                   }))
               : []
             : undefined,
+          decimals: !_.isNull(r.decimals) ? r.decimals : null,
           mintStages: r.mint_stages
             ? await Promise.all(
                 r.mint_stages.map(async (m: any) => ({

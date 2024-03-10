@@ -3,18 +3,38 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
 import { config } from "@/config/index";
+import { Sources } from "@/models/sources";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 import {
   ExternalTypedDataSigner,
   getExternalCosigner,
 } from "@/utils/offchain-cancel/external-cosign";
 
+export const getOrderSource = async (id: string) => {
+  const order = await idb.oneOrNone(
+    "SELECT orders.source_id_int FROM orders WHERE orders.id = $/id/",
+    { id }
+  );
+
+  const sources = await Sources.getInstance();
+  const source = sources.get(order.source_id_int);
+
+  return source;
+};
+
 // Reuse the cancellation format of `seaport` orders
-export const generateOffChainCancellationSignatureData = (orderIds: string[]) => {
+export const generateOffChainCancellationSignatureData = async (orderIds: string[]) => {
+  const orderSource = await getOrderSource(orderIds[0]);
+
+  const domainName =
+    orderSource && orderSource.metadata && orderSource.metadata.adminTitle
+      ? orderSource.metadata.adminTitle
+      : "Off-Chain Cancellation";
+
   return {
     signatureKind: "eip712",
     domain: {
-      name: "Off-Chain Cancellation",
+      name: domainName,
       version: "1.0.0",
       chainId: config.chainId,
     },
@@ -26,12 +46,12 @@ export const generateOffChainCancellationSignatureData = (orderIds: string[]) =>
   };
 };
 
-export const verifyOffChainCancellationSignature = (
+export const verifyOffChainCancellationSignature = async (
   orderIds: string[],
   signature: string,
   signer: string
 ) => {
-  const message = generateOffChainCancellationSignatureData(orderIds);
+  const message = await generateOffChainCancellationSignatureData(orderIds);
   const recoveredSigner = verifyTypedData(message.domain, message.types, message.value, signature);
   return recoveredSigner.toLowerCase() === signer.toLowerCase();
 };
@@ -45,7 +65,7 @@ export const doCancel = async ({
   signature: string;
   maker: string;
 }) => {
-  const success = verifyOffChainCancellationSignature(orderIds, signature, maker);
+  const success = await verifyOffChainCancellationSignature(orderIds, signature, maker);
   if (!success) {
     throw new Error("Cancellation failed");
   }

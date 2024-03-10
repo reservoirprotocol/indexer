@@ -44,6 +44,7 @@ export default class FixTokensMissingCollectionJob extends AbstractRabbitMqJobHa
             tokenId: token.token_id,
             contract: fromBuffer(token.contract),
             mintedTimestamp: token.minted_timestamp || now(),
+            context: this.queueName,
           });
         }
       }

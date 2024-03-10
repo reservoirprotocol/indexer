@@ -8,6 +8,7 @@ import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { OrderKind } from "@/orderbook/orders";
 import { getTokenMetadata } from "./utils";
+import { Assets } from "@/utils/assets";
 
 export type SaleWebsocketEventsTriggerQueueJobPayload = {
   data: SaleWebsocketEventInfo;
@@ -37,6 +38,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
 
     try {
       const r = await getTokenMetadata(data.after.token_id, data.after.contract);
+
       const result = await getJoiSaleObject({
         prices: {
           gross: {
@@ -61,7 +63,7 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         contract: toBuffer(data.after.contract),
         tokenId: data.after.token_id,
         name: r?.name,
-        image: r?.image,
+        image: Assets.getResizedImageUrl(r?.image, undefined, r?.image_version, r?.image_mime_type),
         collectionId: r?.collection_id,
         collectionName: r?.collection_name,
         washTradingScore: data.after.wash_trading_score,

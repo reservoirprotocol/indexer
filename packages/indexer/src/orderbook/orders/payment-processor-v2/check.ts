@@ -1,5 +1,6 @@
 import * as Sdk from "@reservoir0x/sdk";
 
+import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
@@ -27,6 +28,26 @@ export const offChainCheck = async (
   if (!kind) {
     throw new Error("invalid-target");
   }
+  if (!["erc1155", "erc721", "erc721-like"].includes(kind)) {
+    throw new Error("invalid-target");
+  }
+  if (
+    ["erc1155"].includes(kind) &&
+    ![
+      Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_OR_KILL,
+      Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+    ].includes(order.params.protocol)
+  ) {
+    throw new Error("invalid-target");
+  }
+  if (
+    ["erc721", "erc721-like"].includes(kind) &&
+    ![Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC721_FILL_OR_KILL].includes(
+      order.params.protocol
+    )
+  ) {
+    throw new Error("invalid-target");
+  }
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
@@ -39,6 +60,56 @@ export const offChainCheck = async (
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
     if (quantityFilled.gte(order.params.amount)) {
       throw new Error("filled");
+    }
+
+    if (
+      order.params.protocol === Sdk.PaymentProcessorV2.Types.OrderProtocols.ERC1155_FILL_PARTIAL
+    ) {
+      try {
+        const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+        const result = await exchange.contract
+          .connect(baseProvider)
+          .remainingFillableQuantity(order.params.sellerOrBuyer, order.hashDigest());
+        if (result.state === 0 && result.remainingFillableQuantity.gt(0)) {
+          await idb.none(
+            `
+              UPDATE orders SET
+                quantity_remaining = $/quantityRemaining/,
+                quantity_filled = $/quantityFilled/,
+                updated_at = now()
+              WHERE orders.id = $/id/
+                AND orders.quantity_remaining != $/quantityRemaining/
+                AND orders.quantity_filled != $/quantityFilled/
+            `,
+            {
+              id,
+              quantityRemaining: result.remainingFillableQuantity.toString(),
+              quantityFilled: bn(order.params.amount)
+                .sub(result.remainingFillableQuantity)
+                .toString(),
+            }
+          );
+        } else if (result.state === 1) {
+          await idb.none(
+            `
+              UPDATE orders SET
+                fillability_status = 'filled',
+                quantity_remaining = $/quantityRemaining/,
+                quantity_filled = $/quantityFilled/,
+                updated_at = now()
+              WHERE orders.id = $/id/
+                AND orders.fillability_status = 'fillable'
+            `,
+            {
+              id,
+              quantityRemaining: 0,
+              quantityFilled: order.params.amount,
+            }
+          );
+        }
+      } catch {
+        // Skip errors
+      }
     }
   }
 

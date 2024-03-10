@@ -4,6 +4,7 @@ import _ from "lodash";
 import axios from "axios";
 import slugify from "slugify";
 import { CollectionMetadata, TokenMetadata } from "@/metadata/types";
+import { logger } from "@/common/logger";
 
 export const extendCollection = async (metadata: CollectionMetadata, _tokenId = null) => {
   if (!_tokenId || isNaN(Number(_tokenId))) {
@@ -39,31 +40,48 @@ export const extend = async (metadata: TokenMetadata) => {
   const startTokenId = metadata.tokenId - (metadata.tokenId % 1000000);
   const endTokenId = startTokenId + 1000000 - 1;
 
-  const url = `https://token.artblocks.io/${metadata.tokenId}`;
-  const { data } = await axios.get(url);
+  try {
+    const url = `https://token.artblocks.io/${metadata.tokenId}`;
+    const { data } = await axios.get(url);
 
-  const imageUrl = metadata.imageUrl ?? data.image;
-  const mediaUrl = metadata.mediaUrl ?? data.animation_url ?? data.generator_url;
+    const imageUrl = metadata.imageUrl ?? data.image;
+    const mediaUrl = metadata.mediaUrl ?? data.animation_url ?? data.generator_url;
 
-  const attributes = [];
+    const attributes = [];
 
-  if (data.features) {
-    // Add None value for core traits
-    for (const [key, value] of Object.entries(data.features)) {
-      attributes.push({
-        key,
-        rank: 1,
-        value,
-        kind: "string",
-      });
+    if (data.features) {
+      // Add None value for core traits
+      for (const [key, value] of Object.entries(data.features)) {
+        attributes.push({
+          key,
+          rank: 1,
+          value,
+          kind: "string",
+        });
+      }
     }
+
+    return {
+      ...metadata,
+      attributes,
+      imageUrl,
+      mediaUrl,
+      collection: _.toLower(`${metadata.contract}:${startTokenId}:${endTokenId}`),
+    };
+  } catch (error) {
+    logger.error(
+      "artblocks-fetcher",
+      JSON.stringify({
+        message: `fetchToken get json error. error:${error}`,
+        contract: metadata.contract,
+        tokenId: metadata.tokenId,
+        error,
+      })
+    );
   }
 
   return {
     ...metadata,
-    attributes,
-    imageUrl,
-    mediaUrl,
     collection: _.toLower(`${metadata.contract}:${startTokenId}:${endTokenId}`),
   };
 };

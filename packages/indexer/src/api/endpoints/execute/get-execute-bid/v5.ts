@@ -19,12 +19,14 @@ import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { FeeRecipients } from "@/models/fee-recipients";
+import { Sources } from "@/models/sources";
 import { getExecuteError } from "@/orderbook/orders/errors";
 import { OrderKind, checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import * as e from "@/utils/auth/erc721c";
 import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
+import { checkAddressIsBlockedByOFAC } from "@/utils/ofac";
 import { getEphemeralPermit, getEphemeralPermitId, saveEphemeralPermit } from "@/utils/permits";
 
 // Blur
@@ -311,6 +313,24 @@ export const getExecuteBidV5Options: RouteOptions = {
         nonce?: string;
         usePermit?: string;
       }[];
+
+      // Source restrictions
+      if (source) {
+        const sources = await Sources.getInstance();
+        const sourceObject = sources.getByDomain(source);
+        if (sourceObject && sourceObject.metadata?.allowedApiKeys?.length) {
+          const key = request.headers["x-api-key"];
+          const apiKey = await ApiKeyManager.getApiKey(key);
+          if (!apiKey || !sourceObject.metadata.allowedApiKeys.includes(apiKey.key)) {
+            throw Boom.unauthorized("Restricted source");
+          }
+        }
+      }
+
+      // OFAC blocklist
+      if (await checkAddressIsBlockedByOFAC(maker)) {
+        throw Boom.unauthorized("Address is blocked by OFAC");
+      }
 
       // Set up generic bid steps
       let steps: {
@@ -605,6 +625,22 @@ export const getExecuteBidV5Options: RouteOptions = {
             }
           } catch (error) {
             return errors.push({ message: (error as any).message, orderIndex: i });
+          }
+
+          // PPv2 restrictions
+          try {
+            if (params.orderKind === "payment-processor-v2" && process.env.PP_V2_ALLOWED_KEYS) {
+              const ppv2AllowedKeys = JSON.parse(process.env.PP_V2_ALLOWED_KEYS) as string[];
+              if (!apiKey || !ppv2AllowedKeys.includes(apiKey.key)) {
+                return errors.push({
+                  message:
+                    "Unable to create Payment Processor order. Please change orderKind or contact Reservoir team for access.",
+                  orderIndex: i,
+                });
+              }
+            }
+          } catch {
+            // Skip errors
           }
 
           // Only single-contract token sets are biddable

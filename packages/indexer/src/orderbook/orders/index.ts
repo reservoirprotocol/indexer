@@ -38,10 +38,11 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { CollectionMintStandard } from "@/orderbook/mints";
+import * as paymentProcessorV2BuildUtils from "@/orderbook/orders/payment-processor-v2/build/utils";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as offchainCancel from "@/utils/offchain-cancel";
 import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 // Whenever a new order kind is added, make sure to also include an
 // entry/implementation in the below types/methods in order to have
@@ -669,6 +670,7 @@ export const generateBidDetailsV6 = async (
         sdkOrder.buildMatching({
           tokenId: common.tokenId,
           amount: common.amount ?? 1,
+          ...extraArgs,
         })
       );
 
@@ -771,6 +773,7 @@ export const generateBidDetailsV6 = async (
         sdkOrder.buildMatching({
           tokenId: common.tokenId,
           amount: common.amount ?? 1,
+          ...extraArgs,
         })
       );
 
@@ -916,8 +919,8 @@ export const generateBidDetailsV6 = async (
         ...common,
         order: sdkOrder,
         extraArgs: {
-          maxRoyaltyFeeNumerator: await registry
-            .getRegistryRoyalties(common.contract, common.tokenId)
+          maxRoyaltyFeeNumerator: await onchain
+            .getOnChainRoyalties(common.contract, common.tokenId, "onchain")
             .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
         },
       };
@@ -983,8 +986,8 @@ export const generateBidDetailsV6 = async (
         order: sdkOrder,
         extraArgs: {
           ...extraArgs,
-          maxRoyaltyFeeNumerator: await registry
-            .getRegistryRoyalties(common.contract, common.tokenId)
+          maxRoyaltyFeeNumerator: await paymentProcessorV2BuildUtils
+            .getRoyaltiesToBePaid(common.contract, common.tokenId)
             .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
         },
       };
@@ -1028,10 +1031,10 @@ export const checkBlacklistAndFallback = async (
     ["reservoir"].includes(params.orderbook) &&
     seaportIsBlocked
   ) {
-    params.orderKind = "payment-processor-v2";
+    params.orderKind = "payment-processor";
   }
 
-  // Fallback to Seaport if when PaymentProcessor is blocked
+  // Fallback to Seaport when PaymentProcessor is blocked
   if (
     ["payment-processor-v2"].includes(params.orderKind) &&
     ["reservoir"].includes(params.orderbook)
@@ -1041,8 +1044,9 @@ export const checkBlacklistAndFallback = async (
     ]);
 
     // https://linear.app/reservoir/issue/PRO-1163/failing-ppv1-purchase
-    const isBlockedCustom =
-      config.chainId === 137 && collection === "0xdbc52cd5b8eda1a7bcbabb838ca927d23e3673e5";
+    // const isBlockedCustom =
+    //   config.chainId === 137 && collection === "0xdbc52cd5b8eda1a7bcbabb838ca927d23e3673e5";
+    const isBlockedCustom = false;
 
     if (isBlocked || isBlockedCustom) {
       if (!seaportIsBlocked) {

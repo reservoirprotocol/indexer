@@ -73,6 +73,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Unsupported currency");
       }
 
+      const kind = await commonHelpers.getContractKind(pool.nft);
+      if (kind !== "erc721") {
+        throw new Error("Unsupported token kind");
+      }
+
       // Force recheck at most once per hour
       const recheckCondition = orderParams.forceRecheck
         ? `AND orders.updated_at < to_timestamp(${orderParams.txTimestamp - 3600})`

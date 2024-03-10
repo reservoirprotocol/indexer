@@ -1,7 +1,7 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import { parseEther } from "@ethersproject/units";
 import { Wallet } from "@ethersproject/wallet";
-import { getCallTrace, getStateChange } from "@georgeroman/evm-tx-simulator";
+import { getCallTrace, getStateChange, getPayments } from "@georgeroman/evm-tx-simulator";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { bn, now } from "@/common/utils";
@@ -35,7 +35,8 @@ export const ensureBuyTxSucceeds = async (
       data: tx.data,
       value: tx.value ?? 0,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         [taker]: tx.value ?? 0,
       },
@@ -54,11 +55,26 @@ export const ensureBuyTxSucceeds = async (
   }
 
   const result = getStateChange(callTrace);
-
   if (
     result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
     bn(token.amount).toString()
   ) {
+    // Support for non-standard tokens (ERC404)
+    const payments = getPayments(callTrace);
+    const relatedPayments = payments.filter((p) => {
+      return (
+        p.token.toLowerCase().includes(token.contract) &&
+        p.to.toLowerCase() === taker &&
+        p.amount === token.tokenId
+      );
+    });
+    if (bn(relatedPayments.length).toString() === bn(token.amount).toString()) {
+      return {
+        result: true,
+        callTrace,
+      };
+    }
+
     return {
       result: false,
       callTrace,
@@ -89,7 +105,8 @@ export const ensureSellTxSucceeds = async (
       data: tx.data,
       value: 0,
       gas: 10000000,
-      gasPrice: 0,
+      maxFeePerGas: 0,
+      maxPriorityFeePerGas: 0,
       balanceOverrides: {
         // For gas cost
         [taker]: parseEther("0.1"),
@@ -114,6 +131,22 @@ export const ensureSellTxSucceeds = async (
     result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
     bn(token.amount).mul(-1).toString()
   ) {
+    // Support for non-standard tokens (ERC404)
+    const payments = getPayments(callTrace);
+    const relatedPayments = payments.filter((p) => {
+      return (
+        p.token.toLowerCase().includes(token.contract) &&
+        p.from.toLowerCase() == taker &&
+        p.amount === token.tokenId
+      );
+    });
+    if (bn(relatedPayments.length).toString() === bn(token.amount).toString()) {
+      return {
+        result: true,
+        callTrace,
+      };
+    }
+
     return {
       result: false,
       callTrace,

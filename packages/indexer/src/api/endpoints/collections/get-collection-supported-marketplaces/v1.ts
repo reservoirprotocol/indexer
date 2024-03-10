@@ -12,7 +12,7 @@ import { OrderKind } from "@/orderbook/orders";
 import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import * as registry from "@/utils/royalties/registry";
+import * as onchain from "@/utils/royalties/onchain";
 
 type PaymentToken = {
   address: string;
@@ -155,9 +155,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
       let defaultRoyalties = (collectionResult.royalties ?? []) as Royalty[];
       if (query.tokenId) {
-        defaultRoyalties = await registry.getRegistryRoyalties(
+        defaultRoyalties = await onchain.getOnChainRoyalties(
           fromBuffer(collectionResult.contract),
-          query.tokenId
+          query.tokenId,
+          "onchain"
         );
       }
 
@@ -325,8 +326,6 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           case 7777777:
           case 11155111:
           case 80001:
-          case 84531:
-          case 999:
           case 137: {
             supportedOrderbooks = ["reservoir", "opensea"];
             break;

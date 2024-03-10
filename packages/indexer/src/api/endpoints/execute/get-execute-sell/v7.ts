@@ -31,6 +31,7 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
+import { checkAddressIsBlockedByOFAC } from "@/utils/ofac";
 import * as onChainData from "@/utils/on-chain-data";
 import { getPersistentPermit } from "@/utils/permits";
 import { getPreSignatureId, getPreSignature, savePreSignature } from "@/utils/pre-signatures";
@@ -272,6 +273,25 @@ export const getExecuteSellV7Options: RouteOptions = {
         feesOnTop: ExecuteFee[];
       }[] = [];
 
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key);
+
+      // Source restrictions
+      if (payload.source) {
+        const sources = await Sources.getInstance();
+        const sourceObject = sources.getByDomain(payload.source);
+        if (sourceObject && sourceObject.metadata?.allowedApiKeys?.length) {
+          if (!apiKey || !sourceObject.metadata.allowedApiKeys.includes(apiKey.key)) {
+            throw Boom.unauthorized("Restricted source");
+          }
+        }
+      }
+
+      // OFAC blocklist
+      if (await checkAddressIsBlockedByOFAC(payload.taker)) {
+        throw Boom.unauthorized("Address is blocked by OFAC");
+      }
+
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
       const poolPrices: { [pool: string]: string[] } = {};
       // Keep track of the remaining quantities as orders are filled
@@ -398,14 +418,16 @@ export const getExecuteSellV7Options: RouteOptions = {
             const amount = formatPrice(rawAmount, currency.decimals);
 
             return {
-              ...f,
+              kind: f.kind,
+              recipient: f.recipient,
+              bps: f.bps,
               amount,
               rawAmount,
             };
           }),
           feesOnTop: [
             ...additionalFees.map((f) => ({
-              kind: "marketplace",
+              kind: "royalty",
               recipient: f.recipient,
               bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
               amount: formatPrice(f.amount, currency.decimals, true),
@@ -771,8 +793,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           let quantityToFill = item.quantity;
           let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            // To make sure we don't run into number overflow
+            const quantityRemaining = bn(result.quantity_remaining).gt(1000000)
+              ? 1000000
+              : Number(result.quantity_remaining);
+
             if (fromBuffer(result.maker) === payload.taker) {
-              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              makerEqualsTakerQuantity += quantityRemaining;
               continue;
             }
 
@@ -822,7 +849,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
 
             // Account for the already filled order's quantity
-            let availableQuantity = Number(result.quantity_remaining);
+            let availableQuantity = quantityRemaining;
             if (quantityFilled[result.id]) {
               availableQuantity -= quantityFilled[result.id];
             }
@@ -1194,7 +1221,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           }
 
           // Force the client to poll
-          steps[3].items.push({
+          steps[2].items.push({
             status: "incomplete",
             tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
@@ -1480,8 +1507,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         })
       );
 
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
       logger.info(
         `get-execute-sell-${version}-handler`,
         JSON.stringify({

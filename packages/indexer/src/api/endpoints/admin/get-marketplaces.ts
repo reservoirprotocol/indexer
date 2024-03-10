@@ -133,8 +133,6 @@ export const getMarketplaces: RouteOptions = {
         case 7777777:
         case 11155111:
         case 80001:
-        case 84531:
-        case 999:
         case 137: {
           listableOrderbooks = ["reservoir", "opensea"];
           break;

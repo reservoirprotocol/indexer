@@ -40,6 +40,10 @@ export const decrypt = (text: string) => {
   return decryptedAsset.toString();
 };
 
+export const sha256 = (text: string): string => {
+  return crypto.createHash("sha256").update(text).digest("hex");
+};
+
 // --- Buffers ---
 
 export const fromBuffer = (buffer: Buffer) => "0x" + buffer.toString("hex");
@@ -60,6 +64,10 @@ export const safeOracleTimestamp = async () => {
   const latestBlockNumber = await baseProvider.getBlockNumber();
   const block = await baseProvider.getBlock(latestBlockNumber - 2);
   return block.timestamp;
+};
+
+export const delay = async (ms: number) => {
+  return await new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 // --- Misc ---

@@ -854,6 +854,30 @@ export const deleteActivitiesById = async (ids: string[]): Promise<void> => {
   }
 };
 
+export const getActivityById = async (id: string): Promise<ActivityDocument | undefined> => {
+  let activityDocument;
+
+  try {
+    const response = await elasticsearch.get<ActivityDocument>({
+      index: config.chainId === 1 ? "mainnet.activities-1702050564025" : INDEX_NAME,
+      id,
+    });
+
+    activityDocument = response._source;
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "getActivityById",
+        id,
+        error,
+      })
+    );
+  }
+
+  return activityDocument;
+};
+
 export const search = async (
   params: {
     types?: ActivityType[];
@@ -872,7 +896,8 @@ export const search = async (
     excludeSpam?: boolean;
     excludeNsfw?: boolean;
   },
-  debug = false
+  debug = false,
+  indexName?: string
 ): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
   const esQuery = {};
   params.sortDirection = params.sortDirection ?? "desc";
@@ -1011,7 +1036,8 @@ export const search = async (
         search_after: searchAfter?.length ? searchAfter : undefined,
       },
       0,
-      debug
+      debug,
+      indexName
     );
 
     const activities: ActivityDocument[] = esResult.hits.hits.map((hit) => hit._source!);
@@ -1059,13 +1085,14 @@ export const _search = async (
     track_total_hits?: boolean;
   },
   retries = 0,
-  debug = false
+  debug = false,
+  indexName?: string
 ): Promise<SearchResponse<ActivityDocument, Record<string, AggregationsAggregate>>> => {
   try {
     params.track_total_hits = params.track_total_hits ?? false;
 
     const esResult = await elasticsearch.search<ActivityDocument>({
-      index: INDEX_NAME,
+      index: indexName ?? INDEX_NAME,
       ...params,
     });
 
@@ -1079,6 +1106,7 @@ export const _search = async (
           retries,
           esResult: debug ? esResult : undefined,
           params: debug ? params : undefined,
+          indexName,
         })
       );
     }
@@ -1100,6 +1128,7 @@ export const _search = async (
           },
           error,
           retries,
+          indexName,
         })
       );
 
@@ -1118,6 +1147,7 @@ export const _search = async (
           },
           error,
           retries,
+          indexName,
         })
       );
 
@@ -1133,6 +1163,7 @@ export const _search = async (
           },
           error,
           retries,
+          indexName,
         })
       );
     }

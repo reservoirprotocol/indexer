@@ -6,6 +6,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
+import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
@@ -556,6 +557,15 @@ export const postOrderV4Options: RouteOptions = {
 
             case "payment-processor": {
               if (orderbook !== "reservoir") {
+                logger.debug(
+                  `post-order-${version}-handler`,
+                  JSON.stringify({
+                    message: `[${order.kind}] Order save result.`,
+                    orderKind: order.kind,
+                    resultStatus: "unsupported-orderbook",
+                  })
+                );
+
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
@@ -568,6 +578,16 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessor.save([orderInfo]);
+
+              logger.debug(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  message: `[${order.kind}] Order save result: ${JSON.stringify(result)}`,
+                  orderKind: order.kind,
+                  resultStatus: result.status,
+                })
+              );
+
               if (["already-exists", "success"].includes(result.status)) {
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {
@@ -577,6 +597,15 @@ export const postOrderV4Options: RouteOptions = {
 
             case "payment-processor-v2": {
               if (orderbook !== "reservoir") {
+                logger.debug(
+                  `post-order-${version}-handler`,
+                  JSON.stringify({
+                    message: `[${order.kind}] Order save result.`,
+                    orderKind: order.kind,
+                    resultStatus: "unsupported-orderbook",
+                  })
+                );
+
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
@@ -589,7 +618,36 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessorV2.save([orderInfo]);
+
+              logger.debug(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  message: `[${order.kind}] Order save result: ${JSON.stringify(result)}`,
+                  orderKind: order.kind,
+                  resultStatus: result.status,
+                })
+              );
+
               if (["already-exists", "success"].includes(result.status)) {
+                try {
+                  const response = await inject({
+                    method: "POST",
+                    url: "/management/orders/simulate/v1",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    payload: {
+                      id: result.id,
+                    },
+                  });
+                  logger.info(
+                    "validate-order-on-creation",
+                    JSON.stringify({ id: result.id, response: response.payload })
+                  );
+                } catch {
+                  // Skip errors
+                }
+
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
               } else {
                 return results.push({ message: result.status, orderIndex: i, orderId: result.id });

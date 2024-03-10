@@ -499,7 +499,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const feeBreakdown = r.fee_breakdown;
+        const feeBreakdown = r.fee_breakdown?.map((f: any) => ({
+          kind: f.kind,
+          recipient: f.recipient,
+          bps: f.bps,
+        }));
+
         let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
