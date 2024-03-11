@@ -13,7 +13,7 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 }
 
 export const build = async (options: BuildOrderOptions) => {
-  const builder = new Sdk.PaymentProcessorV201.Builders.TokenList(config.chainId);
+  const builder = new Sdk.PaymentProcessorBase.Builders.TokenList(config.chainId);
 
   if (!(options.collection && options.attributes)) {
     throw new Error("Could not generate build info");
@@ -88,9 +88,12 @@ export const build = async (options: BuildOrderOptions) => {
     }
   );
 
-  return builder?.build({
-    ...buildInfo.params,
-    beneficiary: options.maker,
-    tokenIds: tokens.map(({ token_id }) => token_id),
-  });
+  return builder?.build(
+    {
+      ...buildInfo.params,
+      beneficiary: options.maker,
+      tokenIds: tokens.map(({ token_id }) => token_id),
+    },
+    Sdk.PaymentProcessorV201.Order
+  );
 };

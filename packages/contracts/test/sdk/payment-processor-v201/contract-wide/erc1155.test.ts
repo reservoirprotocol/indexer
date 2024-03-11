@@ -6,6 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { constants } from "ethers";
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
 
 import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
@@ -57,7 +58,7 @@ describe("PaymentProcessorV201 - ContractWide ERC1155", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.ContractWide(chainId);
+    const builder = new Builders.ContractWide(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -74,7 +75,7 @@ describe("PaymentProcessorV201 - ContractWide ERC1155", () => {
       nonce: "0",
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);

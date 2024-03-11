@@ -4,6 +4,7 @@ import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import * as Sdk from "@reservoir0x/sdk/src";
 import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -49,7 +50,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -66,7 +67,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -111,7 +112,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       beneficiary: buyer.address,
@@ -128,7 +129,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
       masterNonce: buyerMasterNonce,
     };
 
-    const buyOrder = builder.build(orderParameters);
+    const buyOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
 
     await buyOrder.sign(buyer);
 
@@ -172,7 +173,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -189,7 +190,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -211,7 +212,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();
@@ -313,7 +314,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       beneficiary: buyer.address,
@@ -330,7 +331,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
       masterNonce: buyerMasterNonce,
     };
 
-    const buyOrder = builder.build(orderParameters);
+    const buyOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
 
     await buyOrder.sign(buyer);
 
@@ -353,7 +354,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
       masterNonce: buyerMasterNonce,
     };
 
-    const buyOrder2 = builder.build(orderParameters2);
+    const buyOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
 
     await buyOrder2.sign(buyer);
 
@@ -447,7 +448,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -464,7 +465,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -486,7 +487,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();
@@ -563,7 +564,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -580,7 +581,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -604,7 +605,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const fee1 = bn(550);
 
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();
@@ -688,7 +689,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -706,7 +707,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -753,7 +754,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -770,7 +771,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -794,7 +795,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const fee1 = bn(550);
 
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();
@@ -883,7 +884,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -900,7 +901,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -921,7 +922,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
       masterNonce: sellerMasterNonce,
     };
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();
@@ -1006,7 +1007,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -1023,7 +1024,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     };
 
     // Build sell order
-    const sellOrder = builder.build(orderParameters);
+    const sellOrder = builder.build(orderParameters, PaymentProcessorV201.Order);
     await sellOrder.sign(seller);
 
     sellOrder.checkSignature();
@@ -1047,7 +1048,7 @@ describe("PaymentProcessorV201 - SingleToken Erc721", () => {
     const fee1 = bn(550);
 
     // Build sell order
-    const sellOrder2 = builder.build(orderParameters2);
+    const sellOrder2 = builder.build(orderParameters2, PaymentProcessorV201.Order);
     await sellOrder2.sign(seller);
 
     sellOrder2.checkSignature();

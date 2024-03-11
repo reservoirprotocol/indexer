@@ -5,7 +5,7 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const buyListingERC721: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-buy-listing-erc721",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xffb29e9cf48456d56b6d414855b66a7ec060ce2054dcb124a1876310e1b7355c",
@@ -24,7 +24,7 @@ export const buyListingERC721: EventData = {
 };
 
 export const buyListingERC1155: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-buy-listing-erc1155",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x1217006325a98bdcc6afc9c44965bb66ac7460a44dc57c2ac47622561d25c45a",
@@ -44,7 +44,7 @@ export const buyListingERC1155: EventData = {
 };
 
 export const acceptOfferERC721: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-accept-offer-erc721",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x8b87c0b049fe52718fe6ff466b514c5a93c405fb0de8fbd761a23483f9f9e198",
@@ -63,7 +63,7 @@ export const acceptOfferERC721: EventData = {
 };
 
 export const acceptOfferERC1155: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-accept-offer-erc1155",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x6f4c56c4b9a9d2479f963d802b19d17b02293ce1225461ac0cb846c482ee3c3e",
@@ -83,7 +83,7 @@ export const acceptOfferERC1155: EventData = {
 };
 
 export const masterNonceInvalidated: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-master-nonce-invalidated",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xb06d2760711c1c15c05bc011b1009a36c0713c6d63567c267678c3a382188b61",
@@ -97,7 +97,7 @@ export const masterNonceInvalidated: EventData = {
 };
 
 export const nonceInvalidated: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-nonce-invalidated",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xf3003920635c7d35c4f314eaeeed4b4c653ccb36608a86d57df761d460eab09d",
@@ -112,7 +112,7 @@ export const nonceInvalidated: EventData = {
 };
 
 export const orderDigestInvalidated: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-order-digest-invalidated",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xc63c82396a1b7865295ff481988a98493c2c3cc29066c229b8001c6f5dd647a9",
@@ -127,7 +127,7 @@ export const orderDigestInvalidated: EventData = {
 };
 
 export const paymentMethodAddedToWhitelist: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-payment-method-added-to-whitelist",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xab066026be9f5f930c1018a7e9eeddf7921b9026531b1b9935a66eb62d163fe8",
@@ -141,7 +141,7 @@ export const paymentMethodAddedToWhitelist: EventData = {
 };
 
 export const paymentMethodRemovedFromWhitelist: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-payment-method-removed-from-whitelist",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xf156bd3efe5d358c94cc34b12810b94f524f03ef4e7f71158e22b6775ef75ba3",
@@ -155,7 +155,7 @@ export const paymentMethodRemovedFromWhitelist: EventData = {
 };
 
 export const updatedCollectionLevelPricingBoundaries: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-updated-collection-level-pricing-boundaries",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xdd61e240b8302b21ad48e3bec0f6e9538c9e4cfffdfde6d604963069d7e23c34",
@@ -170,7 +170,7 @@ export const updatedCollectionLevelPricingBoundaries: EventData = {
 };
 
 export const updatedCollectionPaymentSettings: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-updated-collection-payment-settings",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xe6a4f8022c953d2d77979a9c33363936fafc1dcadec52ae9af45b6d3f17973d3",
@@ -192,7 +192,7 @@ export const updatedCollectionPaymentSettings: EventData = {
 };
 
 export const updatedTokenLevelPricingBoundaries: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-updated-token-level-pricing-boundaries",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x38d88037c7f872f6e5d89332cdae804370cd604776bfcabf8da1f2e11945e271",
@@ -208,7 +208,7 @@ export const updatedTokenLevelPricingBoundaries: EventData = {
 };
 
 export const trustedChannelRemovedForCollection: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-trusted-channel-removed-for-collection",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x0a96ed211f335f5d4fe7b4fa19c97f07198b6582d6ae3ef987740c0798de3c18",
@@ -222,7 +222,7 @@ export const trustedChannelRemovedForCollection: EventData = {
 };
 
 export const trustedChannelAddedForCollection: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-trusted-channel-added-for-collection",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x5ad5afe7f91207e8a3eba0274c5fb0599a0cc2b72709ec47fa5e157ae8375ba5",
@@ -236,7 +236,7 @@ export const trustedChannelAddedForCollection: EventData = {
 };
 
 export const bannedAccountAddedForCollection: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-banned-account-added-for-collection",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xf46e1c40f2a6333765b4c7487d9c4bf60e83908611b41b15903e6a506e4ee63b",
@@ -250,7 +250,7 @@ export const bannedAccountAddedForCollection: EventData = {
 };
 
 export const bannedAccountRemovedForCollection: EventData = {
-  kind: "payment-processor-v2.0.1",
+  kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-banned-account-removed-for-collection",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xc9f167828587c3dee35aac91efcb05ed56a669e13fded989727888b812c24389",
@@ -258,6 +258,20 @@ export const bannedAccountRemovedForCollection: EventData = {
   abi: new Interface([
     `event BannedAccountRemovedForCollection(
       address indexed tokenAddress, 
+      address indexed account
+    )`,
+  ]),
+};
+
+export const nonceRestored: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2.0.1-nonce-restored",
+  addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x86983746fe0ad3ad6fceb2a9aa2d498430d4343ec3c8fead646124f0615f4ba6",
+  numTopics: 3,
+  abi: new Interface([
+    `event NonceRestored(
+      uint256 indexed nonce, 
       address indexed account
     )`,
   ]),

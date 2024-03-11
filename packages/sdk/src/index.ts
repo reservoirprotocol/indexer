@@ -52,6 +52,7 @@ import * as ArtBlocks from "./artblocks";
 import * as Mooar from "./mooar";
 import * as HighlightXyz from "./highlightxyz";
 import * as FairXyz from "./fairxyz";
+import * as PaymentProcessorBase from "./payment-processor-base";
 import * as PaymentProcessorV201 from "./payment-processor-v2.0.1";
 
 export {
@@ -111,5 +112,6 @@ export {
   Mooar,
   HighlightXyz,
   FairXyz,
+  PaymentProcessorBase,
   PaymentProcessorV201,
 };

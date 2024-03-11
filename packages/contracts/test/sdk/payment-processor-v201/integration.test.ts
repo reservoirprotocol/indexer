@@ -10,7 +10,7 @@ import { expect } from "chai";
 import chalk from "chalk";
 import { ethers } from "hardhat";
 import { constants } from "ethers";
-
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
 import * as indexerHelper from "../../indexer-helper";
 import { getChainId, getCurrentTimestamp, setupNFTs } from "../../utils";
 
@@ -43,6 +43,7 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
     isListing = false,
     bulkCancel = false,
     executeByRouterAPI = false,
+    failed = false,
   }) => {
     const buyer = alice;
     const seller = bob;
@@ -75,7 +76,7 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
     const orderParameters = {
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       beneficiary: buyer.address,
@@ -91,7 +92,7 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
       masterNonce: buyerMasterNonce,
     };
 
-    let order = builder.build(orderParameters);
+    let order = builder.build(orderParameters, PaymentProcessorV201.Order);
     // let matchOrder = order.buildMatching({
     //   taker: seller.address,
     //   takerMasterNonce: sellerMasterNonce,
@@ -114,7 +115,7 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
         paymentMethod: constants.AddressZero,
         masterNonce: sellerMasterNonce,
       };
-      order = builder.build(listingParams);
+      order = builder.build(listingParams, PaymentProcessorV201.Order);
       // matchOrder = order.buildMatching({
       //   taker: buyer.address,
       //   takerMasterNonce: buyerMasterNonce,
@@ -244,15 +245,29 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
 
     await order.checkFillability(ethers.provider);
 
+    // Lock transfer
+    if (failed) {
+      console.log('lock token')
+      await erc721.lock();
+      console.log('locked', await erc721.locked())
+    }
+
     // Fill Order
 
     let fillTxHash: string | null = null;
 
     if (!executeByRouterAPI) {
-      const tx = await exchange.fillOrder(!isListing ? seller : buyer, order, {
-        taker: isListing ? buyer.address : seller.address,
-      });
-      await tx.wait();
+      const taker = !isListing ? seller : buyer;
+      const txData = await exchange.fillOrdersTx(await taker.getAddress(), [
+        order
+      ],  [
+        {
+          taker: isListing ? buyer.address : seller.address,
+        }
+      ]);
+      delete txData.gas;
+      const tx = await taker.sendTransaction(txData);
+      // await tx.wait();
       fillTxHash = tx.hash;
     } else {
       if (!isListing) {
@@ -371,9 +386,16 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
 
   // it("Fill offer", async () => testCase({}));
 
-  it("Fill listing", async () =>
+  // it("Fill listing", async () =>
+  //   testCase({
+  //     isListing: true,
+  //   }));
+
+
+  it("Fill listing and failed", async () =>
     testCase({
       isListing: true,
+      failed: true
     }));
 
   // it("Fill listing with bulk Cancel", async () =>

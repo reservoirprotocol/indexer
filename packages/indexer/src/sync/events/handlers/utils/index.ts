@@ -69,6 +69,7 @@ export type OnChainData = {
   cancelEventsOnChain: es.cancels.Event[];
   bulkCancelEvents: es.bulkCancels.Event[];
   nonceCancelEvents: es.nonceCancels.Event[];
+  nonceRestoreEvents: es.nonceCancels.Event[];
 
   // Approvals
   // Due to some complexities around them, ft approvals are handled
@@ -107,6 +108,7 @@ export const initOnChainData = (): OnChainData => ({
   cancelEventsOnChain: [],
   bulkCancelEvents: [],
   nonceCancelEvents: [],
+  nonceRestoreEvents: [],
 
   nftApprovalEvents: [],
 
@@ -176,7 +178,19 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     es.cancels.addEvents(data.cancelEvents),
     es.cancels.addEventsOnChain(data.cancelEventsOnChain),
     es.bulkCancels.addEvents(data.bulkCancelEvents),
-    es.nonceCancels.addEvents(data.nonceCancelEvents),
+    es.nonceCancels.addEvents(
+      // Remove restored events
+      data.nonceCancelEvents.filter((c) => {
+        const nonceRestore = data.nonceRestoreEvents.find((d) => {
+          return (
+            d.baseEventParams.txHash === c.baseEventParams.txHash &&
+            d.maker === c.maker &&
+            d.nonce === c.nonce
+          );
+        });
+        return !nonceRestore;
+      })
+    ),
     es.nftApprovals.addEvents(data.nftApprovalEvents),
     es.ftTransfers.addEvents(data.ftTransferEvents, Boolean(backfill)),
     es.nftTransfers.addEvents(data.nftTransferEvents, Boolean(backfill)),

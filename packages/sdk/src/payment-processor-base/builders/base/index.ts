@@ -1,8 +1,8 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 
-import { Order } from "../../order";
-import { OrderProtocols, MatchedOrder } from "../../../payment-processor-base/types";
+import { IOrder } from "../../order";
+import { OrderProtocols, MatchedOrder, BaseOrder } from "../../types";
 import { getCurrentTimestamp, getRandomBytes } from "../../../utils";
 
 export type MatchingOptions = {
@@ -54,7 +54,17 @@ export abstract class BaseBuilder {
     params.s = params.s ?? HashZero;
   }
 
-  public abstract isValid(order: Order): boolean;
-  public abstract build(params: BaseBuildParams): Order;
-  public abstract buildMatching(order: Order, options: MatchingOptions): MatchedOrder;
+  // public abstract isValid(order: IOrder): boolean;
+  // public abstract build(params: BaseBuildParams): IOrder;
+  public abstract isValid<T extends IOrder>(
+    order: IOrder,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): boolean;
+
+  public abstract build<T extends IOrder>(
+    params: BaseBuildParams,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): T;
+
+  public abstract buildMatching(order: IOrder, options: MatchingOptions): MatchedOrder;
 }

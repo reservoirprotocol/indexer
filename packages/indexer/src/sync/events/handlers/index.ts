@@ -58,7 +58,6 @@ import * as ditto from "@/events-sync/handlers/ditto";
 import * as mooar from "@/events-sync/handlers/mooar";
 import * as fairxyz from "@/events-sync/handlers/fairxyz";
 import * as operatorFilter from "@/events-sync/handlers/operator-filter";
-import * as paymentProcessorV201 from "@/events-sync/handlers/payment-processor-v2.0.1";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -129,7 +128,6 @@ export const eventKindToHandler = new Map<
   ["highlightxyz", (e, d) => highlightxyz.handleEvents(e, d)],
   ["fairxyz", (e, d) => fairxyz.handleEvents(e, d)],
   ["operator-filter", (e) => operatorFilter.handleEvents(e)],
-  ["payment-processor-v2.0.1", (e, d) => paymentProcessorV201.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

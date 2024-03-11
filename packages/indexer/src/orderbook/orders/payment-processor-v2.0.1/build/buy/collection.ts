@@ -1,5 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/payment-processor-v2.0.1/builders/base";
+import { BaseBuilder } from "@reservoir0x/sdk/dist/payment-processor-base/builders/base";
 
 import { redb } from "@/common/db";
 import { config } from "@/config/index";
@@ -34,6 +34,6 @@ export const build = async (options: BuildOrderOptions) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (buildInfo.params as any).beneficiary = options.maker;
 
-  const builder: BaseBuilder = new Sdk.PaymentProcessorV201.Builders.ContractWide(config.chainId);
-  return builder.build(buildInfo.params);
+  const builder: BaseBuilder = new Sdk.PaymentProcessorBase.Builders.ContractWide(config.chainId);
+  return builder.build(buildInfo.params, Sdk.PaymentProcessorV201.Order);
 };

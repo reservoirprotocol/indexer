@@ -12,7 +12,7 @@ import {
   orderUpdatesByIdJob,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { getRoyaltiesToBePaid } from "@/orderbook/orders/payment-processor-v2.0.1/build/utils";
-import { offChainCheck } from "@/orderbook/orders/payment-processor-v2.0.1/check";
+import { offChainCheck } from "@/orderbook/orders/payment-processor-base/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as erc721c from "@/utils/erc721c";
@@ -215,7 +215,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        const exchange = new Sdk.PaymentProcessorV201.Exchange(config.chainId);
+        await offChainCheck(order, "payment-processor-v2.0.1", exchange, {
+          onChainApprovalRecheck: true,
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future

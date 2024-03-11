@@ -2,24 +2,28 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 
 import { BaseBuildParams, BaseBuilder } from "../base";
-import { MatchedOrder } from "../../../payment-processor-base/types";
-import { Order } from "../../order";
+import { IOrder } from "../../order";
+import { MatchedOrder, BaseOrder } from "../../types";
 import { s } from "../../../utils";
 
 interface BuildParams extends BaseBuildParams {
-  tokenId: BigNumberish;
-  beneficiary?: string;
+  beneficiary: string;
 }
 
-export class SingleTokenBuilder extends BaseBuilder {
-  public isValid(order: Order): boolean {
+export class ContractWideBuilder extends BaseBuilder {
+  public isValid<T extends IOrder>(
+    order: IOrder,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): boolean {
     try {
-      const copyOrder = this.build({
-        ...order.params,
-        maker: order.params.sellerOrBuyer,
-        tokenId: order.params.tokenId!,
-        beneficiary: order.params.beneficiary ?? undefined,
-      });
+      const copyOrder = this.build(
+        {
+          ...order.params,
+          maker: order.params.sellerOrBuyer,
+          beneficiary: order.params.beneficiary!,
+        },
+        orderBuilder
+      );
 
       if (!copyOrder) {
         return false;
@@ -35,33 +39,29 @@ export class SingleTokenBuilder extends BaseBuilder {
     return true;
   }
 
-  public build(params: BuildParams) {
+  public build<T extends IOrder>(
+    params: BuildParams,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): T {
     this.defaultInitialize(params);
 
-    const kind = params.beneficiary ? "item-offer-approval" : "sale-approval";
-
-    return new Order(this.chainId, {
-      kind,
+    return new orderBuilder(this.chainId, {
+      kind: "collection-offer-approval",
       protocol: params.protocol,
       cosigner: params.cosigner,
       sellerOrBuyer: params.maker,
       marketplace: params.marketplace ?? AddressZero,
+      fallbackRoyaltyRecipient: params.fallbackRoyaltyRecipient ?? AddressZero,
       paymentMethod: params.paymentMethod,
       tokenAddress: params.tokenAddress,
       amount: s(params.amount),
       itemPrice: s(params.itemPrice),
       expiration: s(params.expiration),
-      fallbackRoyaltyRecipient: params.fallbackRoyaltyRecipient ?? AddressZero,
       marketplaceFeeNumerator: s(params.marketplaceFeeNumerator ?? "0"),
       nonce: s(params.nonce),
       masterNonce: s(params.masterNonce),
 
-      maxRoyaltyFeeNumerator:
-        kind === "sale-approval" ? s(params.maxRoyaltyFeeNumerator ?? "0") : undefined,
-
       beneficiary: params.beneficiary ?? undefined,
-
-      tokenId: s(params.tokenId),
 
       v: params.v,
       r: params.r,
@@ -70,13 +70,15 @@ export class SingleTokenBuilder extends BaseBuilder {
   }
 
   public buildMatching(
-    order: Order,
+    order: IOrder,
     options: {
       taker: string;
       amount?: BigNumberish;
+      tokenId?: BigNumberish;
       maxRoyaltyFeeNumerator?: BigNumberish;
     }
   ): MatchedOrder {
+    order.params.tokenId = options.tokenId!.toString();
     return order.getMatchedOrder(options.taker, options);
   }
 }

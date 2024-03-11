@@ -117,8 +117,7 @@ export type EventKind =
   | "titlesxyz"
   | "ditto"
   | "highlightxyz"
-  | "fairxyz"
-  | "payment-processor-v2.0.1";
+  | "fairxyz";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -386,7 +385,8 @@ export type EventSubKind =
   | "payment-processor-v2.0.1-trusted-channel-removed-for-collection"
   | "payment-processor-v2.0.1-trusted-channel-added-for-collection"
   | "payment-processor-v2.0.1-banned-account-removed-for-collection"
-  | "payment-processor-v2.0.1-banned-account-added-for-collection";
+  | "payment-processor-v2.0.1-banned-account-added-for-collection"
+  | "payment-processor-v2.0.1-nonce-restored";
 
 export type EventData = {
   kind: EventKind;
@@ -660,6 +660,7 @@ const allEventData = [
   paymentProcessorV201.trustedChannelRemovedForCollection,
   paymentProcessorV201.bannedAccountAddedForCollection,
   paymentProcessorV201.bannedAccountRemovedForCollection,
+  paymentProcessorV201.nonceRestored,
 ];
 
 // Array of all addresses we're syncing events for

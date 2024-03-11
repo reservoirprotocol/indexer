@@ -3,7 +3,7 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
-import { Builders } from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -75,7 +75,7 @@ describe("PaymentProcessorV201 - TokenList Erc721", () => {
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
       tokenIds: boughtTokenIds,
-    });
+    }, PaymentProcessorV201.Order);
 
     await buyOrder.sign(buyer);
     buyOrder.checkSignature();

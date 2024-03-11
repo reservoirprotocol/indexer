@@ -228,13 +228,13 @@ export abstract class PaymentProcessorBaseExchange {
       }[];
     }
   ): TxData {
-    if (orders.length === 1) {
-      return this.fillOrderTx(taker, orders[0], matchOptions[0], {
-        trustedChannel: options?.trustedChannel,
-        source: options?.source,
-        fee: options?.fees?.length ? options.fees[0] : undefined,
-      });
-    }
+    // if (orders.length === 1) {
+    //   return this.fillOrderTx(taker, orders[0], matchOptions[0], {
+    //     trustedChannel: options?.trustedChannel,
+    //     source: options?.source,
+    //     fee: options?.fees?.length ? options.fees[0] : undefined,
+    //   });
+    // }
 
     const sender = options?.relayer ?? taker;
 

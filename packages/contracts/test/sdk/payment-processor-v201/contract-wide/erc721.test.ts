@@ -2,6 +2,8 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
+
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -50,7 +52,7 @@ describe("PaymentProcessorV201 - ContractWide - ERC721", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.ContractWide(chainId);
+    const builder = new Builders.ContractWide(chainId);
     const buyOrder = builder.build({
       protocol: PaymentProcessorV201.Types.OrderProtocols.ERC721_FILL_OR_KILL,
       marketplace: constants.AddressZero,
@@ -65,7 +67,9 @@ describe("PaymentProcessorV201 - ContractWide - ERC721", () => {
       nonce: "0",
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    },
+      PaymentProcessorV201.Order
+    );
 
     await buyOrder.sign(buyer);
 

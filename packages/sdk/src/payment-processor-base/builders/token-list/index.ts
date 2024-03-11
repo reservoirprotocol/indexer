@@ -5,8 +5,8 @@ import { keccak256 } from "@ethersproject/keccak256";
 import MerkleTree from "merkletreejs";
 
 import { BaseBuildParams, BaseBuilder } from "../base";
-import { Order } from "../../order";
-import { MatchedOrder } from "../../../payment-processor-base/types";
+import { IOrder } from "../../order";
+import { MatchedOrder, BaseOrder } from "../../types";
 import * as common from "../../../common/helpers/merkle";
 import { s } from "../../../utils";
 
@@ -33,15 +33,21 @@ interface BuildParams extends BaseBuildParams {
 }
 
 export class TokenListBuilder extends BaseBuilder {
-  public isValid(order: Order): boolean {
+  public isValid<T extends IOrder>(
+    order: IOrder,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): boolean {
     try {
       const params = order.params;
-      const copyOrder = this.build({
-        ...params,
-        maker: params.sellerOrBuyer,
-        beneficiary: params.beneficiary!,
-        tokenIds: [],
-      });
+      const copyOrder = this.build(
+        {
+          ...params,
+          maker: params.sellerOrBuyer,
+          beneficiary: params.beneficiary!,
+          tokenIds: [],
+        },
+        orderBuilder
+      );
 
       copyOrder.params.tokenSetMerkleRoot = params.tokenSetMerkleRoot!;
 
@@ -59,7 +65,10 @@ export class TokenListBuilder extends BaseBuilder {
     return true;
   }
 
-  public build(params: BuildParams) {
+  public build<T extends IOrder>(
+    params: BuildParams,
+    orderBuilder: { new (chainId: number, params: BaseOrder): T }
+  ): T {
     this.defaultInitialize(params);
 
     const tokenSetMerkleRoot =
@@ -69,7 +78,7 @@ export class TokenListBuilder extends BaseBuilder {
     const seaportStyleMerkleRoot =
       params.tokenSetMerkleRoot ?? common.generateMerkleTree(params.tokenIds).getHexRoot();
 
-    return new Order(this.chainId, {
+    return new orderBuilder(this.chainId, {
       kind: "token-set-offer-approval",
       protocol: params.protocol,
       cosigner: params.cosigner,
@@ -97,7 +106,7 @@ export class TokenListBuilder extends BaseBuilder {
   }
 
   public buildMatching(
-    order: Order,
+    order: IOrder,
     options: {
       taker: string;
       amount?: BigNumberish;

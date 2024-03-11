@@ -8,8 +8,8 @@ import { _TypedDataEncoder } from "@ethersproject/hash";
 import { verifyTypedData } from "@ethersproject/wallet";
 
 import * as Addresses from "./addresses";
-import { Builders } from "./builders";
-import { BaseBuilder, MatchingOptions } from "./builders/base";
+import { Builders } from "../payment-processor-base/builders";
+import { BaseBuilder, MatchingOptions } from "../payment-processor-base/builders/base";
 import * as Types from "../payment-processor-base/types";
 import * as Common from "../common";
 import { lc, s, n, bn, getCurrentTimestamp } from "../utils";
@@ -65,7 +65,7 @@ export class Order {
   }
 
   public checkValidity() {
-    if (!this.getBuilder().isValid(this)) {
+    if (!this.getBuilder().isValid(this, Order)) {
       throw new Error("Invalid order");
     }
   }

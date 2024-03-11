@@ -1,5 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/payment-processor-v2.0.1/builders/base";
+import { BaseBuilder } from "@reservoir0x/sdk/dist/payment-processor-base/builders/base";
 
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
@@ -34,10 +34,10 @@ export const build = async (options: BuildOrderOptions) => {
     throw new Error("Could not generate build info");
   }
 
-  const builder: BaseBuilder = new Sdk.PaymentProcessorV201.Builders.SingleToken(config.chainId);
+  const builder: BaseBuilder = new Sdk.PaymentProcessorBase.Builders.SingleToken(config.chainId);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (buildInfo.params as any).tokenId = options.tokenId;
 
-  return builder?.build(buildInfo.params);
+  return builder?.build(buildInfo.params, Sdk.PaymentProcessorV201.Order);
 };

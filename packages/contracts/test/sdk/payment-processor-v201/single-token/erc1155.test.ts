@@ -7,7 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { constants } from "ethers";
-
+import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
 import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
@@ -46,7 +46,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -62,7 +62,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: constants.AddressZero,
       masterNonce: sellerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     await sellOrder.sign(seller);
 
@@ -112,7 +112,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -129,7 +129,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -176,7 +176,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -192,7 +192,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: constants.AddressZero,
       masterNonce: sellerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     await sellOrder.sign(seller);
 
@@ -246,7 +246,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -263,7 +263,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -321,7 +321,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const buyerMasterNonce = await exchange.getMasterNonce(ethers.provider, buyer.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -338,7 +338,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -361,7 +361,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: Common.Addresses.WNative[chainId],
       masterNonce: buyerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     // Sign the order
     await buyOrder2.sign(buyer);
@@ -443,7 +443,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
 
-    const builder = new PaymentProcessorV201.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -459,7 +459,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: constants.AddressZero,
       masterNonce: sellerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     await sellOrder.sign(seller);
 
@@ -479,7 +479,7 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
       expiration: (blockTime + 60 * 60).toString(),
       paymentMethod: constants.AddressZero,
       masterNonce: sellerMasterNonce,
-    });
+    }, PaymentProcessorV201.Order);
 
     await sellOrder2.sign(seller);
 
@@ -538,5 +538,76 @@ describe("PaymentProcessorV201 - SingleToken Erc1155", () => {
     expect(sellerNftBalanceAfter).to.eq(2);
     expect(buyerNftBalanceAfter).to.eq(1);
     expect(receiveAmount).to.gte(price);
+  });
+
+  it("Build and fill sell order", async () => {
+    const buyer = alice;
+    const seller = bob;
+    const price = parseEther("1");
+    const soldTokenId = 1;
+
+    // Mint erc1155 to seller
+    await erc1155.connect(seller).mint(soldTokenId);
+
+    const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
+
+    // Approve the exchange
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
+
+    const exchange = new PaymentProcessorV201.Exchange(chainId);
+
+    const sellerMasterNonce = await exchange.getMasterNonce(ethers.provider, seller.address);
+    const blockTime = await getCurrentTimestamp(ethers.provider);
+
+    const builder = new Builders.SingleToken(chainId);
+
+    // Build sell order
+    const sellOrder = builder.build({
+      protocol: PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL,
+      marketplace: constants.AddressZero,
+      marketplaceFeeNumerator: "0",
+      maxRoyaltyFeeNumerator: "0",
+      maker: seller.address,
+      tokenAddress: erc1155.address,
+      tokenId: soldTokenId,
+      amount: "1",
+      itemPrice: price,
+      expiration: (blockTime + 60 * 60).toString(),
+      paymentMethod: constants.AddressZero,
+      masterNonce: sellerMasterNonce,
+    }, PaymentProcessorV201.Order);
+
+    await sellOrder.sign(seller);
+
+    sellOrder.checkSignature();
+    await sellOrder.checkFillability(ethers.provider);
+
+    // Create matching params
+    const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+
+    // Lock transfer
+    await erc1155.lock();
+    const txData = await exchange.fillOrdersTx(
+      await buyer.getAddress(), 
+      [sellOrder],
+      [{ taker: buyer.address, amount: 1 }]
+    );
+    delete txData.gas;
+    const tx = await buyer.sendTransaction({
+      ...txData,
+      gasLimit: 1000000
+    });
+    // console.log('tx', tx.hash)
+    // await exchange.fillOrder(buyer, sellOrder, {
+    //   taker: buyer.address,
+    // });
+    const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
+    const receiveAmount = sellerBalanceAfter.sub(sellerBalanceBefore);
+    const sellerNftBalanceAfter = await nft.getBalance(seller.address, soldTokenId);
+    const buyerNftBalanceAfter = await nft.getBalance(buyer.address, soldTokenId);
+
+    expect(sellerNftBalanceAfter).to.eq(1);
+    expect(buyerNftBalanceAfter).to.eq(0);
+    expect(receiveAmount).to.gte(0);
   });
 });
