@@ -58,6 +58,7 @@ import * as ditto from "@/events-sync/handlers/ditto";
 import * as mooar from "@/events-sync/handlers/mooar";
 import * as fairxyz from "@/events-sync/handlers/fairxyz";
 import * as operatorFilter from "@/events-sync/handlers/operator-filter";
+import { format } from "date-fns";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -219,6 +220,8 @@ export const processEventsBatchV2 = async (batches: EventsBatch[], backfill?: bo
   return {
     processLogsTime: endProcessLogsTime - startProcessLogsTime,
     saveOnChainDataTime: endSaveOnChainDataTime - startSaveOnChainDataTime,
+    startSaveOnChainDataTime: format(new Date(startSaveOnChainDataTime), "yyyy-MM-dd HH:mm:ss.SSS"),
+    endSaveOnChainDataTime: format(new Date(endSaveOnChainDataTime), "yyyy-MM-dd HH:mm:ss.SSS"),
     totalTime: endTime - startTime,
     latencies,
     processOnChainLatencies,
