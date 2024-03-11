@@ -376,6 +376,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       JSON.stringify({
         topic: "debugCDC",
         message: `addToQueue start.`,
+        events: JSON.stringify(events),
       })
     );
 
@@ -388,6 +389,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       JSON.stringify({
         topic: "debugCDC",
         message: `sendBatch.`,
+        events: JSON.stringify(events),
       })
     );
 
