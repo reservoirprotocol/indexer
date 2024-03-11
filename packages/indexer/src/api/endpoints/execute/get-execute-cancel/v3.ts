@@ -368,6 +368,25 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 },
               },
             });
+          }
+          if (kind === "payment-processor-v2.0.1") {
+            steps[1].items.push({
+              status: "incomplete",
+              orderIds,
+              data: {
+                sign: await offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
+                  orderIds.sort()
+                ),
+                post: {
+                  endpoint: "/execute/cancel-signature/v1",
+                  method: "POST",
+                  body: {
+                    orderIds: orderIds.sort(),
+                    orderKind: kind,
+                  },
+                },
+              },
+            });
           } else {
             steps[1].items.push({
               status: "incomplete",

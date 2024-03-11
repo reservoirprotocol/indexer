@@ -5,9 +5,9 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { ethers } from "hardhat";
-import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
 import { expect } from "chai";
+import { ethers } from "hardhat";
+
 import * as indexerHelper from "../../indexer-helper";
 import { getChainId, setupNFTs } from "../../utils";
 
@@ -46,15 +46,6 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
     // Mint erc721 to seller
     await erc721.connect(seller).mint(boughtTokenId);
 
-    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
-
-    // Approve the exchange contract for the buyer
-    await weth.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
-    await weth.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
-
-    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
-    await nft.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
-
     // Store collection
     await indexerHelper.doOrderSaving({
       contract: erc721.address,
@@ -64,14 +55,6 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
           collection: erc721.address,
           tokenId: boughtTokenId.toString(),
           owner: seller.address,
-          attributes: [
-            {
-              key: "Hello",
-              value: "world",
-              kind: "string",
-              rank: 1,
-            }
-          ]
         },
       ],
       orders: [],
@@ -89,12 +72,9 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
           orderbook: "reservoir",
           automatedRoyalties: true,
           excludeFlaggedTokens: false,
-          collection: erc721.address,
-          attributeKey: "Hello",
-          attributeValue: "world",
           currency: Common.Addresses.WNative[chainId],
           weiPrice: "1000000", // 1 USDC
-          // token: `${erc721.address}:${boughtTokenId}`,
+          token: `${erc721.address}:${boughtTokenId}`,
         },
       ],
       maker: buyer.address,
@@ -119,34 +99,42 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
     const postRequest = orderSignature2.data.post;
 
     const orderSaveResult = await indexerHelper.callStepAPI(
-      postRequest.endpoint,  
+      postRequest.endpoint,
       offerSignature,
       postRequest.body
     );
+
     const orderId = orderSaveResult.results[0].orderId;
+
     if (orderSaveResult.error) {
       return;
     }
 
-    const executeResponse = await indexerHelper.executeSellV7({
-      items: [
-        {
-          token: `${erc721.address}:${boughtTokenId}`,
-          quantity: 1,
-          orderId: orderId
-        },
-      ],
-      taker: seller.address,
-    });
-    const allSteps = executeResponse.steps;
-    const lastSetp = allSteps[allSteps.length - 1];
-    const transcation = lastSetp.items[0];
-    await seller.sendTransaction(transcation.data);
+    const cancelParams = {
+      orderIds: [orderId],
+      orderKind: "payment-processor-v2.0.1",
+    };
 
-    const ownerAfter = await nft.getOwner(boughtTokenId);
+    const cancelResponse = await indexerHelper.executeCancelV3(cancelParams);
 
-    expect(ownerAfter).to.eq(buyer.address);
+    const cancellationSignatureStep = cancelResponse.steps.find(
+      (c: any) => c.id === "cancellation-signature"
+    );
+    const cancellationSignature = cancellationSignatureStep.items[0];
+
+    {
+      const message = cancellationSignature.data.sign;
+      const signature = await buyer._signTypedData(message.domain, message.types, message.value);
+
+      const postRequest = cancellationSignature.data.post;
+      const saveResult = await indexerHelper.callStepAPI(
+        postRequest.endpoint,
+        signature,
+        postRequest.body
+      );
+      expect(saveResult.message).eq("Success");
+    }
   };
 
-  it("create tokenset bid and fill", async () => testCase());
+  it("create and offchain cancel", async () => testCase());
 });

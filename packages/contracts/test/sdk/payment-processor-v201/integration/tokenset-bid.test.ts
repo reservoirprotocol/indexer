@@ -5,11 +5,11 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { expect } from "chai";
 import { ethers } from "hardhat";
-
-import * as indexerHelper from "../../indexer-helper";
-import { getChainId, setupNFTs } from "../../utils";
+import * as PaymentProcessorV201 from "@reservoir0x/sdk/src/payment-processor-v2.0.1";
+import { expect } from "chai";
+import * as indexerHelper from "../../../indexer-helper";
+import { getChainId, setupNFTs } from "../../../utils";
 
 describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
   const chainId = getChainId();
@@ -46,6 +46,15 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
     // Mint erc721 to seller
     await erc721.connect(seller).mint(boughtTokenId);
 
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    // Approve the exchange contract for the buyer
+    await weth.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
+    await weth.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
+
+    await nft.approve(seller, PaymentProcessorV201.Addresses.Exchange[chainId]);
+    await nft.approve(buyer, PaymentProcessorV201.Addresses.Exchange[chainId]);
+
     // Store collection
     await indexerHelper.doOrderSaving({
       contract: erc721.address,
@@ -55,6 +64,14 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
           collection: erc721.address,
           tokenId: boughtTokenId.toString(),
           owner: seller.address,
+          attributes: [
+            {
+              key: "Hello",
+              value: "world",
+              kind: "string",
+              rank: 1,
+            }
+          ]
         },
       ],
       orders: [],
@@ -72,16 +89,18 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
           orderbook: "reservoir",
           automatedRoyalties: true,
           excludeFlaggedTokens: false,
+          collection: erc721.address,
+          attributeKey: "Hello",
+          attributeValue: "world",
           currency: Common.Addresses.WNative[chainId],
           weiPrice: "1000000", // 1 USDC
-          token: `${erc721.address}:${boughtTokenId}`,
+          // token: `${erc721.address}:${boughtTokenId}`,
         },
       ],
       maker: buyer.address,
     };
 
     const bidResponse = await indexerHelper.executeBidV5(bidParams);
-
     const saveOrderStep2 = bidResponse.steps.find((c: any) => c.id === "order-signature");
 
     if (!saveOrderStep2) {
@@ -89,6 +108,8 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
     }
 
     const orderSignature2 = saveOrderStep2.items[0];
+
+    console.log('orderSignature2', orderSignature2.data)
 
     const bidMessage = orderSignature2.data.sign;
     const offerSignature = await buyer._signTypedData(
@@ -100,41 +121,46 @@ describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
     const postRequest = orderSignature2.data.post;
 
     const orderSaveResult = await indexerHelper.callStepAPI(
-      postRequest.endpoint,
+      postRequest.endpoint,  
       offerSignature,
       postRequest.body
     );
+    console.log('orderSaveResult', orderSaveResult)
     const orderId = orderSaveResult.results[0].orderId;
-
     if (orderSaveResult.error) {
       return;
     }
 
-    const cancelParams = {
-      orderIds: [orderId],
-      orderKind: "payment-processor-v2.0.1",
-    };
-
-    const cancelResponse = await indexerHelper.executeCancelV3(cancelParams);
-
-    const cancellationSignatureStep = cancelResponse.steps.find(
-      (c: any) => c.id === "cancellation-signature"
-    );
-    const cancellationSignature = cancellationSignatureStep.items[0];
-
-    {
-      const message = cancellationSignature.data.sign;
-      const signature = await buyer._signTypedData(message.domain, message.types, message.value);
-
-      const postRequest = cancellationSignature.data.post;
-      const saveResult = await indexerHelper.callStepAPI(
-        postRequest.endpoint,
-        signature,
-        postRequest.body
-      );
-      expect(saveResult.message).eq("Success");
+    const executeResponse = await indexerHelper.executeSellV7({
+      items: [
+        {
+          token: `${erc721.address}:${boughtTokenId}`,
+          quantity: 1,
+          orderId: orderId
+        },
+      ],
+      taker: seller.address,
+    });
+    const allSteps = executeResponse.steps;
+    console.log('allSteps', allSteps)
+    for(const step of allSteps) {
+      for(const stepItem of step.items) {
+        if (step.kind === "transaction") {
+          delete stepItem.data.gas;
+          await seller.sendTransaction({
+            ...stepItem.data,
+            gasLimit: 1000000
+          });
+        }
+      }
     }
+    // const lastSetp = allSteps[allSteps.length - 1];
+    // const transcation = lastSetp.items[0];
+    // await seller.sendTransaction(transcation.data);
+    const ownerAfter = await nft.getOwner(boughtTokenId);
+
+    expect(ownerAfter).to.eq(buyer.address);
   };
 
-  it("create and offchain cancel", async () => testCase());
+  it("create tokenset bid and fill", async () => testCase());
 });

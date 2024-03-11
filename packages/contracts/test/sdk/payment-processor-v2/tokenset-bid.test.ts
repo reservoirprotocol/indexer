@@ -110,6 +110,7 @@ describe("PaymentProcessorV2 - OffChain Cancel Integration Test", () => {
     const orderSignature2 = saveOrderStep2.items[0];
 
     const bidMessage = orderSignature2.data.sign;
+    console.log('bidMessage', bidMessage)
     const offerSignature = await buyer._signTypedData(
       bidMessage.domain,
       bidMessage.types,
@@ -141,10 +142,15 @@ describe("PaymentProcessorV2 - OffChain Cancel Integration Test", () => {
     const allSteps = executeResponse.steps;
     const lastSetp = allSteps[allSteps.length - 1];
     const transcation = lastSetp.items[0];
-    await seller.sendTransaction(transcation.data);
+    for(const step of allSteps) {
+      for(const stepItem of step.items) {
+        if (step.kind === "transaction") {
+          await seller.sendTransaction(stepItem.data);
+        }
+      }
+    }
 
     const ownerAfter = await nft.getOwner(boughtTokenId);
-
     expect(ownerAfter).to.eq(buyer.address);
   };
 

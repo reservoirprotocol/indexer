@@ -356,7 +356,7 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
 
     console.log(green("\t Order Status: "));
     const finalOrderState = await indexerHelper.getOrder(orderInfo.id);
-    expect(finalOrderState.fillability_status).to.eq("filled");
+    expect(finalOrderState.fillability_status).to.eq(failed ? "fillable" : "filled");
     console.log(
       "\t\t - Final Order Status =",
       JSON.stringify({

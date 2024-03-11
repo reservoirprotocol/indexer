@@ -68,6 +68,7 @@ export const getBuildInfo = async (
     `,
     { collection }
   );
+
   if (!collectionResult) {
     // Skip if we cannot retrieve the collection
     throw new Error("Could not fetch token collection");

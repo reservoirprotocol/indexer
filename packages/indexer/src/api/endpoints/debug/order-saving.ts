@@ -99,12 +99,13 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
           $/contract/,
           $/tokenId/,
           $/mintedTimestamp/,
-          $/contract/
+          $/collection/
         ) 
         ON CONFLICT DO NOTHING RETURNING 1
       `,
       {
         contract: toBuffer(contract),
+        collection: contract,
         tokenId,
         mintedTimestamp: Math.floor(Date.now() / 1000),
       }
