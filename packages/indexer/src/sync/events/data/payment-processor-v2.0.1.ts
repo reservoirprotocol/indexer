@@ -276,3 +276,21 @@ export const nonceRestored: EventData = {
     )`,
   ]),
 };
+
+export const orderDigestItemsRestored: EventData = {
+  kind: "payment-processor-v2",
+  subKind: "payment-processor-v2.0.1-order-digest-items-restored",
+  addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x7fed039cebb7d71e588d4d88afbac9a77aeaa5787796c0d2187b64b70262f26c",
+  numTopics: 3,
+  abi: new Interface([
+    `event OrderDigestItemsRestored(
+      bytes32 indexed orderDigest, 
+      address indexed account, 
+      uint248 amountRestoredToOrder
+    )
+    `,
+  ]),
+};
+
+// console.log('orderDigestItemsRestored', orderDigestItemsRestored.abi.getEventTopic('OrderDigestItemsRestored'))

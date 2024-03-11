@@ -66,16 +66,29 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
+      // case "payment-processor-v2.0.1-order-digest-items-restored": {
+      //   const parsedLog = eventData.abi.parseLog(log);
+      //   const maker = parsedLog.args["account"].toLowerCase();
+      //   const orderDigest = parsedLog.args["orderDigest"].toString();
+      //   // onChainData.nonceRestoreEvents.push({
+      //   //   orderKind,
+      //   //   maker,
+      //   //   nonce,
+      //   //   baseEventParams,
+      //   // });
+      //   break;
+      // }
+
       // TODO: The `orderDigest` is not the order id, we should handle this
+      // case "payment-processor-v2.0.1-order-digest-invalidated":
       // case "payment-processor-v2-order-digest-invalidated": {
       //   const parsedLog = eventData.abi.parseLog(log);
       //   const orderId = parsedLog.args["orderDigest"].toLowerCase();
-
-      //   onChainData.cancelEvents.push({
-      //     orderKind: "payment-processor-v2",
-      //     orderId,
-      //     baseEventParams,
-      //   });
+      //   // onChainData.cancelEvents.push({
+      //   //   orderKind: "payment-processor-v2",
+      //   //   orderId,
+      //   //   baseEventParams,
+      //   // });
 
       //   break;
       // }

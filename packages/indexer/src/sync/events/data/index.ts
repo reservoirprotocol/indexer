@@ -386,7 +386,8 @@ export type EventSubKind =
   | "payment-processor-v2.0.1-trusted-channel-added-for-collection"
   | "payment-processor-v2.0.1-banned-account-removed-for-collection"
   | "payment-processor-v2.0.1-banned-account-added-for-collection"
-  | "payment-processor-v2.0.1-nonce-restored";
+  | "payment-processor-v2.0.1-nonce-restored"
+  | "payment-processor-v2.0.1-order-digest-items-restored";
 
 export type EventData = {
   kind: EventKind;
@@ -661,6 +662,7 @@ const allEventData = [
   paymentProcessorV201.bannedAccountAddedForCollection,
   paymentProcessorV201.bannedAccountRemovedForCollection,
   paymentProcessorV201.nonceRestored,
+  paymentProcessorV201.orderDigestItemsRestored,
 ];
 
 // Array of all addresses we're syncing events for
