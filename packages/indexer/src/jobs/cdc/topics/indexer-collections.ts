@@ -32,7 +32,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       "IndexerCollectionsHandler",
       JSON.stringify({
         topic: "debugCDC",
-        message: `handleInsert. collectionId=${payload.after.id}`,
+        message: `handleInsertV2. collectionId=${payload.after.id}`,
       })
     );
 
@@ -70,7 +70,7 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       "IndexerCollectionsHandler",
       JSON.stringify({
         topic: "debugCDC",
-        message: `handleUpdate. collectionId=${payload.after.id}`,
+        message: `handleUpdateV2. collectionId=${payload.after.id}`,
       })
     );
 
