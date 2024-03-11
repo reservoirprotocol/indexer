@@ -119,6 +119,14 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   public async process(payload: CollectionWebsocketEventsTriggerQueuePayload) {
     const { data } = payload;
 
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `process. collectionId=${payload.data.after.id}`,
+      })
+    );
+
     try {
       let contractKind = await redis.get(`contract-kind:${data.after.contract}`);
 
