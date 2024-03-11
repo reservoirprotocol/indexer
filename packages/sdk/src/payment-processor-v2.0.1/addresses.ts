@@ -11,3 +11,7 @@ export const Exchange: ChainIdToAddress = {
   [Network.Bsc]: "0x9a1d001670c8b17f8b7900e8d7a41e785b3f0515",
   [Network.PolygonZkevm]: "0x9a1d001670c8b17f8b7900e8d7a41e785b3f0515",
 };
+
+export const ReservoirTrustedForwarder: ChainIdToAddress = {
+  [Network.Ethereum]: "",
+};

@@ -37,7 +37,14 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid", "payment-processor-v2")
+        .valid(
+          "seaport-v1.4",
+          "seaport-v1.5",
+          "alienswap",
+          "blur-bid",
+          "payment-processor-v2",
+          "payment-processor-v2.0.1"
+        )
         .required()
         .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.5`"),
     }),
@@ -144,6 +151,38 @@ export const postCancelSignatureV1Options: RouteOptions = {
         }
 
         case "payment-processor-v2": {
+          const ordersResult = await idb.manyOrNone(
+            `
+              SELECT
+                orders.maker
+              FROM orders
+              WHERE orders.id IN ($/ids:list/)
+              ORDER BY orders.id
+            `,
+            { ids: orderIds }
+          );
+          if (ordersResult.length !== orderIds.length) {
+            throw Boom.badRequest("Could not find all relevant orders");
+          }
+
+          const maker = fromBuffer(ordersResult[0].maker);
+          if (!ordersResult.every((r) => fromBuffer(r.maker) === maker)) {
+            throw Boom.badRequest("Some or all of the orders have a different maker");
+          }
+
+          try {
+            await offchainCancel.paymentProcessorV2.doCancel({
+              orderIds,
+              signature,
+              maker,
+            });
+          } catch {
+            throw Boom.badRequest("Cancellation failed");
+          }
+          return { message: "Success" };
+        }
+
+        case "payment-processor-v2.0.1": {
           const ordersResult = await idb.manyOrNone(
             `
               SELECT

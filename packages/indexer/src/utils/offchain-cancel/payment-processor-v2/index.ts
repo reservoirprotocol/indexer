@@ -74,7 +74,7 @@ export const doCancel = async ({
   await saveOffChainCancellations(orderIds);
 };
 
-export const doSignOrder = async (order: Sdk.PaymentProcessorV2.Order, taker: string) => {
+export const doSignOrder = async (order: Sdk.PaymentProcessorBase.IOrder, taker: string) => {
   if (order.isCosignedOrder()) {
     const isOffChainCancelled = await idb.oneOrNone(
       `SELECT 1 FROM off_chain_cancellations WHERE order_id = $/orderId/`,

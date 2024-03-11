@@ -48,7 +48,8 @@ export const postOrderV4Options: RouteOptions = {
                   "x2y2",
                   "alienswap",
                   "payment-processor",
-                  "payment-processor-v2"
+                  "payment-processor-v2",
+                  "payment-processor-v2.0.1"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -617,6 +618,46 @@ export const postOrderV4Options: RouteOptions = {
               };
 
               const [result] = await orders.paymentProcessorV2.save([orderInfo]);
+
+              logger.debug(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  message: `[${order.kind}] Order save result: ${JSON.stringify(result)}`,
+                  orderKind: order.kind,
+                  resultStatus: result.status,
+                })
+              );
+
+              if (["already-exists", "success"].includes(result.status)) {
+                return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              } else {
+                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
+              }
+            }
+
+            case "payment-processor-v2.0.1": {
+              if (orderbook !== "reservoir") {
+                logger.debug(
+                  `post-order-${version}-handler`,
+                  JSON.stringify({
+                    message: `[${order.kind}] Order save result.`,
+                    orderKind: order.kind,
+                    resultStatus: "unsupported-orderbook",
+                  })
+                );
+
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderInfo: orders.paymentProcessorV201.OrderInfo = {
+                orderParams: order.data,
+                metadata: {
+                  schema,
+                  source,
+                },
+              };
+
+              const [result] = await orders.paymentProcessorV201.save([orderInfo]);
 
               logger.debug(
                 `post-order-${version}-handler`,

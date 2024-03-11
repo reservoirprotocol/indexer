@@ -37,6 +37,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
         "payment-processor-v2",
+        "payment-processor-v2.0.1",
         "rarible",
         "alienswap"
       ),
@@ -162,6 +163,12 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "payment-processor-v2": {
           const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
+          break;
+        }
+
+        case "payment-processor-v2.0.1": {
+          const exchange = new Sdk.PaymentProcessorV201.Exchange(config.chainId);
           cancelTx = exchange.revokeMasterNonceTx(payload.maker);
           break;
         }

@@ -16,6 +16,7 @@ import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as paymentProcessor from "@/utils/payment-processor";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
+import * as paymentProcessorV2Base from "@/utils/payment-processor-v2-base";
 
 import MetadataProviderRouter from "@/metadata/metadata-provider-router";
 import * as royalties from "@/utils/royalties";
@@ -30,7 +31,8 @@ import {
 } from "@/jobs/collection-updates/top-bid-collection-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 import { Contracts } from "@/models/contracts";
-
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
 import { AlchemyApi } from "@/utils/alchemy";
 import { AlchemySpamContracts } from "@/models/alchemy-spam-contracts";
 import {
@@ -318,6 +320,11 @@ export class Collections {
     await Promise.all([
       paymentProcessor.getConfigByContract(collection.contract, true),
       paymentProcessorV2.getConfigByContract(collection.contract, true),
+      paymentProcessorV2Base.getConfigByContract(
+        Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+        collection.contract,
+        true
+      ),
     ]);
   }
 

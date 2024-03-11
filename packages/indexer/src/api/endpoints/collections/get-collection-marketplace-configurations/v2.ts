@@ -15,6 +15,7 @@ import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as paymentProcessor from "@/utils/payment-processor";
 import * as paymentProcessorV2 from "@/utils/payment-processor-v2";
+import * as paymentProcessorV2Base from "@/utils/payment-processor-v2-base";
 import * as onchain from "@/utils/royalties/onchain";
 
 type PaymentToken = {
@@ -331,6 +332,18 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
               traitBidSupported: false,
               oracleEnabled: true,
             },
+            "payment-processor-v2.0.1": {
+              orderKind: "payment-processor-v2.0.1",
+              enabled: true,
+              customFeesSupported: true,
+              numFeesSupported: 1,
+              collectionBidSupported:
+                Number(collectionResult.token_count) <= config.maxTokenSetSize,
+              supportedBidCurrencies: ppSupportedBidCurrencies,
+              partialOrderSupported: collectionResult.contract_kind === "erc1155" ? true : false,
+              traitBidSupported: false,
+              oracleEnabled: true,
+            },
           },
         });
       }
@@ -519,6 +532,11 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
                   operators = [Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]];
                   break;
                 }
+
+                case "payment-processor-v2.0.1": {
+                  operators = [Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId]];
+                  break;
+                }
               }
 
               const exchangeBlocked = await checkMarketplaceIsFiltered(
@@ -560,6 +578,44 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
                 } else if (
                   settings?.paymentSettings ===
                   paymentProcessorV2.PaymentSettings.PricingConstraints
+                ) {
+                  paymentTokens = [settings.constrainedPricingPaymentMethod];
+                  exchange.maxPriceRaw = settings?.pricingBounds?.ceilingPrice;
+                  exchange.minPriceRaw = settings?.pricingBounds?.floorPrice;
+                }
+
+                exchange.paymentTokens = await Promise.all(
+                  paymentTokens.map(async (token) => {
+                    const paymentToken = await getCurrency(token);
+                    return {
+                      address: token,
+                      symbol: paymentToken.symbol,
+                      name: paymentToken.name,
+                      decimals: paymentToken.decimals,
+                    };
+                  })
+                );
+                exchange.supportedBidCurrencies = exchange.paymentTokens.filter(
+                  (p) => p.address !== Sdk.Common.Addresses.Native[config.chainId]
+                );
+              } else if (exchange.enabled && exchange.orderKind === "payment-processor-v2.0.1") {
+                const settings = await paymentProcessorV2Base.getConfigByContract(
+                  Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+                  params.collection
+                );
+
+                let paymentTokens = [Sdk.Common.Addresses.Native[config.chainId]];
+                if (
+                  settings &&
+                  [
+                    paymentProcessorV2Base.PaymentSettings.DefaultPaymentMethodWhitelist,
+                    paymentProcessorV2Base.PaymentSettings.CustomPaymentMethodWhitelist,
+                  ].includes(settings.paymentSettings)
+                ) {
+                  paymentTokens = settings.whitelistedPaymentMethods;
+                } else if (
+                  settings?.paymentSettings ===
+                  paymentProcessorV2Base.PaymentSettings.PricingConstraints
                 ) {
                   paymentTokens = [settings.constrainedPricingPaymentMethod];
                   exchange.maxPriceRaw = settings?.pricingBounds?.ceilingPrice;

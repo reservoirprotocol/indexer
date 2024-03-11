@@ -42,7 +42,7 @@ import { CollectionMintStandard } from "@/orderbook/mints";
 import * as paymentProcessorV2BuildUtils from "@/orderbook/orders/payment-processor-v2/build/utils";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 import * as offchainCancel from "@/utils/offchain-cancel";
-import * as paymentProcessorV2Utils from "@/utils/payment-processor-v2";
+import * as paymentProcessorV2BaseUtils from "@/utils/payment-processor-v2-base";
 import * as onchain from "@/utils/royalties/onchain";
 
 // Whenever a new order kind is added, make sure to also include an
@@ -523,7 +523,8 @@ export const generateListingDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
-      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+      const isBanned = await paymentProcessorV2BaseUtils.checkAccountIsBanned(
+        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         sdkOrder.params.tokenAddress,
         taker
       );
@@ -532,11 +533,13 @@ export const generateListingDetailsV6 = async (
       }
 
       const extraArgs: any = {};
-      const settings = await paymentProcessorV2Utils.getConfigByContract(
+      const settings = await paymentProcessorV2BaseUtils.getConfigByContract(
+        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
+        const trustedChannels = await paymentProcessorV2BaseUtils.getTrustedChannels(
+          Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -553,6 +556,49 @@ export const generateListingDetailsV6 = async (
 
       return {
         kind: "payment-processor-v2",
+        ...common,
+        extraArgs,
+        order: sdkOrder,
+      };
+    }
+
+    case "payment-processor-v2.0.1": {
+      const sdkOrder = new Sdk.PaymentProcessorV201.Order(config.chainId, order.rawData);
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
+
+      const isBanned = await paymentProcessorV2BaseUtils.checkAccountIsBanned(
+        Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
+
+      const extraArgs: any = {};
+      const settings = await paymentProcessorV2BaseUtils.getConfigByContract(
+        Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2BaseUtils.getTrustedChannels(
+          Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options.ppV2TrustedChannel;
+      } else {
+        extraArgs.trustedChannel =
+          Sdk.PaymentProcessorV201.Addresses.ReservoirTrustedForwarder[config.chainId];
+      }
+
+      return {
+        kind: "payment-processor-v2.0.1",
         ...common,
         extraArgs,
         order: sdkOrder,
@@ -932,7 +978,8 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.PaymentProcessorV2.Order(config.chainId, order.rawData);
       await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
 
-      const isBanned = await paymentProcessorV2Utils.checkAccountIsBanned(
+      const isBanned = await paymentProcessorV2BaseUtils.checkAccountIsBanned(
+        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         sdkOrder.params.tokenAddress,
         taker
       );
@@ -963,11 +1010,13 @@ export const generateBidDetailsV6 = async (
         extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
 
-      const settings = await paymentProcessorV2Utils.getConfigByContract(
+      const settings = await paymentProcessorV2BaseUtils.getConfigByContract(
+        Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
         sdkOrder.params.tokenAddress
       );
       if (settings?.blockTradesFromUntrustedChannels) {
-        const trustedChannels = await paymentProcessorV2Utils.getTrustedChannels(
+        const trustedChannels = await paymentProcessorV2BaseUtils.getTrustedChannels(
+          Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId],
           sdkOrder.params.tokenAddress
         );
         if (trustedChannels.length) {
@@ -984,6 +1033,76 @@ export const generateBidDetailsV6 = async (
 
       return {
         kind: "payment-processor-v2",
+        ...common,
+        order: sdkOrder,
+        extraArgs: {
+          ...extraArgs,
+          maxRoyaltyFeeNumerator: await paymentProcessorV2BuildUtils
+            .getRoyaltiesToBePaid(common.contract, common.tokenId)
+            .then((royalties) => royalties.map((r) => r.bps).reduce((a, b) => a + b, 0)),
+        },
+      };
+    }
+
+    case "payment-processor-v2.0.1": {
+      const sdkOrder = new Sdk.PaymentProcessorV201.Order(config.chainId, order.rawData);
+      await offchainCancel.paymentProcessorV2.doSignOrder(sdkOrder, taker);
+
+      const isBanned = await paymentProcessorV2BaseUtils.checkAccountIsBanned(
+        Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+        sdkOrder.params.tokenAddress,
+        taker
+      );
+      if (isBanned) {
+        throw new Error("Taker is banned");
+      }
+
+      const extraArgs: any = {};
+
+      if (sdkOrder.params.kind?.includes("token-set-offer-approval")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
+      const settings = await paymentProcessorV2BaseUtils.getConfigByContract(
+        Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+        sdkOrder.params.tokenAddress
+      );
+      if (settings?.blockTradesFromUntrustedChannels) {
+        const trustedChannels = await paymentProcessorV2BaseUtils.getTrustedChannels(
+          Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+          sdkOrder.params.tokenAddress
+        );
+        if (trustedChannels.length) {
+          extraArgs.trustedChannel = trustedChannels[0].channel;
+        }
+      }
+
+      if (options?.ppV2TrustedChannel) {
+        extraArgs.trustedChannel = options?.ppV2TrustedChannel;
+      } else {
+        extraArgs.trustedChannel =
+          Sdk.PaymentProcessorV201.Addresses.ReservoirTrustedForwarder[config.chainId];
+      }
+
+      return {
+        kind: "payment-processor-v2.0.1",
         ...common,
         order: sdkOrder,
         extraArgs: {

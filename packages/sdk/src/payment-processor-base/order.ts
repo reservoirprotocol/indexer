@@ -1,6 +1,7 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import * as Types from "./types";
 import { MatchingOptions } from "./types";
+import { TypedDataSigner } from "@ethersproject/abstract-signer";
 
 export interface IOrder {
   chainId: number;
@@ -18,6 +19,7 @@ export interface IOrder {
 
   checkValidity(): void;
 
+  cosign(cosigner: TypedDataSigner, taker: string): void;
   getCosignature(): Types.Cosignature;
   getTokenSetProof(): Types.TokenSetProof;
 

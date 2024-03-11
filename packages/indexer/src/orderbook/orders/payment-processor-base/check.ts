@@ -3,7 +3,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
-import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as onChainData from "@/utils/on-chain-data";
 
@@ -155,7 +154,7 @@ export const offChainCheck = async (
             .fetchAndUpdateFtApproval(
               order.params.paymentMethod,
               order.params.sellerOrBuyer,
-              Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId],
+              exchange.contract.address,
               true
             )
             .then((a) => a.value)
@@ -175,7 +174,7 @@ export const offChainCheck = async (
       hasBalance = false;
     }
 
-    const operator = Sdk.PaymentProcessorV201.Addresses.Exchange[config.chainId];
+    const operator = exchange.contract.address;
 
     // Check: maker has set the proper approval
     const nftApproval = await commonHelpers.getNftApproval(

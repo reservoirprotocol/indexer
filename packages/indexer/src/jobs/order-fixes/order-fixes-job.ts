@@ -23,6 +23,7 @@ import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
 import * as paymentProcessorCheck from "@/orderbook/orders/payment-processor/check";
 import * as paymentProcessorV2Check from "@/orderbook/orders/payment-processor-v2/check";
+import * as paymentProcessorV201Check from "@/orderbook/orders/payment-processor-base/check";
 
 export type OrderFixesJobPayload =
   | {
@@ -534,6 +535,53 @@ export default class OrderFixesJob extends AbstractRabbitMqJobHandler {
                         onChainApprovalRecheck: true,
                         checkFilledOrCancelled: true,
                       });
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } catch (error: any) {
+                      if (error.message === "cancelled") {
+                        fillabilityStatus = "cancelled";
+                      } else if (error.message === "filled") {
+                        fillabilityStatus = "filled";
+                      } else if (error.message === "no-balance") {
+                        fillabilityStatus = "no-balance";
+                      } else if (error.message === "no-approval") {
+                        approvalStatus = "no-approval";
+                      } else if (error.message === "no-balance-no-approval") {
+                        fillabilityStatus = "no-balance";
+                        approvalStatus = "no-approval";
+                      } else {
+                        return;
+                      }
+                    }
+                  }
+
+                  break;
+                }
+
+                case "payment-processor-v2.0.1": {
+                  const order = new Sdk.PaymentProcessorV201.Order(config.chainId, result.raw_data);
+
+                  // Also check the royalty built into the order vs the actual on-chain royalties of the collection
+                  const royaltyBpsToPay = await getRoyaltiesToBePaid(
+                    order.params.tokenAddress
+                  ).then((r) => r.map((r) => r.bps).reduce((a, b) => a + b, 0));
+
+                  if (
+                    order.params.maxRoyaltyFeeNumerator !== undefined &&
+                    Number(order.params.maxRoyaltyFeeNumerator) < royaltyBpsToPay
+                  ) {
+                    fillabilityStatus = "cancelled";
+                  } else {
+                    try {
+                      const exchange = new Sdk.PaymentProcessorV201.Exchange(config.chainId);
+                      await paymentProcessorV201Check.offChainCheck(
+                        order,
+                        "payment-processor-v2.0.1",
+                        exchange,
+                        {
+                          onChainApprovalRecheck: true,
+                          checkFilledOrCancelled: true,
+                        }
+                      );
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (error: any) {
                       if (error.message === "cancelled") {
