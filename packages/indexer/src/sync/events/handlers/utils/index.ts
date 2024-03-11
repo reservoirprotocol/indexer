@@ -40,6 +40,7 @@ import {
   permitUpdatesJob,
   PermitUpdatesJobPayload,
 } from "@/jobs/permit-updates/permit-updates-job";
+import { format } from "date-fns";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -299,6 +300,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       endAssignMintCommentToFillEvents - startAssignMintCommentToFillEvents,
     assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,
     persistEvents: endPersistEvents - startPersistEvents,
+    endPersistEvents: format(new Date(endPersistEvents), "yyyy-MM-dd HH:mm:ss.SSS"),
     persistOtherEvents: endPersistOtherEvents - startPersistOtherEvents,
     fillPostProcess: endFillPostProcess - startFillPostProcess,
     processActivityEvent: endProcessActivityEvent - startProcessActivityEvent,
