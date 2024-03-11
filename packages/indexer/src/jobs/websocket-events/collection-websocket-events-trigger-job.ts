@@ -371,9 +371,25 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   }
 
   public async addToQueue(events: CollectionWebsocketEventsTriggerQueuePayload[]) {
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `addToQueue start.`,
+      })
+    );
+
     if (!config.doWebsocketServerWork) {
       return;
     }
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `sendBatch.`,
+      })
+    );
 
     await this.sendBatch(
       events.map((event) => ({
