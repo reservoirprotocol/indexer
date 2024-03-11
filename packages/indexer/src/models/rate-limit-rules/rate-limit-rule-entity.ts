@@ -56,8 +56,8 @@ export class RateLimitRuleEntity {
     this.correlationId = params.correlation_id;
   }
 
-  public getRateLimitMessage(xApiKey: string, maxPoints: number, duration: number) {
-    switch (this.tier) {
+  public static getRateLimitMessage(xApiKey: string, tier: number, maxPoints = 0, duration = 0) {
+    switch (tier) {
       case -2:
         return `This request was blocked as you have exceeded your included requests. Please upgrade your plan or contact us at support@reservoir.tools for assistance.`;
 

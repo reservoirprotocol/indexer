@@ -6,3 +6,4 @@ import "@/jobs/backfill/backfill-router";
 import "@/jobs/backfill/backfill-sales";
 import "@/jobs/backfill/backfill-transfer-burst-spam";
 import "@/jobs/backfill/backfill-airdrops";
+import "@/jobs/backfill/backfill-wrong-erc1155-balances";

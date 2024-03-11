@@ -75,6 +75,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   const erc1155Contracts = [];
 
   for (const event of events) {
+    const ns = getNetworkSettings();
     const contractId = event.baseEventParams.address.toString();
     // If its a mint, and the recipient did NOT initiate the transaction, then its an airdrop
     const routers = await getRouters();
@@ -126,7 +127,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           token_id: event.tokenId,
           minted_timestamp: event.baseEventParams.timestamp,
           supply: 1,
-          remaining_supply: event.to === AddressZero ? 0 : 1,
+          remaining_supply: ns.burnAddresses.includes(event.to) ? 0 : 1,
         });
       } else {
         erc1155Contracts.push(event.baseEventParams.address);
@@ -353,8 +354,17 @@ function buildTokenValuesQueries(tokenValuesChunk: erc721Token[] | erc1155Token[
       columnSet
     )}
     ON CONFLICT (contract, token_id) DO UPDATE
-    SET minted_timestamp = EXCLUDED.minted_timestamp, updated_at = NOW()
+    SET minted_timestamp = EXCLUDED.minted_timestamp, updated_at = NOW() ${
+      kind === "erc721"
+        ? `, supply = EXCLUDED.supply, remaining_supply = EXCLUDED.remaining_supply`
+        : ""
+    }
     WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+    ${
+      kind === "erc721"
+        ? `OR EXCLUDED.remaining_supply IS DISTINCT FROM tokens.remaining_supply`
+        : ""
+    }
   `;
 }
 

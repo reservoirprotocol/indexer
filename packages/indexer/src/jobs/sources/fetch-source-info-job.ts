@@ -38,11 +38,8 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
     let tokenUrlZora;
     let tokenUrlSepolia;
     let tokenUrlMumbai;
-    let tokenUrlBaseGoerli;
     let tokenUrlArbitrumNova;
     let tokenUrlAvalanche;
-    let tokenUrlScrollAlpha;
-    let tokenUrlZoraTestnet;
     let tokenUrlBase;
     let tokenUrlZksync;
     let tokenUrlPolygonZkevm;
@@ -123,11 +120,8 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlZora = this.getTokenUrl(html, url, "zora");
       tokenUrlSepolia = this.getTokenUrl(html, url, "sepolia");
       tokenUrlMumbai = this.getTokenUrl(html, url, "mumbai");
-      tokenUrlBaseGoerli = this.getTokenUrl(html, url, "base-goerli");
       tokenUrlArbitrumNova = this.getTokenUrl(html, url, "arbitrum-nova");
       tokenUrlAvalanche = this.getTokenUrl(html, url, "avalanche");
-      tokenUrlScrollAlpha = this.getTokenUrl(html, url, "scroll-alpha");
-      tokenUrlZoraTestnet = this.getTokenUrl(html, url, "zora-testnet");
       tokenUrlBase = this.getTokenUrl(html, url, "base");
       tokenUrlZksync = this.getTokenUrl(html, url, "zksync");
       tokenUrlPolygonZkevm = this.getTokenUrl(html, url, "polygon-zkevm");
@@ -193,11 +187,8 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
           tokenUrlZora,
           tokenUrlSepolia,
           tokenUrlMumbai,
-          tokenUrlBaseGoerli,
           tokenUrlArbitrumNova,
           tokenUrlAvalanche,
-          tokenUrlScrollAlpha,
-          tokenUrlZoraTestnet,
           tokenUrlBase,
           tokenUrlZksync,
           tokenUrlPolygonZkevm,
@@ -227,11 +218,8 @@ export default class FetchSourceInfoJob extends AbstractRabbitMqJobHandler {
       tokenUrlZora,
       tokenUrlSepolia,
       tokenUrlMumbai,
-      tokenUrlBaseGoerli,
       tokenUrlArbitrumNova,
       tokenUrlAvalanche,
-      tokenUrlScrollAlpha,
-      tokenUrlZoraTestnet,
       tokenUrlBase,
       tokenUrlZksync,
       tokenUrlPolygonZkevm,

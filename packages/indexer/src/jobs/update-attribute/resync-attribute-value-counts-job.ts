@@ -16,7 +16,6 @@ export default class ResyncAttributeValueCountsJob extends AbstractRabbitMqJobHa
   queueName = "resync-attribute-value-counts-queue";
   maxRetries = 1;
   concurrency = 3;
-  useSharedChannel = true;
 
   public async process(payload: ResyncAttributeValueCountsJobPayload) {
     const { collection, key, value } = payload;

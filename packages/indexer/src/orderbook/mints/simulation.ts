@@ -33,7 +33,11 @@ export const simulateCollectionMint = async (
 
   // Some network don't support the RPC calls the simulation depends on,
   // so in this case we only let through mints having a known standard
-  if ([Network.PolygonZkevm, Network.Zksync, Network.Scroll].includes(config.chainId)) {
+  if (
+    [Network.PolygonZkevm, Network.AstarZkevm, Network.Zksync, Network.Scroll].includes(
+      config.chainId
+    )
+  ) {
     return collectionMint.standard !== "unknown";
   }
 
@@ -202,9 +206,7 @@ const simulateMintTxData = async (
       // Network.Arbitrum,
       Network.Bsc,
       Network.Zora,
-      Network.ZoraTestnet,
       Network.Base,
-      Network.BaseGoerli,
       Network.Ancient8Testnet,
     ].includes(config.chainId)
   ) {
