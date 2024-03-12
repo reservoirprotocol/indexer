@@ -233,19 +233,22 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           const tokenIdPart = urlParts[urlParts.length - 1];
 
           if (parseInt(tokenIdPart, 16) == Number(tokenId)) {
+            const newUri = uri.replace(tokenIdPart, tokenId);
+
             logger.info(
               this.queueName,
               JSON.stringify({
                 topic: "simpleHashFallbackDebug",
-                message: `Not found Error - TokenId Match. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                message: `Not found Error - TokenId Match. contract=${contract}, tokenId=${tokenId}, uri=${uri}, newUri=${newUri}`,
                 payload,
+                newUri,
               })
             );
 
             await onchainMetadataProcessTokenUriJob.addToQueue({
               contract,
               tokenId,
-              uri: uri.replace(tokenIdPart, tokenId),
+              uri: newUri,
             });
 
             return;
@@ -255,7 +258,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             this.queueName,
             JSON.stringify({
               topic: "simpleHashFallbackDebug",
-              message: `Not found Error - Error Parsing TokenId. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              message: `Not found Error - Error Parsing TokenId. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
               payload,
               error,
             })
@@ -269,7 +272,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           topic: tokenMetadataIndexingDebug
             ? "tokenMetadataIndexingDebug"
             : "simpleHashFallbackDebug",
-          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}`,
           contract,
           tokenId,
           error: fallbackError,
@@ -286,7 +289,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         this.queueName,
         JSON.stringify({
           topic: "simpleHashFallbackDebug",
-          message: `Skip Fallback. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          message: `Skip Fallback. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
           payload,
         })
       );
