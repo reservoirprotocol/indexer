@@ -239,6 +239,34 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           error: fallbackError,
         })
       );
+
+      if (fallbackError === "Not found") {
+        try {
+          const urlParts = uri.split("/");
+          const tokenIdPart = urlParts[urlParts.length - 1];
+
+          if (parseInt(tokenIdPart, 16) == Number(tokenId)) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Not found Error - TokenId Match. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+                payload,
+              })
+            );
+          }
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `Not found Error - Error Parsing TokenId. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+              payload,
+              error,
+            })
+          );
+        }
+      }
     }
 
     if (!config.fallbackMetadataIndexingMethod) {
