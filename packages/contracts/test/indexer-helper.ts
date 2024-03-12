@@ -91,7 +91,6 @@ export async function executeSteps(steps: any[], operator: SignerWithAddress) {
     for (const item of step.items) {
       if (step.kind === "transaction" && item.status === "incomplete") {
         delete item.data.gas
-        console.log('sendTransaction', item.data)
         await operator.sendTransaction({
           ...item.data,
           gasLimit: 1000000
@@ -110,7 +109,6 @@ export async function executeSteps(steps: any[], operator: SignerWithAddress) {
           stepSignature,
           postRequest.body
         );
-        console.log('stepSaveResult', stepSaveResult)
         if (stepSaveResult.error) {
           throw new Error(stepSaveResult.error)
         }

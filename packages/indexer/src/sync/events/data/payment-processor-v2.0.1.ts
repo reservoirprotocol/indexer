@@ -86,12 +86,12 @@ export const masterNonceInvalidated: EventData = {
   kind: "payment-processor-v2",
   subKind: "payment-processor-v2.0.1-master-nonce-invalidated",
   addresses: { [PaymentProcessorV201.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0xb06d2760711c1c15c05bc011b1009a36c0713c6d63567c267678c3a382188b61",
-  numTopics: 3,
+  topic: "0x9614574d6542397172c19ba2bf4588434feeb977576e92b7b59b38242ab59609",
+  numTopics: 2,
   abi: new Interface([
     `event MasterNonceInvalidated(
-      uint256 indexed nonce,
-      address indexed account
+      address indexed account,
+      uint256 nonce
     )`,
   ]),
 };
@@ -292,5 +292,3 @@ export const orderDigestItemsRestored: EventData = {
     `,
   ]),
 };
-
-// console.log('orderDigestItemsRestored', orderDigestItemsRestored.abi.getEventTopic('OrderDigestItemsRestored'))

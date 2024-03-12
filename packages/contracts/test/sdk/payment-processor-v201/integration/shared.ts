@@ -200,7 +200,7 @@ export const testCase = async ({
 
       const onChainData = parseResult.onChainData[0];
       if (!onChainData) {
-        console.log("\t\t  Parse Event Failed");
+        console.log(`\t\t  Parse Event Failed ${tx.hash}`);
       }
 
       await new Promise((resolve) => {

@@ -38,35 +38,34 @@ describe("PaymentProcessorV201 - Indexer Listing Integration Test", () => {
         await indexerHelper.reset();
     });
 
-    // it("Fill listing with cancel", async () => {
-    //     await testCase({
-    //         cancelOrder: true,
-    //         bob,
-    //         alice,
-    //         chainId,
-    //         erc721
-    //     });
-    // });
+    it("Fill listing with cancel", async () => {
+        await testCase({
+            cancelOrder: true,
+            bob,
+            alice,
+            chainId,
+            erc721
+        });
+    });
 
-    // it("Fill Listing via Router API", async () =>
-    //     testCase({
-    //         isListing: true,
-    //         executeByRouterAPI: true,
-    //         bob,
-    //         alice,
-    //         chainId,
-    //         erc721
-    //     }));
+    it("Fill Listing via Router API", async () =>
+        testCase({
+            isListing: true,
+            executeByRouterAPI: true,
+            bob,
+            alice,
+            chainId,
+            erc721
+        }));
 
-    // it("Fill listing", async () =>
-    //     testCase({
-    //         isListing: true,
-    //         bob,
-    //         alice,
-    //         chainId,
-    //         erc721
-    //     }));
-
+    it("Fill listing", async () =>
+        testCase({
+            isListing: true,
+            bob,
+            alice,
+            chainId,
+            erc721
+        }));
 
     it("Fill bids and transfer failed", async () => {
         const buyer = alice;
@@ -199,13 +198,14 @@ describe("PaymentProcessorV201 - Indexer Listing Integration Test", () => {
         expect(ownerAfter1).to.eq(buyer.address);
     });
 
-    // it("Fill listing with bulk Cancel", async () =>
-    //     testCase({
-    //         bulkCancel: true,
-    //         bob,
-    //         alice,
-    //         chainId,
-    //         erc721
-    //     }));
+    it("Fill listing with bulk Cancel", async () =>
+        testCase({
+            bulkCancel: true,
+            bob,
+            alice,
+            chainId,
+            erc721
+        })
+    );
 
 });

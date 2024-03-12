@@ -3,6 +3,7 @@ import { Log } from "@ethersproject/abstract-provider";
 import { HashZero } from "@ethersproject/constants";
 import { searchForCalls } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
+import { AddressZero } from "@ethersproject/constants";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
@@ -33,6 +34,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     const orderKind = subKind.includes("payment-processor-v2.0.1")
       ? "payment-processor-v2.0.1"
       : "payment-processor-v2";
+
+    const isV201 = subKind.includes("payment-processor-v2.0.1");
 
     switch (subKind) {
       case "payment-processor-v2.0.1-nonce-invalidated":
@@ -66,32 +69,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      // case "payment-processor-v2.0.1-order-digest-items-restored": {
-      //   const parsedLog = eventData.abi.parseLog(log);
-      //   const maker = parsedLog.args["account"].toLowerCase();
-      //   const orderDigest = parsedLog.args["orderDigest"].toString();
-      //   // onChainData.nonceRestoreEvents.push({
-      //   //   orderKind,
-      //   //   maker,
-      //   //   nonce,
-      //   //   baseEventParams,
-      //   // });
-      //   break;
-      // }
-
-      // TODO: The `orderDigest` is not the order id, we should handle this
-      // case "payment-processor-v2.0.1-order-digest-invalidated":
-      // case "payment-processor-v2-order-digest-invalidated": {
-      //   const parsedLog = eventData.abi.parseLog(log);
-      //   const orderId = parsedLog.args["orderDigest"].toLowerCase();
-      //   // onChainData.cancelEvents.push({
-      //   //   orderKind: "payment-processor-v2",
-      //   //   orderId,
-      //   //   baseEventParams,
-      //   // });
-
-      //   break;
-      // }
+      case "payment-processor-v2.0.1-order-digest-invalidated":
+      case "payment-processor-v2-order-digest-invalidated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const orderId = parsedLog.args["orderDigest"].toLowerCase();
+        const wasCancellation = parsedLog.args["wasCancellation"];
+        if (wasCancellation && isV201) {
+          onChainData.cancelEvents.push({
+            orderKind,
+            orderId,
+            baseEventParams,
+          });
+        }
+        break;
+      }
 
       case "payment-processor-v2.0.1-master-nonce-invalidated":
       case "payment-processor-v2-master-nonce-invalidated": {
@@ -316,6 +307,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           let saleDetailsArray = [inputData.saleDetails];
           let saleSignatures = [inputData.buyerSignature || inputData.sellerSignature];
           let tokenSetProofs = [inputData.tokenSetProof];
+          let cosignatures = [inputData.cosignature];
+
           const isCollectionLevelOffer = inputData.isCollectionLevelOffer;
 
           if (matchedMethod.name === "sweepCollection") {
@@ -341,14 +334,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           } else if (matchedMethod.name === "bulkBuyListings") {
             saleDetailsArray = inputData.saleDetailsArray;
             saleSignatures = inputData.sellerSignatures;
+            cosignatures = inputData.cosignatures;
           } else if (matchedMethod.name === "bulkAcceptOffers") {
             saleDetailsArray = inputData.params.saleDetailsArray;
             saleSignatures = inputData.params.buyerSignaturesArray;
             tokenSetProofs = inputData.params.tokenSetProofsArray;
+            cosignatures = inputData.params.cosignaturesArray;
           }
 
           for (let i = 0; i < saleDetailsArray.length; i++) {
-            const [saleDetail, saleSignature] = [saleDetailsArray[i], saleSignatures[i]];
+            const [saleDetail, saleSignature, cosignature] = [
+              saleDetailsArray[i],
+              saleSignatures[i],
+              cosignatures[i],
+            ];
             if (!saleDetail) {
               continue;
             }
@@ -398,6 +397,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
             let order: Sdk.PaymentProcessorBase.IOrder;
 
+            const cosigner = cosignature ? cosignature.signer.toLowerCase() : AddressZero;
+
             if (isCollectionLevelOffer) {
               const tokenSetProof = tokenSetProofs[i];
               if (tokenSetProof.rootHash === HashZero) {
@@ -418,6 +419,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                         nonce: saleDetail["nonce"],
                         paymentMethod: saleDetail["paymentMethod"],
                         masterNonce: makerMinNonce,
+                        cosigner,
                         ...signature,
                       },
                       Sdk.PaymentProcessorV201.Order
@@ -437,6 +439,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                         nonce: saleDetail["nonce"],
                         paymentMethod: saleDetail["paymentMethod"],
                         masterNonce: makerMinNonce,
+                        cosigner,
                         ...signature,
                       },
                       Sdk.PaymentProcessorV2.Order
@@ -461,6 +464,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                         masterNonce: makerMinNonce,
                         tokenSetMerkleRoot: tokenSetProof.rootHash,
                         tokenIds: [],
+                        cosigner,
                         ...signature,
                       },
                       Sdk.PaymentProcessorV201.Order
@@ -482,6 +486,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                         masterNonce: makerMinNonce,
                         tokenSetMerkleRoot: tokenSetProof.rootHash,
                         tokenIds: [],
+                        cosigner,
                         ...signature,
                       },
                       Sdk.PaymentProcessorV2.Order
@@ -510,6 +515,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                       nonce: saleDetail["nonce"],
                       paymentMethod: saleDetail["paymentMethod"],
                       masterNonce: makerMinNonce,
+                      cosigner,
                       ...signature,
                     },
                     Sdk.PaymentProcessorV201.Order
@@ -534,6 +540,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                       nonce: saleDetail["nonce"],
                       paymentMethod: saleDetail["paymentMethod"],
                       masterNonce: makerMinNonce,
+                      cosigner,
                       ...signature,
                     },
                     Sdk.PaymentProcessorV2.Order
@@ -552,6 +559,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               }
             }
 
+            // console.log('order', {
+            //   isValidated
+            // }, order.params, cosignature)
+
             const priceData = await getUSDAndNativePrices(
               currency,
               currencyPrice,
@@ -562,7 +573,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               break;
             }
 
-            let orderId = isValidated ? order.hash() : undefined;
+            let orderId = isValidated ? (isV201 ? order.hashDigest() : order.hash()) : undefined;
 
             // If we couldn't parse the order id from the calldata try to get it from our db
             if (!orderId) {

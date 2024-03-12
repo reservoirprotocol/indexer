@@ -45,7 +45,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         // Force kind detection
         kind: undefined,
       });
-      const id = order.hash();
+      const id = order.hashDigest();
 
       if (!order.params.kind) {
         return results.push({
@@ -55,16 +55,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // For now, only single amounts are supported
-      if (
-        order.params.protocol !==
-          Sdk.PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL &&
-        order.params.amount !== "1"
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-amount",
-        });
-      }
+      // if (
+      //   order.params.protocol !==
+      //     Sdk.PaymentProcessorV201.Types.OrderProtocols.ERC1155_FILL_PARTIAL &&
+      //   order.params.amount !== "1"
+      // ) {
+      //   return results.push({
+      //     id,
+      //     status: "unsupported-amount",
+      //   });
+      // }
 
       // Check: various collection restrictions
 

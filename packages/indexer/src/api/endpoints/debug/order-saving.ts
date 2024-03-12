@@ -68,7 +68,7 @@ async function refreshBalance(owner: string, contract: string) {
   }
 }
 
-async function refreshNFTBalance(owner: string, contract: string, tokenId: string) {
+async function refreshNFTBalance(owner: string, contract: string, tokenId: string, amount: number) {
   const balanceResult = await idb.oneOrNone(
     `
       SELECT nft_balances.amount FROM nft_balances
@@ -84,9 +84,9 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
   );
 
   try {
-    const nft = new Sdk.Common.Helpers.Erc721(baseProvider, contract);
-    const tokenOwner = await nft.getOwner(tokenId);
-    const isSame = tokenOwner.toLowerCase() === owner.toLowerCase();
+    // const nft = new Sdk.Common.Helpers.Erc721(baseProvider, contract);
+    // const tokenOwner = await nft.getOwner(tokenId);
+    // const isSame = tokenOwner.toLowerCase() === owner.toLowerCase();
 
     await idb.oneOrNone(
       `
@@ -147,7 +147,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
           contract: toBuffer(contract),
           owner: toBuffer(owner),
           tokenId,
-          amount: isSame ? 1 : 0,
+          amount,
         }
       );
     } else {
@@ -169,7 +169,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
           contract: toBuffer(contract),
           owner: toBuffer(owner),
           tokenId,
-          amount: isSame ? 1 : 0,
+          amount,
         }
       );
     }
@@ -494,6 +494,7 @@ export const orderSavingOptions: RouteOptions = {
             collection: Joi.string(),
             tokenId: Joi.string(),
             owner: Joi.string(),
+            amount: Joi.number().default(1),
             attributes: Joi.array()
               .items(
                 Joi.object({
@@ -537,7 +538,7 @@ export const orderSavingOptions: RouteOptions = {
     for (let index = 0; index < nfts.length; index++) {
       const nft = nfts[index];
       try {
-        await refreshNFTBalance(nft.owner, nft.collection.toLowerCase(), nft.tokenId);
+        await refreshNFTBalance(nft.owner, nft.collection.toLowerCase(), nft.tokenId, nft.amount);
         if (nft.attributes) {
           await mockTokenAttributes(
             nft.collection.toLowerCase(),
