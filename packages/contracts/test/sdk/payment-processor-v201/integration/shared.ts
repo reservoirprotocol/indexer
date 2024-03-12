@@ -11,39 +11,32 @@ import chalk from "chalk";
 import { ethers } from "hardhat";
 import { constants } from "ethers";
 import { Builders } from "@reservoir0x/sdk/src/payment-processor-base";
-import * as indexerHelper from "../../indexer-helper";
-import { getChainId, getCurrentTimestamp, setupNFTs } from "../../utils";
+import * as indexerHelper from "../../../indexer-helper";
+import { getCurrentTimestamp } from "../../../utils";
 
 const green = chalk.green;
 const error = chalk.red;
 
-describe("PaymentProcessorV201 - Indexer Integration Test", () => {
-  const chainId = getChainId();
-
-  let deployer: SignerWithAddress;
-  let alice: SignerWithAddress;
-  let bob: SignerWithAddress;
-
-  let erc721: Contract;
-
-  beforeEach(async () => {
-    // Reset Indexer
-    await indexerHelper.reset();
-
-    [deployer, alice, bob] = await ethers.getSigners();
-    ({ erc721 } = await setupNFTs(deployer));
-  });
-
-  afterEach(async () => {
-    // await reset();
-  });
-
-  const testCase = async ({
+export const testCase = async ({
     cancelOrder = false,
     isListing = false,
     bulkCancel = false,
     executeByRouterAPI = false,
     failed = false,
+    alice,
+    bob,
+    chainId,
+    erc721
+  } : {
+    cancelOrder?: boolean;
+    isListing?: boolean;
+    bulkCancel?: boolean;
+    executeByRouterAPI?: boolean;
+    failed?: boolean;
+    alice: SignerWithAddress;
+    bob: SignerWithAddress;
+    chainId: number;
+    erc721: Contract
   }) => {
     const buyer = alice;
     const seller = bob;
@@ -151,8 +144,6 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
     });
 
     const orderInfo = saveResult[0];
-
-    console.log('orderInfo', saveResult)
 
     console.log(`\t\t - Status: ${orderInfo.status}`);
     console.log(`\t\t - ID: ${orderInfo.id}`);
@@ -366,40 +357,63 @@ describe("PaymentProcessorV201 - Indexer Integration Test", () => {
     );
   };
 
-  it("Fill listing with cancel", async () => {
-    await testCase({
-      cancelOrder: true,
-    });
-    console.log("\n");
-  });
 
-  // it("Fill Offer via Router API", async () =>
-  //   testCase({
-  //     executeByRouterAPI: true,
-  //   }));
+// describe("PaymentProcessorV201 - Indexer Integration Test", () => {
+//   const chainId = getChainId();
 
-  // it("Fill Listing via Router API", async () =>
-  //   testCase({
-  //     isListing: true,
-  //     executeByRouterAPI: true,
-  //   }));
+//   let deployer: SignerWithAddress;
+//   let alice: SignerWithAddress;
+//   let bob: SignerWithAddress;
 
-  // it("Fill offer", async () => testCase({}));
+//   let erc721: Contract;
 
-  // it("Fill listing", async () =>
-  //   testCase({
-  //     isListing: true,
-  //   }));
+//   beforeEach(async () => {
+//     // Reset Indexer
+//     await indexerHelper.reset();
+
+//     [deployer, alice, bob] = await ethers.getSigners();
+//     ({ erc721 } = await setupNFTs(deployer));
+//   });
+
+//   afterEach(async () => {
+//     // await reset();
+//   });
 
 
-  // it("Fill listing and failed", async () =>
-  //   testCase({
-  //     isListing: true,
-  //     failed: true
-  //   }));
+//   it("Fill listing with cancel", async () => {
+//     await testCase({
+//       cancelOrder: true,
+//     });
+//     console.log("\n");
+//   });
 
-  // it("Fill listing with bulk Cancel", async () =>
-  //   testCase({
-  //     bulkCancel: true,
-  //   }));
-});
+//   // it("Fill Offer via Router API", async () =>
+//   //   testCase({
+//   //     executeByRouterAPI: true,
+//   //   }));
+
+//   // it("Fill Listing via Router API", async () =>
+//   //   testCase({
+//   //     isListing: true,
+//   //     executeByRouterAPI: true,
+//   //   }));
+
+//   // it("Fill offer", async () => testCase({}));
+
+//   // it("Fill listing", async () =>
+//   //   testCase({
+//   //     isListing: true,
+//   //   }));
+
+
+//   // it("Fill listing and failed", async () =>
+//   //   testCase({
+//   //     isListing: true,
+//   //     failed: true
+//   //   }));
+
+//   // it("Fill listing with bulk Cancel", async () =>
+//   //   testCase({
+//   //     bulkCancel: true,
+//   //   }));
+// });

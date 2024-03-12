@@ -6,9 +6,11 @@ import { PaymentProcessorBaseExchange } from "../payment-processor-base";
 
 export class Exchange extends PaymentProcessorBaseExchange {
   public contract: Contract;
+  public domainSeparator: string;
 
   constructor(chainId: number) {
     super(chainId);
     this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
+    this.domainSeparator = this.buildDomainSeparator();
   }
 }

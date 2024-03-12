@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import axios from "axios";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 const indexUrl = process.env.INDEXER_URL || "http://127.0.0.1:3000";
 
@@ -82,4 +83,43 @@ export async function executeCancelV3(payloady: any) {
     validateStatus: () => true,
   });
   return data;
+}
+
+export async function executeSteps(steps: any[], operator: SignerWithAddress) {
+  const results: any[] = [];
+  for (const step of steps) {
+    for (const item of step.items) {
+      if (step.kind === "transaction" && item.status === "incomplete") {
+        delete item.data.gas
+        console.log('sendTransaction', item.data)
+        await operator.sendTransaction({
+          ...item.data,
+          gasLimit: 1000000
+        })
+      } else if (step.kind === "signature") {
+        const { data: itemData } = item
+        const signatureMessage = itemData.sign;
+        const stepSignature = await operator._signTypedData(
+          signatureMessage.domain,
+          signatureMessage.types,
+          signatureMessage.value
+        );
+        const postRequest = itemData.post;
+        const stepSaveResult = await callStepAPI(
+          postRequest.endpoint,
+          stepSignature,
+          postRequest.body
+        );
+        console.log('stepSaveResult', stepSaveResult)
+        if (stepSaveResult.error) {
+          throw new Error(stepSaveResult.error)
+        }
+        results.push({
+          step: step.id,
+          result: stepSaveResult
+        })
+      }
+    }
+  }
+  return results;
 }

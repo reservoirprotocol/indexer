@@ -34,3 +34,10 @@ export interface IOrder {
 
   buildMatching(options: MatchingOptions): Types.MatchedOrder;
 }
+
+export const EIP712_DOMAIN = (chainId: number, verifyingContract: string) => ({
+  name: "PaymentProcessor",
+  version: "2",
+  chainId,
+  verifyingContract,
+});

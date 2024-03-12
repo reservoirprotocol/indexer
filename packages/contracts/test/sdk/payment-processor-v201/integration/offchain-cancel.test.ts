@@ -8,8 +8,8 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import * as indexerHelper from "../../indexer-helper";
-import { getChainId, setupNFTs } from "../../utils";
+import * as indexerHelper from "../../../indexer-helper";
+import { getChainId, setupNFTs } from "../../../utils";
 
 describe("PaymentProcessorV201 - OffChain Cancel Integration Test", () => {
   const chainId = getChainId();

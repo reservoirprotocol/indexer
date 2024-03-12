@@ -4178,6 +4178,7 @@ export class Router {
         const orders: Sdk.PaymentProcessorV201.Order[] = ppv2Details.map(
           (c) => c.order as Sdk.PaymentProcessorV201.Order
         );
+
         const allFees = ppv2Details.map((c) => getFees(c));
 
         const approvals: NFTApproval[] = [];

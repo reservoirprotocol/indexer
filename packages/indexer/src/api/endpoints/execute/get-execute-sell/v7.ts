@@ -652,7 +652,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                 error = "No fillable orders (taker cannot fill own orders)";
               }
             }
-
             // Check quantity
             if (!error) {
               if (bn(result.quantity_remaining).lt(item.quantity)) {

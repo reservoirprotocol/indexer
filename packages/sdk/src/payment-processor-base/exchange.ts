@@ -7,7 +7,7 @@ import { Contract, ContractTransaction } from "@ethersproject/contracts";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 
 import { MatchingOptions } from "../payment-processor-v2/builders/base";
-import { EIP712_DOMAIN } from "../payment-processor-v2/order";
+import { EIP712_DOMAIN } from "./order";
 import { SweepOrderParams } from "./types";
 import { TxData, bn, generateSourceBytes } from "../utils";
 import { IOrder } from "./order";
@@ -15,16 +15,14 @@ import { IOrder } from "./order";
 export abstract class PaymentProcessorBaseExchange {
   public chainId: number;
   public abstract contract: Contract;
-  public domainSeparator: string;
+  public abstract domainSeparator: string;
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    // this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
-    this.domainSeparator = this.buildDomainSeparator();
   }
 
-  private buildDomainSeparator() {
-    const domain = EIP712_DOMAIN(this.chainId);
+  public buildDomainSeparator() {
+    const domain = EIP712_DOMAIN(this.chainId, this.contract.address);
     return _TypedDataEncoder.hashDomain(domain);
   }
 
