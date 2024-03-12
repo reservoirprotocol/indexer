@@ -64,6 +64,8 @@ export class Assets {
     image_mime_type?: string
   ): string {
     if (imageUrl) {
+      imageUrl = imageUrl.trim();
+
       try {
         if (config.enableImageResizing) {
           let resizeImageUrl = imageUrl;

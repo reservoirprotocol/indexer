@@ -227,19 +227,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
       fallbackError = `${(error as any).message}`;
 
-      logger.warn(
-        this.queueName,
-        JSON.stringify({
-          topic: tokenMetadataIndexingDebug
-            ? "tokenMetadataIndexingDebug"
-            : "simpleHashFallbackDebug",
-          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-          contract,
-          tokenId,
-          error: fallbackError,
-        })
-      );
-
       if (fallbackError === "Not found") {
         try {
           const urlParts = uri.split("/");
@@ -254,6 +241,14 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
                 payload,
               })
             );
+
+            await onchainMetadataProcessTokenUriJob.addToQueue({
+              contract,
+              tokenId,
+              uri: uri.replace(tokenIdPart, tokenId),
+            });
+
+            return;
           }
         } catch (error) {
           logger.error(
@@ -267,6 +262,19 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           );
         }
       }
+
+      logger.warn(
+        this.queueName,
+        JSON.stringify({
+          topic: tokenMetadataIndexingDebug
+            ? "tokenMetadataIndexingDebug"
+            : "simpleHashFallbackDebug",
+          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          contract,
+          tokenId,
+          error: fallbackError,
+        })
+      );
     }
 
     if (!config.fallbackMetadataIndexingMethod) {
