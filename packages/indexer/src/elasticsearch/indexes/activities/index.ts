@@ -493,14 +493,27 @@ export const getTrendingMints = async (params: {
         },
       } as any;
 
-      const esResult = (await elasticsearch.search({
+      const esSearchParams = {
         index: INDEX_NAME,
         size: 0,
         body: {
           query: salesQuery,
           aggs: collectionAggregation,
         },
-      })) as any;
+      };
+
+      const esResult = (await elasticsearch.search(esSearchParams)) as any;
+
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "_search",
+          latency: esResult.took,
+          params: JSON.stringify(params),
+          esResult: JSON.stringify(esResult),
+          esSearchParams: JSON.stringify(esSearchParams),
+        })
+      );
 
       results[period as Period] = esResult?.aggregations?.collections?.buckets?.map(
         (bucket: any) => {
@@ -865,7 +878,7 @@ export const getActivityById = async (id: string): Promise<ActivityDocument | un
 
     activityDocument = response._source;
   } catch (error) {
-    logger.error(
+    logger.warn(
       "elasticsearch-activities",
       JSON.stringify({
         topic: "getActivityById",
