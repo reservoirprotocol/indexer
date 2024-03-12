@@ -119,14 +119,6 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   public async process(payload: CollectionWebsocketEventsTriggerQueuePayload) {
     const { data } = payload;
 
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugCDC",
-        message: `process. collectionId=${payload.data.after.id}`,
-      })
-    );
-
     try {
       let contractKind = await redis.get(`contract-kind:${data.after.contract}`);
 
@@ -228,6 +220,32 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
 
         if (beforeMetadata.magicedenVerificationStatus !== metadata.magicedenVerificationStatus) {
           changed.push("magicedenVerificationStatus");
+        }
+
+        if (!metadataDisabled) {
+          if (beforeMetadata.imageUrl !== metadata.imageUrl) {
+            changed.push("imageUrl");
+          }
+
+          if (beforeMetadata.bannerImageUrl !== metadata.bannerImageUrl) {
+            changed.push("bannerImageUrl");
+          }
+
+          if (beforeMetadata.discordUrl !== metadata.discordUrl) {
+            changed.push("discordUrl");
+          }
+
+          if (beforeMetadata.externalUrl !== metadata.externalUrl) {
+            changed.push("externalUrl");
+          }
+
+          if (beforeMetadata.twitterUsername !== metadata.twitterUsername) {
+            changed.push("twitterUsername");
+          }
+
+          if (beforeMetadata.description !== metadata.description) {
+            changed.push("description");
+          }
         }
       }
 
@@ -371,27 +389,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   }
 
   public async addToQueue(events: CollectionWebsocketEventsTriggerQueuePayload[]) {
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugCDC",
-        message: `addToQueue start.`,
-        events: JSON.stringify(events),
-      })
-    );
-
     if (!config.doWebsocketServerWork) {
       return;
     }
-
-    logger.info(
-      this.queueName,
-      JSON.stringify({
-        topic: "debugCDC",
-        message: `sendBatch.`,
-        events: JSON.stringify(events),
-      })
-    );
 
     await this.sendBatch(
       events.map((event) => ({

@@ -28,14 +28,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       return;
     }
 
-    logger.info(
-      "IndexerCollectionsHandler",
-      JSON.stringify({
-        topic: "debugCDC",
-        message: `handleInsertV3. collectionId=${payload.after.id}`,
-      })
-    );
-
     await WebsocketEventRouter({
       eventInfo: {
         before: payload.before,
@@ -54,25 +46,12 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         },
       },
     ]);
-
-    // await collectionCheckSpamJob.addToQueue({
-    //   collectionId: payload.after.id,
-    //   trigger: "metadata-changed",
-    // });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
     if (!payload.after) {
       return;
     }
-
-    logger.info(
-      "IndexerCollectionsHandler",
-      JSON.stringify({
-        topic: "debugCDC",
-        message: `handleUpdateV3. collectionId=${payload.after.id}`,
-      })
-    );
 
     await WebsocketEventRouter({
       eventInfo: {
