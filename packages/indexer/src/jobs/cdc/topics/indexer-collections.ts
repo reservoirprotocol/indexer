@@ -28,6 +28,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
       return;
     }
 
+    logger.info(
+      "IndexerCollectionsHandler",
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `handleInsertV3. collectionId=${payload.after.id}`,
+      })
+    );
+
     await WebsocketEventRouter({
       eventInfo: {
         before: payload.before,
@@ -57,6 +65,14 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
     if (!payload.after) {
       return;
     }
+
+    logger.info(
+      "IndexerCollectionsHandler",
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `handleUpdateV3. collectionId=${payload.after.id}`,
+      })
+    );
 
     await WebsocketEventRouter({
       eventInfo: {

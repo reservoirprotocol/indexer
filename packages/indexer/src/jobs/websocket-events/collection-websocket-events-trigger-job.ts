@@ -119,6 +119,14 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   public async process(payload: CollectionWebsocketEventsTriggerQueuePayload) {
     const { data } = payload;
 
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `process. collectionId=${payload.data.after.id}`,
+      })
+    );
+
     try {
       let contractKind = await redis.get(`contract-kind:${data.after.contract}`);
 
@@ -211,6 +219,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       const metadataDisabled = r.metadata_disabled;
       const id = !metadataDisabled ? r.id : r.contract;
 
+      if (changed.includes("metadata")) {
+        const beforeMetadata = JSON.parse(data.before.metadata);
+
+        if (beforeMetadata.safelistRequestStatus !== metadata.safelistRequestStatus) {
+          changed.push("openseaVerificationStatus");
+        }
+
+        if (beforeMetadata.magicedenVerificationStatus !== metadata.magicedenVerificationStatus) {
+          changed.push("magicedenVerificationStatus");
+        }
+      }
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -237,10 +257,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           primaryContract: r.contract,
           tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
-          openseaVerificationStatus: !metadataDisabled ? metadata?.safelistRequestStatus : null,
-          magicedenVerificationStatus: !metadataDisabled
-            ? metadata?.magicedenVerificationStatus
-            : null,
+          openseaVerificationStatus: metadata?.safelistRequestStatus ?? null,
+          magicedenVerificationStatus: metadata?.magicedenVerificationStatus ?? null,
           royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,
@@ -353,9 +371,27 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
   }
 
   public async addToQueue(events: CollectionWebsocketEventsTriggerQueuePayload[]) {
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `addToQueue start.`,
+        events: JSON.stringify(events),
+      })
+    );
+
     if (!config.doWebsocketServerWork) {
       return;
     }
+
+    logger.info(
+      this.queueName,
+      JSON.stringify({
+        topic: "debugCDC",
+        message: `sendBatch.`,
+        events: JSON.stringify(events),
+      })
+    );
 
     await this.sendBatch(
       events.map((event) => ({
