@@ -507,7 +507,7 @@ export const getTrendingMints = async (params: {
       logger.info(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "_search",
+          topic: "getTrendingMints",
           latency: esResult.took,
           params: JSON.stringify(params),
           esResult: JSON.stringify(esResult),
