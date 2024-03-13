@@ -558,6 +558,11 @@ export const getUserTokensV9Options: RouteOptions = {
               ? "(" + tokensCollectionFilters.join(" OR ") + ")"
               : "TRUE"
           }
+          AND ${
+            tokensExcludeCollectionFilters.length
+              ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
+              : "TRUE"
+          }
         ) t ON TRUE
         LEFT JOIN LATERAL (
           SELECT

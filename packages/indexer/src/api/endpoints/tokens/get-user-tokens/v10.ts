@@ -71,6 +71,11 @@ export const getUserTokensV10Options: RouteOptions = {
         .description(
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
+      excludeCollections: Joi.alternatives()
+        .try(Joi.array().max(50).items(Joi.string()), Joi.string())
+        .description(
+          "Exclude particular collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -289,6 +294,7 @@ export const getUserTokensV10Options: RouteOptions = {
     (params as any).user = toBuffer(params.user);
 
     const tokensCollectionFilters: string[] = [];
+    const tokensExcludeCollectionFilters: string[] = [];
     const nftBalanceCollectionFilters: string[] = [];
     const collections: string[] = [];
     let listBasedContract = false;
@@ -362,6 +368,15 @@ export const getUserTokensV10Options: RouteOptions = {
 
     if (query.collection) {
       addCollectionToFilter(query.collection);
+    }
+
+    if (query.excludeCollections) {
+      if (!Array.isArray(query.excludeCollections)) {
+        query.excludeCollections = [query.excludeCollections];
+      }
+
+      query.excludeCollections = _.join(query.excludeCollections, "','");
+      tokensExcludeCollectionFilters.push(`collection_id NOT IN ('$/excludeCollections:raw/')`);
     }
 
     if (query.contract) {
@@ -554,6 +569,11 @@ export const getUserTokensV10Options: RouteOptions = {
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
+        AND ${
+          tokensExcludeCollectionFilters.length
+            ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
+            : "TRUE"
+        }
       ) t ON TRUE
     `;
 
@@ -599,6 +619,11 @@ export const getUserTokensV10Options: RouteOptions = {
           AND ${
             tokensCollectionFilters.length
               ? "(" + tokensCollectionFilters.join(" OR ") + ")"
+              : "TRUE"
+          }
+          AND ${
+            tokensExcludeCollectionFilters.length
+              ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
               : "TRUE"
           }
         ) t ON TRUE
