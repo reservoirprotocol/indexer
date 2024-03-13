@@ -210,6 +210,9 @@ export const getOpenApiOptions: RouteOptions = {
   timeout: {
     server: 10 * 1000,
   },
+  cache: {
+    expiresIn: 7 * 24 * 60 * 60 * 1000,
+  },
   handler: async () => {
     try {
       if (!openapiData) {
