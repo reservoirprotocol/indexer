@@ -3,14 +3,14 @@
 import axios from "axios";
 import { logger } from "@/common/logger";
 
-export const fetchTokenURI = async (
+export const fetchTokenUriMetadata = async (
   { contract, tokenId }: { contract: string; tokenId: string },
   uri: string
 ) => {
   logger.info(
     "otherside-koda-fetcher",
     JSON.stringify({
-      message: `fetchTokenURI. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
+      message: `fetchTokenUriMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
       contract,
       tokenId,
     })
