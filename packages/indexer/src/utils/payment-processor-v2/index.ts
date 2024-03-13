@@ -3,6 +3,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import { Mutex, withTimeout } from "async-mutex";
 
 import { idb } from "@/common/db";
@@ -186,7 +187,7 @@ export const getDefaultPaymentMethods = async (): Promise<string[]> => {
     result = await exchange
       .getDefaultPaymentMethods()
       .then((c: Result) => c.map((d) => d.toLowerCase()));
-    await redis.set(cacheKey, JSON.stringify(result), "EX", 7 * 24 * 3600);
+    await redis.set(cacheKey, JSON.stringify(_.uniq(result)), "EX", 7 * 24 * 3600);
   }
 
   return result!;
@@ -209,7 +210,7 @@ export const getPaymentMethods = async (paymentMethodWhitelistId: number, refres
       result = await exchange
         .getWhitelistedPaymentMethods(paymentMethodWhitelistId)
         .then((c: Result) => c.map((d) => d.toLowerCase()));
-      await redis.set(cacheKey, JSON.stringify(result), "EX", 3 * 3600);
+      await redis.set(cacheKey, JSON.stringify(_.uniq(result)), "EX", 3 * 3600);
     } catch {
       // Skip errors
     }

@@ -1,7 +1,11 @@
 import { Common } from "@reservoir0x/sdk";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
+import { config } from "@/config/index";
+import { idb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
+import { toBuffer } from "@/common/utils";
 import * as ftApprovalsModel from "@/models/ft-approvals";
 
 export const fetchAndUpdateFtApproval = async (
@@ -38,5 +42,36 @@ export const fetchAndUpdateFtApproval = async (
       spender,
       value: allowance,
     });
+  }
+};
+
+export const updateFtBalance = async (token: string, owner: string) => {
+  // We only need this for rebasing tokens (only Blast WETH for now)
+  if (config.chainId === Network.Blast && token === Common.Addresses.WNative[config.chainId]) {
+    const erc20 = new Common.Helpers.Erc20(baseProvider, token);
+    const balance = await erc20.getBalance(owner).then((b) => b.toString());
+
+    await idb.none(
+      `
+        INSERT INTO ft_balances (
+          contract,
+          owner,
+          amount
+        ) VALUES (
+          $/contract/,
+          $/owner/,
+          $/amount/
+        )
+        ON CONFLICT (contract, owner)
+        DO UPDATE SET
+          amount = $/amount/,
+          updated_at = now()
+      `,
+      {
+        contract: toBuffer(token),
+        owner: toBuffer(owner),
+        amount: balance,
+      }
+    );
   }
 };

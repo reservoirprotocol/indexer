@@ -5,6 +5,7 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import _ from "lodash";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+// import { logger } from "@/common/logger";
 // import { redlock } from "@/common/redis";
 
 export type BackfillNftBalancesDatesJobCursorInfo = {
@@ -31,7 +32,7 @@ export class BackfillNftBalancesDatesJob extends AbstractRabbitMqJobHandler {
       owner?: Buffer;
       amount?: string;
     } = {
-      limit: _.includes([56, 137, 324, 42161, 42170, 43114, 80001], config.chainId) ? 100 : 300,
+      limit: _.includes([56, 137, 324, 42161, 42170, 43114, 80001], config.chainId) ? 300 : 300,
     };
 
     let cursor = "";
@@ -131,6 +132,15 @@ export class BackfillNftBalancesDatesJob extends AbstractRabbitMqJobHandler {
     // Check if there are more potential users to sync
     if (results.length == values.limit) {
       const lastItem = _.last(results);
+
+      // logger.info(
+      //   this.queueName,
+      //   `Processed ${results.length} tokens. last contract=${fromBuffer(
+      //     lastItem.contract
+      //   )}, tokenId=${lastItem.token_id}, owner=${fromBuffer(lastItem.owner)}, amount=${
+      //     lastItem.amount
+      //   }`
+      // );
 
       return {
         addToQueue: true,

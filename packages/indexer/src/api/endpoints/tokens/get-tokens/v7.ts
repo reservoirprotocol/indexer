@@ -407,6 +407,14 @@ export const getTokensV7Options: RouteOptions = {
       enableElasticsearchAsks = !isNaN(Number(contArr)) || contArr[0].startsWith("es_");
     }
 
+    if (query.attributes) {
+      Object.entries(query.attributes).forEach(([key]) => {
+        _.endsWith(key, "::gte") || _.endsWith(key, "::lte")
+          ? (enableElasticsearchAsks = false)
+          : undefined;
+      });
+    }
+
     if (enableElasticsearchAsks) {
       if (query.continuation) {
         const contArr = splitContinuation(query.continuation);
@@ -814,9 +822,32 @@ export const getTokensV7Options: RouteOptions = {
 
       if (query.attributes) {
         const attributes: { key: string; value: any }[] = [];
-        Object.entries(query.attributes).forEach(([key, value]) => attributes.push({ key, value }));
+        const rangeAttributes: { [key: string]: { value: number; operator: "gte" | "lte" }[] } = {};
+        let i = 0;
 
-        for (let i = 0; i < attributes.length; i++) {
+        Object.entries(query.attributes).forEach(([key, value]) => {
+          if (_.endsWith(key, "::gte")) {
+            const trimmedKey = _.replace(key, "::gte", "");
+            _.has(rangeAttributes, trimmedKey)
+              ? rangeAttributes[trimmedKey].push({
+                  value: Number(value),
+                  operator: "gte",
+                })
+              : (rangeAttributes[trimmedKey] = [{ value: Number(value), operator: "gte" }]);
+          } else if (_.endsWith(key, "::lte")) {
+            const trimmedKey = _.replace(key, "::lte", "");
+            _.has(rangeAttributes, trimmedKey)
+              ? rangeAttributes[trimmedKey].push({
+                  value: Number(value),
+                  operator: "lte",
+                })
+              : (rangeAttributes[trimmedKey] = [{ value: Number(value), operator: "lte" }]);
+          } else {
+            attributes.push({ key, value });
+          }
+        });
+
+        for (; i < attributes.length; i++) {
           const multipleSelection = Array.isArray(attributes[i].value);
 
           (query as any)[`key${i}`] = attributes[i].key;
@@ -829,6 +860,30 @@ export const getTokensV7Options: RouteOptions = {
               AND ta${i}.key = $/key${i}/
               AND ta${i}.value ${multipleSelection ? `IN ($/value${i}:csv/)` : `= $/value${i}/`}
           `;
+        }
+
+        for (const [key, range] of Object.entries(rangeAttributes)) {
+          (query as any)[`key${i}`] = key;
+
+          let valueRangeFilter = "";
+          if (_.size(range) > 1) {
+            const sortedRange = _.sortBy(range, "operator");
+            valueRangeFilter = `CASE WHEN ta${i}.value ~ '^[0-9]+\\.?[0-9]*$' THEN CAST(ta${i}.value AS NUMERIC) ELSE 0 END BETWEEN ${sortedRange[0].value} AND ${sortedRange[1].value}`;
+          } else {
+            valueRangeFilter = `CASE WHEN ta${i}.value ~ '^[0-9]+\\.?[0-9]*$' THEN CAST(ta${i}.value AS NUMERIC) ELSE 0 END ${
+              range[0].operator === "lte" ? "<=" : ">="
+            } ${range[0].value}`;
+          }
+
+          baseQuery += `
+            JOIN token_attributes ta${i}
+              ON t.contract = ta${i}.contract
+              AND t.token_id = ta${i}.token_id
+              AND ta${i}.key = $/key${i}/
+              AND ${valueRangeFilter}
+          `;
+
+          i++;
         }
       }
 
