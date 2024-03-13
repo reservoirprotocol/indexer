@@ -405,7 +405,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           ownerCount: Number(r.owner_count),
           floorAsk: {
             id: r.floor_sell_id,
-            price: r.floor_sell_id
+            price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
+            priceV2: r.floor_sell_id
               ? await getJoiPriceObject(
                   {
                     gross: {
@@ -431,7 +432,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           },
           floorAskNormalized: {
             id: r.normalized_floor_sell_id,
-            price: r.normalized_floor_sell_id
+            price: r.normalized_floor_sell_id ? formatEth(r.normalized_floor_sell_value) : null,
+            priceV2: r.normalized_floor_sell_id
               ? await getJoiPriceObject(
                   {
                     gross: {
@@ -457,7 +459,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           },
           floorAskNonFlagged: {
             id: r.non_flagged_floor_sell_id,
-            price: r.non_flagged_floor_sell_id
+            price: r.non_flagged_floor_sell_id ? formatEth(r.non_flagged_floor_sell_value) : null,
+            priceV2: r.non_flagged_floor_sell_id
               ? await getJoiPriceObject(
                   {
                     gross: {
