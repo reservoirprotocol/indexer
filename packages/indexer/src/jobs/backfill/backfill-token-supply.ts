@@ -2,8 +2,15 @@ import { idb } from "@/common/db";
 
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
+import _ from "lodash";
+
+export type BackfillTokenSupplyJobCursorInfo = {
+  collectionId: string;
+  contract?: string;
+  tokenId?: string;
+};
 
 export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
   queueName = "backfill-token-supply";
@@ -13,28 +20,29 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
   lazyMode = false;
   singleActiveConsumer = true;
 
-  public async process(payload: { collectionId?: string }) {
+  public async process(payload: BackfillTokenSupplyJobCursorInfo) {
     const values = {
       collectionId: payload.collectionId,
+      contract: payload.contract ? toBuffer(payload.contract) : "",
+      tokenId: payload.tokenId,
       limit: 250,
     };
 
     const tokensToSync = [];
 
-    let whereFilter = "";
+    let continuation = "";
 
-    if (payload.collectionId) {
-      whereFilter = `WHERE collection_id = $/collectionId/`;
-    } else {
-      whereFilter = "WHERE supply IS NULL";
+    if (payload.tokenId && payload.contract) {
+      continuation = `AND (contract, token_id) > ($/contract/, $/tokenId/)`;
     }
 
     const tokens = await idb.manyOrNone(
       `
         SELECT contract, token_id
         FROM tokens
-        ${whereFilter}
-        ORDER BY updated_at ASC
+        WHERE collection_id = $/collectionId/
+        ${continuation}
+        ORDER BY contract, token_id
         LIMIT $/limit/
         `,
       values
@@ -49,9 +57,11 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
     }
 
     // Check if there are more potential users to sync
-    if (tokensToSync.length == values.limit) {
+    if (tokens.length == values.limit) {
       return {
         addToQueue: true,
+        contract: fromBuffer(_.last(tokens).contract),
+        tokenId: _.last(tokens).token_id,
       };
     }
 
@@ -62,15 +72,24 @@ export class BackfillTokenSupplyJob extends AbstractRabbitMqJobHandler {
     rabbitMqMessage: RabbitMQMessage,
     processResult: {
       addToQueue: boolean;
+      contract?: string;
+      tokenId?: string;
     }
   ) {
     if (processResult.addToQueue) {
-      await this.addToQueue(rabbitMqMessage.payload.collectionId, 10 * 1000);
+      await this.addToQueue(
+        {
+          collectionId: rabbitMqMessage.payload.collectionId,
+          contract: processResult.contract,
+          tokenId: processResult.tokenId,
+        },
+        10 * 1000
+      );
     }
   }
 
-  public async addToQueue(collectionId?: string, delay = 0) {
-    await this.send({ payload: { collectionId } }, delay);
+  public async addToQueue(payload: BackfillTokenSupplyJobCursorInfo, delay = 0) {
+    await this.send({ payload }, delay);
   }
 }
 
