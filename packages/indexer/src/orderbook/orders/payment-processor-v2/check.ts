@@ -138,6 +138,9 @@ export const offChainCheck = async (
   if (order.isBuyOrder()) {
     const balanceToCheck = bn(order.params.itemPrice).mul(order.params.amount);
 
+    // Handle rebasing tokens (where applicable)
+    await onChainData.updateFtBalance(order.params.paymentMethod, order.params.sellerOrBuyer);
+
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(
       order.params.paymentMethod,

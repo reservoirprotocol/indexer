@@ -827,7 +827,7 @@ export const getTokensV7Options: RouteOptions = {
 
         Object.entries(query.attributes).forEach(([key, value]) => {
           if (_.endsWith(key, "::gte")) {
-            const trimmedKey = _.trimEnd(key, "::gte");
+            const trimmedKey = _.replace(key, "::gte", "");
             _.has(rangeAttributes, trimmedKey)
               ? rangeAttributes[trimmedKey].push({
                   value: Number(value),
@@ -835,7 +835,7 @@ export const getTokensV7Options: RouteOptions = {
                 })
               : (rangeAttributes[trimmedKey] = [{ value: Number(value), operator: "gte" }]);
           } else if (_.endsWith(key, "::lte")) {
-            const trimmedKey = _.trimEnd(key, "::lte");
+            const trimmedKey = _.replace(key, "::lte", "");
             _.has(rangeAttributes, trimmedKey)
               ? rangeAttributes[trimmedKey].push({
                   value: Number(value),

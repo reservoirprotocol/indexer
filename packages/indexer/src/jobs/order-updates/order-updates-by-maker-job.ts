@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { AddressZero } from "@ethersproject/constants";
+import * as Sdk from "@reservoir0x/sdk";
+import { Network } from "@reservoir0x/sdk/dist/utils";
 
+import { config } from "@/config/index";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -10,7 +13,7 @@ import { orderUpdatesByIdJob } from "@/jobs/order-updates/order-updates-by-id-jo
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
-import { fetchAndUpdateFtApproval } from "@/utils/on-chain-data";
+import { fetchAndUpdateFtApproval, updateFtBalance } from "@/utils/on-chain-data";
 
 export type OrderUpdatesByMakerJobPayload = {
   // The context represents a deterministic id for what triggered
@@ -97,6 +100,31 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
       switch (data.kind) {
         // Handle changes in ERC20 balances (relevant for 'buy' orders)
         case "buy-balance": {
+          // We only need this for rebasing tokens (only Blast WETH for now)
+          if (
+            config.chainId === Network.Blast &&
+            data.contract === Sdk.Common.Addresses.WNative[config.chainId]
+          ) {
+            const hasOrdersResult = await idb.oneOrNone(
+              `
+                SELECT
+                  count(*) AS count
+                FROM orders
+                WHERE orders.maker = $/maker/
+                  AND orders.side = 'buy'
+                  AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                  AND orders.currency = $/currency/
+              `,
+              {
+                maker: toBuffer(maker),
+                currency: toBuffer(data.contract),
+              }
+            );
+            if (hasOrdersResult && hasOrdersResult.count > 0) {
+              await updateFtBalance(data.contract, maker);
+            }
+          }
+
           // Get the old and new fillability statuses of the current maker's 'buy' orders
           const fillabilityStatuses = await idb.manyOrNone(
             `

@@ -460,18 +460,6 @@ export const autocompleteV2 = async (
 
       const esResult = await elasticsearch.search<CollectionDocument>(esSearchParams);
 
-      logger.info(
-        "elasticsearch-collections",
-        JSON.stringify({
-          topic: "autocompleteCollections",
-          message: "Debug",
-          params,
-          esQuery,
-          esSuggest,
-          esResult,
-        })
-      );
-
       const results: { collection: CollectionDocument; score: number }[] =
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore

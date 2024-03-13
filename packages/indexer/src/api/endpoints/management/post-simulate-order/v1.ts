@@ -254,23 +254,29 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
         return { message: "Associated contract is not simulatable" };
       }
+
+      const contract = fromBuffer(orderResult.contract);
+      const skipCombinations = [
+        // ENS
+        "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85:1",
+        // Quirklings
+        "0x8f1b132e9fd2b9a2b210baa186bf1ae650adf7ac:1",
+        // Quirkies
+        "0xd4b7d9bb20fa20ddada9ecef8a7355ca983cccb1:1",
+        // Creepz
+        "0x5946aeaab44e65eb370ffaa6a7ef2218cff9b47d:1",
+        // Kubz
+        "0xeb2dfc54ebafca8f50efcc1e21a9d100b5aeb349:1",
+        // Ordinal Kubz
+        "0xc589770757cd0d372c54568bf7e5e1d56b958015:1",
+        // TheMafiaAnimalsSoldiers
+        "0x99f419934192f8de7bf53b490d5bdb88527654bf:1",
+        // y00ts
+        "0x670fd103b1a08628e9557cd66b87ded841115190:137",
+      ];
       if (
         orderResult.side === "buy" &&
-        // ENS on mainnet
-        ((fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85" &&
-          config.chainId === Network.Ethereum) ||
-          // Quirklings on mainnet
-          (fromBuffer(orderResult.contract) === "0x8f1b132e9fd2b9a2b210baa186bf1ae650adf7ac" &&
-            config.chainId === Network.Ethereum) ||
-          // Quirklings on mainnet
-          (fromBuffer(orderResult.contract) === "0xd4b7d9bb20fa20ddada9ecef8a7355ca983cccb1" &&
-            config.chainId === Network.Ethereum) ||
-          // Creepz on mainner
-          (fromBuffer(orderResult.contract) === "0x5946aeaab44e65eb370ffaa6a7ef2218cff9b47d" &&
-            config.chainId === Network.Ethereum) ||
-          // y00ts on polygon
-          (fromBuffer(orderResult.contract) === "0x670fd103b1a08628e9557cd66b87ded841115190" &&
-            config.chainId === Network.Polygon))
+        skipCombinations.includes(`${contract}:${config.chainId}`)
       ) {
         return {
           message: "Order not simulatable due to custom contract logic",

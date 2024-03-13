@@ -38,7 +38,7 @@ export const getSearchCollectionsV3Options: RouteOptions = {
         .default(false)
         .description("If true, will filter any collections marked as spam."),
       boostVerified: Joi.boolean()
-        .default(false)
+        .default(true)
         .description("If true, will promote verified collections."),
       fuzzy: Joi.boolean()
         .default(false)
