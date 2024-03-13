@@ -227,13 +227,52 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
 
       fallbackError = `${(error as any).message}`;
 
+      if (fallbackError === "Not found") {
+        try {
+          const urlParts = uri.split("/");
+          const tokenIdPart = urlParts[urlParts.length - 1];
+
+          if (parseInt(tokenIdPart, 16) == Number(tokenId)) {
+            const newUri = uri.replace(tokenIdPart, tokenId);
+
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Not found Error - TokenId Match. contract=${contract}, tokenId=${tokenId}, uri=${uri}, newUri=${newUri}`,
+                payload,
+                newUri,
+              })
+            );
+
+            await onchainMetadataProcessTokenUriJob.addToQueue({
+              contract,
+              tokenId,
+              uri: newUri,
+            });
+
+            return;
+          }
+        } catch (error) {
+          logger.error(
+            this.queueName,
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `Not found Error - Error Parsing TokenId. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
+              payload,
+              error,
+            })
+          );
+        }
+      }
+
       logger.warn(
         this.queueName,
         JSON.stringify({
           topic: tokenMetadataIndexingDebug
             ? "tokenMetadataIndexingDebug"
             : "simpleHashFallbackDebug",
-          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          message: `Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, retryCount=${retryCount}, error=${error}`,
           contract,
           tokenId,
           error: fallbackError,
@@ -250,7 +289,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         this.queueName,
         JSON.stringify({
           topic: "simpleHashFallbackDebug",
-          message: `Skip Fallback. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          message: `Skip Fallback. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
           payload,
         })
       );

@@ -2355,16 +2355,30 @@ export const getListedTokensFromES = async (query: any, attributeFloorAskPriceAs
       market: {
         floorAsk: {
           id: ask.order.id,
-          price: await getJoiPriceObject(
-            {
-              gross: {
-                amount: ask.order.pricing.currencyPrice ?? ask.order.pricing.price,
-                nativeAmount: ask.order.pricing.price,
-              },
-            },
-            floorAskCurrency,
-            query.displayCurrency
-          ),
+          price: query.normalizeRoyalties
+            ? await getJoiPriceObject(
+                {
+                  gross: {
+                    amount:
+                      ask.order.pricing.currencyNormalizedValue ??
+                      ask.order.pricing.normalizedValue ??
+                      ask.order.pricing.price,
+                    nativeAmount: ask.order.pricing.normalizedValue ?? ask.order.pricing.price,
+                  },
+                },
+                floorAskCurrency,
+                query.displayCurrency
+              )
+            : await getJoiPriceObject(
+                {
+                  gross: {
+                    amount: ask.order.pricing.currencyPrice ?? ask.order.pricing.price,
+                    nativeAmount: ask.order.pricing.price,
+                  },
+                },
+                floorAskCurrency,
+                query.displayCurrency
+              ),
           maker: ask.order.maker,
           validFrom: Math.trunc(ask.order.validFrom),
           validUntil: Math.trunc(ask.order.validUntil),

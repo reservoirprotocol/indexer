@@ -30,7 +30,7 @@ const getMethod = (object: { [key: string]: any }) => {
   }
 };
 
-let openapiData = {};
+let openapiData: object;
 
 export const generateOpenApiSpec = async () => {
   try {

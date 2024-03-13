@@ -61,6 +61,9 @@ export const offChainCheck = async (
   let hasBalance = true;
   let hasApproval = true;
   if (order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.BUY) {
+    // Handle rebasing tokens (where applicable)
+    await onChainData.updateFtBalance(order.params.erc20Token, order.params.maker);
+
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(order.params.erc20Token, order.params.maker);
     if (ftBalance.lt(bn(order.params.erc20TokenAmount).add(feeAmount))) {

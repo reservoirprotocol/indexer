@@ -8,7 +8,7 @@ import { config } from "@/config/index";
 
 const getBaseProviderHeaders = () => {
   const headers: { [key: string]: string } = {};
-  if ([1].includes(config.chainId)) {
+  if ([0].includes(config.chainId)) {
     headers["x-session-hash"] = getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`);
   }
 

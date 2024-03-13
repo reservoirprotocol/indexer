@@ -30,7 +30,7 @@ export default class ResyncAttributeCountsJob extends AbstractRabbitMqJobHandler
 
     if (updateCountsString !== "") {
       const updateQuery = `UPDATE attributes
-                           SET token_count = token_count + x.countColumn
+                           SET token_count = LEAST(token_count + x.countColumn, 0)
                            FROM (VALUES ${updateCountsString}) AS x(idColumn, countColumn)
                            WHERE x.idColumn = attributes.id`;
 
