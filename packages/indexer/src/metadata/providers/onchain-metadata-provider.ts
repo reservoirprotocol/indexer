@@ -709,8 +709,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
         return [null, "Invalid URI"];
       }
 
-      if (uri.includes("ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
-        uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+      if (uri.includes("ipfs.io")) {
+        return this.getIPFSURI(contract, tokenId, uri);
       }
 
       return axios
@@ -747,63 +747,19 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           return [null, "Invalid JSON"];
         })
         .catch((error) => {
-          const fallbackToIpfsGateway = uri.includes("ipfs.io") && config.ipfsGatewayDomain;
-
-          if (fallbackToIpfsGateway) {
-            const ipfsGatewayUrl = uri.replace("ipfs.io", config.ipfsGatewayDomain);
-
-            return axios
-              .get(ipfsGatewayUrl, {
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              })
-              .then((res) => {
-                if (res.data !== null && typeof res.data === "object") {
-                  return [res.data, null];
-                }
-
-                return [null, "Invalid JSON"];
-              })
-              .catch((fallbackError) => {
-                logger.warn(
-                  "onchain-fetcher",
-                  JSON.stringify({
-                    topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
-                    message: `getTokenMetadataFromURI axios fallback error. contract=${contract}, tokenId=${tokenId}`,
-                    contract,
-                    tokenId,
-                    uri,
-                    error,
-                    errorResponseStatus: error.response?.status,
-                    errorResponseData: error.response?.data,
-                    ipfsGatewayUrl,
-                    fallbackError,
-                    fallbackErrorResponseStatus: fallbackError.response?.status,
-                    fallbackErrorResponseData: fallbackError.response?.data,
-                  })
-                );
-
-                return [
-                  null,
-                  fallbackError.response?.status || fallbackError.code || `${fallbackError}`,
-                ];
-              });
-          } else {
-            logger.warn(
-              "onchain-fetcher",
-              JSON.stringify({
-                topic: tokenMetadataIndexingDebug ? "tokenMetadataIndexingDebug" : undefined,
-                message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
-                contract,
-                tokenId,
-                uri,
-                error,
-                errorResponseStatus: error.response?.status,
-                errorResponseData: error.response?.data,
-              })
-            );
-          }
+          logger.warn(
+            "onchain-fetcher",
+            JSON.stringify({
+              topic: "tokenMetadataIndexingDebug",
+              message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
+              contract,
+              tokenId,
+              uri,
+              error,
+              errorResponseStatus: error.response?.status,
+              errorResponseData: error.response?.data,
+            })
+          );
 
           return [null, error.response?.status || error.code || `${error}`];
         });
@@ -821,6 +777,85 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
       return [null, (error as any).message];
     }
+  }
+
+  async getIPFSURI(contract: string, tokenId: string, uri: string) {
+    if (config.ipfsGatewayDomain && config.forceIpfsGateway) {
+      uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+    }
+
+    return axios
+      .get(uri, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      .then((res) => {
+        if (res.data !== null && typeof res.data === "object") {
+          return [res.data, null];
+        }
+
+        return [null, "Invalid JSON"];
+      })
+      .catch((error) => {
+        if (config.ipfsGatewayDomain) {
+          const ipfsGatewayUrl = uri.replace("ipfs.io", config.ipfsGatewayDomain);
+
+          return axios
+            .get(ipfsGatewayUrl, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            })
+            .then((res) => {
+              if (res.data !== null && typeof res.data === "object") {
+                return [res.data, null];
+              }
+
+              return [null, "Invalid JSON"];
+            })
+            .catch((fallbackError) => {
+              logger.warn(
+                "onchain-fetcher",
+                JSON.stringify({
+                  topic: "tokenMetadataIndexingDebug",
+                  message: `getTokenMetadataFromURI axios fallback error. contract=${contract}, tokenId=${tokenId}`,
+                  contract,
+                  tokenId,
+                  uri,
+                  error,
+                  errorResponseStatus: error.response?.status,
+                  errorResponseData: error.response?.data,
+                  ipfsGatewayUrl,
+                  fallbackError,
+                  fallbackErrorResponseStatus: fallbackError.response?.status,
+                  fallbackErrorResponseData: fallbackError.response?.data,
+                })
+              );
+
+              return [
+                null,
+                fallbackError.response?.status || fallbackError.code || `${fallbackError}`,
+              ];
+            });
+        } else {
+          logger.warn(
+            "onchain-fetcher",
+            JSON.stringify({
+              topic: "tokenMetadataIndexingDebug",
+              message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
+              contract,
+              tokenId,
+              uri,
+              error,
+              errorResponseStatus: error.response?.status,
+              errorResponseData: error.response?.data,
+            })
+          );
+        }
+
+        return [null, error.response?.status || error.code || `${error}`];
+      });
   }
 }
 
