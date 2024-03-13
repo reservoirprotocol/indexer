@@ -368,7 +368,26 @@ export const generateListingDetailsV6 = async (
     }
 
     case "seaport-v1.5": {
-      if (order.rawData && !order.rawData.partial) {
+      if (order.rawData && order.rawData.okxOrderId) {
+        return {
+          kind: "seaport-v1.5-partial-okx",
+          ...common,
+          order: {
+            okxId: order.rawData.okxOrderId,
+            id: order.id,
+          } as Sdk.SeaportBase.Types.OkxPartialOrder,
+        };
+      } else if (order.rawData && order.rawData.partial) {
+        return {
+          kind: "seaport-v1.5-partial",
+          ...common,
+          order: {
+            contract: token.contract,
+            tokenId: token.tokenId,
+            id: order.id,
+          } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
+        };
+      } else {
         // Make sure on-chain orders have a "defined" signature
         order.rawData.signature = order.rawData.signature ?? "0x";
 
@@ -387,27 +406,6 @@ export const generateListingDetailsV6 = async (
           ...common,
           order: sdkOrder,
         };
-      } else {
-        if (order.rawData.okxOrderId) {
-          return {
-            kind: "seaport-v1.5-partial-okx",
-            ...common,
-            order: {
-              okxId: order.rawData.okxOrderId,
-              id: order.id,
-            } as Sdk.SeaportBase.Types.OkxPartialOrder,
-          };
-        } else {
-          return {
-            kind: "seaport-v1.5-partial",
-            ...common,
-            order: {
-              contract: token.contract,
-              tokenId: token.tokenId,
-              id: order.id,
-            } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
-          };
-        }
       }
     }
 

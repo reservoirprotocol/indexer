@@ -66,6 +66,10 @@ export const offChainCheck = async (
   if (order.side() === "buy") {
     // Check: maker has enough balance
     const price = order.getTotalPrice();
+
+    // Handle rebasing tokens (where applicable)
+    await onChainData.updateFtBalance(order.params.erc20Token, order.params.maker);
+
     const ftBalance = await commonHelpers.getFtBalance(order.params.erc20Token, order.params.maker);
     if (ftBalance.lt(price)) {
       hasBalance = false;

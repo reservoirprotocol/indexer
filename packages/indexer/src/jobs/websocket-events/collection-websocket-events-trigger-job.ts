@@ -211,6 +211,44 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       const metadataDisabled = r.metadata_disabled;
       const id = !metadataDisabled ? r.id : r.contract;
 
+      if (changed.includes("metadata")) {
+        const beforeMetadata = JSON.parse(data.before.metadata);
+
+        if (beforeMetadata.safelistRequestStatus !== metadata.safelistRequestStatus) {
+          changed.push("openseaVerificationStatus");
+        }
+
+        if (beforeMetadata.magicedenVerificationStatus !== metadata.magicedenVerificationStatus) {
+          changed.push("magicedenVerificationStatus");
+        }
+
+        if (!metadataDisabled) {
+          if (beforeMetadata.imageUrl !== metadata.imageUrl) {
+            changed.push("imageUrl");
+          }
+
+          if (beforeMetadata.bannerImageUrl !== metadata.bannerImageUrl) {
+            changed.push("bannerImageUrl");
+          }
+
+          if (beforeMetadata.discordUrl !== metadata.discordUrl) {
+            changed.push("discordUrl");
+          }
+
+          if (beforeMetadata.externalUrl !== metadata.externalUrl) {
+            changed.push("externalUrl");
+          }
+
+          if (beforeMetadata.twitterUsername !== metadata.twitterUsername) {
+            changed.push("twitterUsername");
+          }
+
+          if (beforeMetadata.description !== metadata.description) {
+            changed.push("description");
+          }
+        }
+      }
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -237,10 +275,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           primaryContract: r.contract,
           tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
           contractKind,
-          openseaVerificationStatus: !metadataDisabled ? metadata?.safelistRequestStatus : null,
-          magicedenVerificationStatus: !metadataDisabled
-            ? metadata?.magicedenVerificationStatus
-            : null,
+          openseaVerificationStatus: metadata?.safelistRequestStatus ?? null,
+          magicedenVerificationStatus: metadata?.magicedenVerificationStatus ?? null,
           royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
           topBid: {
             id: r.top_buy_id,
