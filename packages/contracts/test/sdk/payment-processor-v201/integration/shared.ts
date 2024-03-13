@@ -325,7 +325,12 @@ export const testCase = async ({
       console.log("\t\t  Parse Event Failed");
     }
 
-    const { fillEvents } = onChainData;
+    const { fillEvents: rawFillEvents, fillEventsPartial, fillEventsOnChain } = onChainData;
+
+    const fillEvents = rawFillEvents.concat(
+      fillEventsPartial,
+      fillEventsOnChain
+    )
     const matchFillEvent = fillEvents.find((event: any) => event.orderId === orderInfo.id);
     if (matchFillEvent) {
       const orderData = {
