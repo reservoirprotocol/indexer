@@ -261,18 +261,19 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       let floorAskNonFlaggedCurrency;
       let floorAskNonFlaggedCurrencyValue;
 
-      let floorAskOrderIds = [
-        r.floor_sell_id,
-        r.normalized_floor_sell_id,
-        r.non_flagged_floor_sell_id,
-      ];
+      try {
+        let floorAskOrderIds = [
+          r.floor_sell_id,
+          r.normalized_floor_sell_id,
+          r.non_flagged_floor_sell_id,
+        ];
 
-      floorAskOrderIds = floorAskOrderIds.filter(Boolean);
-      floorAskOrderIds = [...new Set(floorAskOrderIds)];
+        floorAskOrderIds = floorAskOrderIds.filter(Boolean);
+        floorAskOrderIds = [...new Set(floorAskOrderIds)];
 
-      if (floorAskOrderIds.length) {
-        const floorAsks = await idb.manyOrNone(
-          `
+        if (floorAskOrderIds.length) {
+          const floorAsks = await idb.manyOrNone(
+            `
           SELECT
             id,
             currency,
@@ -280,38 +281,48 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           FROM orders
           WHERE id IN ($/floorAskOrderIds:list/)
         `,
-          {
-            floorAskOrderIds,
+            {
+              floorAskOrderIds,
+            }
+          );
+
+          const floorAsk = floorAsks.find((floorAsk) => floorAsk.id === r.floor_sell_id);
+
+          if (floorAsk) {
+            floorAskCurrency = floorAsk.currency;
+            floorAskCurrencyValue =
+              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
           }
-        );
 
-        const floorAsk = floorAsks.find((floorAsk) => floorAsk.id === r.floor_sell_id);
+          const floorAskNormalized = floorAsks.find(
+            (floorAsk) => floorAsk.id === r.normalized_floor_sell_id
+          );
 
-        if (floorAsk) {
-          floorAskCurrency = floorAsk.currency;
-          floorAskCurrencyValue =
-            floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+          if (floorAskNormalized) {
+            floorAskNormalizedCurrency = floorAsk.currency;
+            floorAskNormalizedCurrencyValue =
+              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+          }
+
+          const floorAskNonFlagged = floorAsks.find(
+            (floorAsk) => floorAsk.id === r.non_flagged_floor_sell_id
+          );
+
+          if (floorAskNonFlagged) {
+            floorAskNonFlaggedCurrency = floorAsk.currency;
+            floorAskNonFlaggedCurrencyValue =
+              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+          }
         }
-
-        const floorAskNormalized = floorAsks.find(
-          (floorAsk) => floorAsk.id === r.normalized_floor_sell_id
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
+            data: JSON.stringify(data),
+            error,
+          })
         );
-
-        if (floorAskNormalized) {
-          floorAskNormalizedCurrency = floorAsk.currency;
-          floorAskNormalizedCurrencyValue =
-            floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
-        }
-
-        const floorAskNonFlagged = floorAsks.find(
-          (floorAsk) => floorAsk.id === r.non_flagged_floor_sell_id
-        );
-
-        if (floorAskNonFlagged) {
-          floorAskNonFlaggedCurrency = floorAsk.currency;
-          floorAskNonFlaggedCurrencyValue =
-            floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
-        }
       }
 
       await publishWebsocketEvent({
