@@ -289,9 +289,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           const floorAsk = floorAsks.find((floorAsk) => floorAsk.id === r.floor_sell_id);
 
           if (floorAsk) {
-            floorAskCurrency = floorAsk.currency;
-            floorAskCurrencyValue =
+            floorAskCurrency =
               floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskCurrencyValue = floorAsk.currency_value;
           }
 
           const floorAskNormalized = floorAsks.find(
@@ -299,9 +299,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           );
 
           if (floorAskNormalized) {
-            floorAskNormalizedCurrency = floorAsk.currency;
-            floorAskNormalizedCurrencyValue =
-              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNormalizedCurrency =
+              floorAskNormalized.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
           }
 
           const floorAskNonFlagged = floorAsks.find(
@@ -309,9 +309,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           );
 
           if (floorAskNonFlagged) {
-            floorAskNonFlaggedCurrency = floorAsk.currency;
-            floorAskNonFlaggedCurrencyValue =
-              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNonFlaggedCurrency =
+              floorAskNonFlagged.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
           }
         }
       } catch (error) {
