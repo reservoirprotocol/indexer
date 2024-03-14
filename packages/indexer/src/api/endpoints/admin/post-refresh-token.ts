@@ -26,7 +26,9 @@ export const postRefreshTokenOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      method: Joi.string().optional().valid("opensea", "simplehash", "centerdev", "soundxyz"),
+      method: Joi.string()
+        .optional()
+        .valid("opensea", "simplehash", "centerdev", "soundxyz", "onchain"),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
