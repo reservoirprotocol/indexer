@@ -261,41 +261,44 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       let floorAskNonFlaggedCurrency;
       let floorAskNonFlaggedCurrencyValue;
 
+      let topBidCurrency;
+      let topBidCurrencyValue;
+
       try {
-        let floorAskOrderIds = [
+        let orderIds = [
           r.floor_sell_id,
           r.normalized_floor_sell_id,
           r.non_flagged_floor_sell_id,
+          r.top_buy_id,
         ];
 
-        floorAskOrderIds = floorAskOrderIds.filter(Boolean);
-        floorAskOrderIds = [...new Set(floorAskOrderIds)];
+        orderIds = orderIds.filter(Boolean);
+        orderIds = [...new Set(orderIds)];
 
-        if (floorAskOrderIds.length) {
-          const floorAsks = await idb.manyOrNone(
+        if (orderIds.length) {
+          const orders = await idb.manyOrNone(
             `
           SELECT
             id,
             currency,
             currency_value
           FROM orders
-          WHERE id IN ($/floorAskOrderIds:list/)
+          WHERE id IN ($/orderIds:list/)
         `,
             {
-              floorAskOrderIds,
+              orderIds,
             }
           );
 
-          const floorAsk = floorAsks.find((floorAsk) => floorAsk.id === r.floor_sell_id);
+          const floorAsk = orders.find((order) => order.id === r.floor_sell_id);
 
           if (floorAsk) {
-            floorAskCurrency =
-              floorAsk.currency_value ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskCurrency = floorAsk.currency ?? Sdk.Common.Addresses.Native[config.chainId];
             floorAskCurrencyValue = floorAsk.currency_value;
           }
 
-          const floorAskNormalized = floorAsks.find(
-            (floorAsk) => floorAsk.id === r.normalized_floor_sell_id
+          const floorAskNormalized = orders.find(
+            (order) => order.id === r.normalized_floor_sell_id
           );
 
           if (floorAskNormalized) {
@@ -304,8 +307,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
             floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
           }
 
-          const floorAskNonFlagged = floorAsks.find(
-            (floorAsk) => floorAsk.id === r.non_flagged_floor_sell_id
+          const floorAskNonFlagged = orders.find(
+            (order) => order.id === r.non_flagged_floor_sell_id
           );
 
           if (floorAskNonFlagged) {
@@ -313,7 +316,27 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
               floorAskNonFlagged.currency ?? Sdk.Common.Addresses.Native[config.chainId];
             floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
           }
+
+          const topBid = orders.find((order) => order.id === r.top_buy_id);
+
+          if (topBid) {
+            topBidCurrency = topBid.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            topBidCurrencyValue = topBid.currency_value;
+          }
         }
+
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
+            floorAskCurrency,
+            floorAskCurrencyValue,
+            floorAskNormalizedCurrency,
+            floorAskNormalizedCurrencyValue,
+            floorAskNonFlaggedCurrency,
+            floorAskNonFlaggedCurrencyValue,
+          })
+        );
       } catch (error) {
         logger.error(
           this.queueName,
@@ -357,6 +380,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           topBid: {
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+            price: r.top_buy_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: topBidCurrencyValue ?? r.top_buy_value,
+                      nativeAmount: r.top_buy_value,
+                    },
+                  },
+                  topBidCurrency,
+                  undefined
+                )
+              : null,
             maker: r.top_buy_maker ? r.top_buy_maker : null,
             ...formatValidBetween(r.top_buy_valid_between),
             source: top_buy_source
