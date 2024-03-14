@@ -26,6 +26,7 @@ import { blurListingsRefreshJob } from "@/jobs/order-updates/misc/blur-listings-
 import { openseaOrdersProcessJob } from "@/jobs/opensea-orders/opensea-orders-process-job";
 import { PendingFlagStatusSyncCollectionSlugs } from "@/models/pending-flag-status-sync-collection-slugs";
 import { PendingFlagStatusSyncContracts } from "@/models/pending-flag-status-sync-contracts";
+import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 
 const version = "v2";
 
@@ -210,6 +211,9 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
       // Refresh the contract floor sell and top bid
       await collectionRefreshCacheJob.addToQueue({ collection: collection.id });
+
+      // Refresh the collection on stale count
+      await recalcOnSaleCountQueueJob.addToQueue({ collection: collection.id });
 
       // Revalidate the contract orders
       await orderFixesJob.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
