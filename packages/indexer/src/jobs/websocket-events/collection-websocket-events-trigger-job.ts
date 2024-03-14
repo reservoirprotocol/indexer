@@ -1,7 +1,7 @@
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
-import { formatEth, toBuffer } from "@/common/utils";
+import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { Assets, ImageSize } from "@/utils/assets";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
@@ -293,7 +293,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           const floorAsk = orders.find((order) => order.id === r.floor_sell_id);
 
           if (floorAsk) {
-            floorAskCurrency = floorAsk.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskCurrency = floorAsk.currency
+              ? fromBuffer(floorAsk.currency)
+              : Sdk.Common.Addresses.Native[config.chainId];
             floorAskCurrencyValue = floorAsk.currency_value;
           }
 
@@ -302,8 +304,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           );
 
           if (floorAskNormalized) {
-            floorAskNormalizedCurrency =
-              floorAskNormalized.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNormalizedCurrency = floorAskNormalized.currency
+              ? fromBuffer(floorAskNormalized.currency)
+              : Sdk.Common.Addresses.Native[config.chainId];
             floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
           }
 
@@ -312,15 +315,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           );
 
           if (floorAskNonFlagged) {
-            floorAskNonFlaggedCurrency =
-              floorAskNonFlagged.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            floorAskNonFlaggedCurrency = floorAskNonFlagged.currency
+              ? fromBuffer(floorAskNonFlagged.currency)
+              : Sdk.Common.Addresses.Native[config.chainId];
             floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
           }
 
           const topBid = orders.find((order) => order.id === r.top_buy_id);
 
           if (topBid) {
-            topBidCurrency = topBid.currency ?? Sdk.Common.Addresses.Native[config.chainId];
+            topBidCurrency = topBid.currency
+              ? fromBuffer(topBid.currency)
+              : Sdk.Common.Addresses.Native[config.chainId];
             topBidCurrencyValue = topBid.currency_value;
           }
         }
