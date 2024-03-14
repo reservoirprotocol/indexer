@@ -69,7 +69,7 @@ export const getProviderMetadata: RouteOptions = {
         );
       }
     } catch (error) {
-      logger.error("get-provider-metadata-handler", `Handler failure: ${error}`);
+      logger.error("get-provider-metadata-handler", `Handler failure: ${JSON.stringify(error)}`);
       throw error;
     }
   },
