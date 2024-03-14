@@ -336,6 +336,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
             floorAskNormalizedCurrencyValue,
             floorAskNonFlaggedCurrency,
             floorAskNonFlaggedCurrencyValue,
+            topBidCurrency,
+            topBidCurrencyValue,
           })
         );
       } catch (error) {
