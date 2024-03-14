@@ -91,9 +91,6 @@ export const postExecuteCallV1Options: RouteOptions = {
 
       const ccConfig: {
         enabled: boolean;
-        user?: {
-          balance: string;
-        };
         solver?: {
           address: string;
           capacityPerRequest: string;
@@ -183,7 +180,7 @@ export const postExecuteCallV1Options: RouteOptions = {
           from: user,
           to: ccConfig.solver!.address,
           data: shortRequestId,
-          value: bn(cost).sub(ccConfig.user!.balance).toString(),
+          value: bn(cost).toString(),
           gasLimit: 22000,
           chainId: originChainId,
         },
