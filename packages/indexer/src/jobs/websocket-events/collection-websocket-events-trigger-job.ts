@@ -328,7 +328,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         logger.info(
           this.queueName,
           JSON.stringify({
-            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
+            message: `fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
+            orderIds,
             floorAskCurrency,
             floorAskCurrencyValue,
             floorAskNormalizedCurrency,
@@ -341,7 +342,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         logger.error(
           this.queueName,
           JSON.stringify({
-            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
+            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}, error=${error}`,
             data: JSON.stringify(data),
             error,
           })
