@@ -397,7 +397,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                       nativeAmount: r.top_buy_value,
                     },
                   },
-                  topBidCurrency,
+                  topBidCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
                   undefined
                 )
               : null,
@@ -458,7 +458,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                       nativeAmount: r.floor_sell_value,
                     },
                   },
-                  floorAskCurrency,
+                  floorAskCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
                   undefined
                 )
               : null,
@@ -485,7 +485,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                       nativeAmount: r.normalized_floor_sell_value,
                     },
                   },
-                  floorAskNormalizedCurrency,
+                  floorAskNormalizedCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
                   undefined
                 )
               : null,
@@ -512,7 +512,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
                       nativeAmount: r.non_flagged_floor_sell_id,
                     },
                   },
-                  floorAskNonFlaggedCurrency,
+                  floorAskNonFlaggedCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
                   undefined
                 )
               : null,
