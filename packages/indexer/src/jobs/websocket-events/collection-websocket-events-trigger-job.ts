@@ -264,20 +264,19 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       let topBidCurrency;
       let topBidCurrencyValue;
 
-      try {
-        let orderIds = [
-          r.floor_sell_id,
-          r.normalized_floor_sell_id,
-          r.non_flagged_floor_sell_id,
-          r.top_buy_id,
-        ];
+      let orderIds = [
+        r.floor_sell_id,
+        r.normalized_floor_sell_id,
+        r.non_flagged_floor_sell_id,
+        r.top_buy_id,
+      ];
 
-        orderIds = orderIds.filter(Boolean);
-        orderIds = [...new Set(orderIds)];
+      orderIds = orderIds.filter(Boolean);
+      orderIds = [...new Set(orderIds)];
 
-        if (orderIds.length) {
-          const orders = await idb.manyOrNone(
-            `
+      if (orderIds.length) {
+        const orders = await idb.manyOrNone(
+          `
           SELECT
             id,
             currency,
@@ -285,76 +284,48 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           FROM orders
           WHERE id IN ($/orderIds:list/)
         `,
-            {
-              orderIds,
-            }
-          );
-
-          const floorAsk = orders.find((order) => order.id === r.floor_sell_id);
-
-          if (floorAsk) {
-            floorAskCurrency = floorAsk.currency
-              ? fromBuffer(floorAsk.currency)
-              : Sdk.Common.Addresses.Native[config.chainId];
-            floorAskCurrencyValue = floorAsk.currency_value;
+          {
+            orderIds,
           }
+        );
 
-          const floorAskNormalized = orders.find(
-            (order) => order.id === r.normalized_floor_sell_id
-          );
+        const floorAsk = orders?.find((order) => order.id === r.floor_sell_id);
 
-          if (floorAskNormalized) {
-            floorAskNormalizedCurrency = floorAskNormalized.currency
-              ? fromBuffer(floorAskNormalized.currency)
-              : Sdk.Common.Addresses.Native[config.chainId];
-            floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
-          }
-
-          const floorAskNonFlagged = orders.find(
-            (order) => order.id === r.non_flagged_floor_sell_id
-          );
-
-          if (floorAskNonFlagged) {
-            floorAskNonFlaggedCurrency = floorAskNonFlagged.currency
-              ? fromBuffer(floorAskNonFlagged.currency)
-              : Sdk.Common.Addresses.Native[config.chainId];
-            floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
-          }
-
-          const topBid = orders.find((order) => order.id === r.top_buy_id);
-
-          if (topBid) {
-            topBidCurrency = topBid.currency
-              ? fromBuffer(topBid.currency)
-              : Sdk.Common.Addresses.Native[config.chainId];
-            topBidCurrencyValue = topBid.currency_value;
-          }
+        if (floorAsk) {
+          floorAskCurrency = floorAsk.currency
+            ? fromBuffer(floorAsk.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskCurrencyValue = floorAsk.currency_value;
         }
 
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            message: `fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}`,
-            orderIds,
-            floorAskCurrency,
-            floorAskCurrencyValue,
-            floorAskNormalizedCurrency,
-            floorAskNormalizedCurrencyValue,
-            floorAskNonFlaggedCurrency,
-            floorAskNonFlaggedCurrencyValue,
-            topBidCurrency,
-            topBidCurrencyValue,
-          })
+        const floorAskNormalized = orders?.find((order) => order.id === r.normalized_floor_sell_id);
+
+        if (floorAskNormalized) {
+          floorAskNormalizedCurrency = floorAskNormalized.currency
+            ? fromBuffer(floorAskNormalized.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
+        }
+
+        const floorAskNonFlagged = orders?.find(
+          (order) => order.id === r.non_flagged_floor_sell_id
         );
-      } catch (error) {
-        logger.error(
-          this.queueName,
-          JSON.stringify({
-            message: `Error fetching floor ask currency. contract=${data.after.contract}, collectionId=${data.after.id}, error=${error}`,
-            data: JSON.stringify(data),
-            error,
-          })
-        );
+
+        if (floorAskNonFlagged) {
+          floorAskNonFlaggedCurrency = floorAskNonFlagged.currency
+            ? fromBuffer(floorAskNonFlagged.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
+        }
+
+        const topBid = orders?.find((order) => order.id === r.top_buy_id);
+
+        if (topBid) {
+          topBidCurrency = topBid.currency
+            ? fromBuffer(topBid.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          topBidCurrencyValue = topBid.currency_value;
+        }
       }
 
       await publishWebsocketEvent({
