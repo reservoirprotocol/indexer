@@ -4,6 +4,7 @@ import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import crypto from "crypto";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { DbEvent } from "@/events-sync/storage/nft-transfer-events";
+import { publishKafkaEvent } from "@/jobs/websocket-events/utils";
 
 export type TransferWebsocketEventsTriggerQueueJobPayload = {
   data: TransferWebsocketEventInfo;
@@ -102,17 +103,22 @@ export class TransferWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobH
         }
       }
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
+        data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
         tags: {
           address: result.token.contract,
           from: result.from,
           to: result.to,
         },
-        //changed,
-        data: result,
         offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

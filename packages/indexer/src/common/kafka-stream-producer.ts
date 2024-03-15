@@ -2,13 +2,6 @@ import { logger } from "@/common/logger";
 import { Kafka, logLevel, Producer } from "kafkajs";
 import { config } from "@/config/index";
 
-export interface KafkaMessage {
-  event: string;
-  changed?: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
-}
-
 const kafka = new Kafka({
   clientId: config.kafkaStreamClientId,
   brokers: config.kafkaStreamBrokers,
@@ -66,7 +59,8 @@ async function restart(): Promise<void> {
 
 export const publish = async (
   topic: string,
-  message: KafkaMessage,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  message: any,
   partitionKey?: string
 ): Promise<void> => {
   try {
