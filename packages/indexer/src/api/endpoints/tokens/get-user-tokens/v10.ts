@@ -378,8 +378,7 @@ export const getUserTokensV10Options: RouteOptions = {
         query.excludeCollections = [query.excludeCollections];
       }
 
-      query.excludeCollections = _.join(query.excludeCollections, "','");
-      tokensExcludeCollectionFilters.push(`collection_id NOT IN ('$/excludeCollections:raw/')`);
+      tokensExcludeCollectionFilters.push(`collection_id NOT IN ($/excludeCollections:list/)`);
     }
 
     if (query.contract) {
@@ -737,7 +736,11 @@ export const getUserTokensV10Options: RouteOptions = {
     }
 
     let ucTable = "";
-    if (query.sortBy === "floorAskPrice" || !_.isEmpty(collections)) {
+    if (
+      query.sortBy === "floorAskPrice" ||
+      !_.isEmpty(collections) ||
+      !_.isEmpty(query.excludeCollections)
+    ) {
       ucTable = `
         SELECT collection_id, COALESCE(c.token_set_id != CONCAT('contract:', collection_id), true) AS "shared_contract", c.*
         FROM user_collections uc
@@ -745,6 +748,11 @@ export const getUserTokensV10Options: RouteOptions = {
         WHERE owner = $/user/
         AND uc.token_count > 0
         ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
+        ${
+          !_.isEmpty(query.excludeCollections)
+            ? `AND uc.collection_id NOT IN ($/excludeCollections:list/)`
+            : ""
+        }
         ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         ${
@@ -762,6 +770,7 @@ export const getUserTokensV10Options: RouteOptions = {
       query.excludeSpam ||
       query.excludeNsfw ||
       query.tokenName ||
+      query.excludeCollections ||
       query.onlyListed;
 
     try {
