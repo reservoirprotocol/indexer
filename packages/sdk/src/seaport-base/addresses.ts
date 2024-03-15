@@ -40,6 +40,7 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Apex]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.BlastSepolia]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.AstarZkevm]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.Blast]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
