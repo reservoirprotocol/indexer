@@ -708,6 +708,8 @@ export const getUserTokensV9Options: RouteOptions = {
       query.excludeCollections ||
       query.onlyListed;
 
+    const sortFullResultsSet = query.sortBy === "acquiredAt" && ucTable;
+
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
@@ -800,6 +802,7 @@ export const getUserTokensV9Options: RouteOptions = {
               1
           ) ELSE t.floor_sell_id END
           ${userCollectionsSorting}
+          ${sortFullResultsSet ? nftBalanceSorting : ""}
           ${limitFullResultsSet ? limit : ""}
       `;
 
