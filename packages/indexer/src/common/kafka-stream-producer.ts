@@ -30,7 +30,17 @@ producer.on("producer.disconnect", async (error) => {
 });
 
 export async function start(): Promise<void> {
-  logger.info(`kafka-producer`, "Starting Kafka producer");
+  logger.info(
+    `kafka-producer`,
+    JSON.stringify({
+      message: `Starting kafka producer`,
+      brokers: config.kafkaStreamBrokers,
+      clientId: config.kafkaStreamClientId,
+      ca: config.kafkaStreamCertificateCa,
+      key: config.kafkaStreamCertificateKey,
+      cert: config.kafkaStreamCertificateCert,
+    })
+  );
 
   await producer.connect();
 
