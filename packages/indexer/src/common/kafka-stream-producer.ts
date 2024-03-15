@@ -24,6 +24,11 @@ const kafka = new Kafka({
 
 const producer: Producer = kafka.producer();
 
+producer.on("producer.disconnect", async (error) => {
+  logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
+  await restart();
+});
+
 export async function start(): Promise<void> {
   logger.info(`kafka-producer`, "Starting Kafka producer");
 
@@ -40,15 +45,15 @@ export async function start(): Promise<void> {
         reject("Producer connection timeout");
       }, 60000);
     });
-  } catch (e) {
-    logger.error(`kafka-producer`, `Error connecting to producer, error=${e}`);
-    await start();
+  } catch (error) {
+    logger.error(
+      `kafka-producer`,
+      JSON.stringify({
+        message: `Error connecting to kafka producer, error=${error}`,
+        error,
+      })
+    );
   }
-
-  producer.on("producer.disconnect", async (error) => {
-    logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
-    await restart();
-  });
 }
 async function restart(): Promise<void> {
   try {
