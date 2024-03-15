@@ -1,13 +1,15 @@
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
-import { formatEth, toBuffer } from "@/common/utils";
+import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { Assets, ImageSize } from "@/utils/assets";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
 import { formatValidBetween } from "@/jobs/websocket-events/utils";
+import { getJoiPriceObject } from "@/common/joi";
+import * as Sdk from "@reservoir0x/sdk";
 import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
 
 interface CollectionInfo {
@@ -137,8 +139,9 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         );
 
         contractKind = result?.kind;
+
         if (contractKind) {
-          await redis.set(`contract-kind:${data.after.contract}`, contractKind, "EX", 3600);
+          await redis.set(`contract-kind:${data.after.contract}`, contractKind, "EX", 86400);
         }
       }
 
@@ -250,6 +253,82 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
       }
 
+      let floorAskCurrency;
+      let floorAskCurrencyValue;
+
+      let floorAskNormalizedCurrency;
+      let floorAskNormalizedCurrencyValue;
+
+      let floorAskNonFlaggedCurrency;
+      let floorAskNonFlaggedCurrencyValue;
+
+      let topBidCurrency;
+      let topBidCurrencyValue;
+
+      let orderIds = [
+        r.floor_sell_id,
+        r.normalized_floor_sell_id,
+        r.non_flagged_floor_sell_id,
+        r.top_buy_id,
+      ];
+
+      orderIds = orderIds.filter(Boolean);
+      orderIds = [...new Set(orderIds)];
+
+      if (orderIds.length) {
+        const orders = await idb.manyOrNone(
+          `
+          SELECT
+            id,
+            currency,
+            currency_value
+          FROM orders
+          WHERE id IN ($/orderIds:list/)
+        `,
+          {
+            orderIds,
+          }
+        );
+
+        const floorAsk = orders?.find((order) => order.id === r.floor_sell_id);
+
+        if (floorAsk) {
+          floorAskCurrency = floorAsk.currency
+            ? fromBuffer(floorAsk.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskCurrencyValue = floorAsk.currency_value;
+        }
+
+        const floorAskNormalized = orders?.find((order) => order.id === r.normalized_floor_sell_id);
+
+        if (floorAskNormalized) {
+          floorAskNormalizedCurrency = floorAskNormalized.currency
+            ? fromBuffer(floorAskNormalized.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskNormalizedCurrencyValue = floorAskNormalized.currency_value;
+        }
+
+        const floorAskNonFlagged = orders?.find(
+          (order) => order.id === r.non_flagged_floor_sell_id
+        );
+
+        if (floorAskNonFlagged) {
+          floorAskNonFlaggedCurrency = floorAskNonFlagged.currency
+            ? fromBuffer(floorAskNonFlagged.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          floorAskNonFlaggedCurrencyValue = floorAskNonFlagged.currency_value;
+        }
+
+        const topBid = orders?.find((order) => order.id === r.top_buy_id);
+
+        if (topBid) {
+          topBidCurrency = topBid.currency
+            ? fromBuffer(topBid.currency)
+            : Sdk.Common.Addresses.Native[config.chainId];
+          topBidCurrencyValue = topBid.currency_value;
+        }
+      }
+
       await publishWebsocketEvent({
         event: eventType,
         tags: {
@@ -282,6 +361,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           topBid: {
             id: r.top_buy_id,
             value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+            price: r.top_buy_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: topBidCurrencyValue ?? r.top_buy_value,
+                      nativeAmount: r.top_buy_value,
+                    },
+                  },
+                  topBidCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
+                  undefined
+                )
+              : null,
             maker: r.top_buy_maker ? r.top_buy_maker : null,
             ...formatValidBetween(r.top_buy_valid_between),
             source: top_buy_source
@@ -331,6 +422,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           floorAsk: {
             id: r.floor_sell_id,
             price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
+            priceV2: r.floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: floorAskCurrencyValue ?? r.floor_sell_value,
+                      nativeAmount: r.floor_sell_value,
+                    },
+                  },
+                  floorAskCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
+                  undefined
+                )
+              : null,
             maker: r.floor_sell_id ? r.floor_sell_maker : null,
             ...formatValidBetween(r.floor_sell_valid_between),
             source: floor_sell_source
@@ -346,6 +449,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           floorAskNormalized: {
             id: r.normalized_floor_sell_id,
             price: r.normalized_floor_sell_id ? formatEth(r.normalized_floor_sell_value) : null,
+            priceV2: r.normalized_floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: floorAskNormalizedCurrencyValue ?? r.normalized_floor_sell_value,
+                      nativeAmount: r.normalized_floor_sell_value,
+                    },
+                  },
+                  floorAskNormalizedCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
+                  undefined
+                )
+              : null,
             maker: r.normalized_floor_sell_id ? r.normalized_floor_sell_maker : null,
             ...formatValidBetween(r.normalized_floor_sell_valid_between),
             source: normalized_floor_sell_source
@@ -361,6 +476,18 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           floorAskNonFlagged: {
             id: r.non_flagged_floor_sell_id,
             price: r.non_flagged_floor_sell_id ? formatEth(r.non_flagged_floor_sell_value) : null,
+            priceV2: r.non_flagged_floor_sell_id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: floorAskNonFlaggedCurrencyValue ?? r.non_flagged_floor_sell_id,
+                      nativeAmount: r.non_flagged_floor_sell_id,
+                    },
+                  },
+                  floorAskNonFlaggedCurrency ?? Sdk.Common.Addresses.Native[config.chainId],
+                  undefined
+                )
+              : null,
             maker: r.non_flagged_floor_sell_id ? r.non_flagged_floor_sell_maker : null,
             ...formatValidBetween(r.non_flagged_floor_sell_valid_between),
             source: non_flagged_floor_sell_source
