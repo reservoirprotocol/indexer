@@ -11,6 +11,7 @@ import { formatValidBetween } from "@/jobs/websocket-events/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
 import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
+import { getNetworkName } from "@/config/network";
 
 interface CollectionInfo {
   id: string;
@@ -507,7 +508,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       });
 
       await kafkaStreamProducer.publish(
-        "my-topic",
+        `${getNetworkName()}.collections`,
         {
           event: eventType,
           changed,

@@ -3,7 +3,6 @@ import { Kafka, logLevel, Producer } from "kafkajs";
 import { config } from "@/config/index";
 
 export interface KafkaMessage {
-  publishedAt?: number;
   event: string;
   changed?: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,19 +41,9 @@ export async function start(): Promise<void> {
     })
   );
 
-  await producer.connect();
-
   try {
-    await new Promise((resolve, reject) => {
-      producer.on("producer.connect", async () => {
-        logger.info(`kafka-producer`, "Producer connected");
-        resolve(true);
-      });
-
-      setTimeout(() => {
-        reject("Producer connection timeout");
-      }, 60000);
-    });
+    await producer.connect();
+    logger.info(`kafka-producer`, "Producer connected");
   } catch (error) {
     logger.error(
       `kafka-producer`,
@@ -80,8 +69,6 @@ export const publish = async (
   message: KafkaMessage,
   partitionKey?: string
 ): Promise<void> => {
-  message.publishedAt = Date.now();
-
   try {
     await producer.send({
       topic,
