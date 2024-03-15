@@ -4,6 +4,7 @@ import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { config } from "@/config/index";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { PendingItem } from "@/utils/pending-txs";
+import { publishKafkaEvent } from "@/jobs/websocket-events/utils";
 
 export type PendingTxWebsocketEventsTriggerQueueJobPayload = {
   data: PendingTxWebsocketEventInfo;
@@ -34,14 +35,21 @@ export class PendingTxWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJob
         } else if (data.trigger === "deleted") {
           eventType = "pending-tx.deleted";
         }
-        await publishWebsocketEvent({
+
+        const event = {
           event: eventType,
+          changed: [],
+          data: data.item,
+        };
+
+        await publishWebsocketEvent({
+          ...event,
           tags: {
             contract: data.item.contract,
           },
-          changed: [],
-          data: data.item,
         });
+
+        await publishKafkaEvent(event);
       }
     } catch (error) {
       logger.error(

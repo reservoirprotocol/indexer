@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
@@ -7,11 +9,9 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
-import { formatValidBetween } from "@/jobs/websocket-events/utils";
+import { formatValidBetween, publishKafkaEvent } from "@/jobs/websocket-events/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
-import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
-import { getNetworkName } from "@/config/network";
 
 interface CollectionInfo {
   id: string;
@@ -330,11 +330,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
       }
 
-      await publishWebsocketEvent({
+      const baseMessage = {
         event: eventType,
-        tags: {
-          id,
-        },
         changed,
         data: {
           id,
@@ -505,137 +502,16 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           updatedAt: new Date(data.after.updated_at).toISOString(),
           onSaleCount: String(data.after.on_sale_count),
         },
+      };
+
+      await publishWebsocketEvent({
+        ...baseMessage,
+        tags: {
+          id,
+        },
       });
 
-      await kafkaStreamProducer.publish(
-        `${getNetworkName()}.collections`,
-        {
-          event: eventType,
-          changed,
-          data: {
-            id,
-            slug: !metadataDisabled ? r.slug : r.contract,
-            name: !metadataDisabled ? r.name : r.contract,
-            isSpam: Number(r.is_spam) > 0,
-            metadata: {
-              imageUrl: !metadataDisabled
-                ? Assets.getResizedImageUrl(metadata?.imageUrl, ImageSize.small, r?.image_version)
-                : null,
-              bannerImageUrl: !metadataDisabled ? metadata?.bannerImageUrl : null,
-              discordUrl: !metadataDisabled ? metadata?.discordUrl : null,
-              externalUrl: !metadataDisabled ? metadata?.externalUrl : null,
-              twitterUsername: !metadataDisabled ? metadata?.twitterUsername : null,
-              description: !metadataDisabled ? metadata?.description : null,
-            },
-            metadataDisabled: Boolean(Number(metadataDisabled)),
-            tokenCount: String(r.token_count),
-            primaryContract: r.contract,
-            tokenSetId: !metadataDisabled ? r.token_set_id : `contract:${r.contract}`,
-            contractKind,
-            openseaVerificationStatus: metadata?.safelistRequestStatus ?? null,
-            magicedenVerificationStatus: metadata?.magicedenVerificationStatus ?? null,
-            royalties: !metadataDisabled && r.royalties ? JSON.parse(r.royalties)[0] : null,
-            topBid: {
-              id: r.top_buy_id,
-              value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
-              maker: r.top_buy_maker ? r.top_buy_maker : null,
-              ...formatValidBetween(r.top_buy_valid_between),
-              source: top_buy_source
-                ? {
-                    id: top_buy_source.address,
-                    domain: top_buy_source.domain,
-                    name: top_buy_source.getTitle(),
-                    icon: top_buy_source.getIcon(),
-                    url: top_buy_source.metadata.url,
-                  }
-                : null,
-            },
-            rank: {
-              "1day": r.day1_rank,
-              "7day": r.day7_rank,
-              "30day": r.day30_rank,
-              allTime: r.all_time_rank,
-            },
-            volume: {
-              "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
-              "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
-              "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
-              allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
-            },
-            volumeChange: {
-              "1day": r.day1_volume_change,
-              "7day": r.day7_volume_change,
-              "30day": r.day30_volume_change,
-            },
-            floorSale: {
-              "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
-              "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
-              "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
-            },
-            floorSaleChange: {
-              "1day": Number(r.day1_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
-                : null,
-              "7day": Number(r.day7_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
-                : null,
-              "30day": Number(r.day30_floor_sell_value)
-                ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
-                : null,
-            },
-            ownerCount: Number(r.owner_count),
-            floorAsk: {
-              id: r.floor_sell_id,
-              price: r.floor_sell_id ? formatEth(r.floor_sell_value) : null,
-              maker: r.floor_sell_id ? r.floor_sell_maker : null,
-              ...formatValidBetween(r.floor_sell_valid_between),
-              source: floor_sell_source
-                ? {
-                    id: floor_sell_source.address,
-                    domain: floor_sell_source.domain,
-                    name: floor_sell_source.getTitle(),
-                    icon: floor_sell_source.getIcon(),
-                    url: floor_sell_source.metadata.url,
-                  }
-                : null,
-            },
-            floorAskNormalized: {
-              id: r.normalized_floor_sell_id,
-              price: r.normalized_floor_sell_id ? formatEth(r.normalized_floor_sell_value) : null,
-              maker: r.normalized_floor_sell_id ? r.normalized_floor_sell_maker : null,
-              ...formatValidBetween(r.normalized_floor_sell_valid_between),
-              source: normalized_floor_sell_source
-                ? {
-                    id: normalized_floor_sell_source.address,
-                    domain: normalized_floor_sell_source.domain,
-                    name: normalized_floor_sell_source.getTitle(),
-                    icon: normalized_floor_sell_source.getIcon(),
-                    url: normalized_floor_sell_source.metadata.url,
-                  }
-                : null,
-            },
-            floorAskNonFlagged: {
-              id: r.non_flagged_floor_sell_id,
-              price: r.non_flagged_floor_sell_id ? formatEth(r.non_flagged_floor_sell_value) : null,
-              maker: r.non_flagged_floor_sell_id ? r.non_flagged_floor_sell_maker : null,
-              ...formatValidBetween(r.non_flagged_floor_sell_valid_between),
-              source: non_flagged_floor_sell_source
-                ? {
-                    id: non_flagged_floor_sell_source.address,
-                    domain: non_flagged_floor_sell_source.domain,
-                    name: non_flagged_floor_sell_source.getTitle(),
-                    icon: non_flagged_floor_sell_source.getIcon(),
-                    url: non_flagged_floor_sell_source.metadata.url,
-                  }
-                : null,
-            },
-            createdAt: new Date(data.after.created_at).toISOString(),
-            updatedAt: new Date(data.after.updated_at).toISOString(),
-            onSaleCount: String(data.after.on_sale_count),
-          },
-        },
-        id
-      );
+      await publishKafkaEvent(baseMessage);
     } catch (error) {
       logger.error(
         this.queueName,

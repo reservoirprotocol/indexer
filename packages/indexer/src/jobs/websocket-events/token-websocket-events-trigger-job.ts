@@ -16,6 +16,7 @@ import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { getNetworkSettings } from "@/config/network";
 import { redis } from "@/common/redis";
+import { publishKafkaEvent } from "@/jobs/websocket-events/utils";
 
 export type TokenWebsocketEventsTriggerJobPayload =
   | {
@@ -318,15 +319,21 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         }
       }
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
+        changed,
+        data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
         tags: {
           contract: contract,
         },
-        changed,
-        data: result,
         offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
 
       if ([1, 11155111].includes(config.chainId) && eventType === "token.created") {
         try {
