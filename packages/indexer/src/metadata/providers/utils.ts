@@ -23,7 +23,7 @@ export const normalizeLink = (link: string) => {
     return "";
   }
 
-  return link;
+  return link?.trim();
 };
 
 export const normalizeMetadata = (collection: Collection): Metadata => {

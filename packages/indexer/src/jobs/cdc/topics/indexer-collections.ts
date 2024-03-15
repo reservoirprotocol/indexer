@@ -46,11 +46,6 @@ export class IndexerCollectionsHandler extends KafkaEventHandler {
         },
       },
     ]);
-
-    // await collectionCheckSpamJob.addToQueue({
-    //   collectionId: payload.after.id,
-    //   trigger: "metadata-changed",
-    // });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {

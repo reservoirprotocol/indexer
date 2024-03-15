@@ -18,6 +18,7 @@ import {
 } from "@/common/joi";
 import { logger } from "@/common/logger";
 import {
+  bn,
   buildContinuation,
   formatEth,
   fromBuffer,
@@ -31,18 +32,18 @@ import { Sources } from "@/models/sources";
 import { Assets, ImageSize } from "@/utils/assets";
 import { isOrderNativeOffChainCancellable } from "@/utils/offchain-cancel";
 import { parseMetadata } from "@/api/endpoints/tokens/get-user-tokens/v8";
+import { MaxUint256 } from "@ethersproject/constants";
 
-const version = "v9";
+const version = "v10";
 
-export const getUserTokensV9Options: RouteOptions = {
+export const getUserTokensV10Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
       order: 9,
-      deprecated: true,
     },
   },
   validate: {
@@ -131,6 +132,9 @@ export const getUserTokensV9Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      includeDynamicPricing: Joi.boolean()
+        .default(false)
+        .description("If true, dynamic pricing data will be returned in the response."),
       excludeSpam: Joi.boolean()
         .default(false)
         .description("If true, will filter any tokens marked as spam."),
@@ -192,13 +196,23 @@ export const getUserTokensV9Options: RouteOptions = {
               name: Joi.string().allow("", null),
               slug: Joi.string().allow("", null).description("Open Sea slug"),
               symbol: Joi.string().allow("", null),
+              contractDeployedAt: Joi.string()
+                .description("Time when contract was deployed")
+                .allow("", null),
               imageUrl: Joi.string().allow("", null),
               isSpam: Joi.boolean().default(false),
               isNsfw: Joi.boolean().default(false),
               metadataDisabled: Joi.boolean().default(false),
               openseaVerificationStatus: Joi.string().allow("", null),
-              magicedenVerificationStatus: Joi.string().allow("", null),
-              floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
+              tokenCount: Joi.string().description("Total tokens within the collection."),
+              floorAsk: {
+                id: Joi.string().allow(null),
+                price: JoiPrice.allow(null),
+                maker: Joi.string().lowercase().pattern(regex.address).allow(null),
+                validFrom: Joi.number().unsafe().allow(null),
+                validUntil: Joi.number().unsafe().allow(null),
+                source: JoiSource.allow(null),
+              },
               royaltiesBps: Joi.number().allow(null),
               royalties: Joi.array()
                 .items(
@@ -217,6 +231,20 @@ export const getUserTokensV9Options: RouteOptions = {
             })
               .optional()
               .description("Can be null if not active bids."),
+            floorAsk: Joi.object({
+              id: Joi.string().allow(null),
+              price: JoiPrice.allow(null),
+              maker: Joi.string().lowercase().pattern(regex.address).allow(null),
+              validFrom: Joi.number().unsafe().allow(null),
+              validUntil: Joi.number().unsafe().allow(null),
+              quantityFilled: Joi.number().unsafe().allow(null),
+              quantityRemaining: Joi.number().unsafe().allow(null),
+              dynamicPricing: Joi.object({
+                kind: Joi.string().valid("dutch", "pool"),
+                data: Joi.object(),
+              }).description("Can be null if no active ask."),
+              source: JoiSource.allow(null),
+            }),
             lastAppraisalValue: Joi.number()
               .unsafe()
               .allow(null)
@@ -375,8 +403,28 @@ export const getUserTokensV9Options: RouteOptions = {
       (query as any).tokensFilter = _.join(tokensFilter, ",");
     }
 
-    let selectFloorData;
+    let selectCollectionFloorData;
+    if (query.useNonFlaggedFloorAsk) {
+      selectCollectionFloorData = `
+      , 
+      c.non_flagged_floor_sell_id AS collection_floor_sell_id,
+      c.non_flagged_floor_sell_value AS collection_floor_sell_value,
+      c.non_flagged_floor_sell_maker AS collection_floor_sell_maker,
+      c.non_flagged_floor_sell_valid_between AS collection_floor_sell_valid_between,
+      c.non_flagged_floor_sell_source_id_int AS collection_floor_sell_source_id_int
+    `;
+    } else {
+      selectCollectionFloorData = `
+      , 
+      c.floor_sell_id AS collection_floor_sell_id,
+      c.floor_sell_value AS collection_floor_sell_value,
+      c.floor_sell_maker AS collection_floor_sell_maker,
+      c.floor_sell_valid_between AS collection_floor_sell_valid_between,
+      c.floor_sell_source_id_int AS collection_floor_sell_source_id_int
+    `;
+    }
 
+    let selectFloorData;
     if (query.normalizeRoyalties) {
       selectFloorData = `
       t.normalized_floor_sell_id AS floor_sell_id,
@@ -399,6 +447,23 @@ export const getUserTokensV9Options: RouteOptions = {
       t.floor_sell_currency,
       t.floor_sell_currency_value
     `;
+    }
+
+    let includeDynamicPricingQuery = "";
+    let selectIncludeDynamicPricing = "";
+    if (query.includeDynamicPricing) {
+      selectIncludeDynamicPricing = ", d.*";
+      includeDynamicPricingQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            o.kind AS floor_sell_order_kind,
+            o.dynamic AS floor_sell_dynamic,
+            o.raw_data AS floor_sell_raw_data,
+            o.missing_royalties AS floor_sell_missing_royalties
+          FROM orders o
+          WHERE o.id = t.floor_sell_id
+        ) d ON TRUE
+      `;
     }
 
     let selectLastSale = "";
@@ -716,29 +781,28 @@ export const getUserTokensV9Options: RouteOptions = {
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
                t.supply, t.remaining_supply, t.description,
                t.rarity_score, t.t_is_spam, t.t_nsfw_status, t.image_version, t.image_mime_type, t.media_mime_type,
+               t.floor_sell_id, t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to,
+               t.floor_sell_source_id_int, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
-               o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
-               (c.metadata ->> 'magicedenVerificationStatus')::TEXT AS "magiceden_verification_status", c.royalties_bps, ot.kind AS floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.nsfw_status AS c_nsfw_status, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
+               o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price, o.currency_value AS collection_floor_sell_currency_value, o.token_set_id AS collection_floor_sell_token_set_id,
+               c.name as collection_name, c.token_count as collection_token_count, con.kind, con.symbol, extract(epoch from con.deployed_at) AS contract_deployed_at, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               c.royalties_bps, ot.kind AS ownership_floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.nsfw_status AS c_nsfw_status, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                c.image_version AS "collection_image_version",
-               ot.value as floor_sell_value, ot.currency_value as floor_sell_currency_value, ot.currency_price, ot.currency as floor_sell_currency, ot.maker as floor_sell_maker,
-                date_part('epoch', lower(ot.valid_between)) AS "floor_sell_valid_from",
-                COALESCE(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "floor_sell_valid_to",
-               ot.source_id_int as floor_sell_source_id_int, ot.id as floor_sell_id,
-               ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
-               ${
-                 query.useNonFlaggedFloorAsk
-                   ? "c.floor_sell_value"
-                   : "c.non_flagged_floor_sell_value"
-               } AS "collection_floor_sell_value",
+               ot.value as ownership_floor_sell_value, ot.currency_value as ownership_floor_sell_currency_value, ot.currency as ownership_floor_sell_currency, ot.maker as ownership_floor_sell_maker,
+                date_part('epoch', lower(ot.valid_between)) AS "ownership_floor_sell_valid_from",
+                COALESCE(nullif(date_part('epoch', upper(ot.valid_between)), 'Infinity'), 0) AS "ownership_floor_sell_valid_to",
+               ot.source_id_int as ownership_floor_sell_source_id_int, ot.id as ownership_floor_sell_id,
+               ${query.includeRawData ? "ot.raw_data AS ownership_floor_sell_raw_data," : ""}
                (
                     CASE WHEN ot.value IS NOT NULL
                     THEN 1
                     ELSE 0
                     END
                ) AS on_sale_count
+               ${selectCollectionFloorData}
                ${selectAttributes}
+               ${selectIncludeDynamicPricing}
         FROM
             ${ucTable ? `(${ucTable}) AS c JOIN LATERAL ` : ""} (
             SELECT amount AS token_count, nft_balances.token_id, nft_balances.contract, acquired_at, last_token_appraisal_value
@@ -778,7 +842,10 @@ export const getUserTokensV9Options: RouteOptions = {
                   query.excludeSpam ? `AND (c.is_spam IS NULL OR c.is_spam <= 0)` : ""
                 }${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}`
           }
-          LEFT JOIN orders o ON o.id = c.floor_sell_id
+          ${includeDynamicPricingQuery}
+          LEFT JOIN orders o ON o.id = ${
+            query.useNonFlaggedFloorAsk ? "c.floor_sell_id" : "c.non_flagged_floor_sell_id"
+          }
           LEFT JOIN contracts con ON b.contract = con.address
           ${
             query.onlyListed ? "" : "LEFT"
@@ -849,19 +916,116 @@ export const getUserTokensV9Options: RouteOptions = {
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
           : Sdk.Common.Addresses.Native[config.chainId];
+        const ownershipFloorAskCurrency = r.ownership_floor_sell_currency
+          ? fromBuffer(r.ownership_floor_sell_currency)
+          : Sdk.Common.Addresses.Native[config.chainId];
+        const collectionFloorAskCurrency = r.collection_floor_sell_currency
+          ? fromBuffer(r.collection_floor_sell_currency)
+          : Sdk.Common.Addresses.Native[config.chainId];
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
           : Sdk.Common.Addresses.WNative[config.chainId];
-        const collectionFloorSellCurrency = r.collection_floor_sell_currency
-          ? fromBuffer(r.collection_floor_sell_currency)
-          : Sdk.Common.Addresses.Native[config.chainId];
-        const floorSellSource = r.floor_sell_value
+        const floorAskSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
+          : undefined;
+        const ownershipFloorAskSource = r.ownership_floor_sell_value
+          ? sources.get(Number(r.ownership_floor_sell_source_id_int), contract, tokenId)
+          : undefined;
+        const collectionFloorAskSource = r.collection_floor_sell_value
+          ? sources.get(
+              Number(r.collection_floor_sell_source_id_int),
+              r.collection_floor_sell_token_set_id.split(":")[1],
+              r.collection_floor_sell_token_set_id.split(":")[2]
+            )
           : undefined;
         const topBidSource = r.top_bid_source_id_int
           ? sources.get(Number(r.top_bid_source_id_int), contract, tokenId)
           : undefined;
+        const collectionFloorAskValidBetween = r.collection_floor_sell_valid_between
+          ? r.collection_floor_sell_valid_between.slice(1, -1).split(",")
+          : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
+
+        let dynamicPricing = undefined;
+        if (query.includeDynamicPricing) {
+          // Add missing royalties on top of the raw prices
+          const missingRoyalties = query.normalizeRoyalties
+            ? ((r.floor_sell_missing_royalties ?? []) as any[])
+                .map((mr: any) => bn(mr.amount))
+                .reduce((a, b) => a.add(b), bn(0))
+            : bn(0);
+
+          if (r.floor_sell_raw_data) {
+            if (r.floor_sell_dynamic && r.floor_sell_order_kind === "seaport") {
+              const order = new Sdk.SeaportV11.Order(config.chainId, r.floor_sell_raw_data);
+
+              // Dutch auction
+              dynamicPricing = {
+                kind: "dutch",
+                data: {
+                  price: {
+                    start: await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: bn(order.getMatchingPrice(order.params.startTime))
+                            .add(missingRoyalties)
+                            .toString(),
+                        },
+                      },
+                      floorAskCurrency,
+                      query.displayCurrency
+                    ),
+                    end: await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: bn(order.getMatchingPrice(order.params.endTime))
+                            .add(missingRoyalties)
+                            .toString(),
+                        },
+                      },
+                      floorAskCurrency,
+                      query.displayCurrency
+                    ),
+                  },
+                  time: {
+                    start: order.params.startTime,
+                    end: order.params.endTime,
+                  },
+                },
+              };
+            } else if (
+              ["sudoswap", "sudoswap-v2", "nftx", "nftx-v3", "caviar-v1"].includes(
+                r.floor_sell_order_kind
+              )
+            ) {
+              // Pool orders
+              dynamicPricing = {
+                kind: "pool",
+                data: {
+                  pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
+                  prices: await Promise.all(
+                    (r.floor_sell_raw_data.extra.prices as string[])
+                      .filter((price) =>
+                        bn(price).lte(bn(r.floor_sell_raw_data.extra.floorPrice || MaxUint256))
+                      )
+                      .map((price) =>
+                        getJoiPriceObject(
+                          {
+                            gross: {
+                              amount: bn(price).add(missingRoyalties).toString(),
+                            },
+                          },
+                          floorAskCurrency,
+                          query.displayCurrency
+                        )
+                      )
+                  ),
+                },
+              };
+            }
+          }
+        }
+
         return {
           token: getJoiTokenObject(
             {
@@ -913,6 +1077,9 @@ export const getUserTokensV9Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
+                contractDeployedAt: r.contract_deployed_at
+                  ? new Date(r.contract_deployed_at * 1000).toISOString()
+                  : null,
                 imageUrl: Assets.getResizedImageUrl(
                   r.image,
                   ImageSize.small,
@@ -922,21 +1089,40 @@ export const getUserTokensV9Options: RouteOptions = {
                 isNsfw: Number(r.c_nsfw_status) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,
-                magicedenVerificationStatus: r.magiceden_verification_status,
-                floorAskPrice: r.collection_floor_sell_value
-                  ? await getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: String(
-                            r.collection_floor_sell_currency_price ?? r.collection_floor_sell_value
-                          ),
-                          nativeAmount: String(r.collection_floor_sell_value),
+                tokenCount: String(r.collection_token_count),
+                floorAsk: {
+                  id: r.collection_floor_sell_id,
+                  price: r.collection_floor_sell_id
+                    ? await getJoiPriceObject(
+                        {
+                          gross: {
+                            amount:
+                              r.collection_floor_sell_currency_value ??
+                              r.collection_floor_sell_value,
+                            nativeAmount: r.collection_floor_sell_value,
+                          },
                         },
-                      },
-                      collectionFloorSellCurrency,
-                      query.displayCurrency
-                    )
-                  : null,
+                        collectionFloorAskCurrency,
+                        query.displayCurrency
+                      )
+                    : null,
+                  maker: r.collection_floor_sell_maker
+                    ? fromBuffer(r.collection_floor_sell_maker)
+                    : null,
+                  validFrom: collectionFloorAskValidBetween
+                    ? Math.round(
+                        new Date(collectionFloorAskValidBetween[0].slice(1, -1)).getTime() / 1000
+                      )
+                    : null,
+                  validUntil: collectionFloorAskValidBetween
+                    ? collectionFloorAskValidBetween[1] === "infinity"
+                      ? 0
+                      : Math.round(
+                          new Date(collectionFloorAskValidBetween[1].slice(1, -1)).getTime() / 1000
+                        )
+                    : null,
+                  source: getJoiSourceObject(collectionFloorAskSource),
+                },
                 royaltiesBps: r.royalties_bps ?? 0,
                 royalties: r.royalties
                   ? r.royalties.map((r: any) => ({ bps: r.bps, recipient: r.recipient }))
@@ -985,6 +1171,26 @@ export const getUserTokensV9Options: RouteOptions = {
                     source: getJoiSourceObject(topBidSource),
                   }
                 : undefined,
+              floorAsk: {
+                id: r.floor_sell_id,
+                price: r.floor_sell_id
+                  ? await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: r.floor_sell_currency_value ?? r.floor_sell_value,
+                          nativeAmount: r.floor_sell_value,
+                        },
+                      },
+                      floorAskCurrency,
+                      query.displayCurrency
+                    )
+                  : null,
+                maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+                validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
+                validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+                dynamicPricing,
+                source: getJoiSourceObject(floorAskSource),
+              },
               lastAppraisalValue: r.last_token_appraisal_value
                 ? formatEth(r.last_token_appraisal_value)
                 : null,
@@ -1029,27 +1235,28 @@ export const getUserTokensV9Options: RouteOptions = {
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
             floorAsk: {
-              id: r.floor_sell_id,
-              price: r.floor_sell_id
+              id: r.ownership_floor_sell_id,
+              price: r.ownership_floor_sell_id
                 ? await getJoiPriceObject(
                     {
                       gross: {
-                        amount: r.floor_sell_currency_value ?? r.floor_sell_value,
-                        nativeAmount: r.floor_sell_value,
+                        amount:
+                          r.ownership_floor_sell_currency_value ?? r.ownership_floor_sell_value,
+                        nativeAmount: r.ownership_floor_sell_value,
                       },
                     },
-                    floorAskCurrency,
+                    ownershipFloorAskCurrency,
                     query.displayCurrency
                   )
                 : null,
-              maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
-              kind: r.floor_sell_kind,
-              validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
-              validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              source: getJoiSourceObject(floorSellSource),
-              rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
+              maker: r.ownership_floor_sell_maker ? fromBuffer(r.ownership_floor_sell_maker) : null,
+              kind: r.ownership_floor_sell_kind,
+              validFrom: r.ownership_floor_sell_value ? r.ownership_floor_sell_valid_from : null,
+              validUntil: r.ownership_floor_sell_value ? r.ownership_floor_sell_valid_to : null,
+              source: getJoiSourceObject(ownershipFloorAskSource),
+              rawData: query.includeRawData ? r.ownership_floor_sell_raw_data : undefined,
               isNativeOffChainCancellable: query.includeRawData
-                ? isOrderNativeOffChainCancellable(r.floor_sell_raw_data)
+                ? isOrderNativeOffChainCancellable(r.ownership_floor_sell_raw_data)
                 : undefined,
             },
             acquiredAt: acquiredTime,

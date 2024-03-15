@@ -52,7 +52,9 @@ export const refreshOnChainRoyalties = async (collection: string, spec: Spec) =>
 
     // Get the royalties of all selected tokens
     const tokenRoyalties = await Promise.all(
-      tokenResults.map(async (r) => getOnChainRoyalties(token, r.token_id, spec))
+      (tokenResults.length ? tokenResults : [{ token_id: "0" }]).map(async (r) =>
+        getOnChainRoyalties(token, r.token_id, spec)
+      )
     );
 
     const uniqueRoyalties = _.uniqBy(tokenRoyalties, (r) => stringify(r));
@@ -122,7 +124,7 @@ const internalGetOnChainRoyalties = async (token: string, tokenId: string, spec:
       for (let i = 0; i < amounts.length; i++) {
         const recipient = recipients[i].toLowerCase();
         const amount = amounts[i];
-        if (bn(amount).gte(DEFAULT_PRICE)) {
+        if (bn(amount).gt(DEFAULT_PRICE)) {
           throw new Error("Royalty exceeds price");
         }
 
@@ -162,7 +164,7 @@ const internalGetOnChainRoyalties = async (token: string, tokenId: string, spec:
 
       const recipient = result.recipient.toLowerCase();
       const amount = result.amount;
-      if (bn(amount).gte(DEFAULT_PRICE)) {
+      if (bn(amount).gt(DEFAULT_PRICE)) {
         throw new Error("Royalty exceeds price");
       }
 

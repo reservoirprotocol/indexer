@@ -57,6 +57,9 @@ export const offChainCheck = async (
   let hasBalance = true;
   let hasApproval = true;
   if (side === "buy") {
+    // Handle rebasing tokens (where applicable)
+    await onChainData.updateFtBalance(order.params.make.assetType.contract!, order.params.maker);
+
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(
       order.params.make.assetType.contract!,

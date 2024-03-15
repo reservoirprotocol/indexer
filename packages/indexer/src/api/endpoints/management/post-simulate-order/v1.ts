@@ -269,6 +269,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
         "0xeb2dfc54ebafca8f50efcc1e21a9d100b5aeb349:1",
         // Ordinal Kubz
         "0xc589770757cd0d372c54568bf7e5e1d56b958015:1",
+        // TheMafiaAnimalsSoldiers
+        "0x99f419934192f8de7bf53b490d5bdb88527654bf:1",
         // y00ts
         "0x670fd103b1a08628e9557cd66b87ded841115190:137",
       ];

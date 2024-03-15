@@ -40,7 +40,7 @@ export default class RecalcOnSaleCountQueueJob extends AbstractRabbitMqJobHandle
     await this.send(
       {
         payload: payload,
-        jobId: payload.force ? undefined : `${payload.collection}`,
+        jobId: payload.force ? undefined : `${payload.collection}:${delay}`,
       },
       payload.force ? 0 : delay
     );

@@ -49,6 +49,11 @@ export const getUserCollectionsV4Options: RouteOptions = {
         .description(
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
+      excludeCollections: Joi.alternatives()
+        .try(Joi.array().max(50).items(Joi.string()), Joi.string())
+        .description(
+          "Exclude particular collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       name: Joi.string()
         .lowercase()
         .description(
@@ -316,6 +321,15 @@ export const getUserCollectionsV4Options: RouteOptions = {
 
       if (query.collection) {
         conditions.push(`collections.id = $/collection/`);
+      }
+
+      if (query.excludeCollections) {
+        if (!Array.isArray(query.excludeCollections)) {
+          query.excludeCollections = [query.excludeCollections];
+        }
+
+        query.excludeCollections = _.join(query.excludeCollections, "','");
+        conditions.push(`collections.id NOT IN ('$/excludeCollections:raw/')`);
       }
 
       if (conditions.length) {

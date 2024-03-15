@@ -1,4 +1,5 @@
 import { BigNumberish } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { Provider } from "@ethersproject/abstract-provider";
 
@@ -38,6 +39,10 @@ export const generateSwapInfo = async (
     revertIfIncomplete: boolean;
   }
 ): Promise<SwapInfo> => {
+  if (options.module.address === AddressZero) {
+    throw new Error("Swapping tokens is not supported");
+  }
+
   if (isNative(chainId, fromTokenAddress) && isWNative(chainId, toTokenAddress)) {
     // We need to wrap ETH
     return {

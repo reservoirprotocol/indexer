@@ -642,7 +642,13 @@ export const postOrderV4Options: RouteOptions = {
                   });
                   logger.info(
                     "validate-order-on-creation",
-                    JSON.stringify({ id: result.id, response: response.payload })
+                    JSON.stringify({
+                      id: result.id,
+                      response: response.payload,
+                      contract: orderInfo.orderParams.tokenAddress,
+                      side:
+                        orderInfo.orderParams.maxRoyaltyFeeNumerator !== undefined ? "ask" : "bid",
+                    })
                   );
                 } catch {
                   // Skip errors

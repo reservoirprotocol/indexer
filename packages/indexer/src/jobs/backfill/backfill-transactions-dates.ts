@@ -35,6 +35,8 @@ export class BackfillTransactionsDatesJob extends AbstractRabbitMqJobHandler {
       values.hash = toBuffer(hash);
     }
 
+    logger.info(this.queueName, `Processing hash=${hash}`);
+
     const results = await idb.manyOrNone(
       `
           WITH x AS (
