@@ -64,6 +64,15 @@ export const config = {
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
 
+  doKafkaStreamWork: Boolean(Number(process.env.DO_KAFKA_STREAM_WORK)),
+  kafkaStreamClientId: String(process.env.KAFKA_STREAM_CLIENT_ID),
+  kafkaStreamBrokers: process.env.KAFKA_STREAM_BROKERS
+    ? String(process.env.KAFKA_STREAM_BROKERS).split(",")
+    : [],
+  kafkaStreamCertificateCa: String(process.env.KAFKA_STREAM_CERTIFICATE_CA),
+  kafkaStreamCertificateKey: String(process.env.KAFKA_STREAM_CERTIFICATE_KEY),
+  kafkaStreamCertificateCert: String(process.env.KAFKA_STREAM_CERTIFICATE_CERT),
+
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),
