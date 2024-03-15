@@ -46,7 +46,36 @@ export const generateBuyExecutions = async (
   // Wait 1 second to avoid rate-limiting
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  const fromAmount = quoteData.toAmount;
+  const { data: quoteDataBuy } = await axios.get(
+    `${API_1INCH_ENDPOINT}/swap/v5.2/${chainId}/quote`,
+    {
+      params: {
+        src: fromToken,
+        dst: toToken,
+        amount: quoteData.toAmount,
+      },
+      headers: {
+        Authorization: `Bearer ${API_1INCH_KEY}`,
+      },
+    }
+  );
+
+  let fromAmount = quoteData.toAmount;
+
+  // Make sure the amount is match
+  if (bn(quoteDataBuy.toAmount).lt(bn(toTokenAmount))) {
+    const missingAmount = bn(toTokenAmount).sub(bn(quoteDataBuy.toAmount));
+    const missingPercentange = missingAmount.mul(1000).div(bn(quoteDataBuy.toAmount));
+
+    // Adjust amount
+    fromAmount = bn(quoteData.toAmount)
+      .add(bn(quoteData.toAmount).mul(missingPercentange.add(slippage)).div(1000))
+      .toString();
+  }
+
+  // Wait 1 second to avoid rate-limiting
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   const { data: swapData } = await axios.get(`${API_1INCH_ENDPOINT}/swap/v5.2/${chainId}/swap`, {
     params: {
       src: fromToken,
