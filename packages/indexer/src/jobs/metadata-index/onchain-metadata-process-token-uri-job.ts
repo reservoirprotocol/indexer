@@ -235,16 +235,6 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
           if (parseInt(tokenIdPart, 16) == Number(tokenId)) {
             const newUri = uri.replace(tokenIdPart, tokenId);
 
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "simpleHashFallbackDebug",
-                message: `Not found Error - TokenId Match. contract=${contract}, tokenId=${tokenId}, uri=${uri}, newUri=${newUri}`,
-                payload,
-                newUri,
-              })
-            );
-
             await onchainMetadataProcessTokenUriJob.addToQueue({
               contract,
               tokenId,
