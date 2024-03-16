@@ -29,6 +29,7 @@ export type CollectionMintStandard =
   | "bueno"
   | "fairxyz"
   | "fabric"
+  | "paragraph"
   | "mirror";
 
 export type CollectionMintDetails = {

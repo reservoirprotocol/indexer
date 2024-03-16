@@ -7,76 +7,44 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { Transaction } from "@/models/transactions";
-import { getStatus, toSafeNumber } from "@/orderbook/mints/calldata/helpers";
+import { getStatus } from "@/orderbook/mints/calldata/helpers";
 import {
   CollectionMint,
   getCollectionMints,
   simulateAndUpsertCollectionMint,
 } from "@/orderbook/mints";
 
-const STANDARD = "mirror";
+const STANDARD = "paragraph";
 
 export const extractByCollectionERC721 = async (collection: string): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
 
   const contract = new Contract(
     collection,
-    new Interface([
-      "function treasuryConfiguration() view returns (address)",
-      "function price() view returns (uint256)",
-      "function limit() view returns (uint256)",
-      "function totalSupply() view returns (uint256)",
-    ]),
+    new Interface(["function getTotalMintPrice() view returns (uint256)"]),
     baseProvider
   );
 
   try {
-    const treasuryConfigurationAddress = await contract.treasuryConfiguration();
-    const treasuryConfiguration = new Contract(
-      treasuryConfigurationAddress,
-      new Interface(["function feeConfiguration() view returns (address)"]),
-      baseProvider
-    );
-
-    const feeConfigurationAddress = await treasuryConfiguration.feeConfiguration();
-    const feeConfiguration = new Contract(
-      feeConfigurationAddress,
-      new Interface(["function flatFeeAmount() view returns (uint256)"]),
-      baseProvider
-    );
-
-    const [price, flatFeeAmount, limit, totalSupply]: [BigNumber, BigNumber, BigNumber, BigNumber] =
-      await Promise.all([
-        contract.price(),
-        feeConfiguration.flatFeeAmount(),
-        contract.limit(),
-        contract.totalSupply(),
-      ]);
-
-    const totalPrice = price.add(flatFeeAmount).toString();
-    const isOpen = limit.gt(0) ? totalSupply.lt(limit) : true;
+    const [mintPrice]: [BigNumber] = await Promise.all([contract.getTotalMintPrice()]);
 
     results.push({
       collection,
       contract: collection,
-      stage: "public-sale",
+      stage: `public-sale-${collection}`,
       kind: "public",
-      status: isOpen ? "open" : "closed",
+      status: "open",
       standard: STANDARD,
       details: {
         tx: {
           to: collection,
           data: {
-            // "purchase"
-            signature: "0x434dcfba",
+            // "mintWithReferrer"
+            signature: "0x13c84557",
             params: [
               {
                 kind: "recipient",
                 abiType: "address",
-              },
-              {
-                kind: "comment",
-                abiType: "string",
               },
               {
                 kind: "referrer",
@@ -87,8 +55,7 @@ export const extractByCollectionERC721 = async (collection: string): Promise<Col
         },
       },
       currency: Sdk.Common.Addresses.Native[config.chainId],
-      price: totalPrice,
-      maxSupply: limit.gt(0) ? toSafeNumber(limit) : undefined,
+      price: mintPrice.toString(),
       maxMintsPerTransaction: "1",
     });
   } catch (error) {
@@ -114,7 +81,9 @@ export const extractByTx = async (
 ): Promise<CollectionMint[]> => {
   if (
     [
-      "0x434dcfba", // `purchase`
+      "0x6a627842", // `mint`
+      "0x13c84557", // `mintWithReferrer`
+      "0xd10642cd", // `firstMint`
     ].some((bytes4) => tx.data.startsWith(bytes4))
   ) {
     return extractByCollectionERC721(collection);

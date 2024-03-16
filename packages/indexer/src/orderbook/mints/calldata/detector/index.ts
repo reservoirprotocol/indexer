@@ -29,6 +29,7 @@ import * as highlightxyz from "@/orderbook/mints/calldata/detector/highlightxyz"
 import * as bueno from "@/orderbook/mints/calldata/detector/bueno";
 import * as fairxyz from "@/orderbook/mints/calldata/detector/fairxyz";
 import * as fabric from "@/orderbook/mints/calldata/detector/fabric";
+import * as paragraph from "@/orderbook/mints/calldata/detector/paragraph";
 import * as mirror from "@/orderbook/mints/calldata/detector/mirror";
 
 export {
@@ -48,6 +49,7 @@ export {
   bueno,
   fairxyz,
   fabric,
+  paragraph,
   mirror,
 };
 
@@ -284,6 +286,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const fabricResults = await fabric.extractByTx(collection, tx);
   if (fabricResults.length) {
     return fabricResults;
+  }
+
+  // Paragraph
+  const paragraphResults = await paragraph.extractByTx(collection, tx);
+  if (paragraphResults.length) {
+    return paragraphResults;
   }
 
   // Mirror
