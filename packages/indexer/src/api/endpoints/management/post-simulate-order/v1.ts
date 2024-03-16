@@ -14,6 +14,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import { Sources } from "@/models/sources";
 import * as b from "@/utils/auth/blur";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import {
@@ -192,6 +193,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.token_set_id,
             orders.fillability_status,
             orders.approval_status,
+            orders.order_kind,
+            orders.source_id_int,
             orders.conduit,
             orders.raw_data,
             floor(extract(epoch FROM orders.created_at)) AS created_at
@@ -434,6 +437,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           return { message: "Order is not fillable" };
         }
       } else {
+        const sources = await Sources.getInstance();
         const tokenResult = await idb.oneOrNone(
           `
             SELECT
@@ -448,9 +452,15 @@ export const postSimulateOrderV1Options: RouteOptions = {
               ON nft_balances.contract = tokens.contract
               AND nft_balances.token_id = tokens.token_id
             WHERE token_sets_tokens.token_set_id = $/tokenSetId/
-              AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
-              AND nft_balances.acquired_at < now() - interval '3 hours'
+              ${
+                sources.get(orderResult.source_id_int)?.domain === "opensea.io"
+                  ? `
+                    AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
+                    AND nft_balances.acquired_at < now() - interval '3 hours'
+                  `
+                  : ""
+              }
               AND (
                 SELECT
                   approved
