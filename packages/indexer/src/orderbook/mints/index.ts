@@ -28,7 +28,8 @@ export type CollectionMintStandard =
   | "highlightxyz"
   | "bueno"
   | "fairxyz"
-  | "fabric";
+  | "fabric"
+  | "mirror";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
