@@ -6,6 +6,7 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
 import {
   OrderUpdatesByIdJobPayload,
@@ -136,6 +137,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             status: "maker-was-banned-by-collection",
           });
         }
+      }
+
+      const side = ["sale-approval"].includes(order.params.kind!) ? "sell" : "buy";
+
+      // Check: buy order has a supported payment token
+      if (
+        side === "buy" &&
+        !getNetworkSettings().supportedBidCurrencies[order.params.paymentMethod]
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-payment-token",
+        });
       }
 
       // Check: operator filtering
@@ -282,8 +296,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           status: "invalid-token-set",
         });
       }
-
-      const side = ["sale-approval"].includes(order.params.kind!) ? "sell" : "buy";
 
       // Handle: security level 4 and 6 EOA verification
       if (side === "buy") {
