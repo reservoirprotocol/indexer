@@ -193,7 +193,6 @@ export const postSimulateOrderV1Options: RouteOptions = {
             orders.token_set_id,
             orders.fillability_status,
             orders.approval_status,
-            orders.order_kind,
             orders.source_id_int,
             orders.conduit,
             orders.raw_data,
