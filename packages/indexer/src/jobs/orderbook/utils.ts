@@ -1,5 +1,3 @@
-import _ from "lodash";
-
 import { logger } from "@/common/logger";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
 import * as orders from "@/orderbook/orders";
@@ -204,14 +202,12 @@ export const processOrder = async (job: AbstractRabbitMqJobHandler, payload: Gen
     throw error;
   }
 
-  if (_.random(100) <= 75) {
-    logger.debug(
-      job.queueName,
-      JSON.stringify({
-        message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
-        orderKind: kind,
-        resultStatus: result[0]?.status,
-      })
-    );
-  }
+  logger.debug(
+    job.queueName,
+    JSON.stringify({
+      message: `[${kind}] Order save result: ${JSON.stringify(result)}`,
+      orderKind: kind,
+      resultStatus: result[0]?.status,
+    })
+  );
 };

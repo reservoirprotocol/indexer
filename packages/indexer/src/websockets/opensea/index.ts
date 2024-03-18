@@ -33,7 +33,6 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 import { openseaBidsQueueJob } from "@/jobs/orderbook/opensea-bids-queue-job";
 import { openseaListingsJob } from "@/jobs/orderbook/opensea-listings-job";
 import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
-import _ from "lodash";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 
@@ -82,7 +81,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         const openSeaOrderParams = await handleEvent(eventType, event.payload);
 
         // Reduce amount of logs by only total the amount of events received from Ethereum mainnet.
-        if (_.random(100) <= 50 && (openSeaOrderParams || config.chainId === 1)) {
+        if (openSeaOrderParams || config.chainId === 1) {
           logger.debug(
             "opensea-websocket",
             JSON.stringify({
