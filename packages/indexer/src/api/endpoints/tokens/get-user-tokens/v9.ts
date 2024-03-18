@@ -64,11 +64,20 @@ export const getUserTokensV9Options: RouteOptions = {
         .description(
           "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
-      collection: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      collection: Joi.alternatives().try(
+        Joi.array()
+          .items(Joi.string().lowercase())
+          .min(1)
+          .max(50)
+          .description(
+            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          ),
+        Joi.string()
+          .lowercase()
+          .description(
+            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          )
+      ),
       excludeCollections: Joi.alternatives()
         .try(Joi.array().max(100).items(Joi.string()), Joi.string())
         .description(
@@ -342,7 +351,11 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     if (query.collection) {
-      addCollectionToFilter(query.collection);
+      if (!Array.isArray(query.collection)) {
+        query.collection = [query.collection];
+      }
+
+      query.collection.forEach(addCollectionToFilter);
     }
 
     if (query.excludeCollections) {
