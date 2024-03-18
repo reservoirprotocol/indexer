@@ -256,26 +256,39 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         }
       }
 
-      const simplehashFallbackFailures = await redis.get(
-        `simplehash-fallback-failures:${contract}`
-      );
+      try {
+        const simplehashFallbackFailures = await redis.get(
+          `simplehash-fallback-failures:${contract}`
+        );
 
-      if (simplehashFallbackFailures) {
-        const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
+        if (simplehashFallbackFailures) {
+          const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
 
-        if (simplehashFallbackFailuresCount >= 1000) {
-          logger.warn(
-            this.queueName,
-            JSON.stringify({
-              topic: "simpleHashFallbackDebug",
-              message: `Skip Fallback - Too Many Failures. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
-              payload,
-              simplehashFallbackFailuresCount,
-            })
-          );
+          if (simplehashFallbackFailuresCount >= 1000) {
+            logger.info(
+              this.queueName,
+              JSON.stringify({
+                topic: "simpleHashFallbackDebug",
+                message: `Skip Fallback - Too Many Failures. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
+                payload,
+                simplehashFallbackFailuresCount,
+              })
+            );
 
-          // return;
+            // return;
+          }
         }
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            topic: "simpleHashFallbackDebug",
+            message: `Skip Fallback Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${error}`,
+            contract,
+            tokenId,
+            error,
+          })
+        );
       }
 
       logger.warn(
