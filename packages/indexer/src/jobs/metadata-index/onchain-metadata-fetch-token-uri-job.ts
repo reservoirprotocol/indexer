@@ -133,17 +133,55 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           );
 
           if (result.error === "Unable to decode tokenURI from contract") {
-            redis.hset(
-              "simplehash-fallback-debug-tokens-v2",
-              `${result.contract}:${result.tokenId}`,
-              result.error
-            );
+            let addToFallbackTokens = true;
 
-            fallbackTokens.push({
-              collection: result.contract,
-              contract: result.contract,
-              tokenId: result.tokenId,
-            });
+            try {
+              const simplehashFallbackFailures = await redis.get(
+                `simplehash-fallback-failures:${result.contract}`
+              );
+
+              if (simplehashFallbackFailures) {
+                const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
+
+                if (simplehashFallbackFailuresCount >= 100) {
+                  logger.info(
+                    this.queueName,
+                    JSON.stringify({
+                      topic: "simpleHashFallbackDebug",
+                      message: `Skip Fallback - Too Many Failures. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${result.error}`,
+                      result,
+                      simplehashFallbackFailuresCount,
+                    })
+                  );
+
+                  addToFallbackTokens = false;
+                }
+              }
+            } catch (error) {
+              logger.error(
+                this.queueName,
+                JSON.stringify({
+                  topic: "simpleHashFallbackDebug",
+                  message: `Skip Fallback Error. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${error}`,
+                  result,
+                  error,
+                })
+              );
+            }
+
+            if (addToFallbackTokens) {
+              redis.hset(
+                "simplehash-fallback-debug-tokens-v2",
+                `${result.contract}:${result.tokenId}`,
+                result.error
+              );
+
+              fallbackTokens.push({
+                collection: result.contract,
+                contract: result.contract,
+                tokenId: result.tokenId,
+              });
+            }
           }
         }
       });
