@@ -35,6 +35,11 @@ export interface SyncBlockOptions {
   syncEventsOnly?: boolean;
   blocksPerBatch?: number;
 }
+
+export interface SyncEventsData {
+  blockEventTimeReceived?: number;
+}
+
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
 
@@ -538,7 +543,8 @@ export const syncEvents = async (
     toBlock: number;
   },
   skipLogsCheck = false,
-  syncOptions?: SyncBlockOptions
+  syncOptions?: SyncBlockOptions,
+  syncEventsData?: SyncEventsData
 ) => {
   const startSyncTime = Date.now();
 
@@ -686,6 +692,10 @@ export const syncEvents = async (
                   timestamp: b.timestamp,
                 };
               }),
+        wsEventLatency:
+          syncEventsData?.blockEventTimeReceived && blockData.length
+            ? syncEventsData?.blockEventTimeReceived - blockData[0].timestamp
+            : undefined,
         startJobTimestamp: startSyncTime,
         getBlockTimestamp: endGetBlockTime,
       },

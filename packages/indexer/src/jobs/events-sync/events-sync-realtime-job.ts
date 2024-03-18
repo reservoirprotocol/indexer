@@ -10,6 +10,7 @@ import { ridb } from "@/common/db";
 
 export type EventsSyncRealtimeJobPayload = {
   block: number;
+  blockEventTimeReceived?: number;
 };
 
 export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
