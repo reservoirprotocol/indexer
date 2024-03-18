@@ -264,7 +264,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
         if (simplehashFallbackFailures) {
           const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
 
-          if (simplehashFallbackFailuresCount >= 1000) {
+          if (simplehashFallbackFailuresCount >= 100) {
             logger.info(
               this.queueName,
               JSON.stringify({
