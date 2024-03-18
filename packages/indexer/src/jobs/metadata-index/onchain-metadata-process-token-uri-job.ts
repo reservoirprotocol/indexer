@@ -275,7 +275,7 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
               })
             );
 
-            // return;
+            return;
           }
         }
       } catch (error) {
