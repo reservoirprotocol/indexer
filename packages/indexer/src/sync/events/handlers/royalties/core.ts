@@ -105,7 +105,7 @@ export async function extractRoyalties(
 
   // Fetch the current transaction's sales
   let fillEvents: PartialFillEvent[] | undefined;
-  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
+  const cacheKeyEvents = `get-fill-events-from-tx-v2:${txHash}`;
   if (useCache) {
     const result = await redis.get(cacheKeyEvents);
     if (result) {
@@ -161,7 +161,7 @@ export async function extractRoyalties(
 
       return {
         ...f,
-        royalties,
+        royalties: royalties.filter((c) => c != undefined),
       };
     })
   );

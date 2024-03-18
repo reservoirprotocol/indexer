@@ -1,6 +1,7 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import pLimit from "p-limit";
 
+import { logger } from "@/common/logger";
 import { idb, redb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import * as fallback from "@/events-sync/handlers/royalties/core";
@@ -75,6 +76,7 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
         fill_events_2.token_id,
         fill_events_2.currency,
         fill_events_2.price,
+        fill_events_2.currency_price,
         fill_events_2.amount,
         fill_events_2.maker,
         fill_events_2.taker,
@@ -191,14 +193,14 @@ export const assignRoyaltiesToFillEvents = async (
               );
             }
           }
-        } catch {
-          // logger.error(
-          //   "assign-royalties-to-fill-events",
-          //   JSON.stringify({
-          //     error,
-          //     fillEvent,
-          //   })
-          // );
+        } catch (error) {
+          logger.error(
+            "assign-royalties-to-fill-events",
+            JSON.stringify({
+              error,
+              fillEvent,
+            })
+          );
         }
       })
     )
