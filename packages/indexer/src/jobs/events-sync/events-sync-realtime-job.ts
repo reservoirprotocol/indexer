@@ -45,7 +45,11 @@ export class EventsSyncRealtimeJob extends AbstractRabbitMqJobHandler {
           fromBlock: block,
           toBlock: block,
         },
-        skipLogsCheck
+        skipLogsCheck,
+        undefined,
+        {
+          blockEventTimeReceived: payload.blockEventTimeReceived,
+        }
       );
       await traceSyncJob.addToQueue({ block: block });
       //eslint-disable-next-line
