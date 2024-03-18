@@ -829,7 +829,7 @@ export const getUserTokensV10Options: RouteOptions = {
                     }`
               }
               ${continuationFilter}
-              ${nftBalanceSorting}
+              ${sortFullResultsSet ? "" : nftBalanceSorting}
               ${limitFullResultsSet ? "" : limit}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}

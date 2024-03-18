@@ -72,6 +72,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Apex]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Blast]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.AstarZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.ApexTestnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
@@ -104,6 +105,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Apex]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Blast]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.AstarZkevm]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.ApexTestnet]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {
@@ -161,6 +163,7 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.Apex]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.AstarZkevm]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Blast]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.ApexTestnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
 };
 
 export const OkxCancellationZone: ChainIdToAddress = {

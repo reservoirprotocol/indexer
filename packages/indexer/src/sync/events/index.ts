@@ -696,6 +696,7 @@ export const syncEvents = async (
           syncEventsData?.blockEventTimeReceived && blockData.length
             ? syncEventsData?.blockEventTimeReceived - blockData[0].timestamp
             : undefined,
+        blockEventTimeReceived: syncEventsData?.blockEventTimeReceived,
         startJobTimestamp: startSyncTime,
         getBlockTimestamp: endGetBlockTime,
       },
