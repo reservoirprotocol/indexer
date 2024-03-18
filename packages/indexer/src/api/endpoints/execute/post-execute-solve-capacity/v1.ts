@@ -66,7 +66,6 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
 
           const response: {
             enabled: boolean;
-            user?: { balance: string; allChainsBalance: string };
             solver?: { balance: string; capacityPerRequest: string };
           } = await axios
             .get(
@@ -87,8 +86,8 @@ export const postExecuteSolveCapacityV1Options: RouteOptions = {
             totalCapacity: response.solver!.balance,
             userBalance: payload.user
               ? {
-                  currentChain: response.user!.balance,
-                  allChains: response.user!.allChainsBalance,
+                  currentChain: "0",
+                  allChains: "0",
                 }
               : undefined,
             // TODO: To remove, only kept for backwards-compatibility reasons

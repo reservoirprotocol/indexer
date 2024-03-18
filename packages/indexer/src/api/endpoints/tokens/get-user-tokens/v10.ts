@@ -40,11 +40,10 @@ export const getUserTokensV10Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
       order: 9,
-      deprecated: true,
     },
   },
   validate: {
@@ -70,6 +69,11 @@ export const getUserTokensV10Options: RouteOptions = {
         .lowercase()
         .description(
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      excludeCollections: Joi.alternatives()
+        .try(Joi.array().max(100).items(Joi.string()), Joi.string())
+        .description(
+          "Exclude particular collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
@@ -192,11 +196,15 @@ export const getUserTokensV10Options: RouteOptions = {
               name: Joi.string().allow("", null),
               slug: Joi.string().allow("", null).description("Open Sea slug"),
               symbol: Joi.string().allow("", null),
+              contractDeployedAt: Joi.string()
+                .description("Time when contract was deployed")
+                .allow("", null),
               imageUrl: Joi.string().allow("", null),
               isSpam: Joi.boolean().default(false),
               isNsfw: Joi.boolean().default(false),
               metadataDisabled: Joi.boolean().default(false),
               openseaVerificationStatus: Joi.string().allow("", null),
+              tokenCount: Joi.string().description("Total tokens within the collection."),
               floorAsk: {
                 id: Joi.string().allow(null),
                 price: JoiPrice.allow(null),
@@ -289,6 +297,7 @@ export const getUserTokensV10Options: RouteOptions = {
     (params as any).user = toBuffer(params.user);
 
     const tokensCollectionFilters: string[] = [];
+    const tokensExcludeCollectionFilters: string[] = [];
     const nftBalanceCollectionFilters: string[] = [];
     const collections: string[] = [];
     let listBasedContract = false;
@@ -362,6 +371,14 @@ export const getUserTokensV10Options: RouteOptions = {
 
     if (query.collection) {
       addCollectionToFilter(query.collection);
+    }
+
+    if (query.excludeCollections) {
+      if (!Array.isArray(query.excludeCollections)) {
+        query.excludeCollections = [query.excludeCollections];
+      }
+
+      tokensExcludeCollectionFilters.push(`collection_id NOT IN ($/excludeCollections:list/)`);
     }
 
     if (query.contract) {
@@ -554,6 +571,11 @@ export const getUserTokensV10Options: RouteOptions = {
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
+        AND ${
+          tokensExcludeCollectionFilters.length
+            ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
+            : "TRUE"
+        }
       ) t ON TRUE
     `;
 
@@ -599,6 +621,11 @@ export const getUserTokensV10Options: RouteOptions = {
           AND ${
             tokensCollectionFilters.length
               ? "(" + tokensCollectionFilters.join(" OR ") + ")"
+              : "TRUE"
+          }
+          AND ${
+            tokensExcludeCollectionFilters.length
+              ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
               : "TRUE"
           }
         ) t ON TRUE
@@ -709,7 +736,11 @@ export const getUserTokensV10Options: RouteOptions = {
     }
 
     let ucTable = "";
-    if (query.sortBy === "floorAskPrice" || !_.isEmpty(collections)) {
+    if (
+      query.sortBy === "floorAskPrice" ||
+      !_.isEmpty(collections) ||
+      !_.isEmpty(query.excludeCollections)
+    ) {
       ucTable = `
         SELECT collection_id, COALESCE(c.token_set_id != CONCAT('contract:', collection_id), true) AS "shared_contract", c.*
         FROM user_collections uc
@@ -717,6 +748,11 @@ export const getUserTokensV10Options: RouteOptions = {
         WHERE owner = $/user/
         AND uc.token_count > 0
         ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
+        ${
+          !_.isEmpty(query.excludeCollections)
+            ? `AND uc.collection_id NOT IN ($/excludeCollections:list/)`
+            : ""
+        }
         ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         ${
@@ -734,7 +770,10 @@ export const getUserTokensV10Options: RouteOptions = {
       query.excludeSpam ||
       query.excludeNsfw ||
       query.tokenName ||
+      query.excludeCollections ||
       query.onlyListed;
+
+    const sortFullResultsSet = query.sortBy === "acquiredAt" && ucTable;
 
     try {
       const baseQuery = `
@@ -747,7 +786,7 @@ export const getUserTokensV10Options: RouteOptions = {
                ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price, o.currency_value AS collection_floor_sell_currency_value, o.token_set_id AS collection_floor_sell_token_set_id,
-               c.name as collection_name, con.kind, con.symbol, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               c.name as collection_name, c.token_count as collection_token_count, con.kind, con.symbol, extract(epoch from con.deployed_at) AS contract_deployed_at, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                c.royalties_bps, ot.kind AS ownership_floor_sell_kind, c.slug, c.is_spam AS c_is_spam, c.nsfw_status AS c_nsfw_status, c.metadata_disabled AS c_metadata_disabled, t_metadata_disabled,
                c.image_version AS "collection_image_version",
                ot.value as ownership_floor_sell_value, ot.currency_value as ownership_floor_sell_currency_value, ot.currency as ownership_floor_sell_currency, ot.maker as ownership_floor_sell_maker,
@@ -830,6 +869,7 @@ export const getUserTokensV10Options: RouteOptions = {
               1
           ) ELSE t.floor_sell_id END
           ${userCollectionsSorting}
+          ${sortFullResultsSet ? nftBalanceSorting : ""}
           ${limitFullResultsSet ? limit : ""}
       `;
 
@@ -1037,6 +1077,9 @@ export const getUserTokensV10Options: RouteOptions = {
                 name: r.collection_name,
                 slug: r.slug,
                 symbol: r.symbol,
+                contractDeployedAt: r.contract_deployed_at
+                  ? new Date(r.contract_deployed_at * 1000).toISOString()
+                  : null,
                 imageUrl: Assets.getResizedImageUrl(
                   r.image,
                   ImageSize.small,
@@ -1046,6 +1089,7 @@ export const getUserTokensV10Options: RouteOptions = {
                 isNsfw: Number(r.c_nsfw_status) > 0,
                 metadataDisabled: Boolean(Number(r.c_metadata_disabled)),
                 openseaVerificationStatus: r.opensea_verification_status,
+                tokenCount: String(r.collection_token_count),
                 floorAsk: {
                   id: r.collection_floor_sell_id,
                   price: r.collection_floor_sell_id
