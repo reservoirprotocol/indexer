@@ -111,33 +111,44 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     }
 
     if (metadataMethod === "simplehash") {
-      const fallbackError = await redis.hget(
-        "simplehash-fallback-debug-tokens-v2",
-        `${contract}:${tokenId}`
-      );
+      try {
+        const fallbackError = await redis.hget(
+          "simplehash-fallback-debug-tokens-v2",
+          `${contract}:${tokenId}`
+        );
 
-      if (fallbackError) {
-        const fallbackSuccess = name != null || imageUrl != null;
+        if (fallbackError) {
+          const fallbackSuccess = name != null || imageUrl != null;
 
-        logger.info(
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `Fallback. collection=${collection}, tokenId=${tokenId}`,
+              payload,
+              fallbackSuccess,
+              fallbackError,
+            })
+          );
+
+          await redis.hdel("simplehash-fallback-debug-tokens-v2", `${contract}:${tokenId}`);
+
+          if (!fallbackSuccess) {
+            const redisMulti = redis.multi();
+            await redisMulti.incr(`simplehash-fallback-failures:${contract}`);
+            await redisMulti.expire(`simplehash-fallback-failures:${contract}`, 3600);
+            await redisMulti.exec();
+          }
+        }
+      } catch (error) {
+        logger.error(
           this.queueName,
           JSON.stringify({
             topic: "simpleHashFallbackDebug",
-            message: `Fallback. collection=${collection}, tokenId=${tokenId}`,
+            message: `Fallback check error. collection=${collection}, tokenId=${tokenId}`,
             payload,
-            fallbackSuccess,
-            fallbackError,
           })
         );
-
-        await redis.hdel("simplehash-fallback-debug-tokens-v2", `${contract}:${tokenId}`);
-
-        if (!fallbackSuccess) {
-          const redisMulti = redis.multi();
-          await redisMulti.incr(`simplehash-fallback-failures:${contract}`);
-          await redisMulti.expire(`simplehash-fallback-failures:${contract}`, 3600);
-          await redisMulti.exec();
-        }
       }
     }
 
