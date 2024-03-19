@@ -636,7 +636,6 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         tags: {
           contract: contract,
         },
-        offset: data.offset,
       });
 
       await publishKafkaEvent(event);
