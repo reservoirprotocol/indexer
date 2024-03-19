@@ -117,7 +117,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       }[] = [];
 
       // Filter out tokens that have no metadata
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.uri) {
           tokensToProcess.push(result as { contract: string; tokenId: string; uri: string });
         } else {
@@ -135,38 +135,40 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           if (result.error === "Unable to decode tokenURI from contract") {
             let addToFallbackTokens = true;
 
-            try {
-              const simplehashFallbackFailures = await redis.get(
-                `simplehash-fallback-failures:${result.contract}`
-              );
+            if (config.fallbackMetadataIndexingMethod) {
+              try {
+                const simplehashFallbackFailures = await redis.get(
+                  `simplehash-fallback-failures:${result.contract}`
+                );
 
-              if (simplehashFallbackFailures) {
-                const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
+                if (simplehashFallbackFailures) {
+                  const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
 
-                if (simplehashFallbackFailuresCount >= 100) {
-                  logger.info(
-                    this.queueName,
-                    JSON.stringify({
-                      topic: "simpleHashFallbackDebug",
-                      message: `Skip Fallback - Too Many Failures. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${result.error}`,
-                      result,
-                      simplehashFallbackFailuresCount,
-                    })
-                  );
+                  if (simplehashFallbackFailuresCount >= 100) {
+                    logger.info(
+                      this.queueName,
+                      JSON.stringify({
+                        topic: "simpleHashFallbackDebug",
+                        message: `Skip Fallback - Too Many Failures. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${result.error}`,
+                        result,
+                        simplehashFallbackFailuresCount,
+                      })
+                    );
 
-                  addToFallbackTokens = false;
+                    addToFallbackTokens = false;
+                  }
                 }
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    topic: "simpleHashFallbackDebug",
+                    message: `Skip Fallback Error. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${error}`,
+                    result,
+                    error,
+                  })
+                );
               }
-            } catch (error) {
-              logger.error(
-                this.queueName,
-                JSON.stringify({
-                  topic: "simpleHashFallbackDebug",
-                  message: `Skip Fallback Error. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${error}`,
-                  result,
-                  error,
-                })
-              );
             }
 
             if (addToFallbackTokens) {
@@ -184,7 +186,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
             }
           }
         }
-      });
+      }
 
       if (tokensToProcess.length) {
         // for (const tokenToProcess of tokensToProcess) {
