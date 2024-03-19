@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, development]
     paths:
-      - 'packages/indexer/src/jobs/cdc/**'
+      - "packages/indexer/src/jobs/cdc/**"
 
 env:
   NODE_VERSION: "18.x"
@@ -228,12 +228,15 @@ jobs:
 
           ./utils/version_update_batch.sh indexer-apex ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-apex.yaml
-          
+
           ./utils/version_update_batch.sh indexer-astar-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-astar-zkevm.yaml
 
           ./utils/version_update_batch.sh indexer-blast ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-blast.yaml
+
+          ./utils/version_update_batch.sh indexer-apex-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-apex-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}

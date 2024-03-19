@@ -288,7 +288,7 @@ jobs:
             ./prod/platform/indexer-api-apex.yaml \
             ./prod/platform/indexer-worker-apex.yaml \
             ./prod/platform/indexer-worker-master-apex.yaml
-          
+
           ./utils/version_update_batch.sh indexer-astar-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-api-astar-zkevm.yaml \
             ./prod/platform/indexer-worker-astar-zkevm.yaml \
@@ -298,6 +298,11 @@ jobs:
             ./prod/platform/indexer-api-blast.yaml \
             ./prod/platform/indexer-worker-blast.yaml \
             ./prod/platform/indexer-worker-master-blast.yaml
+
+          ./utils/version_update_batch.sh indexer-apex-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-api-apex-testnet.yaml \
+            ./prod/platform/indexer-worker-apex-testnet.yaml \
+            ./prod/platform/indexer-worker-master-apex-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}
