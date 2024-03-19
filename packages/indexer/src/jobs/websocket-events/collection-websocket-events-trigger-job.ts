@@ -330,7 +330,7 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
       }
 
-      const baseMessage = {
+      const event = {
         event: eventType,
         changed,
         data: {
@@ -505,13 +505,13 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
       };
 
       await publishWebsocketEvent({
-        ...baseMessage,
+        ...event,
         tags: {
           id,
         },
       });
 
-      await publishKafkaEvent(baseMessage);
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

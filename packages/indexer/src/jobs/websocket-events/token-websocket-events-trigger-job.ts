@@ -625,14 +625,21 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
         },
       };
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
+        changed,
+        data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
         tags: {
           contract: contract,
         },
-        changed,
-        data: result,
+        offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

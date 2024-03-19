@@ -215,6 +215,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
 
       const event = {
         event: eventType,
+        changed,
         data: result,
       };
 
