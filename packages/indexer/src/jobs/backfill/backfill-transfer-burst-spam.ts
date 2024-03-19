@@ -51,12 +51,12 @@ export class BackfillTransferSpamJob extends AbstractRabbitMqJobHandler {
     // - where the contract is an erc1155 contract
     const transferEvents = await idb.manyOrNone(
       `
-      SELECT tx_hash, count(*), c.kind, c.address, te.from
+      SELECT tx_hash, count(*), c.kind, c.address, te."from"
       FROM nft_transfer_events te
       JOIN contracts c on te.address = c.address
       WHERE block <= $/startBlock/ AND block >= $/endBlock/
       AND c.kind = 'erc1155'
-      GROUP BY tx_hash, c.kind, c.address, te.from
+      GROUP BY tx_hash, c.kind, c.address, te."from"
       HAVING COUNT(distinct (te."to")) > 100
     `,
       blockValues
