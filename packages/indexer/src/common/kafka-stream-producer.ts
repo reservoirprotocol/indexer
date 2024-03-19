@@ -36,7 +36,7 @@ export async function start(): Promise<void> {
 
   try {
     await producer.connect();
-    logger.info(`kafka-producer`, "Producer connected");
+    logger.info(`kafka-stream-producer`, "Producer connected");
   } catch (error) {
     logger.error(
       `kafka-stream-producer`,
