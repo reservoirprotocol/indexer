@@ -70,12 +70,12 @@ export const getUserTokensV9Options: RouteOptions = {
           .min(1)
           .max(100)
           .description(
-            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
           ),
         Joi.string()
           .lowercase()
           .description(
-            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
           )
       ),
       excludeCollections: Joi.alternatives()

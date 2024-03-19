@@ -69,14 +69,14 @@ export const getUserTokensV10Options: RouteOptions = {
         Joi.array()
           .items(Joi.string().lowercase())
           .min(1)
-          .max(50)
+          .max(100)
           .description(
-            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
           ),
         Joi.string()
           .lowercase()
           .description(
-            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
           )
       ),
       excludeCollections: Joi.alternatives()
@@ -92,7 +92,7 @@ export const getUserTokensV10Options: RouteOptions = {
         ),
       tokens: Joi.alternatives().try(
         Joi.array()
-          .max(100)
+          .max(50)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
             "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
