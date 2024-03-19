@@ -403,6 +403,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     expect(nonPartialTx.txs.length).to.eq(1);
 
     for (const tx of nonPartialTx.txs) {
+      delete tx.txData.gas
       await seller.sendTransaction(tx.txData);
     }
 
@@ -522,6 +523,7 @@ describe("PaymentProcessorV2 - SingleToken Erc1155", () => {
     expect(nonPartialTx.txs.length).to.eq(1);
 
     for (const tx of nonPartialTx.txs) {
+      delete tx.txData.gas
       await buyer.sendTransaction(tx.txData);
     }
 

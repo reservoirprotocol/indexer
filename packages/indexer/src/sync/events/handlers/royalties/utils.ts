@@ -21,7 +21,6 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
   const { logs } = await utils.fetchTransactionLogs(txHash);
 
   const txData = await utils.fetchTransaction(txHash);
-
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
     enhancedEvents.push(

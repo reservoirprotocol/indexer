@@ -37,6 +37,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
         "payment-processor-v2",
+        "payment-processor-v2.0.1",
         "rarible",
         "alienswap"
       ),
@@ -162,6 +163,12 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "payment-processor-v2": {
           const exchange = new Sdk.PaymentProcessorV2.Exchange(config.chainId);
+          cancelTx = exchange.revokeMasterNonceTx(payload.maker);
+          break;
+        }
+
+        case "payment-processor-v2.0.1": {
+          const exchange = new Sdk.PaymentProcessorV201.Exchange(config.chainId);
           cancelTx = exchange.revokeMasterNonceTx(payload.maker);
           break;
         }
@@ -344,6 +351,25 @@ export const getExecuteCancelV3Options: RouteOptions = {
         if (data.offchainCancellable.length) {
           const orderIds = data.offchainCancellable.map((o) => o.id);
           if (kind === "payment-processor-v2") {
+            steps[1].items.push({
+              status: "incomplete",
+              orderIds,
+              data: {
+                sign: await offchainCancel.paymentProcessorV2.generateOffChainCancellationSignatureData(
+                  orderIds.sort()
+                ),
+                post: {
+                  endpoint: "/execute/cancel-signature/v1",
+                  method: "POST",
+                  body: {
+                    orderIds: orderIds.sort(),
+                    orderKind: kind,
+                  },
+                },
+              },
+            });
+          }
+          if (kind === "payment-processor-v2.0.1") {
             steps[1].items.push({
               status: "incomplete",
               orderIds,
