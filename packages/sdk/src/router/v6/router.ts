@@ -959,11 +959,11 @@ export class Router {
             details[i] = {
               ...detail,
               kind: "seaport-v1.5",
-              order: new Sdk.SeaportV15.Order(this.chainId, result.data.order),
-              extraArgs: {
-                ...details[i].extraArgs,
+              order: new Sdk.SeaportV15.Order(this.chainId, {
+                ...result.data.order,
                 extraData: result.data.extraData,
-              },
+              }),
+              extraArgs: details[i].extraArgs,
             };
           } catch (error) {
             if (options?.onError) {
