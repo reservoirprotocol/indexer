@@ -63,6 +63,10 @@ export const publish = async (
   message: any,
   partitionKey?: string
 ): Promise<void> => {
+  if (!config.doKafkaStreamWork) {
+    return;
+  }
+
   try {
     await producer.send({
       topic,
