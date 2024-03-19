@@ -91,44 +91,62 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
       decimals,
     } = payload;
 
-    if ([1, 137].includes(config.chainId)) {
-      const tokenMetadataIndexingDebug = await redis.sismember(
-        "metadata-indexing-debug-contracts",
-        contract
-      );
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
+      contract
+    );
 
-      if (tokenMetadataIndexingDebug) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "tokenMetadataIndexingDebug",
-            message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
-            payload,
-            metadataMethod,
-          })
-        );
-      }
+    if (tokenMetadataIndexingDebug) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "tokenMetadataIndexingDebug",
+          message: `Start. collection=${collection}, tokenId=${tokenId}, metadataMethod=${metadataMethod}`,
+          payload,
+          metadataMethod,
+        })
+      );
     }
 
     if (metadataMethod === "simplehash") {
-      const debugSimplehashFallbackError = await redis.hget(
-        "simplehash-fallback-debug-tokens-v2",
-        `${contract}:${tokenId}`
-      );
+      try {
+        const fallbackError = await redis.hget(
+          "simplehash-fallback-debug-tokens-v2",
+          `${contract}:${tokenId}`
+        );
 
-      if (debugSimplehashFallbackError) {
-        logger.info(
+        if (fallbackError) {
+          const fallbackSuccess = name != null || imageUrl != null;
+
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "simpleHashFallbackDebug",
+              message: `Fallback. collection=${collection}, tokenId=${tokenId}`,
+              payload,
+              fallbackSuccess,
+              fallbackError,
+            })
+          );
+
+          await redis.hdel("simplehash-fallback-debug-tokens-v2", `${contract}:${tokenId}`);
+
+          if (!fallbackSuccess) {
+            const redisMulti = redis.multi();
+            await redisMulti.incr(`simplehash-fallback-failures:${contract}`);
+            await redisMulti.expire(`simplehash-fallback-failures:${contract}`, 3600);
+            await redisMulti.exec();
+          }
+        }
+      } catch (error) {
+        logger.error(
           this.queueName,
           JSON.stringify({
             topic: "simpleHashFallbackDebug",
-            message: `Fallback. collection=${collection}, tokenId=${tokenId}`,
+            message: `Fallback check error. collection=${collection}, tokenId=${tokenId}`,
             payload,
-            fallbackSuccess: name != null || imageUrl != null,
-            fallbackError: debugSimplehashFallbackError,
           })
         );
-
-        await redis.hdel("simplehash-fallback-debug-tokens-v2", `${contract}:${tokenId}`);
       }
     }
 

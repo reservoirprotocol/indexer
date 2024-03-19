@@ -169,14 +169,19 @@ export const postCancelSignatureV1Options: RouteOptions = {
               signature,
               maker,
             });
+
+            return { message: "Success" };
           } catch {
             throw Boom.badRequest("Cancellation failed");
           }
-          return { message: "Success" };
         }
       }
     } catch (error) {
-      logger.error(`post-cancel-signature-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `post-cancel-signature-${version}-handler`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        JSON.stringify({ msg: `Handler failure: ${error}`, stack: (error as any).stack })
+      );
       throw error;
     }
   },
