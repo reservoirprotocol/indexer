@@ -44,9 +44,10 @@ export const metadataIndexingBaseProvider = new StaticJsonRpcProvider(
 
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-808736570
 export const safeWebSocketSubscription = (
-  callback: (provider: WebSocketProvider) => Promise<void>
+  callback: (provider: WebSocketProvider) => Promise<void>,
+  wsUrl?: string
 ) => {
-  const webSocketProvider = new WebSocketProvider(config.baseNetworkWsUrl);
+  const webSocketProvider = new WebSocketProvider(wsUrl ?? config.baseNetworkWsUrl);
   webSocketProvider.on("error", (error) => {
     logger.error("websocket-provider", `WebSocket subscription failed: ${error}`);
   });

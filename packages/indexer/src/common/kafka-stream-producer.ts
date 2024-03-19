@@ -17,13 +17,13 @@ const kafka = new Kafka({
 const producer: Producer = kafka.producer();
 
 producer.on("producer.disconnect", async (error) => {
-  logger.error(`kafka-producer`, `Producer disconnected, error=${error}`);
+  logger.error(`kafka-stream-producer`, `Producer disconnected, error=${error}`);
   await restart();
 });
 
 export async function start(): Promise<void> {
   logger.info(
-    `kafka-producer`,
+    `kafka-stream-producer`,
     JSON.stringify({
       message: `Starting kafka producer`,
       brokers: config.kafkaStreamBrokers,
@@ -39,7 +39,7 @@ export async function start(): Promise<void> {
     logger.info(`kafka-producer`, "Producer connected");
   } catch (error) {
     logger.error(
-      `kafka-producer`,
+      `kafka-stream-producer`,
       JSON.stringify({
         message: `Error connecting to kafka producer, error=${error}`,
         error,
@@ -51,7 +51,7 @@ async function restart(): Promise<void> {
   try {
     await producer.disconnect();
   } catch (error) {
-    logger.error(`kafka-producer`, `Error disconnecting producer, error=${error}`);
+    logger.error(`kafka-stream-producer`, `Error disconnecting producer, error=${error}`);
   }
 
   await start();
@@ -70,7 +70,7 @@ export const publish = async (
     });
   } catch (error) {
     logger.error(
-      "publish-websocket-event",
+      "kafka-stream-producer",
       JSON.stringify({
         message: `Error publishing message to kafka, topic=${topic}, error=${error}`,
         topic,
