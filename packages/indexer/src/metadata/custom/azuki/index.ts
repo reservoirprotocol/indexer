@@ -45,6 +45,8 @@ export const fetchTokenUriMetadata = async (
 
   return {
     ...info?.data,
+    contract,
+    tokenId,
     image,
   };
 };
