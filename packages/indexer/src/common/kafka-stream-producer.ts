@@ -44,7 +44,19 @@ export async function start(): Promise<void> {
 
   try {
     await producer.connect();
-    logger.info(`kafka-stream-producer`, "Producer connected");
+
+    logger.info(
+      `kafka-stream-producer`,
+      JSON.stringify({
+        topic: "kafka-stream",
+        message: `Producer connected`,
+        brokers: config.kafkaStreamBrokers,
+        clientId: config.kafkaStreamClientId,
+        ca: config.kafkaStreamCertificateCa,
+        key: config.kafkaStreamCertificateKey,
+        cert: config.kafkaStreamCertificateCert,
+      })
+    );
   } catch (error) {
     logger.error(
       `kafka-stream-producer`,
