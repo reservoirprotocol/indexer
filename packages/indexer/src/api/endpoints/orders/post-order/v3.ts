@@ -42,6 +42,7 @@ export const postOrderV3Options: RouteOptions = {
             "seaport",
             "seaport-v1.4",
             "seaport-v1.5",
+            "seaport-v1.6",
             "x2y2",
             "alienswap"
           )
@@ -209,7 +210,8 @@ export const postOrderV3Options: RouteOptions = {
         case "alienswap":
         case "seaport":
         case "seaport-v1.4":
-        case "seaport-v1.5": {
+        case "seaport-v1.5":
+        case "seaport-v1.6": {
           if (!["opensea", "reservoir", "looks-rare"].includes(orderbook)) {
             throw Boom.badRequest("Unknown orderbook");
           }
@@ -228,6 +230,10 @@ export const postOrderV3Options: RouteOptions = {
 
             case "seaport-v1.5":
               orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
+              break;
+
+            case "seaport-v1.6":
+              orderId = new Sdk.SeaportV16.Order(config.chainId, order.data).hash();
               break;
 
             case "alienswap":
@@ -291,6 +297,24 @@ export const postOrderV3Options: RouteOptions = {
               }
             } else if (order.kind == "seaport-v1.5") {
               const [result] = await orders.seaportV15.save([
+                {
+                  orderParams: order.data,
+                  isReservoir: true,
+                  metadata: {
+                    schema,
+                    source,
+                    permitId,
+                    permitIndex,
+                  },
+                },
+              ]);
+              if (!["success", "already-exists"].includes(result.status)) {
+                const error = Boom.badRequest(result.status);
+                error.output.payload.orderId = orderId;
+                throw error;
+              }
+            } else if (order.kind == "seaport-v1.6") {
+              const [result] = await orders.seaportV16.save([
                 {
                   orderParams: order.data,
                   isReservoir: true,

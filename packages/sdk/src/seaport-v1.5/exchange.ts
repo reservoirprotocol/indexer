@@ -19,9 +19,9 @@ export class Exchange extends SeaportBaseExchange {
   protected exchangeAddress: string;
   public contract: Contract;
 
-  constructor(chainId: number) {
+  constructor(chainId: number, exchangeAddressOverride?: string) {
     super(chainId);
-    this.exchangeAddress = Addresses.Exchange[chainId];
+    this.exchangeAddress = exchangeAddressOverride ?? Addresses.Exchange[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }
 

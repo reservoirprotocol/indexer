@@ -23,6 +23,7 @@ import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { randomUUID } from "crypto";
+import { customFetchTokenUriMetadata, hasCustomTokenUriHandler } from "@/metadata/custom";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -660,6 +661,16 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       );
 
       uri = uri.trim();
+
+      if (hasCustomTokenUriHandler(contract)) {
+        return customFetchTokenUriMetadata(
+          {
+            contract,
+            tokenId,
+          },
+          uri
+        );
+      }
 
       if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");
