@@ -82,7 +82,7 @@ export const publishKafkaEvent = async (event: KafkaEvent): Promise<void> => {
   const topic = mapEventToKafkaTopic(event);
   const partitionKey = mapEventToKafkaPartitionKey(event);
 
-  const published = kafkaStreamProducer.publish(topic, event, partitionKey);
+  const published = await kafkaStreamProducer.publish(topic, event, partitionKey);
 
   if (!published) {
     logger.info(
