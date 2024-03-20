@@ -62,16 +62,14 @@ export const publish = async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   message: any,
   partitionKey?: string
-): Promise<void> => {
-  if (!config.doKafkaStreamWork) {
-    return;
-  }
-
+): Promise<boolean> => {
   try {
     await producer.send({
       topic,
       messages: [{ value: JSON.stringify(message), key: partitionKey }],
     });
+
+    return true;
   } catch (error) {
     logger.error(
       "kafka-stream-producer",
@@ -82,5 +80,7 @@ export const publish = async (
         partitionKey,
       })
     );
+
+    return false;
   }
 };
