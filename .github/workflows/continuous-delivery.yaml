@@ -198,12 +198,6 @@ jobs:
             ./prod/platform/indexer-worker-frame-testnet.yaml \
             ./prod/platform/indexer-worker-master-frame-testnet.yaml
 
-          ./utils/version_update_batch.sh indexer-goerli ${{ github.sha }} \
-            ./prod/platform/indexer-api-goerli.yaml \
-            ./prod/platform/indexer-worker-goerli.yaml \
-            ./prod/platform/indexer-worker-master-goerli.yaml \
-            ./prod/platform/indexer-websocket-goerli.yaml
-
           ./utils/version_update_batch.sh indexer-immutable-zkevm-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-immutable-zkevm-testnet.yaml \
             ./prod/platform/indexer-worker-immutable-zkevm-testnet.yaml \

@@ -178,9 +178,6 @@ jobs:
           ./utils/version_update_batch.sh indexer-frame-testnet ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-frame-testnet.yaml
 
-          ./utils/version_update_batch.sh indexer-goerli ${{ github.sha }} \
-            ./prod/platform/indexer-kafka-worker-goerli.yaml
-
           ./utils/version_update_batch.sh indexer-immutable-zkevm-testnet ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-immutable-zkevm-testnet.yaml
 
