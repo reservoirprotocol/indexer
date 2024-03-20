@@ -66,7 +66,7 @@ export class BackfillTransferSpamJob extends AbstractRabbitMqJobHandler {
 
     if (transferEvents) {
       for (const transferEvent of transferEvents) {
-        if (!whitelistedRelayers.includes(fromBuffer(transferEvent.from))) {
+        if (!whitelistedRelayers.includes(fromBuffer(transferEvent.from).toLowerCase())) {
           contractSet.add(fromBuffer(transferEvent.address));
         }
       }

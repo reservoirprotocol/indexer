@@ -198,7 +198,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           erc1155TransfersPerTx[fromBuffer(event.tx_hash)] = [];
         }
 
-        if (!whitelistedRelayers.includes(fromBuffer(event.from))) {
+        if (!whitelistedRelayers.includes(fromBuffer(event.from).toLowerCase())) {
           erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push({
             to: fromBuffer(event.to),
             contract: fromBuffer(event.address),
