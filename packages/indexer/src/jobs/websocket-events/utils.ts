@@ -2,6 +2,8 @@ import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
 import { getNetworkName } from "@/config/network";
+import { publishEventToKafkaStreamJob } from "@/jobs/websocket-events/publish-event-to-kafka-stream-job";
+import { config } from "@/config/index";
 
 export interface KafkaEvent {
   event: string;
@@ -72,10 +74,18 @@ export const formatStatus = (fillabilityStatus: string, approvalStatus: string) 
 };
 
 export const publishKafkaEvent = async (event: KafkaEvent): Promise<void> => {
+  if (!config.doKafkaStreamWork) {
+    return;
+  }
+
   const topic = mapEventToKafkaTopic(event);
   const partitionKey = mapEventToKafkaPartitionKey(event);
 
-  return kafkaStreamProducer.publish(topic, event, partitionKey);
+  const published = kafkaStreamProducer.publish(topic, event, partitionKey);
+
+  if (!published) {
+    await publishEventToKafkaStreamJob.addToQueue([{ event }]);
+  }
 };
 
 const mapEventToKafkaTopic = (event: KafkaEvent): string => {
