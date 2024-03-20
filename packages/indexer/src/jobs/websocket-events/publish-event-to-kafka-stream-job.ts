@@ -23,6 +23,7 @@ export class PublishEventToKafkaStreamJob extends AbstractRabbitMqJobHandler {
     logger.info(
       this.queueName,
       JSON.stringify({
+        topic: "kafka-stream",
         message: `publishKafkaEvent`,
         payload: JSON.stringify(payload),
       })
@@ -32,7 +33,7 @@ export class PublishEventToKafkaStreamJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(payloads: PublishEventToKafkaStreamJobPayload[]) {
-    if (!config.doWebsocketServerWork) {
+    if (!config.doKafkaStreamWork) {
       return;
     }
 

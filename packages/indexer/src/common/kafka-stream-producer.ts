@@ -17,7 +17,14 @@ const kafka = new Kafka({
 const producer: Producer = kafka.producer();
 
 producer.on("producer.disconnect", async (error) => {
-  logger.error(`kafka-stream-producer`, `Producer disconnected, error=${error}`);
+  logger.error(
+    `kafka-stream-producer`,
+    JSON.stringify({
+      topic: "kafka-stream",
+      message: `Producer disconnected. error=${error}`,
+      error,
+    })
+  );
   await restart();
 });
 
@@ -25,6 +32,7 @@ export async function start(): Promise<void> {
   logger.info(
     `kafka-stream-producer`,
     JSON.stringify({
+      topic: "kafka-stream",
       message: `Starting kafka producer`,
       brokers: config.kafkaStreamBrokers,
       clientId: config.kafkaStreamClientId,
@@ -41,6 +49,7 @@ export async function start(): Promise<void> {
     logger.error(
       `kafka-stream-producer`,
       JSON.stringify({
+        topic: "kafka-stream",
         message: `Error connecting to kafka producer, error=${error}`,
         error,
       })
@@ -51,7 +60,14 @@ async function restart(): Promise<void> {
   try {
     await producer.disconnect();
   } catch (error) {
-    logger.error(`kafka-stream-producer`, `Error disconnecting producer, error=${error}`);
+    logger.error(
+      `kafka-stream-producer`,
+      JSON.stringify({
+        topic: "kafka-stream",
+        message: `Error disconnecting producer, error=${error}`,
+        error,
+      })
+    );
   }
 
   await start();
@@ -74,10 +90,11 @@ export const publish = async (
     logger.error(
       "kafka-stream-producer",
       JSON.stringify({
+        topic: "kafka-stream",
         message: `Error publishing message to kafka, topic=${topic}, error=${error}`,
-        topic,
+        kafkaTopic: topic,
         kafkaMessage: message,
-        partitionKey,
+        kafkaPartitionKey: partitionKey,
       })
     );
 

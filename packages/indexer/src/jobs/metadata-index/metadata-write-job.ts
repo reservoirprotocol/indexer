@@ -134,7 +134,7 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
           if (!fallbackSuccess) {
             const redisMulti = redis.multi();
             await redisMulti.incr(`simplehash-fallback-failures:${contract}`);
-            await redisMulti.expire(`simplehash-fallback-failures:${contract}`, 3600);
+            await redisMulti.expire(`simplehash-fallback-failures:${contract}`, 86400);
             await redisMulti.exec();
           }
         }
