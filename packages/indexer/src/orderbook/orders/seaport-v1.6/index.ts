@@ -17,7 +17,6 @@ import {
   OrderUpdatesByIdJobPayload,
 } from "@/jobs/order-updates/order-updates-by-id-job";
 import { orderbookOrdersJob } from "@/jobs/orderbook/orderbook-orders-job";
-import { getDittoPools } from "@/models/ditto-pools";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { topBidsCache } from "@/models/top-bids-caching";
@@ -31,7 +30,6 @@ import {
 import * as tokenSet from "@/orderbook/token-sets";
 import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
-import * as offchainCancel from "@/utils/offchain-cancel";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
@@ -41,7 +39,6 @@ export type OrderInfo = {
   metadata: OrderMetadata;
   isReservoir?: boolean;
   isOpenSea?: boolean;
-  isOkx?: boolean;
   openSeaOrderParams?: OpenseaOrderParams;
 };
 
@@ -66,11 +63,10 @@ export const save = async (
     metadata: OrderMetadata,
     isReservoir?: boolean,
     isOpenSea?: boolean,
-    isOkx?: boolean,
     openSeaOrderParams?: OpenseaOrderParams
   ) => {
     try {
-      const order = new Sdk.SeaportV15.Order(config.chainId, orderParams);
+      const order = new Sdk.SeaportV16.Order(config.chainId, orderParams);
       const info = order.getInfo();
       const id = order.hash();
 
@@ -110,7 +106,7 @@ export const save = async (
 
       // Check: order has a supported conduit
       if (
-        !(await isOpen(order.params.conduitKey, Sdk.SeaportV15.Addresses.Exchange[config.chainId]))
+        !(await isOpen(order.params.conduitKey, Sdk.SeaportV16.Addresses.Exchange[config.chainId]))
       ) {
         return results.push({
           id,
@@ -143,8 +139,8 @@ export const save = async (
         await orderbookOrdersJob.addToQueue(
           [
             {
-              kind: "seaport-v1.5",
-              info: { orderParams, metadata, isReservoir, isOpenSea, isOkx, openSeaOrderParams },
+              kind: "seaport-v1.6",
+              info: { orderParams, metadata, isReservoir, isOpenSea, openSeaOrderParams },
               validateBidValue,
               ingestMethod,
               ingestDelay: startTime - currentTime + 5,
@@ -170,7 +166,7 @@ export const save = async (
       }
 
       const isFiltered = await checkMarketplaceIsFiltered(info.contract, [
-        new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(order.params.conduitKey),
+        new Sdk.SeaportV16.Exchange(config.chainId).deriveConduit(order.params.conduitKey),
       ]);
 
       if (isFiltered) {
@@ -197,48 +193,19 @@ export const save = async (
         });
       }
 
-      const isProtectedOffer =
-        Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId] ===
-          order.params.zone && info.side === "buy";
-
-      let zoneIsDittoPool = false;
-
       // Check: order has a known zone
       if (order.params.orderType > 1) {
         if (
           ![
             // No zone
             AddressZero,
-            // Reservoir cancellation zone
-            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
-            // Okx cancellation zone
-            Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId],
-            // FxHash pausable zone
-            Sdk.SeaportBase.Addresses.FxHashPausableZone[config.chainId],
-            // Immutable protected zone
-            Sdk.SeaportBase.Addresses.ImmutableProtectedZone[config.chainId],
-          ].includes(order.params.zone) &&
-          // Protected offers zone
-          !isProtectedOffer
+          ].includes(order.params.zone)
         ) {
-          // Check if the zone is a ditto pool
-          const dittoPools = await getDittoPools();
-          if (!dittoPools.some((p) => p.address === order.params.zone)) {
-            return results.push({
-              id,
-              status: "unsupported-zone",
-            });
-          } else {
-            zoneIsDittoPool = true;
-          }
+          return results.push({
+            id,
+            status: "unsupported-zone",
+          });
         }
-      }
-
-      if (order.params.extraData && !zoneIsDittoPool) {
-        return results.push({
-          id,
-          status: "unsupported-extra-data",
-        });
       }
 
       // Check: order is valid
@@ -256,26 +223,8 @@ export const save = async (
         order.params.signature = undefined;
       }
 
-      if (
-        order.params.zone === Sdk.SeaportBase.Addresses.OkxCancellationZone[config.chainId] &&
-        !isOkx
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-zone",
-        });
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (isOkx && !(orderParams as any).okxOrderId) {
-        return results.push({
-          id,
-          status: "missing-okx-order-id",
-        });
-      }
-
       // Check: order has a valid signature
-      if (metadata.fromOnChain || ((isOpenSea || isOkx) && !order.params.signature)) {
+      if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
         // Skip if:
         // - the order was validated on-chain
         // - the order is coming from OpenSea / Okx and it doesn't have a signature
@@ -293,9 +242,9 @@ export const save = async (
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
-      const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+      const exchange = new Sdk.SeaportV16.Exchange(config.chainId);
       try {
-        await offChainCheck(order, "seaport-v1.5", exchange, {
+        await offChainCheck(order, "seaport-v1.6", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
           permitId: metadata.permitId,
@@ -466,7 +415,7 @@ export const save = async (
               ]);
 
               logger.info(
-                "orders-seaport-v1.5-save",
+                "orders-seaport-v1.6-save",
                 `TokenList. orderId=${id}, tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, metadata=${JSON.stringify(
                   metadata
                 )}, ts=${JSON.stringify(ts)}`
@@ -554,7 +503,7 @@ export const save = async (
           !_.includes(openSeaFeeRecipients, recipient.toLowerCase())
         ) {
           logger.info(
-            "orders-seaport-v1.5-save",
+            "orders-seaport-v1.6-save",
             `orderId=${id}, ${recipient.toLowerCase()} forced to be a royalty`
           );
 
@@ -632,8 +581,6 @@ export const save = async (
 
       if (isOpenSea) {
         source = await sources.getOrInsert("opensea.io");
-      } else if (isOkx) {
-        source = await sources.getOrInsert("okx.com");
       }
 
       // If the order is native, override any default source
@@ -762,7 +709,7 @@ export const save = async (
           }
         } catch (error) {
           logger.warn(
-            "orders-seaport-v1.5-save",
+            "orders-seaport-v1.6-save",
             `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
         }
@@ -774,47 +721,13 @@ export const save = async (
         (order.params as any).partial = true;
       }
 
-      if (isOkx) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (order.params as any).okxOrderId = (orderParams as any).okxOrderId;
-      }
-
-      // Handle: off-chain cancellation via replacement
-      if (
-        order.params.zone === Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
-      ) {
-        const replacedOrderResult = await idb.oneOrNone(
-          `
-            SELECT
-              orders.raw_data
-            FROM orders
-            WHERE orders.id = $/id/
-          `,
-          {
-            id: order.params.salt,
-          }
-        );
-        if (
-          replacedOrderResult &&
-          // Replacement is only possible if the replaced order is an off-chain cancellable one
-          replacedOrderResult.raw_data.zone ===
-            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
-        ) {
-          await offchainCancel.seaport.doReplacement({
-            newOrders: [order.params],
-            replacedOrders: [replacedOrderResult.raw_data],
-            orderKind: "seaport-v1.5",
-          });
-        }
-      }
-
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${order.params.endTime}))`
         : "'infinity'";
       orderValues.push({
         id,
-        kind: "seaport-v1.5",
+        kind: "seaport-v1.6",
         side: info.side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
@@ -835,7 +748,7 @@ export const save = async (
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),
         conduit: toBuffer(
-          new Sdk.SeaportV15.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
+          new Sdk.SeaportV16.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
         ),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
@@ -865,14 +778,14 @@ export const save = async (
       if (!unfillable && isReservoir) {
         await addPendingData([
           JSON.stringify({
-            kind: "seaport-v1.5",
+            kind: "seaport-v1.6",
             data: order.params,
           }),
         ]);
       }
     } catch (error) {
       logger.warn(
-        "orders-seaport-v1.5-save",
+        "orders-seaport-v1.6-save",
         `Failed to handle order (will retry). orderParams=${JSON.stringify(
           orderParams
         )}, metadata=${JSON.stringify(
@@ -894,7 +807,6 @@ export const save = async (
           orderInfo.metadata,
           orderInfo.isReservoir,
           orderInfo.isOpenSea,
-          orderInfo.isOkx,
           orderInfo.openSeaOrderParams
         )
       )

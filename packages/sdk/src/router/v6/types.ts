@@ -1,8 +1,8 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 
+import { Permit } from "./permit";
 import * as Sdk from "../../index";
 import { TxData } from "../../utils";
-import { Permit } from "./permit";
 
 // NFT
 
@@ -103,6 +103,18 @@ export type GenericOrder =
     }
   | {
       kind: "seaport-v1.5-partial-okx";
+      order: Sdk.SeaportBase.Types.OkxPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.6";
+      order: Sdk.SeaportV16.Order;
+    }
+  | {
+      kind: "seaport-v1.6-partial";
+      order: Sdk.SeaportBase.Types.OpenseaPartialOrder;
+    }
+  | {
+      kind: "seaport-v1.6-partial-okx";
       order: Sdk.SeaportBase.Types.OkxPartialOrder;
     }
   | {

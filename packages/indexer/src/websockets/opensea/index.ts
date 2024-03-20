@@ -244,6 +244,10 @@ type ProtocolData =
   | {
       kind: "seaport-v1.5";
       order: Sdk.SeaportV15.Order;
+    }
+  | {
+      kind: "seaport-v1.6";
+      order: Sdk.SeaportV16.Order;
     };
 
 export const parseProtocolData = (payload: unknown): ProtocolData | undefined => {
@@ -287,6 +291,11 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
       return {
         kind: "seaport-v1.5",
         order: new Sdk.SeaportV15.Order(config.chainId, orderComponents),
+      };
+    } else if (protocol === Sdk.SeaportV16.Addresses.Exchange[config.chainId]) {
+      return {
+        kind: "seaport-v1.6",
+        order: new Sdk.SeaportV16.Order(config.chainId, orderComponents),
       };
     }
   } catch (error) {

@@ -149,6 +149,7 @@ const config: HardhatUserConfig = {
   networks: {
     // Devnets
     hardhat: {
+      hardfork: "cancun",
       chainId: networkConfig.chainId,
       forking: {
         url: networkConfig.url,
