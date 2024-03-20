@@ -50,11 +50,6 @@ export async function start(): Promise<void> {
       JSON.stringify({
         topic: "kafka-stream",
         message: `Producer connected`,
-        brokers: config.kafkaStreamBrokers,
-        clientId: config.kafkaStreamClientId,
-        ca: config.kafkaStreamCertificateCa,
-        key: config.kafkaStreamCertificateKey,
-        cert: config.kafkaStreamCertificateCert,
       })
     );
   } catch (error) {
