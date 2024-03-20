@@ -35,6 +35,10 @@ const setup = async () => {
     return;
   }
 
+  if (config.doKafkaStreamWork) {
+    await kafkaStreamProducer.start();
+  }
+
   if (config.doBackgroundWork || config.forceEnableRabbitJobsConsumer) {
     const start = _.now();
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
@@ -59,10 +63,6 @@ const setup = async () => {
 
   if (config.doKafkaWork) {
     await startKafkaConsumer();
-  }
-
-  if (config.doKafkaStreamWork) {
-    await kafkaStreamProducer.start();
   }
 
   await redis.del("simplehash-fallback-debug-tokens");
