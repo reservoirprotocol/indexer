@@ -100,6 +100,12 @@
       "8453": "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
       "42161": "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
       "43114": "0x14ccd0a0f646a35368f7e99f763b2988be0292e5"
+    },
+    "v5": {
+      "1": "0xc6f6f3743931983739982855267893c63fc94ca3",
+      "81457": "0x55a916a916ccddafe90b014e244a85a6b4d5766a",
+      "7777777": "0x55a916a916ccddafe90b014e244a85a6b4d5766a",
+      "11155111": "0xc6f6f3743931983739982855267893c63fc94ca3"
     }
   },
   "FoundationModule": {
@@ -334,26 +340,6 @@
     "v1": {
       "1": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80",
       "5": "0x14e29b2de5cbb86fc8bad483e6dff38d58057e80"
-    }
-  },
-  "OneInchSwapModule": {
-    "v1": {
-      "1": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "5": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "10": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "56": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "137": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "42161": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d",
-      "43114": "0xd0fe0a4528cd95ac447cd9afd51c581b1a390b1d"
-    },
-    "v2": {
-      "1": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "5": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "10": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "56": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "137": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "42161": "0xa34a25b433597ecab5cad6d740a25dadec252d7d",
-      "43114": "0xa34a25b433597ecab5cad6d740a25dadec252d7d"
     }
   },
   "SignedZoneController": {

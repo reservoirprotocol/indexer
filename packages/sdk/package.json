@@ -11,7 +11,7 @@
     "prepublishOnly": "yarn clean && yarn build"
   },
   "dependencies": {
-    "@uniswap/smart-order-router": "^3.0.4",
+    "@uniswap/smart-order-router": "^3.26.0",
     "ethers": "^5.7.2",
     "merkletreejs": "^0.3.9"
   },

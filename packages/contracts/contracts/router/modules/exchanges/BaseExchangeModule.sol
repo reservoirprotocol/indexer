@@ -180,7 +180,12 @@ abstract contract BaseExchangeModule is BaseModule {
   function _approveERC20IfNeeded(IERC20 token, address spender, uint256 amount) internal {
     uint256 allowance = token.allowance(address(this), spender);
     if (allowance < amount) {
-      token.approve(spender, amount);
+      // Some contracts revert if trying to approve starting from a non-zero amount
+      if (allowance > 0) {
+        _approveERC20(address(token), spender, 0);
+      }
+
+      _approveERC20(address(token), spender, amount);
     }
   }
 
@@ -195,6 +200,16 @@ abstract contract BaseExchangeModule is BaseModule {
     bool isApproved = token.isApprovedForAll(address(this), operator);
     if (!isApproved) {
       token.setApprovalForAll(operator, true);
+    }
+  }
+
+  function _approveERC20(address token, address spender, uint256 amount) internal {
+    // To avoid extra calldata padding (which some contracts reject)
+    (bool success, ) = token.call(
+      abi.encodeWithSignature("approve(address,uint256)", spender, amount)
+    );
+    if (!success) {
+      revert UnsuccessfulFill();
     }
   }
 }

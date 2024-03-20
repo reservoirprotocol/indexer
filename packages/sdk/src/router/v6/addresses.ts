@@ -80,14 +80,17 @@ export const PermitProxy: ChainIdToAddress = {
 // Utility modules
 
 export const SwapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Ethereum]: "0xc6f6f3743931983739982855267893c63fc94ca3",
   [Network.EthereumGoerli]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.EthereumSepolia]: "0xc6f6f3743931983739982855267893c63fc94ca3",
   [Network.Polygon]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Optimism]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Arbitrum]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Bsc]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Base]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
   [Network.Avalanche]: "0x14ccd0a0f646a35368f7e99f763b2988be0292e5",
+  [Network.Zora]: "0x55a916a916ccddafe90b014e244a85a6b4d5766a",
+  [Network.Blast]: "0x55a916a916ccddafe90b014e244a85a6b4d5766a",
 };
 
 export const OneInchSwapModule: ChainIdToAddress = {
