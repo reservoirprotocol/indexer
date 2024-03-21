@@ -4,7 +4,6 @@ import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
 import { getNetworkName } from "@/config/network";
 import { publishEventToKafkaStreamJob } from "@/jobs/websocket-events/publish-event-to-kafka-stream-job";
 import { config } from "@/config/index";
-import { logger } from "@/common/logger";
 
 export interface KafkaEvent {
   event: string;
@@ -85,15 +84,6 @@ export const publishKafkaEvent = async (event: KafkaEvent): Promise<void> => {
   const published = await kafkaStreamProducer.publish(topic, event, partitionKey);
 
   if (!published) {
-    logger.info(
-      "publishKafkaEvent",
-      JSON.stringify({
-        topic: "kafka-stream",
-        message: `Sending to queue`,
-        event: JSON.stringify(event),
-      })
-    );
-
     await publishEventToKafkaStreamJob.addToQueue([{ event }]);
   }
 };

@@ -653,17 +653,6 @@ export const save = async (
             Number(tokenId)
           );
 
-          logger.debug(
-            "orders-seaport-v1.4-save",
-            JSON.stringify({
-              topic: "validateBidValue",
-              collectionTopBidValue,
-              contract: info.contract,
-              tokenId,
-              value: value.toString(),
-            })
-          );
-
           if (collectionTopBidValue) {
             if (Number(value.toString()) <= collectionTopBidValue) {
               return results.push({

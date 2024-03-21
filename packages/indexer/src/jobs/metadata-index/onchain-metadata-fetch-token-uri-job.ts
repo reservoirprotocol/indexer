@@ -145,16 +145,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
                   const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
 
                   if (simplehashFallbackFailuresCount >= 100) {
-                    logger.info(
-                      this.queueName,
-                      JSON.stringify({
-                        topic: "simpleHashFallbackDebug",
-                        message: `Skip Fallback - Too Many Failures. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${result.error}`,
-                        result,
-                        simplehashFallbackFailuresCount,
-                      })
-                    );
-
                     addToFallbackTokens = false;
                   }
                 }

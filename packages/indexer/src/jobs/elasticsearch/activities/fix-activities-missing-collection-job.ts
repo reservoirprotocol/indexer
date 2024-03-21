@@ -35,7 +35,7 @@ export default class FixActivitiesMissingCollectionJob extends AbstractRabbitMqJ
     } else if (Number(retry) < this.maxRetries) {
       await this.addToQueue({ ...payload, retry: Number(retry) + 1 });
     } else {
-      logger.debug(this.queueName, `Max retries reached for ${JSON.stringify(payload)}`);
+      logger.warn(this.queueName, `Max retries reached for ${JSON.stringify(payload)}`);
     }
   }
 
