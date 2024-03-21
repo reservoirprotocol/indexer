@@ -14,6 +14,8 @@ import {
   TokenUriNotFoundError,
   TokenUriRequestTimeoutError,
   TokenUriRequestForbiddenError,
+  handleTokenUriResponse,
+  handleTokenUriErrorResponse,
 } from "./utils";
 import _ from "lodash";
 import { AbstractBaseMetadataProvider } from "./abstract-base-metadata-provider";
@@ -712,8 +714,8 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
             "Content-Type": "application/json",
           },
         })
-        .then((res) => this.handleResponse(contract, tokenId, res))
-        .catch((error) => this.handleErrorResponse(contract, tokenId, error));
+        .then((res) => handleTokenUriResponse(contract, tokenId, res))
+        .catch((error) => handleTokenUriErrorResponse(contract, tokenId, error));
     } catch (error) {
       logger.warn(
         "onchain-fetcher",
@@ -730,40 +732,6 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
     }
   }
 
-  async handleResponse(contract: string, tokenId: string, response: any) {
-    if (response.data !== null && typeof response.data === "object") {
-      if (
-        config.chainId === 1 &&
-        contract === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401" &&
-        "message" in response.data
-      ) {
-        return [null, 404];
-      }
-
-      return [response.data, null];
-    }
-
-    return [null, "Invalid JSON"];
-  }
-
-  async handleErrorResponse(contract: string, tokenId: string, error: any) {
-    logger.warn(
-      "onchain-fetcher",
-      JSON.stringify({
-        topic: "tokenMetadataIndexingDebug",
-        message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
-        contract,
-        tokenId,
-        uri: error.request.url,
-        error,
-        errorResponseStatus: error.response?.status,
-        errorResponseData: error.response?.data,
-      })
-    );
-
-    return [null, error.response?.status || error.code || `${error}`];
-  }
-
   async getIPFSURI(contract: string, tokenId: string, uri: string) {
     if (config.ipfsGatewayDomain && config.forceIpfsGateway) {
       uri = uri.replace("ipfs.io", config.ipfsGatewayDomain);
@@ -775,7 +743,7 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
           "Content-Type": "application/json",
         },
       })
-      .then((res) => this.handleResponse(contract, tokenId, res))
+      .then((res) => handleTokenUriResponse(contract, tokenId, res))
       .catch((error) => {
         if (config.ipfsGatewayDomain) {
           const ipfsGatewayUrl = uri.replace("ipfs.io", config.ipfsGatewayDomain);
@@ -786,25 +754,13 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
                 "Content-Type": "application/json",
               },
             })
-            .then((res) => this.handleResponse(contract, tokenId, res))
-            .catch((fallbackError) => this.handleErrorResponse(contract, tokenId, fallbackError));
-        } else {
-          logger.warn(
-            "onchain-fetcher",
-            JSON.stringify({
-              topic: "tokenMetadataIndexingDebug",
-              message: `getTokenMetadataFromURI axios error. contract=${contract}, tokenId=${tokenId}`,
-              contract,
-              tokenId,
-              uri,
-              error,
-              errorResponseStatus: error.response?.status,
-              errorResponseData: error.response?.data,
-            })
-          );
+            .then((res) => handleTokenUriResponse(contract, tokenId, res))
+            .catch((fallbackError) =>
+              handleTokenUriErrorResponse(contract, tokenId, fallbackError)
+            );
         }
 
-        return [null, error.response?.status || error.code || `${error}`];
+        return handleTokenUriErrorResponse(contract, tokenId, error);
       });
   }
 }
