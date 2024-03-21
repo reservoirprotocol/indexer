@@ -218,6 +218,7 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
                     "updated_at" = now()
                 WHERE "contract" = $/contract/
                 AND "token_id" = $/tokenId/
+                AND ("collection_id" IS DISTINCT FROM $/collection/)
             `,
         values: {
           contract: toBuffer(contract),

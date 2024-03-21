@@ -114,6 +114,7 @@ export default class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandl
               "updated_at" = now()
           WHERE "contract" = $/contract/
           ${tokenFilter}
+          AND ("collection_id" IS DISTINCT FROM $/collection/)
         `,
         values: {
           contract: toBuffer(collection.contract),

@@ -91,7 +91,7 @@ export const postSetTokenDisableMetadataV1Options: RouteOptions = {
       await idb.oneOrNone(
         `
           UPDATE "tokens"
-          SET "metadata_disabled" = $/disable/
+          SET "metadata_disabled" = $/disable/, updated_at = NOW()
           WHERE ${conditions.map((c) => `(${c})`).join(" OR ")}
         `,
         payload
