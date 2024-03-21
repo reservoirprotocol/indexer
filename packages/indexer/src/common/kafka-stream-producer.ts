@@ -33,7 +33,7 @@ export async function start(): Promise<void> {
     `kafka-stream-producer`,
     JSON.stringify({
       topic: "kafka-stream",
-      message: `Starting kafka producer`,
+      message: `Starting kafka producer.`,
       brokers: config.kafkaStreamBrokers,
       clientId: config.kafkaStreamClientId,
       ca: config.kafkaStreamCertificateCa,
@@ -49,7 +49,7 @@ export async function start(): Promise<void> {
       `kafka-stream-producer`,
       JSON.stringify({
         topic: "kafka-stream",
-        message: `Producer connected`,
+        message: `Producer connected.`,
       })
     );
   } catch (error) {
@@ -57,7 +57,7 @@ export async function start(): Promise<void> {
       `kafka-stream-producer`,
       JSON.stringify({
         topic: "kafka-stream",
-        message: `Error connecting to kafka producer, error=${error}`,
+        message: `Error connecting to kafka producer. error=${error}`,
         error,
       })
     );
@@ -71,7 +71,7 @@ async function restart(): Promise<void> {
       `kafka-stream-producer`,
       JSON.stringify({
         topic: "kafka-stream",
-        message: `Error disconnecting producer, error=${error}`,
+        message: `Error disconnecting producer. error=${error}`,
         error,
       })
     );
@@ -98,9 +98,9 @@ export const publish = async (
       "kafka-stream-producer",
       JSON.stringify({
         topic: "kafka-stream",
-        message: `Error publishing message to kafka, topic=${topic}, error=${error}`,
+        message: `Error publishing message to kafka. topic=${topic}, error=${error}`,
         kafkaTopic: topic,
-        kafkaMessage: message,
+        kafkaMessage: JSON.stringify(message),
         kafkaPartitionKey: partitionKey,
       })
     );

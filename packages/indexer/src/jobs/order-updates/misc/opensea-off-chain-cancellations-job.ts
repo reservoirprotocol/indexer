@@ -22,8 +22,6 @@ export default class OpenseaOffChainCancellationsJob extends AbstractRabbitMqJob
   public async process(payload: OpenseaOffChainCancellationsJobPayload) {
     const { orderId } = payload;
 
-    logger.debug(this.queueName, JSON.stringify({ orderId }));
-
     try {
       const result = await idb.oneOrNone(
         `
