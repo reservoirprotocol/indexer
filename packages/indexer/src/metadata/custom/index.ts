@@ -5,6 +5,7 @@ import { config } from "@/config/index";
 import * as othersideKoda from "./otherside-koda";
 import * as bridgeToBase from "./bridge-to-base";
 import * as mintTest from "./mint-test";
+import * as azuki from "./azuki";
 
 const customCollection: { [key: string]: any } = {};
 const custom: { [key: string]: any } = {};
@@ -34,6 +35,9 @@ export const customFetchTokenUriMetadata = async (token: any, uri: string) =>
 export const customHandleContractTokens = async (contract: string, continuation: string) =>
   custom[`${config.chainId},${contract}`].fetchContractTokens(null, continuation);
 
+export const customFetchTokenUriMetadata = async (token: any, uri: string) =>
+  customTokenURI[`${config.chainId},${token.contract}`].fetchTokenUriMetadata(token, uri);
+
 ////////////////
 // Custom Tokens
 ////////////////
@@ -47,3 +51,6 @@ custom["8453,0xea2a41c02fa86a4901826615f9796e603c6a4491"] = bridgeToBase;
 
 // Mint test
 custom["999,0xe6a65c982ffa589a934fa93ab59e6e9646f25763"] = mintTest;
+
+// Azuki
+customTokenURI["137,0xc1c2144b3e4e22f4205545e965f52ebc77a1c952"] = azuki;

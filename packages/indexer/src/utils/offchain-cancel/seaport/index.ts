@@ -8,37 +8,56 @@ import { config } from "@/config/index";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 import { Features, FlaggedTokensChecker } from "@/utils/offchain-cancel/seaport/flagged-tokens";
 
-type OrderKind = "seaport-v1.4" | "seaport-v1.5" | "alienswap";
+export type OffChainCancellableOrderKind =
+  | "seaport-v1.4"
+  | "seaport-v1.5"
+  | "seaport-v1.6"
+  | "alienswap";
+
+type Order =
+  | Sdk.SeaportV14.Order
+  | Sdk.SeaportV15.Order
+  | Sdk.SeaportV16.Order
+  | Sdk.Alienswap.Order;
 
 type CancelCall = {
-  orderKind: OrderKind;
+  orderKind: OffChainCancellableOrderKind;
   signature: string;
   orders: OrderComponents[];
 };
 
 type ReplacementCall = {
-  orderKind: OrderKind;
+  orderKind: OffChainCancellableOrderKind;
   newOrders: OrderComponents[];
   replacedOrders: OrderComponents[];
+};
+
+const getCancellationZone = (kind: OffChainCancellableOrderKind) => {
+  if (kind === "seaport-v1.6") {
+    return Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId];
+  }
+  return Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
 };
 
 export const createOrder = (
   chainId: number,
   orderData: OrderComponents,
-  orderKind: "seaport-v1.4" | "seaport-v1.5" | "alienswap"
-): Sdk.SeaportV14.Order | Sdk.SeaportV15.Order | Sdk.Alienswap.Order => {
+  orderKind: OffChainCancellableOrderKind
+): Order => {
   if (orderKind === "alienswap") {
     return new Sdk.Alienswap.Order(chainId, orderData);
   } else if (orderKind === "seaport-v1.4") {
     return new Sdk.SeaportV14.Order(chainId, orderData);
-  } else {
+  } else if (orderKind === "seaport-v1.5") {
     return new Sdk.SeaportV15.Order(chainId, orderData);
+  } else {
+    return new Sdk.SeaportV16.Order(chainId, orderData);
   }
 };
 
 export const hashOrders = async (
   orders: OrderComponents[],
-  orderKind: "seaport-v1.4" | "seaport-v1.5" | "alienswap"
+  orderKind: OffChainCancellableOrderKind
 ) => {
   let orderSigner: string | undefined;
 
@@ -68,15 +87,19 @@ export const hashOrders = async (
 export const verifyOffChainCancellationSignature = (
   orderIds: string[],
   signature: string,
-  signer: string
+  signer: string,
+  orderKind: OffChainCancellableOrderKind
 ) => {
-  const message = generateOffChainCancellationSignatureData(orderIds);
+  const message = generateOffChainCancellationSignatureData(orderIds, orderKind);
   const recoveredSigner = verifyTypedData(message.domain, message.types, message.value, signature);
   return recoveredSigner.toLowerCase() === signer.toLowerCase();
 };
 
-export const generateOffChainCancellationSignatureData = (orderIds: string[]) => {
-  const cancellationZone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
+export const generateOffChainCancellationSignatureData = (
+  orderIds: string[],
+  orderKind: OffChainCancellableOrderKind
+) => {
+  const cancellationZone = getCancellationZone(orderKind);
   return {
     signatureKind: "eip712",
     domain: {
@@ -94,9 +117,8 @@ export const generateOffChainCancellationSignatureData = (orderIds: string[]) =>
 };
 
 export const doCancel = async (data: CancelCall) => {
-  const cancellationZone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
+  const cancellationZone = getCancellationZone(data.orderKind);
   const orders = data.orders;
-
   if (orders.some((order) => order.zone !== cancellationZone)) {
     throw Error("Unauthorized");
   }
@@ -106,7 +128,12 @@ export const doCancel = async (data: CancelCall) => {
     throw Error("Unauthorized");
   }
 
-  const success = verifyOffChainCancellationSignature(orderHashes, data.signature, orderSigner!);
+  const success = verifyOffChainCancellationSignature(
+    orderHashes,
+    data.signature,
+    orderSigner!,
+    data.orderKind
+  );
   if (!success) {
     throw Error("Unauthorized");
   }
@@ -149,11 +176,7 @@ export const doReplacement = async ({ replacedOrders, newOrders, orderKind }: Re
   await saveOffChainCancellations(salts);
 };
 
-export const doSignOrder = async (
-  order: Sdk.SeaportV14.Order | Sdk.SeaportV15.Order | Sdk.Alienswap.Order,
-  taker: string,
-  matchParams: MatchParams
-) => {
+export const doSignOrder = async (order: Order, taker: string, matchParams: MatchParams) => {
   if (order.isCosignedOrder()) {
     const isOffChainCancelled = await idb.oneOrNone(
       `SELECT 1 FROM off_chain_cancellations WHERE order_id = $/orderId/`,

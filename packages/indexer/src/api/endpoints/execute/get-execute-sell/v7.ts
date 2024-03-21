@@ -79,6 +79,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "seaport",
                   "seaport-v1.4",
                   "seaport-v1.5",
+                  "seaport-v1.6",
                   "x2y2",
                   "rarible",
                   "sudoswap",
@@ -676,7 +677,11 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           // Partial Seaport orders require knowing the owner
           let owner: string | undefined;
-          if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(result.kind)) {
+          if (
+            ["seaport-v1.4-partial", "seaport-v1.5-partial", "seaport-v1.6-partial"].includes(
+              result.kind
+            )
+          ) {
             const ownerResult = await idb.oneOrNone(
               `
                 SELECT
@@ -705,6 +710,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               "seaport-v1.5",
               "seaport-v1.4-partial",
               "seaport-v1.5-partial",
+              "seaport-v1.6-partial",
             ].includes(result.kind)
           ) {
             if (tokenResult.is_flagged) {
@@ -805,7 +811,11 @@ export const getExecuteSellV7Options: RouteOptions = {
 
             // Partial Seaport orders require knowing the owner
             let owner: string | undefined;
-            if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(result.kind)) {
+            if (
+              ["seaport-v1.4-partial", "seaport-v1.5-partial", "seaport-v1.6-partial"].includes(
+                result.kind
+              )
+            ) {
               const ownerResult = await idb.oneOrNone(
                 `
                   SELECT
@@ -834,6 +844,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 "seaport-v1.5",
                 "seaport-v1.4-partial",
                 "seaport-v1.5-partial",
+                "seaport-v1.6-partial",
               ].includes(result.kind)
             ) {
               if (tokenResult.is_flagged) {

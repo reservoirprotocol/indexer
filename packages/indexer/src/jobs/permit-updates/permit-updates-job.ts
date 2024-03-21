@@ -96,6 +96,7 @@ export class PermitUpdatesJob extends AbstractRabbitMqJobHandler {
             // Invalidate orders
 
             const noApprovalOrderIds: string[] = [];
+            const approvalOrderIds: string[] = [];
             for (const order of invalidatedOrders) {
               const orderAmount = bn(order.price).mul(order.quantity_remaining);
               const approvedAmount = await onChainData
@@ -108,6 +109,8 @@ export class PermitUpdatesJob extends AbstractRabbitMqJobHandler {
                 .then((a) => a.value);
               if (orderAmount.gt(approvedAmount)) {
                 noApprovalOrderIds.push(order.id);
+              } else {
+                approvalOrderIds.push(order.id);
               }
             }
 
@@ -139,6 +142,33 @@ export class PermitUpdatesJob extends AbstractRabbitMqJobHandler {
                     kind: "cancel",
                   },
                 }))
+              );
+            }
+
+            if (approvalOrderIds.length) {
+              // Remove the permit entries of orders that already have a valid approval in-place,
+              // this will ensure we don't skip approval validation for such orders going forward
+
+              const values = await Promise.all(
+                noApprovalOrderIds.map(async (id) => ({
+                  id,
+                  raw_data: await idb
+                    .one("SELECT orders.raw_data FROM orders WHERE orders.id = $/id/", { id })
+                    .then((r) => ({ ...r.raw_data, permitId: undefined, permitIndex: undefined })),
+                }))
+              );
+              const columns = new pgp.helpers.ColumnSet(["id", "raw_data"], {
+                table: "orders",
+              });
+
+              await idb.none(
+                `
+                  UPDATE orders SET
+                    raw_data = x.raw_data::jsonb,
+                    updated_at = now()
+                  FROM (VALUES ${pgp.helpers.values(values, columns)}) AS x(id, raw_data)
+                  WHERE orders.id = x.id::TEXT
+                `
               );
             }
           }

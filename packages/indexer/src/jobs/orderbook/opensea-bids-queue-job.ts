@@ -66,6 +66,16 @@ export default class OpenseaBidsQueueJob extends AbstractRabbitMqJobHandler {
           break;
         }
 
+        case "seaport-v1.6": {
+          result = await orders.seaportV16.save(
+            [info],
+            validateBidValue,
+            ingestMethod,
+            ingestDelay
+          );
+          break;
+        }
+
         case "sudoswap": {
           result = await orders.sudoswap.save([info]);
           break;

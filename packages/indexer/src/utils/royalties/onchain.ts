@@ -52,7 +52,9 @@ export const refreshOnChainRoyalties = async (collection: string, spec: Spec) =>
 
     // Get the royalties of all selected tokens
     const tokenRoyalties = await Promise.all(
-      tokenResults.map(async (r) => getOnChainRoyalties(token, r.token_id, spec))
+      (tokenResults.length ? tokenResults : [{ token_id: "0" }]).map(async (r) =>
+        getOnChainRoyalties(token, r.token_id, spec)
+      )
     );
 
     const uniqueRoyalties = _.uniqBy(tokenRoyalties, (r) => stringify(r));

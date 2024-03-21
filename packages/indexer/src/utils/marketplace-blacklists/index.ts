@@ -98,7 +98,10 @@ export const isBlockedByCustomLogic = async (
 
     if (
       config.chainId === 1 &&
-      ["0xc379e535caff250a01caa6c3724ed1359fe5c29b"].includes(contract) &&
+      [
+        "0xc379e535caff250a01caa6c3724ed1359fe5c29b",
+        "0xccc1825cf04cae4d497b202d1434ec0f79ee535f",
+      ].includes(contract) &&
       operators.includes(OPENSEA)
     ) {
       result = true;

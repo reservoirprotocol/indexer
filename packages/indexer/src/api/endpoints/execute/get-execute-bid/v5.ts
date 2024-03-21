@@ -41,6 +41,11 @@ import * as seaportV15BuyAttribute from "@/orderbook/orders/seaport-v1.5/build/b
 import * as seaportV15BuyToken from "@/orderbook/orders/seaport-v1.5/build/buy/token";
 import * as seaportV15BuyCollection from "@/orderbook/orders/seaport-v1.5/build/buy/collection";
 
+// Seaport v1.6
+import * as seaportV16BuyAttribute from "@/orderbook/orders/seaport-v1.6/build/buy/attribute";
+import * as seaportV16BuyToken from "@/orderbook/orders/seaport-v1.6/build/buy/token";
+import * as seaportV16BuyCollection from "@/orderbook/orders/seaport-v1.6/build/buy/collection";
+
 // Alienswap
 import * as alienswapBuyAttribute from "@/orderbook/orders/alienswap/build/buy/attribute";
 import * as alienswapBuyToken from "@/orderbook/orders/alienswap/build/buy/token";
@@ -132,6 +137,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 "seaport",
                 "seaport-v1.4",
                 "seaport-v1.5",
+                "seaport-v1.6",
                 "looks-rare",
                 "looks-rare-v2",
                 "x2y2",
@@ -152,6 +158,15 @@ export const getExecuteBidV5Options: RouteOptions = {
                 }),
               }),
               "seaport-v1.5": Joi.object({
+                conduitKey: Joi.string().pattern(regex.bytes32),
+                useOffChainCancellation: Joi.boolean().required(),
+                replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                  is: true,
+                  then: Joi.optional(),
+                  otherwise: Joi.forbidden(),
+                }),
+              }),
+              "seaport-v1.6": Joi.object({
                 conduitKey: Joi.string().pattern(regex.bytes32),
                 useOffChainCancellation: Joi.boolean().required(),
                 replaceOrderId: Joi.string().when("useOffChainCancellation", {
@@ -396,6 +411,26 @@ export const getExecuteBidV5Options: RouteOptions = {
         "seaport-v1.5": [] as {
           order: {
             kind: "seaport-v1.5";
+            data: Sdk.SeaportBase.Types.OrderComponents;
+          };
+          tokenSetId?: string;
+          attribute?: {
+            collection: string;
+            key: string;
+            value: string;
+          };
+          collection?: string;
+          isNonFlagged?: boolean;
+          permitId?: string;
+          permitIndex?: number;
+          orderbook: string;
+          orderbookApiKey?: string;
+          source?: string;
+          orderIndex: number;
+        }[],
+        "seaport-v1.6": [] as {
+          order: {
+            kind: "seaport-v1.6";
             data: Sdk.SeaportBase.Types.OrderComponents;
           };
           tokenSetId?: string;
@@ -989,6 +1024,171 @@ export const getExecuteBidV5Options: RouteOptions = {
                 }
 
                 bulkOrders["seaport-v1.5"].push({
+                  order: {
+                    kind: params.orderKind,
+                    data: {
+                      ...order.params,
+                    },
+                  },
+                  tokenSetId,
+                  attribute,
+                  collection,
+                  isNonFlagged: params.excludeFlaggedTokens,
+                  orderbook: params.orderbook,
+                  permitId,
+                  permitIndex,
+                  orderbookApiKey: params.orderbookApiKey,
+                  source,
+                  orderIndex: i,
+                });
+
+                addExecution(order.hash(), params.quantity);
+
+                break;
+              }
+
+              case "seaport-v1.6": {
+                if (!["reservoir", "opensea"].includes(params.orderbook)) {
+                  return errors.push({
+                    message: "Unsupported orderbook",
+                    orderIndex: i,
+                  });
+                }
+
+                const options = (params.options?.["seaport-v1.5"] ??
+                  params.options?.["seaport-v1.6"]) as
+                  | {
+                      conduitKey?: string;
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
+                let order: Sdk.SeaportV16.Order;
+                if (token) {
+                  const [contract, tokenId] = token.split(":");
+                  order = await seaportV16BuyToken.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir" | "opensea",
+                    maker,
+                    contract,
+                    tokenId,
+                    source,
+                  });
+                } else if (tokenSetId) {
+                  order = await seaportV16BuyAttribute.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir" | "opensea",
+                    maker,
+                    source,
+                  });
+                } else if (attribute) {
+                  order = await seaportV16BuyAttribute.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir" | "opensea",
+                    maker,
+                    collection: attribute.collection,
+                    attributes: [attribute],
+                    source,
+                  });
+                } else if (collection) {
+                  order = await seaportV16BuyCollection.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir" | "opensea",
+                    maker,
+                    collection,
+                    source,
+                  });
+                } else {
+                  return errors.push({
+                    message:
+                      "Only token, token-set-id, attribute and collection bids are supported",
+                    orderIndex: i,
+                  });
+                }
+
+                const exchange = new Sdk.SeaportV16.Exchange(config.chainId);
+                const conduit = exchange.deriveConduit(order.params.conduitKey);
+
+                const price = order.getMatchingPrice().toString();
+
+                // Check the maker's approval
+                let approvalTx: TxData | undefined;
+                const currencyApproval = await currency.getAllowance(maker, conduit);
+                if (bn(currencyApproval).lt(price)) {
+                  approvalTx = currency.approveTransaction(maker, conduit);
+                }
+
+                // Use permits
+                let permitId: string | undefined;
+                let permitIndex: number | undefined;
+                if (params.usePermit && approvalTx) {
+                  const permitHandler = new PermitHandler(config.chainId, baseProvider);
+                  const [permit] = await permitHandler.generate(
+                    maker,
+                    conduit,
+                    {
+                      kind: "no-transfers",
+                      token: params.currency,
+                      amount: MaxUint256.toString(),
+                    },
+                    order.params.endTime - now()
+                  );
+
+                  const id = getEphemeralPermitId(request.payload as object, {
+                    owner: permit.data.owner,
+                    spender: permit.data.spender,
+                    token: permit.data.token,
+                    amount: permit.data.amount,
+                    nonce: permit.data.nonce,
+                    deadline: permit.data.deadline,
+                  });
+
+                  const cachedPermit = await getEphemeralPermit(id);
+                  if (cachedPermit) {
+                    // Override with the cached permit data
+                    permit.data = cachedPermit.data;
+                  } else {
+                    // Cache the permit if it's the first time we encounter it
+                    await saveEphemeralPermit(id, permit);
+                  }
+
+                  // If the permit has a signature attached to it, we can skip it
+                  const hasSignature = permit.data.signature;
+                  if (!hasSignature) {
+                    steps[4].items.push({
+                      status: "incomplete",
+                      data: {
+                        sign: await permitHandler.getSignatureData(permit),
+                        post: {
+                          endpoint: "/execute/permit-signature/v1",
+                          method: "POST",
+                          body: {
+                            id,
+                            persist: true,
+                          },
+                        },
+                      },
+                    });
+                  } else {
+                    permitId = await permitHandler.hash(permit);
+                    permitIndex = 0;
+                  }
+                }
+
+                if (!params.usePermit) {
+                  steps[2].items.push({
+                    status: !approvalTx ? "complete" : "incomplete",
+                    data: approvalTx,
+                    orderIndexes: [i],
+                  });
+                }
+
+                bulkOrders["seaport-v1.6"].push({
                   order: {
                     kind: params.orderKind,
                     data: {
@@ -1695,6 +1895,80 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderbookApiKey: o.orderbookApiKey,
                     bulkData: {
                       kind: "seaport-v1.5",
+                      data: {
+                        orderIndex: i,
+                        merkleProof: proofs[i],
+                      },
+                    },
+                  })),
+                  source,
+                },
+              },
+            },
+            orderIndexes: orders.map(({ orderIndex }) => orderIndex),
+          });
+        }
+      }
+
+      // Post any seaport-v1.6 bulk orders together
+      {
+        const orders = bulkOrders["seaport-v1.6"];
+        if (orders.length === 1) {
+          const order = new Sdk.SeaportV16.Order(config.chainId, orders[0].order.data);
+          steps[5].items.push({
+            status: "incomplete",
+            data: {
+              sign: order.getSignatureData(),
+              post: {
+                endpoint: "/order/v3",
+                method: "POST",
+                body: {
+                  order: {
+                    kind: "seaport-v1.6",
+                    data: {
+                      ...order.params,
+                    },
+                  },
+                  tokenSetId: orders[0].tokenSetId,
+                  attribute: orders[0].attribute,
+                  collection: orders[0].collection,
+                  isNonFlagged: orders[0].isNonFlagged,
+                  permitId: orders[0].permitId,
+                  permitIndex: orders[0].permitIndex,
+                  orderbook: orders[0].orderbook,
+                  orderbookApiKey: orders[0].orderbookApiKey,
+                  source,
+                },
+              },
+            },
+            orderIndexes: [orders[0].orderIndex],
+          });
+        } else if (orders.length > 1) {
+          const exchange = new Sdk.SeaportV16.Exchange(config.chainId);
+          const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
+            orders.map((o) => new Sdk.SeaportV16.Order(config.chainId, o.order.data))
+          );
+
+          steps[5].items.push({
+            status: "incomplete",
+            data: {
+              sign: signatureData,
+              post: {
+                endpoint: "/order/v4",
+                method: "POST",
+                body: {
+                  items: orders.map((o, i) => ({
+                    order: o.order,
+                    tokenSetId: o.tokenSetId,
+                    attribute: o.attribute,
+                    collection: o.collection,
+                    isNonFlagged: o.isNonFlagged,
+                    permitId: o.permitId,
+                    permitIndex: o.permitIndex,
+                    orderbook: o.orderbook,
+                    orderbookApiKey: o.orderbookApiKey,
+                    bulkData: {
+                      kind: "seaport-v1.6",
                       data: {
                         orderIndex: i,
                         merkleProof: proofs[i],

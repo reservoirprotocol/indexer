@@ -205,7 +205,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "amount",
             "kind"
           ) VALUES ${pgp.helpers.values(event, columns)}
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (tx_hash, log_index, batch_index, block_hash) DO UPDATE SET is_deleted = 0, updated_at = NOW() WHERE nft_transfer_events.is_deleted = 1
           RETURNING
             "address",
             "token_id",

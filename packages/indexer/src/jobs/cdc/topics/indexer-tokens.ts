@@ -186,6 +186,10 @@ export class IndexerTokensHandler extends KafkaEventHandler {
         (!payload.before.floor_sell_id || !payload.after.floor_sell_id)
       ) {
         await recalcOnSaleCountQueueJob.addToQueue({ collection: payload.after.collection_id });
+        await recalcOnSaleCountQueueJob.addToQueue(
+          { collection: payload.after.collection_id },
+          1000 * 30
+        );
       }
 
       const metadataInitializedAtChanged =

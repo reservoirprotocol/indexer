@@ -30,6 +30,7 @@ export const postUpdateApiKeyOptions: RouteOptions = {
         update_nsfw_status: Joi.boolean().optional(),
         entity_data_override: Joi.boolean().optional(),
         invalidate_orders: Joi.boolean().optional(),
+        set_collection_magiceden_verification_status: Joi.boolean().optional(),
       }).optional(),
       revShareBps: Joi.number().allow(null).optional(),
     }),

@@ -465,25 +465,28 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
       {
         module: swapModule.address,
         data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
-          {
-            params: {
-              tokenIn: Sdk.Common.Addresses.Usdc[chainId][0],
-              tokenOut: Sdk.Common.Addresses.WNative[chainId],
-              fee: 500,
-              recipient: swapModule.address,
-              amountOut: bn(listing.price),
-              amountInMaximum: parseUnits("10000", 6),
-              sqrtPriceLimitX96: 0,
-            },
-            transfers: [
-              {
-                recipient: seaportV15Module.address,
-                amount: bn(listing.price),
-                toETH: true,
+          [
+            {
+              params: {
+                tokenIn: Sdk.Common.Addresses.Usdc[chainId][0],
+                tokenOut: Sdk.Common.Addresses.WNative[chainId],
+                fee: 500,
+                recipient: swapModule.address,
+                amountOut: bn(listing.price),
+                amountInMaximum: parseUnits("10000", 6),
+                sqrtPriceLimitX96: 0,
               },
-            ],
-          },
+              transfers: [
+                {
+                  recipient: seaportV15Module.address,
+                  amount: bn(listing.price),
+                  toETH: true,
+                },
+              ],
+            },
+          ],
           bob.address,
+          true,
         ]),
         value: 0,
       },
@@ -772,25 +775,28 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
       {
         module: swapModule.address,
         data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
-          {
-            params: {
-              tokenIn: Sdk.Common.Addresses.Usdc[chainId][0],
-              tokenOut: Sdk.Common.Addresses.WNative[chainId],
-              fee: 500,
-              recipient: swapModule.address,
-              amountOut: bn(listing.price),
-              amountInMaximum: parseUnits("10000", 6),
-              sqrtPriceLimitX96: 0,
-            },
-            transfers: [
-              {
-                recipient: seaportV15Module.address,
-                amount: listing.price,
-                toETH: false,
+          [
+            {
+              params: {
+                tokenIn: Sdk.Common.Addresses.Usdc[chainId][0],
+                tokenOut: Sdk.Common.Addresses.WNative[chainId],
+                fee: 500,
+                recipient: swapModule.address,
+                amountOut: bn(listing.price),
+                amountInMaximum: parseUnits("10000", 6),
+                sqrtPriceLimitX96: 0,
               },
-            ],
-          },
+              transfers: [
+                {
+                  recipient: seaportV15Module.address,
+                  amount: listing.price,
+                  toETH: false,
+                },
+              ],
+            },
+          ],
           bob.address,
+          true,
         ]),
         value: 0,
       },
@@ -958,6 +964,175 @@ describe("[ReservoirV6_0_1] SeaportV15 listings", () => {
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId][0]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+
+    // Checks
+
+    // Alice got the USDC
+    expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
+
+    // Bob got the NFT
+    expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
+
+    // Router is stateless
+    expect(balancesAfter.router).to.eq(0);
+    expect(balancesAfter.seaportV15Module).to.eq(0);
+    expect(balancesAfter.swapModule).to.eq(0);
+    expect(ethBalancesAfter.router).to.eq(0);
+    expect(ethBalancesAfter.seaportV15Module).to.eq(0);
+    expect(ethBalancesAfter.swapModule).to.eq(0);
+  });
+
+  // USDT has a few restrictions which we check here
+  it("ApprovalProxy - Fill ETH listing with USDT", async () => {
+    // Setup
+
+    // Maker: Alice
+    // Taker: Bob
+    const listing: seaportV15.Listing = {
+      seller: alice,
+      nft: {
+        kind: "erc721",
+        contract: erc721,
+        id: getRandomInteger(1, 10000),
+      },
+      paymentToken: Sdk.Common.Addresses.Native[chainId],
+      price: parseEther("0.5"),
+    };
+
+    const erc20Currency = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+    const swapExecutions: ExecutionInfo[] = [
+      // 1. Swap ETH for USDC (for testing purposes only)
+      {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
+          [
+            {
+              params: {
+                tokenIn: Sdk.Common.Addresses.WNative[chainId],
+                tokenOut: erc20Currency,
+                fee: 500,
+                recipient: swapModule.address,
+                amountOut: parseUnits("10000", 6),
+                amountInMaximum: parseEther("10"),
+                sqrtPriceLimitX96: 0,
+              },
+              transfers: [
+                {
+                  recipient: bob.address,
+                  amount: parseUnits("10000", 6),
+                  toETH: false,
+                },
+              ],
+            },
+          ],
+          bob.address,
+          true,
+        ]),
+        // Anything on top should be refunded
+        value: parseEther("10"),
+      },
+    ];
+
+    // Swap to USDC
+    await router.connect(bob).execute(swapExecutions, {
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+    });
+
+    const erc20 = new Sdk.Common.Helpers.Erc20(ethers.provider, erc20Currency);
+    await erc20.approve(
+      bob,
+      new Sdk.SeaportBase.ConduitController(chainId).deriveConduit(conduitKey)
+    );
+
+    await seaportV15.setupListings([listing]);
+
+    // Prepare executions
+    const executions: ExecutionInfo[] = [
+      // 1. Swap USDC > WETH
+      {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
+          [
+            {
+              params: {
+                tokenIn: erc20Currency,
+                tokenOut: Sdk.Common.Addresses.WNative[chainId],
+                fee: 500,
+                recipient: swapModule.address,
+                amountOut: bn(listing.price),
+                amountInMaximum: parseUnits("10000", 6),
+                sqrtPriceLimitX96: 0,
+              },
+              transfers: [
+                {
+                  recipient: seaportV15Module.address,
+                  amount: bn(listing.price),
+                  toETH: true,
+                },
+              ],
+            },
+          ],
+          bob.address,
+          true,
+        ]),
+        value: 0,
+      },
+      // 2. Fill ETH listing with the received funds
+      {
+        module: seaportV15Module.address,
+        data: seaportV15Module.interface.encodeFunctionData("acceptETHListing", [
+          {
+            parameters: {
+              ...listing.order!.params,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
+            },
+            numerator: 1,
+            denominator: 1,
+            signature: listing.order!.params.signature,
+            extraData: "0x",
+          },
+          {
+            fillTo: bob.address,
+            refundTo: bob.address,
+            revertIfIncomplete: true,
+            amount: listing.price,
+            token: listing.paymentToken!,
+          },
+          [],
+        ]),
+        // The funds will come from the previous swap
+        value: 0,
+      },
+    ];
+
+    // Fetch pre-state
+
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Native[chainId]);
+
+    // Execute
+
+    await approvalProxy.connect(bob).bulkTransferWithExecute(
+      [
+        {
+          items: [
+            {
+              itemType: ItemType.ERC20,
+              token: erc20Currency,
+              identifier: 0,
+              amount: parseUnits("10000", 6),
+            },
+          ],
+          recipient: swapModule.address,
+        },
+      ],
+      executions,
+      conduitKey
+    );
+
+    // Fetch post-state
+
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
     const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Native[chainId]);
 
     // Checks

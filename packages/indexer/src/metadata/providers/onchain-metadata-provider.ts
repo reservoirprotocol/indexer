@@ -57,24 +57,22 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
           const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
 
-          if ([1, 137, 11155111].includes(config.chainId)) {
-            const tokenMetadataIndexingDebug = await redis.sismember(
-              "metadata-indexing-debug-contracts",
-              token.contract
-            );
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
+            token.contract
+          );
 
-            if (tokenMetadataIndexingDebug) {
-              logger.info(
-                "_getTokensMetadata",
-                JSON.stringify({
-                  topic: "tokenMetadataIndexingDebug",
-                  message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
-                  metadata: JSON.stringify(metadata),
-                  getTokenMetadataFromURILatency,
-                  error,
-                })
-              );
-            }
+          if (tokenMetadataIndexingDebug) {
+            logger.info(
+              "_getTokensMetadata",
+              JSON.stringify({
+                topic: "tokenMetadataIndexingDebug",
+                message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
+                metadata: JSON.stringify(metadata),
+                getTokenMetadataFromURILatency,
+                error,
+              })
+            );
           }
 
           if (!metadata) {
@@ -657,24 +655,10 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      let tokenMetadataIndexingDebug = 0;
-
-      if ([1, 137, 11155111].includes(config.chainId)) {
-        tokenMetadataIndexingDebug = await redis.sismember(
-          "metadata-indexing-debug-contracts",
-          contract
-        );
-
-        if (tokenMetadataIndexingDebug) {
-          logger.info(
-            "getTokenMetadataFromURI",
-            JSON.stringify({
-              topic: "tokenMetadataIndexingDebug",
-              message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
-            })
-          );
-        }
-      }
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        contract
+      );
 
       if (hasCustomTokenUriHandler(contract)) {
         return customFetchTokenUriMetadata(
@@ -687,6 +671,19 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       }
 
       uri = uri.trim();
+
+      if (hasCustomTokenUriHandler(contract)) {
+        return [
+          await customFetchTokenUriMetadata(
+            {
+              contract,
+              tokenId,
+            },
+            uri
+          ),
+          null,
+        ];
+      }
 
       if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");

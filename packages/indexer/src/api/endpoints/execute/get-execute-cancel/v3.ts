@@ -33,6 +33,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "seaport",
         "seaport-v1.4",
         "seaport-v1.5",
+        "seaport-v1.6",
         "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
@@ -144,6 +145,12 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "seaport-v1.5": {
           const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+          cancelTx = exchange.cancelAllOrdersTx(payload.maker);
+          break;
+        }
+
+        case "seaport-v1.6": {
+          const exchange = new Sdk.SeaportV16.Exchange(config.chainId);
           cancelTx = exchange.cancelAllOrdersTx(payload.maker);
           break;
         }
@@ -366,7 +373,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
               status: "incomplete",
               orderIds,
               data: {
-                sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(orderIds),
+                sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(
+                  orderIds,
+                  kind as offchainCancel.seaport.OffChainCancellableOrderKind
+                ),
                 post: {
                   endpoint: "/execute/cancel-signature/v1",
                   method: "POST",
@@ -421,6 +431,19 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 return new Sdk.SeaportV15.Order(config.chainId, order.raw_data);
               });
               const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+
+              cancelTxs.push({
+                data: exchange.cancelOrdersTx(maker, orders),
+                orderIds: data.onchainCancellable.map((o) => o.id),
+              });
+              break;
+            }
+
+            case "seaport-v1.6": {
+              const orders = data.onchainCancellable.map((order) => {
+                return new Sdk.SeaportV16.Order(config.chainId, order.raw_data);
+              });
+              const exchange = new Sdk.SeaportV16.Exchange(config.chainId);
 
               cancelTxs.push({
                 data: exchange.cancelOrdersTx(maker, orders),

@@ -17,6 +17,7 @@ import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { FeeRecipients } from "@/models/fee-recipients";
 import { Sources } from "@/models/sources";
 import { redis } from "@/common/redis";
+import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 process.on("unhandledRejection", (error: any) => {
@@ -32,6 +33,10 @@ const setup = async () => {
 
   if (Number(process.env.LOCAL_TESTING)) {
     return;
+  }
+
+  if (config.doKafkaStreamWork) {
+    await kafkaStreamProducer.start();
   }
 
   if (config.doBackgroundWork || config.forceEnableRabbitJobsConsumer) {
