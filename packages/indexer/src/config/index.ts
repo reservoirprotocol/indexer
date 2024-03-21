@@ -22,6 +22,7 @@ export const config = {
   openseaIndexerApiBaseUrl: String(process.env.OPENSEA_INDEXER_API_BASE_URL),
 
   // When running in liquidity-only mode, all metadata processes are disabled
+  ordinalsMetadataUrl: String(process.env.ORDINALS_METADATA_URL || ""),
   liquidityOnly: Boolean(Number(process.env.LIQUIDITY_ONLY)),
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "onchain"),
   metadataMaxFieldSizeMB: Number(process.env.METADATA_MAX_FIELD_SIZE_MB || 1),
@@ -63,6 +64,15 @@ export const config = {
   kafkaBrokers: process.env.KAFKA_BROKERS ? String(process.env.KAFKA_BROKERS).split(",") : [],
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
   kafkaMaxBytesPerPartition: Number(process.env.KAFKA_MAX_BYTES_PER_PARTITION),
+
+  doKafkaStreamWork: Boolean(Number(process.env.DO_KAFKA_STREAM_WORK)),
+  kafkaStreamClientId: String(process.env.KAFKA_STREAM_CLIENT_ID),
+  kafkaStreamBrokers: process.env.KAFKA_STREAM_BROKERS
+    ? String(process.env.KAFKA_STREAM_BROKERS).split(",")
+    : [],
+  kafkaStreamCertificateCa: String(process.env.KAFKA_STREAM_CERTIFICATE_CA),
+  kafkaStreamCertificateKey: String(process.env.KAFKA_STREAM_CERTIFICATE_KEY),
+  kafkaStreamCertificateCert: String(process.env.KAFKA_STREAM_CERTIFICATE_CERT),
 
   maxTokenSetSize: 100000,
 

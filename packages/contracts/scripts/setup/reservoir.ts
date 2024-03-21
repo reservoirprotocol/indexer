@@ -34,7 +34,7 @@ const main = async () => {
   await trigger.Router.SeaportConduit(chainId);
 
   // 4. Deploy the seaport off-chain cancellation zone
-  await trigger.Utilities.OffChainCancellationZone(chainId);
+  await trigger.Utilities.OffChainCancellationZone(chainId, "v1.5");
 
   // 5. Deploy any modules that depend on the router
   for (const deploy of Object.values(trigger.Modules)) {

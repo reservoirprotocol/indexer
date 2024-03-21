@@ -22,3 +22,5 @@ supportedExchanges.set(
   "payment-processor-v2",
   Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]
 );
+
+supportedExchanges.set("seaport-v1.6", Sdk.SeaportV16.Addresses.Exchange[config.chainId]);

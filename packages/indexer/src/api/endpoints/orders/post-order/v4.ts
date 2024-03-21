@@ -46,6 +46,7 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport",
                   "seaport-v1.4",
                   "seaport-v1.5",
+                  "seaport-v1.6",
                   "x2y2",
                   "alienswap",
                   "payment-processor",
@@ -71,7 +72,7 @@ export const postOrderV4Options: RouteOptions = {
             permitIndex: Joi.number(),
             bulkData: Joi.object({
               kind: Joi.string()
-                .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
+                .valid("seaport-v1.4", "seaport-v1.5", "seaport-v1.6", "alienswap")
                 .default("seaport-v1.5"),
               data: Joi.object({
                 orderIndex: Joi.number().required(),
@@ -123,7 +124,7 @@ export const postOrderV4Options: RouteOptions = {
         tokenSetId?: string;
         isNonFlagged?: boolean;
         bulkData?: {
-          kind: "seaport-v1.4" | "seaport-v1.5" | "alienswap";
+          kind: "seaport-v1.4" | "seaport-v1.5" | "seaport-v1.6" | "alienswap";
           data: {
             orderIndex: number;
             merkleProof: string[];
@@ -138,6 +139,7 @@ export const postOrderV4Options: RouteOptions = {
             (item) =>
               item.order.kind === "seaport-v1.4" ||
               item.order.kind === "seaport-v1.5" ||
+              item.order.kind === "seaport-v1.6" ||
               item.order.kind === "alienswap"
           )
         ) {
@@ -191,6 +193,14 @@ export const postOrderV4Options: RouteOptions = {
                 );
               } else if (bulkData?.kind === "seaport-v1.5") {
                 order.data.signature = new Sdk.SeaportV15.Exchange(
+                  config.chainId
+                ).encodeBulkOrderProofAndSignature(
+                  bulkData.data.orderIndex,
+                  bulkData.data.merkleProof,
+                  signature
+                );
+              } else if (bulkData?.kind === "seaport-v1.6") {
+                order.data.signature = new Sdk.SeaportV16.Exchange(
                   config.chainId
                 ).encodeBulkOrderProofAndSignature(
                   bulkData.data.orderIndex,
@@ -333,7 +343,8 @@ export const postOrderV4Options: RouteOptions = {
             case "alienswap":
             case "seaport":
             case "seaport-v1.4":
-            case "seaport-v1.5": {
+            case "seaport-v1.5":
+            case "seaport-v1.6": {
               if (!["opensea", "reservoir", "looks-rare"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
@@ -343,6 +354,8 @@ export const postOrderV4Options: RouteOptions = {
               let orderId: string;
               if (order.kind === "seaport-v1.5") {
                 orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
+              } else if (order.kind === "seaport-v1.6") {
+                orderId = new Sdk.SeaportV16.Order(config.chainId, order.data).hash();
               } else {
                 orderId = new Sdk.Alienswap.Order(config.chainId, order.data).hash();
               }
@@ -368,6 +381,22 @@ export const postOrderV4Options: RouteOptions = {
               } else if (orderbook === "reservoir") {
                 if (order.kind == "seaport-v1.5") {
                   const [result] = await orders.seaportV15.save([
+                    {
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                        permitId,
+                        permitIndex,
+                      },
+                    },
+                  ]);
+                  if (!["success", "already-exists"].includes(result.status)) {
+                    return results.push({ message: result.status, orderIndex: i, orderId });
+                  }
+                } else if (order.kind == "seaport-v1.6") {
+                  const [result] = await orders.seaportV16.save([
                     {
                       orderParams: order.data,
                       isReservoir: true,
@@ -629,6 +658,9 @@ export const postOrderV4Options: RouteOptions = {
               );
 
               if (["already-exists", "success"].includes(result.status)) {
+                const side =
+                  orderInfo.orderParams.maxRoyaltyFeeNumerator !== undefined ? "ask" : "bid";
+                let simulationResult: string | undefined;
                 try {
                   const response = await inject({
                     method: "POST",
@@ -646,12 +678,21 @@ export const postOrderV4Options: RouteOptions = {
                       id: result.id,
                       response: response.payload,
                       contract: orderInfo.orderParams.tokenAddress,
-                      side:
-                        orderInfo.orderParams.maxRoyaltyFeeNumerator !== undefined ? "ask" : "bid",
+                      side,
                     })
                   );
+
+                  simulationResult = JSON.parse(response.payload).message;
                 } catch {
                   // Skip errors
+                }
+
+                if (side === "ask" && simulationResult === "Order is not fillable") {
+                  return results.push({
+                    message: "order-not-fillable",
+                    orderIndex: i,
+                    orderId: result.id,
+                  });
                 }
 
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });

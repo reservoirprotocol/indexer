@@ -11,7 +11,7 @@ import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 import { OrderWebsocketEventInfo } from "@/jobs/websocket-events/ask-websocket-events-trigger-job";
-import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { formatStatus, formatValidBetween, publishKafkaEvent } from "@/jobs/websocket-events/utils";
 import { Assets } from "@/utils/assets";
 
 export type BidWebsocketEventsTriggerQueueJobPayload = {
@@ -31,7 +31,7 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
   queueName = "bid-websocket-events-trigger-queue";
   maxRetries = 5;
   concurrency = 10;
-  timeout = 60000;
+  // timeout = 60000;
   backoff = {
     type: "exponential",
     delay: 1000,
@@ -213,18 +213,24 @@ export class BidWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         rawData: data.after.raw_data ? JSON.parse(data.after.raw_data) : {},
       };
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
+        changed,
+        data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
         tags: {
           contract: data.after.contract,
           source: source?.domain || "unknown",
           maker: data.after.maker,
           taker: data.after.taker,
         },
-        changed,
-        data: result,
         offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

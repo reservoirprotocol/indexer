@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
@@ -7,7 +9,7 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { Sources } from "@/models/sources";
-import { formatValidBetween } from "@/jobs/websocket-events/utils";
+import { formatValidBetween, publishKafkaEvent } from "@/jobs/websocket-events/utils";
 import { getJoiPriceObject } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -328,11 +330,8 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
         }
       }
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
-        tags: {
-          id,
-        },
         changed,
         data: {
           id,
@@ -503,7 +502,16 @@ export class CollectionWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJo
           updatedAt: new Date(data.after.updated_at).toISOString(),
           onSaleCount: String(data.after.on_sale_count),
         },
+      };
+
+      await publishWebsocketEvent({
+        ...event,
+        tags: {
+          id,
+        },
       });
+
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

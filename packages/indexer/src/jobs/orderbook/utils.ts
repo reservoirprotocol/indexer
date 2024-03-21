@@ -37,6 +37,10 @@ export type GenericOrderInfo =
       info: orders.seaportV15.OrderInfo;
     } & CommonOrderInfo)
   | ({
+      kind: "seaport-v1.6";
+      info: orders.seaportV16.OrderInfo;
+    } & CommonOrderInfo)
+  | ({
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
     } & CommonOrderInfo)

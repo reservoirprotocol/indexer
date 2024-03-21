@@ -6,7 +6,12 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as onChainData from "@/utils/on-chain-data";
 import { getPersistentPermit } from "@/utils/permits";
 
-export type SeaportOrderKind = "alienswap" | "seaport" | "seaport-v1.4" | "seaport-v1.5";
+export type SeaportOrderKind =
+  | "alienswap"
+  | "seaport"
+  | "seaport-v1.4"
+  | "seaport-v1.5"
+  | "seaport-v1.6";
 
 export const offChainCheck = async (
   order: Sdk.SeaportBase.IOrder,

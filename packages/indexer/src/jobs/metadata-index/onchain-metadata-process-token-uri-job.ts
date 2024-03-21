@@ -36,24 +36,20 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
     const { contract, tokenId, uri } = payload;
     const retryCount = Number(this.rabbitMqMessage?.retryCount);
 
-    let tokenMetadataIndexingDebug = 0;
+    const tokenMetadataIndexingDebug = await redis.sismember(
+      "metadata-indexing-debug-contracts",
+      contract
+    );
 
-    if ([1, 137, 11155111].includes(config.chainId)) {
-      tokenMetadataIndexingDebug = await redis.sismember(
-        "metadata-indexing-debug-contracts",
-        contract
+    if (tokenMetadataIndexingDebug) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "tokenMetadataIndexingDebug",
+          message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
+          payload,
+        })
       );
-
-      if (tokenMetadataIndexingDebug) {
-        logger.info(
-          this.queueName,
-          JSON.stringify({
-            topic: "tokenMetadataIndexingDebug",
-            message: `Start. contract=${contract}, tokenId=${tokenId}, uri=${uri}, fallbackMetadataIndexingMethod=${config.fallbackMetadataIndexingMethod}`,
-            payload,
-          })
-        );
-      }
     }
 
     let fallbackError;
@@ -254,6 +250,31 @@ export default class OnchainMetadataProcessTokenUriJob extends AbstractRabbitMqJ
             })
           );
         }
+      }
+
+      try {
+        const simplehashFallbackFailures = await redis.get(
+          `simplehash-fallback-failures:${contract}`
+        );
+
+        if (simplehashFallbackFailures) {
+          const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
+
+          if (simplehashFallbackFailuresCount >= 100) {
+            return;
+          }
+        }
+      } catch (error) {
+        logger.error(
+          this.queueName,
+          JSON.stringify({
+            topic: "simpleHashFallbackDebug",
+            message: `Skip Fallback Error. contract=${contract}, tokenId=${tokenId}, uri=${uri}, error=${error}`,
+            contract,
+            tokenId,
+            error,
+          })
+        );
       }
 
       logger.warn(

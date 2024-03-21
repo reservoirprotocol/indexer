@@ -80,23 +80,23 @@ export abstract class AbstractBaseMetadataProvider {
     // extend metadata
     const extendedMetadata = await Promise.all(
       allMetadata.map(async (metadata) => {
-        if ([1, 137, 11155111].includes(config.chainId)) {
-          const tokenMetadataIndexingDebug = await redis.sismember(
-            "metadata-indexing-debug-contracts",
-            metadata.contract
-          );
-
-          if (tokenMetadataIndexingDebug) {
-            logger.info(
-              "getTokensMetadata",
-              JSON.stringify({
-                topic: "tokenMetadataIndexingDebug",
-                message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
-                metadata: JSON.stringify(metadata),
-              })
-            );
-          }
-        }
+        // if ([1, 137, 11155111].includes(config.chainId)) {
+        //   const tokenMetadataIndexingDebug = await redis.sismember(
+        //     "metadata-indexing-debug-contracts",
+        //     metadata.contract
+        //   );
+        //
+        //   if (tokenMetadataIndexingDebug) {
+        //     logger.info(
+        //       "getTokensMetadata",
+        //       JSON.stringify({
+        //         topic: "tokenMetadataIndexingDebug",
+        //         message: `_getTokensMetadata. contract=${metadata.contract}, tokenId=${metadata.tokenId}, method=${this.method}`,
+        //         metadata: JSON.stringify(metadata),
+        //       })
+        //     );
+        //   }
+        // }
 
         if (hasExtendHandler(metadata.contract)) {
           return extendMetadata(metadata);
@@ -110,14 +110,10 @@ export abstract class AbstractBaseMetadataProvider {
     await Promise.all(
       extendedMetadata.map(async (metadata) => {
         try {
-          let tokenMetadataIndexingDebug = 0;
-
-          if ([1, 137, 11155111].includes(config.chainId)) {
-            tokenMetadataIndexingDebug = await redis.sismember(
-              "metadata-indexing-debug-contracts",
-              metadata.contract
-            );
-          }
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
+            metadata.contract
+          );
 
           if (
             metadata.imageUrl &&

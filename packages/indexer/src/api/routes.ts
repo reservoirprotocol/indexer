@@ -1488,6 +1488,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/tokens/refresh/v2",
+    options: tokensEndpoints.postTokensRefreshV2Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/tokens/simulate-floor/v1",
     options: tokensEndpoints.postSimulateFloorV1Options,
   });

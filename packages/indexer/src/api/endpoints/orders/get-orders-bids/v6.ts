@@ -102,7 +102,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
         })
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive"),
+          then: Joi.valid("active", "inactive", "valid"),
           otherwise: Joi.valid("active"),
         })
         .when("contracts", {
@@ -116,7 +116,7 @@ export const getOrdersBidsV6Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, cancelledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nvalid^ = both active and inactive orders\nexpiredª^, cancelledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       sources: Joi.alternatives()
         .try(
@@ -471,6 +471,11 @@ export const getOrdersBidsV6Options: RouteOptions = {
         case "inactive": {
           // Potentially-valid orders
           orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
+          break;
+        }
+        case "valid": {
+          // Potentially-valid orders
+          orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved') OR (orders.fillability_status = 'fillable' AND orders.approval_status = 'approved')`;
           break;
         }
         case "expired": {

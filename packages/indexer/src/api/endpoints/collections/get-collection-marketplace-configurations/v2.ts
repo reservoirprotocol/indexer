@@ -296,7 +296,7 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
           exchanges: {
             seaport: {
               orderKind: "seaport-v1.5",
-              enabled: true,
+              enabled: Boolean(Sdk.SeaportV15.Addresses.Exchange[config.chainId]),
               customFeesSupported: true,
               collectionBidSupported:
                 Number(collectionResult.token_count) <= config.maxTokenSetSize,
@@ -307,9 +307,22 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
                 Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
               ),
             },
+            "seaport-v1.6": {
+              orderKind: "seaport-v1.6",
+              enabled: Boolean(Sdk.SeaportV16.Addresses.Exchange[config.chainId]),
+              customFeesSupported: true,
+              collectionBidSupported:
+                Number(collectionResult.token_count) <= config.maxTokenSetSize,
+              supportedBidCurrencies,
+              partialOrderSupported: true,
+              traitBidSupported: true,
+              oracleEnabled: Boolean(
+                Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId]
+              ),
+            },
             "payment-processor": {
-              orderKind: config.chainId === 11155111 ? "payment-processor-v2" : "payment-processor",
-              enabled: true,
+              orderKind: "payment-processor",
+              enabled: Boolean(Sdk.PaymentProcessor.Addresses.Exchange[config.chainId]),
               customFeesSupported: true,
               numFeesSupported: 1,
               collectionBidSupported:
@@ -321,7 +334,7 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
             },
             "payment-processor-v2": {
               orderKind: "payment-processor-v2",
-              enabled: true,
+              enabled: Boolean(Sdk.PaymentProcessorV2.Addresses.Exchange[config.chainId]),
               customFeesSupported: true,
               numFeesSupported: 1,
               collectionBidSupported:
@@ -467,9 +480,18 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
             if (exchange.enabled) {
               let operators: string[] = [];
 
-              const seaportOperators = [Sdk.SeaportV15.Addresses.Exchange[config.chainId]];
+              const seaportV15Operators = [Sdk.SeaportV15.Addresses.Exchange[config.chainId]];
               if (Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]) {
-                seaportOperators.push(
+                seaportV15Operators.push(
+                  new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
+                    Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+                  )
+                );
+              }
+
+              const seaportV16Operators = [Sdk.SeaportV16.Addresses.Exchange[config.chainId]];
+              if (Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]) {
+                seaportV16Operators.push(
                   new Sdk.SeaportBase.ConduitController(config.chainId).deriveConduit(
                     Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
                   )
@@ -486,7 +508,12 @@ export const getCollectionMarketplaceConfigurationsV2Options: RouteOptions = {
                 }
 
                 case "seaport-v1.5": {
-                  operators = seaportOperators;
+                  operators = seaportV15Operators;
+                  break;
+                }
+
+                case "seaport-v1.6": {
+                  operators = seaportV16Operators;
                   break;
                 }
 
