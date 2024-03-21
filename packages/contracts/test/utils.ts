@@ -377,6 +377,44 @@ export const setupZones = async (chainId: number, deployer: SignerWithAddress) =
   };
 };
 
+export const setupV16Zones = async (chainId: number, deployer: SignerWithAddress) => {
+  const signedZoneController: any = await ethers
+    .getContractFactory("SignedZoneControllerV16", deployer)
+    .then((factory) => factory.deploy());
+
+  const zoneName = "test";
+  const apiEndpoint = "test";
+  const documentationURI = "test";
+  const salt = `${deployer.address}` + getRandomBytes(12).toHexString().replace("0x", "");
+  const initialOwner = deployer.address;
+
+  const zoneAddress = await signedZoneController.callStatic.createZone(
+    zoneName,
+    apiEndpoint,
+    documentationURI,
+    initialOwner,
+    salt
+  );
+
+  await signedZoneController.createZone(
+    zoneName,
+    apiEndpoint,
+    documentationURI,
+    initialOwner,
+    salt
+  );
+
+  await signedZoneController.updateSigner(zoneAddress, deployer.address, true);
+
+  Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[chainId] = zoneAddress;
+
+  return {
+    zone: zoneAddress.toLowerCase(),
+    signedZoneController,
+    signer: deployer,
+  };
+};
+
 // Deploy router with modules and override any SDK addresses
 export const setupRouterWithModules = async (chainId: number, deployer: SignerWithAddress) => {
   // Deploy router

@@ -373,7 +373,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
               status: "incomplete",
               orderIds,
               data: {
-                sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(orderIds),
+                sign: offchainCancel.seaport.generateOffChainCancellationSignatureData(
+                  orderIds,
+                  kind as offchainCancel.seaport.OffChainCancellableOrderKind
+                ),
                 post: {
                   endpoint: "/execute/cancel-signature/v1",
                   method: "POST",

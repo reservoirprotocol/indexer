@@ -7,7 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
-import "hardhat-tracer";
+// import "hardhat-tracer";
 
 // For zkSync
 import "@matterlabs/hardhat-zksync-deploy";

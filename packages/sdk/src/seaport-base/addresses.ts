@@ -167,6 +167,8 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.ApexTestnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
 };
 
+export const ReservoirV16CancellationZone: ChainIdToAddress = {};
+
 export const OkxCancellationZone: ChainIdToAddress = {
   [Network.Ethereum]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",
   [Network.Optimism]: "0x2de95b9afd737b0814e5e6013593a9437c5532d5",

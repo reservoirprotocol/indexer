@@ -8,5 +8,5 @@ import {
 
 export const build = async (options: BuildOrderOptions) => {
   const builder = new BuyTokenBuilderBase(getBuildInfo);
-  return await builder.build(options, Sdk.SeaportV14.Order);
+  return builder.build(options, Sdk.SeaportV14.Order);
 };

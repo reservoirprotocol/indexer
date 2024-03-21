@@ -66,14 +66,21 @@ export const getBuildInfo = async (
   }
 
   // Generate the salt
-  const salt = bn(
+  let salt = bn(
     padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source)
   ).toHexString();
 
   // No zone by default
-  const zone = AddressZero;
+  let zone = AddressZero;
   if (options.useOffChainCancellation) {
-    throw new Error("Off-chain cancellation not supported");
+    if (options.orderbook === "opensea") {
+      throw new Error("Off-chain cancellation not supported when cross-posting to OpenSea");
+    }
+
+    zone = Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId];
+    if (options.replaceOrderId) {
+      salt = options.replaceOrderId;
+    }
   }
 
   const buildParams: Sdk.SeaportBase.BaseBuildParams = {
