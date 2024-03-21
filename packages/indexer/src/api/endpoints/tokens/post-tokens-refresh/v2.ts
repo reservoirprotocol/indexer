@@ -206,6 +206,6 @@ export const postTokensRefreshV2Options: RouteOptions = {
       throw error;
     }
 
-    return { message: tokenRefreshResult.map((t) => `${t.token} => ${t.result}`) };
+    return { message: JSON.stringify(tokenRefreshResult.map((t) => `${t.token} => ${t.result}`)) };
   },
 };
