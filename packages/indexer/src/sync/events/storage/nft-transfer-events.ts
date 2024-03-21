@@ -57,7 +57,7 @@ export const whitelistedRelayers = [
   "0x855a4621d491ff98bc3d02eadbc108403887561c",
   "0x3f6b7c4870de594418d7c52f32de501edec75673",
   "0x3d5750d305f8d9c133faceaa92a2e46558130371",
-  "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e",
+  "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e",
 ];
 
 type erc721Token = {
