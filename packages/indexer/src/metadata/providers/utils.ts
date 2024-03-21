@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { logger } from "@/common/logger";
 import { Collection, MapEntry, Metadata } from "../types";
 import { config } from "@/config/index";
@@ -262,4 +264,38 @@ export function limitFieldSize(
     logger.error("limitFieldSize", `Error: ${error}`);
     return value;
   }
+}
+
+export function handleTokenUriResponse(contract: string, tokenId: string, response: any) {
+  if (response.data !== null && typeof response.data === "object") {
+    if (
+      config.chainId === 1 &&
+      contract === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401" &&
+      "message" in response.data
+    ) {
+      return [null, 404];
+    }
+
+    return [response.data, null];
+  }
+
+  return [null, "Invalid JSON"];
+}
+
+export function handleTokenUriErrorResponse(contract: string, tokenId: string, error: any) {
+  logger.warn(
+    "onchain-fetcher",
+    JSON.stringify({
+      topic: "tokenMetadataIndexingDebug",
+      message: `handleTokenUriErrorResponse. contract=${contract}, tokenId=${tokenId}`,
+      contract,
+      tokenId,
+      uri: error.request.url,
+      error,
+      errorResponseStatus: error.response?.status,
+      errorResponseData: error.response?.data,
+    })
+  );
+
+  return [null, error.response?.status || error.code || `${error}`];
 }

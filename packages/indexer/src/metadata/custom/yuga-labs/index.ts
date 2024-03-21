@@ -3,7 +3,7 @@
 import axios from "axios";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import { onchainMetadataProvider } from "../../providers/onchain-metadata-provider";
+import { handleTokenUriErrorResponse, handleTokenUriResponse } from "@/metadata/providers/utils";
 
 export const fetchTokenUriMetadata = async (
   { contract, tokenId }: { contract: string; tokenId: string },
@@ -15,6 +15,7 @@ export const fetchTokenUriMetadata = async (
       message: `fetchTokenUriMetadata. contract=${contract}, tokenId=${tokenId}, uri=${uri}`,
       contract,
       tokenId,
+      yugalabsMetadataApiUserAgent: config.yugalabsMetadataApiUserAgent,
     })
   );
 
@@ -25,6 +26,6 @@ export const fetchTokenUriMetadata = async (
         "User-Agent": config.yugalabsMetadataApiUserAgent,
       },
     })
-    .then((res) => onchainMetadataProvider.handleResponse(contract, tokenId, res))
-    .catch((error) => onchainMetadataProvider.handleErrorResponse(contract, tokenId, error));
+    .then((res) => handleTokenUriResponse(contract, tokenId, res))
+    .catch((error) => handleTokenUriErrorResponse(contract, tokenId, error));
 };
