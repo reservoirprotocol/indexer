@@ -60,7 +60,12 @@ export const postTokensRefreshV2Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      message: Joi.string(),
+      result: Joi.array().items(
+        Joi.object({
+          token: Joi.string(),
+          result: Joi.string(),
+        })
+      ),
     }).label(`postTokensRefresh${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`post-tokens-refresh-${version}-handler`, `Wrong response schema: ${error}`);
