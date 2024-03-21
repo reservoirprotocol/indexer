@@ -291,4 +291,17 @@ export const PaymentProcessorModule: ChainIdToAddress = {
   [Network.Mumbai]: "0x273c845e0ad06530dfa408dc2531accd80d170a9",
 };
 
-export const SeaportV16Module: ChainIdToAddress = {};
+export const SeaportV16Module: ChainIdToAddress = {
+  [Network.Ethereum]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.EthereumSepolia]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Polygon]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Mumbai]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Optimism]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Arbitrum]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.ArbitrumNova]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Base]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.BaseSepolia]: "0xfdf5cfbcf6503293046ad686bb7fee8e9885b93d",
+  [Network.Avalanche]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Bsc]: "0xd8f24f5f0382e197c1e87ad82b357209383470cf",
+  [Network.Zora]: "0xfdf5cfbcf6503293046ad686bb7fee8e9885b93d",
+};

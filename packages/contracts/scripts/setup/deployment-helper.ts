@@ -90,10 +90,15 @@ export class DeploymentHelper {
     return deploymentAddress;
   }
 
-  public async verify(contractAddress: string, args: any[]) {
+  public async verify(contractAddress: string, args: any[], contractName?: string) {
     await hre.run("verify:verify", {
       address: contractAddress,
       constructorArguments: args,
+      contract:
+        // These contracts have the same bytecode so we have to differentiate
+        contractName && ["SeaportV15Module", "SeaportV16Module"].includes(contractName)
+          ? `contracts/router/modules/exchanges/${contractName}.sol:${contractName}`
+          : undefined,
     });
   }
 }

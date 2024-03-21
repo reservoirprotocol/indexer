@@ -29,7 +29,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://mainnet.optimism.io/";
         break;
       case 56:
-        url = "https://bsc.drpc.org";
+        url = "https://bsc-dataseed1.bnbchain.org";
         break;
       case 137:
         url = "https://rpc-mainnet.matic.quiknode.pro";
@@ -67,9 +67,6 @@ const getNetworkConfig = (chainId?: number) => {
       case 7777777:
         url = "https://rpc.zora.co";
         break;
-      case 68840142:
-        url = "https://rpc.testnet.frame.xyz/http";
-        break;
       case 888888888:
         url = "https://rpc.ancient8.gg/";
         break;
@@ -90,7 +87,7 @@ const getNetworkConfig = (chainId?: number) => {
         url = "https://rpc.goerli.linea.build/";
         break;
       case 80001:
-        url = "https://rpc-mumbai.maticvigil.com";
+        url = "https://polygon-mumbai-bor-rpc.publicnode.com";
         break;
       case 11155111:
         url = "https://1rpc.io/sepolia";
@@ -190,7 +187,6 @@ const config: HardhatUserConfig = {
     lineaTestnet: getNetworkConfig(59140),
     mumbai: getNetworkConfig(80001),
     sepolia: getNetworkConfig(11155111),
-    frameTestnet: getNetworkConfig(68840142),
     ancient8Testnet: getNetworkConfig(28122024),
     baseSepolia: getNetworkConfig(84532),
     blastSepolia: getNetworkConfig(168587773),
@@ -223,7 +219,6 @@ const config: HardhatUserConfig = {
       lineaTestnet: process.env.ETHERSCAN_API_KEY_LINEA_TESTNET ?? "",
       mumbai: process.env.ETHERSCAN_API_KEY_MUMBAI ?? "",
       sepolia: process.env.ETHERSCAN_API_KEY_SEPOLIA ?? "",
-      frameTestnet: "0x",
       ancient8Testnet: "0x",
       baseSepolia: "0x",
       blastSepolia: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
@@ -360,15 +355,6 @@ const config: HardhatUserConfig = {
           browserURL: "https://mumbai.polygonscan.com",
         },
       },
-      // This isn't working, couldn't find any valid API for their explorer
-      {
-        network: "frameTestnet",
-        chainId: 68840142,
-        urls: {
-          apiURL: "https://explorer.testnet.frame.xyz/api",
-          browserURL: "https://explorer.testnet.frame.xyz",
-        },
-      },
       {
         network: "ancient8Testnet",
         chainId: 28122024,
@@ -381,7 +367,7 @@ const config: HardhatUserConfig = {
         network: "baseSepolia",
         chainId: 84532,
         urls: {
-          apiURL: "https://sepolia.basescan.org/api",
+          apiURL: "https://api-sepolia.basescan.org/api",
           browserURL: "https://sepolia.basescan.org/",
         },
       },
@@ -389,7 +375,7 @@ const config: HardhatUserConfig = {
         network: "blastSepolia",
         chainId: 168587773,
         urls: {
-          apiURL: "https://sepolia.blastscan.io/api",
+          apiURL: "https://api-sepolia.blastscan.io/api",
           browserURL: "https://sepolia.blastscan.io/",
         },
       },

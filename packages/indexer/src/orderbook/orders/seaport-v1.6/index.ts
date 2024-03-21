@@ -30,6 +30,7 @@ import {
 import * as tokenSet from "@/orderbook/token-sets";
 import { getCurrency } from "@/utils/currencies";
 import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import * as offchainCancel from "@/utils/offchain-cancel";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { isOpen } from "@/utils/seaport-conduits";
@@ -199,6 +200,8 @@ export const save = async (
           ![
             // No zone
             AddressZero,
+            // Reservoir cancellation zone
+            Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId],
           ].includes(order.params.zone)
         ) {
           return results.push({
@@ -719,6 +722,35 @@ export const save = async (
         // Mark the order as being partial in order to force filling through the order-fetcher service
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (order.params as any).partial = true;
+      }
+
+      // Handle: off-chain cancellation via replacement
+      if (
+        order.params.zone === Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId]
+      ) {
+        const replacedOrderResult = await idb.oneOrNone(
+          `
+            SELECT
+              orders.raw_data
+            FROM orders
+            WHERE orders.id = $/id/
+          `,
+          {
+            id: order.params.salt,
+          }
+        );
+        if (
+          replacedOrderResult &&
+          // Replacement is only possible if the replaced order is an off-chain cancellable one
+          replacedOrderResult.raw_data.zone ===
+            Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId]
+        ) {
+          await offchainCancel.seaport.doReplacement({
+            newOrders: [order.params],
+            replacedOrders: [replacedOrderResult.raw_data],
+            orderKind: "seaport-v1.6",
+          });
+        }
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
