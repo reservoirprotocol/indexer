@@ -198,4 +198,6 @@ export const config = {
 
   ipfsGatewayDomain: String(process.env.IPFS_GATEWAY_DOMAIN || ""),
   forceIpfsGateway: Boolean(Number(process.env.FORCE_IPFS_GATEWAY)),
+
+  yugalabsMetadataApiUserAgent: String(process.env.YUGALABS_METADATA_API_USER_AGENT || ""),
 };

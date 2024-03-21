@@ -7,23 +7,15 @@ import { config } from "@/config/index";
 
 export const fetchSatInformation = async (satUri: string) => {
   const splitUri = _.split(satUri, ":");
-  if (splitUri.length) {
-    const tokenId = splitUri[splitUri.length - 1];
-    const satNumber = splitUri[splitUri.length - 2];
-    const satUrl = `${config.ordinalsMetadataUrl}/r/sat/${satNumber}/at/${tokenId}`;
-    const satResponse = await axios.get(satUrl);
+  const tokenId = splitUri[splitUri.length - 1];
+  const satNumber = splitUri[splitUri.length - 2];
+  const satUrl = `${config.ordinalsMetadataUrl}/r/sat/${satNumber}/at/${tokenId}`;
 
-    if (satResponse?.data?.id) {
-      const metadataUrl = `${config.ordinalsMetadataUrl}/r/metadata/${satResponse.data.id}`;
-      const metadataResponse = await axios.get(metadataUrl);
+  const satResponse = await axios.get(satUrl);
+  const metadataUrl = `${config.ordinalsMetadataUrl}/r/metadata/${satResponse.data.id}`;
+  const metadataResponse = await axios.get(metadataUrl);
 
-      if (metadataResponse?.data) {
-        return { inscriptionId: satResponse.data.id, data: cbor.decode(metadataResponse.data) };
-      }
-    }
-  }
-
-  return {};
+  return { inscriptionId: satResponse.data.id, data: cbor.decode(metadataResponse.data) };
 };
 
 export const fetchTokenUriMetadata = async (

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { config } from "@/config/index";
-import * as ens from "./ens";
+import * as yugaLabs from "./yuga-labs";
 import * as bridgeToBase from "./bridge-to-base";
 import * as mintTest from "./mint-test";
 import * as azuki from "./azuki";
@@ -28,7 +28,6 @@ export const customHandleCollection = async (token: any) =>
 
 export const customHandleToken = async (token: any) =>
   custom[`${config.chainId},${token.contract}`].fetchToken(token);
-
 export const customHandleContractTokens = async (contract: string, continuation: string) =>
   custom[`${config.chainId},${contract}`].fetchContractTokens(null, continuation);
 
@@ -39,8 +38,9 @@ export const customFetchTokenUriMetadata = async (token: any, uri: string) =>
 // Custom Tokens
 ////////////////
 
-// ENS
-// custom["1,0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"] = ens;
+// Yuga Labs
+customTokenURI["1,0xe012baf811cf9c05c408e879c399960d1f305903"] = yugaLabs;
+customTokenURI["11155111,0xafc1d694d3d2ea3e28e13c11bea9c9a14a1f55f6"] = yugaLabs;
 
 // Bridge to Base
 custom["8453,0xea2a41c02fa86a4901826615f9796e603c6a4491"] = bridgeToBase;
