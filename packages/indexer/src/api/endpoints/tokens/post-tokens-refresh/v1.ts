@@ -25,10 +25,11 @@ export const postTokensRefreshV1Options: RouteOptions = {
   description: "Refresh Token",
   notes:
     "Token metadata is never automatically refreshed, but may be manually refreshed with this API.\n\nCaution: This API should be used in moderation, like only when missing data is discovered. Calling it in bulk or programmatically will result in your API key getting rate limited.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 13,
+      deprecated: true,
     },
   },
   validate: {
