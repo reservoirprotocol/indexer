@@ -244,7 +244,7 @@ export abstract class AbstractBaseMetadataProvider {
 
     let _url = url;
 
-    if (_url.includes("ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
+    if (_url.includes("//ipfs.io") && config.ipfsGatewayDomain && config.forceIpfsGateway) {
       _url = _url.replace("ipfs.io", config.ipfsGatewayDomain);
     }
 
@@ -256,7 +256,7 @@ export abstract class AbstractBaseMetadataProvider {
         .head(_url)
         .then((res) => res.headers["content-type"])
         .catch((error) => {
-          const fallbackToIpfsGateway = config.ipfsGatewayDomain && _url.includes("ipfs.io");
+          const fallbackToIpfsGateway = config.ipfsGatewayDomain && _url.includes("//ipfs.io");
 
           if (fallbackToIpfsGateway) {
             const ipfsGatewayUrl = _url.replace("ipfs.io", config.ipfsGatewayDomain);
