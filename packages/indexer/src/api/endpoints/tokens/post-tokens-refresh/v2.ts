@@ -60,10 +60,11 @@ export const postTokensRefreshV2Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      result: Joi.array().items(
+      results: Joi.array().items(
         Joi.object({
           token: Joi.string(),
           result: Joi.string(),
+          isError: Joi.boolean(),
         })
       ),
     }).label(`postTokensRefresh${version.toUpperCase()}Response`),
@@ -94,7 +95,11 @@ export const postTokensRefreshV2Options: RouteOptions = {
         // Error if no token was found
         const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
         if (_.isNull(token)) {
-          tokenRefreshResult.push({ token: payloadToken, result: `Token not found` });
+          tokenRefreshResult.push({
+            token: payloadToken,
+            result: `Token not found`,
+            isError: true,
+          });
           continue;
         }
 
@@ -124,12 +129,16 @@ export const postTokensRefreshV2Options: RouteOptions = {
         if (payload.overrideCoolDown) {
           const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
           if (_.isNull(apiKey)) {
-            tokenRefreshResult.push({ token: payloadToken, result: `Invalid API key` });
+            tokenRefreshResult.push({
+              token: payloadToken,
+              result: `Invalid API key`,
+              isError: true,
+            });
             continue;
           }
 
           if (!apiKey.permissions?.override_collection_refresh_cool_down) {
-            tokenRefreshResult.push({ token: payloadToken, result: `Not allowed` });
+            tokenRefreshResult.push({ token: payloadToken, result: `Not allowed`, isError: true });
             continue;
           }
 
@@ -146,6 +155,7 @@ export const postTokensRefreshV2Options: RouteOptions = {
             tokenRefreshResult.push({
               token: payloadToken,
               result: `Next available sync ${formatISO9075(nextAvailableSync)} UTC`,
+              isError: true,
             });
             continue;
           }
@@ -204,13 +214,17 @@ export const postTokensRefreshV2Options: RouteOptions = {
           `Refresh token=${payloadToken} at ${currentUtcTime} overrideCoolDown=${overrideCoolDown}`
         );
 
-        tokenRefreshResult.push({ token: payloadToken, result: `Request accepted` });
+        tokenRefreshResult.push({
+          token: payloadToken,
+          result: `Request accepted`,
+          isError: false,
+        });
       }
     } catch (error) {
       logger.warn(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
 
-    return { result: tokenRefreshResult };
+    return { results: tokenRefreshResult };
   },
 };
