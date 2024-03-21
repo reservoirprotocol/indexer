@@ -358,7 +358,13 @@ export const getJoiDynamicPricingObject = async (
         .reduce((a, b) => a.add(b), bn(0))
     : bn(0);
 
-  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4" || kind === "seaport-v1.5")) {
+  if (
+    dynamic &&
+    (kind === "seaport" ||
+      kind === "seaport-v1.4" ||
+      kind === "seaport-v1.5" ||
+      kind === "seaport-v1.6")
+  ) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
       rawData as Sdk.SeaportBase.Types.OrderComponents

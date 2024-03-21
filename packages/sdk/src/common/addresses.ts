@@ -32,6 +32,7 @@ export const Native: ChainIdToAddress = {
   [Network.Apex]: AddressZero,
   [Network.Blast]: AddressZero,
   [Network.AstarZkevm]: AddressZero,
+  [Network.ApexTestnet]: AddressZero,
 };
 
 // Wrapped native currency
@@ -64,6 +65,7 @@ export const WNative: ChainIdToAddress = {
   [Network.Apex]: "0x77684a04145a5924efce0d92a7c4a2a2e8c359de",
   [Network.Blast]: "0x4300000000000000000000000000000000000004",
   [Network.AstarZkevm]: "0xe9cc37904875b459fa5d0fe37680d36f1ed55e38",
+  [Network.ApexTestnet]: "0xf470ba53f14B1073cC16839c0f80474105d159a5",
 };
 
 export const Usdc: ChainIdToAddressList = {
@@ -139,12 +141,15 @@ export const RoyaltyEngine: ChainIdToAddress = {
 export const SwapRouter: ChainIdToAddress = {
   [Network.Ethereum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.EthereumGoerli]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+  [Network.EthereumSepolia]: "0x3bfa4769fb09eefc5a80d6e87c3b9c650f7ae48e",
   [Network.Optimism]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Polygon]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Bsc]: "0xb971ef87ede563556b2ed4b1c0b0019111dd85d2",
   [Network.Base]: "0x2626664c2603336e57b271c5c0b26f421741e481",
   [Network.Avalanche]: "0xbb00ff08d01d300023c629e8ffffcb65a5a578ce",
+  [Network.Blast]: "0x549feb8c9bd4c12ad2ab27022da12492ac452b66",
+  [Network.Zora]: "0x7de04c96be5159c3b5ceffc82aa176dc81281557",
 };
 
 // 1inch's `AggregationRouter`
@@ -174,6 +179,7 @@ export const Create3Factory: ChainIdToAddress = {
   [Network.Apex]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.Blast]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
   [Network.AstarZkevm]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.ApexTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };
 
 export const GelatoRelay1BalanceERC2771: ChainIdToAddress = {

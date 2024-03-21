@@ -86,6 +86,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "seaport",
                   "seaport-v1.4",
                   "seaport-v1.5",
+                  "seaport-v1.6",
                   "x2y2",
                   "rarible",
                   "sudoswap",
@@ -1528,9 +1529,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         const ccConfig: {
           enabled: boolean;
-          user?: {
-            balance: string;
-          };
           solver?: {
             address: string;
             capacityPerRequest: string;
@@ -1590,7 +1588,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           price,
           relayerFee,
           depositGasFee,
-          user: ccConfig.user!,
           solver: ccConfig.solver!,
         };
       };
@@ -2014,7 +2011,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             from: payload.taker,
             to: data.solver.address,
             data: data.shortRequestId,
-            value: bn(cost).sub(data.user.balance).toString(),
+            value: bn(cost).toString(),
             gasLimit: 22000,
             chainId: payload.currencyChainId,
           },

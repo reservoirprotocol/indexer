@@ -7,7 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
-import "hardhat-tracer";
+// import "hardhat-tracer";
 
 // For zkSync
 import "@matterlabs/hardhat-zksync-deploy";
@@ -104,6 +104,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 168587773:
         url = "https://sepolia.blast.io";
         break;
+      case 70800:
+        url = "https://rpc-pop-testnet-barret-oxaolmcfss.t.conduit.xyz";
+        break;
       default:
         throw new Error("Unsupported chain id");
     }
@@ -146,6 +149,7 @@ const config: HardhatUserConfig = {
   networks: {
     // Devnets
     hardhat: {
+      hardfork: "cancun",
       chainId: networkConfig.chainId,
       forking: {
         url: networkConfig.url,
@@ -190,6 +194,7 @@ const config: HardhatUserConfig = {
     ancient8Testnet: getNetworkConfig(28122024),
     baseSepolia: getNetworkConfig(84532),
     blastSepolia: getNetworkConfig(168587773),
+    apexTestnet: getNetworkConfig(70800),
   },
   etherscan: {
     apiKey: {
@@ -222,6 +227,7 @@ const config: HardhatUserConfig = {
       ancient8Testnet: "0x",
       baseSepolia: "0x",
       blastSepolia: process.env.ETHERSCAN_API_KEY_BLAST ?? "",
+      apexTestnet: "0x",
     },
     customChains: [
       // Mainnets
@@ -383,8 +389,16 @@ const config: HardhatUserConfig = {
         network: "blastSepolia",
         chainId: 168587773,
         urls: {
-          apiURL: "https://testnet.blastscan.io/api",
-          browserURL: "https://testnet.blastscan.io/",
+          apiURL: "https://sepolia.blastscan.io/api",
+          browserURL: "https://sepolia.blastscan.io/",
+        },
+      },
+      {
+        network: "apexTestnet",
+        chainId: 70800,
+        urls: {
+          apiURL: "https://explorerl2new-pop-testnet-barret-oxaolmcfss.t.conduit.xyz/api",
+          browserURL: "https://explorerl2new-pop-testnet-barret-oxaolmcfss.t.conduit.xyz/",
         },
       },
     ],

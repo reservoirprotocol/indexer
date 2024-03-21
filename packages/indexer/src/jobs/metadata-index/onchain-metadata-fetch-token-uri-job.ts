@@ -49,27 +49,27 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       return;
     }
 
-    let tokenMetadataIndexingDebugContracts: {
-      contract: string;
-      tokenMetadataIndexingDebug: number;
-    }[] = [];
-
-    if ([1, 137, 11155111].includes(config.chainId)) {
-      tokenMetadataIndexingDebugContracts = fetchTokens.map((fetchToken) => ({
-        contract: fetchToken.contract,
-        tokenMetadataIndexingDebug: 0,
-      }));
-
-      const tokenMetadataIndexingDebugs = await redis.smismember(
-        "metadata-indexing-debug-contracts",
-        ...tokenMetadataIndexingDebugContracts.map((token) => token.contract)
-      );
-
-      for (let i = 0; i < tokenMetadataIndexingDebugContracts.length; i++) {
-        tokenMetadataIndexingDebugContracts[i].tokenMetadataIndexingDebug =
-          tokenMetadataIndexingDebugs[i];
-      }
-    }
+    // let tokenMetadataIndexingDebugContracts: {
+    //   contract: string;
+    //   tokenMetadataIndexingDebug: number;
+    // }[] = [];
+    //
+    // if ([1, 137, 11155111].includes(config.chainId)) {
+    //   tokenMetadataIndexingDebugContracts = fetchTokens.map((fetchToken) => ({
+    //     contract: fetchToken.contract,
+    //     tokenMetadataIndexingDebug: 0,
+    //   }));
+    //
+    //   const tokenMetadataIndexingDebugs = await redis.smismember(
+    //     "metadata-indexing-debug-contracts",
+    //     ...tokenMetadataIndexingDebugContracts.map((token) => token.contract)
+    //   );
+    //
+    //   for (let i = 0; i < tokenMetadataIndexingDebugContracts.length; i++) {
+    //     tokenMetadataIndexingDebugContracts[i].tokenMetadataIndexingDebug =
+    //       tokenMetadataIndexingDebugs[i];
+    //   }
+    // }
 
     let results: {
       contract: string;
@@ -77,8 +77,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       uri: string | null;
       error?: string;
     }[] = [];
-
-    const _getTokensMetadataUriStart = Date.now();
 
     try {
       results = await onchainMetadataProvider._getTokensMetadataUri(fetchTokens);
@@ -104,8 +102,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       );
     }
 
-    const _getTokensMetadataUriLatency = Date.now() - _getTokensMetadataUriStart;
-
     if (results?.length) {
       const tokensToProcess: {
         contract: string;
@@ -121,7 +117,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       }[] = [];
 
       // Filter out tokens that have no metadata
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.uri) {
           tokensToProcess.push(result as { contract: string; tokenId: string; uri: string });
         } else {
@@ -137,40 +133,80 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           );
 
           if (result.error === "Unable to decode tokenURI from contract") {
-            redis.hset(
-              "simplehash-fallback-debug-tokens-v2",
-              `${result.contract}:${result.tokenId}`,
-              result.error
-            );
+            let addToFallbackTokens = true;
 
-            fallbackTokens.push({
-              collection: result.contract,
-              contract: result.contract,
-              tokenId: result.tokenId,
-            });
+            if (config.fallbackMetadataIndexingMethod) {
+              try {
+                const simplehashFallbackFailures = await redis.get(
+                  `simplehash-fallback-failures:${result.contract}`
+                );
+
+                if (simplehashFallbackFailures) {
+                  const simplehashFallbackFailuresCount = Number(simplehashFallbackFailures);
+
+                  if (simplehashFallbackFailuresCount >= 100) {
+                    logger.info(
+                      this.queueName,
+                      JSON.stringify({
+                        topic: "simpleHashFallbackDebug",
+                        message: `Skip Fallback - Too Many Failures. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${result.error}`,
+                        result,
+                        simplehashFallbackFailuresCount,
+                      })
+                    );
+
+                    addToFallbackTokens = false;
+                  }
+                }
+              } catch (error) {
+                logger.error(
+                  this.queueName,
+                  JSON.stringify({
+                    topic: "simpleHashFallbackDebug",
+                    message: `Skip Fallback Error. contract=${result.contract}, tokenId=${result.tokenId}, uri=${result.uri}, error=${error}`,
+                    result,
+                    error,
+                  })
+                );
+              }
+            }
+
+            if (addToFallbackTokens) {
+              redis.hset(
+                "simplehash-fallback-debug-tokens-v2",
+                `${result.contract}:${result.tokenId}`,
+                result.error
+              );
+
+              fallbackTokens.push({
+                collection: result.contract,
+                contract: result.contract,
+                tokenId: result.tokenId,
+              });
+            }
           }
         }
-      });
+      }
 
       if (tokensToProcess.length) {
-        for (const tokenToProcess of tokensToProcess) {
-          const tokenMetadataIndexingDebug = tokenMetadataIndexingDebugContracts.find(
-            (t) => t.contract === tokenToProcess.contract && t.tokenMetadataIndexingDebug
-          );
-
-          if (tokenMetadataIndexingDebug) {
-            logger.info(
-              this.queueName,
-              JSON.stringify({
-                topic: "tokenMetadataIndexingDebug",
-                message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
-                tokenToProcess,
-                _getTokensMetadataUriLatency,
-                fetchTokensCount: fetchTokens.length,
-              })
-            );
-          }
-        }
+        // for (const tokenToProcess of tokensToProcess) {
+        //   const tokenMetadataIndexingDebug = tokenMetadataIndexingDebugContracts.find(
+        //     (t) => t.contract === tokenToProcess.contract && t.tokenMetadataIndexingDebug
+        //   );
+        //
+        //   if (tokenMetadataIndexingDebug) {
+        //     logger.info(
+        //       this.queueName,
+        //       JSON.stringify({
+        //         topic: "tokenMetadataIndexingDebug",
+        //         message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
+        //         tokenToProcess,
+        //         _getTokensMetadataUriLatency,
+        //         fetchTokensCount: fetchTokens.length,
+        //       })
+        //     );
+        //   }
+        // }
 
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }

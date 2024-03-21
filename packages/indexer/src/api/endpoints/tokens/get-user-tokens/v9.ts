@@ -38,10 +38,11 @@ export const getUserTokensV9Options: RouteOptions = {
   description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
+      deprecated: true,
     },
   },
   validate: {
@@ -63,10 +64,24 @@ export const getUserTokensV9Options: RouteOptions = {
         .description(
           "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
-      collection: Joi.string()
-        .lowercase()
+      collection: Joi.alternatives().try(
+        Joi.array()
+          .items(Joi.string().lowercase())
+          .min(1)
+          .max(100)
+          .description(
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          ),
+        Joi.string()
+          .lowercase()
+          .description(
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          )
+      ),
+      excludeCollections: Joi.alternatives()
+        .try(Joi.array().max(100).items(Joi.string()), Joi.string())
         .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Exclude particular collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
@@ -263,6 +278,7 @@ export const getUserTokensV9Options: RouteOptions = {
     (params as any).user = toBuffer(params.user);
 
     const tokensCollectionFilters: string[] = [];
+    const tokensExcludeCollectionFilters: string[] = [];
     const nftBalanceCollectionFilters: string[] = [];
     const collections: string[] = [];
     let listBasedContract = false;
@@ -335,7 +351,19 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     if (query.collection) {
-      addCollectionToFilter(query.collection);
+      if (!Array.isArray(query.collection)) {
+        query.collection = [query.collection];
+      }
+
+      query.collection.forEach(addCollectionToFilter);
+    }
+
+    if (query.excludeCollections) {
+      if (!Array.isArray(query.excludeCollections)) {
+        query.excludeCollections = [query.excludeCollections];
+      }
+
+      tokensExcludeCollectionFilters.push(`collection_id NOT IN ($/excludeCollections:list/)`);
     }
 
     if (query.contract) {
@@ -491,6 +519,11 @@ export const getUserTokensV9Options: RouteOptions = {
         AND ${
           tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
         }
+        AND ${
+          tokensExcludeCollectionFilters.length
+            ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
+            : "TRUE"
+        }
       ) t ON TRUE
     `;
 
@@ -536,6 +569,11 @@ export const getUserTokensV9Options: RouteOptions = {
           AND ${
             tokensCollectionFilters.length
               ? "(" + tokensCollectionFilters.join(" OR ") + ")"
+              : "TRUE"
+          }
+          AND ${
+            tokensExcludeCollectionFilters.length
+              ? "(" + tokensExcludeCollectionFilters.join(" OR ") + ")"
               : "TRUE"
           }
         ) t ON TRUE
@@ -646,7 +684,11 @@ export const getUserTokensV9Options: RouteOptions = {
     }
 
     let ucTable = "";
-    if (query.sortBy === "floorAskPrice" || !_.isEmpty(collections)) {
+    if (
+      query.sortBy === "floorAskPrice" ||
+      !_.isEmpty(collections) ||
+      !_.isEmpty(query.excludeCollections)
+    ) {
       ucTable = `
         SELECT collection_id, COALESCE(c.token_set_id != CONCAT('contract:', collection_id), true) AS "shared_contract", c.*
         FROM user_collections uc
@@ -654,6 +696,11 @@ export const getUserTokensV9Options: RouteOptions = {
         WHERE owner = $/user/
         AND uc.token_count > 0
         ${!_.isEmpty(collections) ? `AND uc.collection_id IN ($/collections:list/)` : ""}
+        ${
+          !_.isEmpty(query.excludeCollections)
+            ? `AND uc.collection_id NOT IN ($/excludeCollections:list/)`
+            : ""
+        }
         ${query.excludeSpam ? `AND (uc.is_spam IS NULL OR uc.is_spam <= 0)` : ""}
         ${query.excludeNsfw ? ` AND (c.nsfw_status IS NULL OR c.nsfw_status <= 0)` : ""}
         ${
@@ -671,7 +718,10 @@ export const getUserTokensV9Options: RouteOptions = {
       query.excludeSpam ||
       query.excludeNsfw ||
       query.tokenName ||
+      query.excludeCollections ||
       query.onlyListed;
+
+    const sortFullResultsSet = query.sortBy === "acquiredAt" && ucTable;
 
     try {
       const baseQuery = `
@@ -728,7 +778,7 @@ export const getUserTokensV9Options: RouteOptions = {
                     }`
               }
               ${continuationFilter}
-              ${nftBalanceSorting}
+              ${sortFullResultsSet ? "" : nftBalanceSorting}
               ${limitFullResultsSet ? "" : limit}
           ) AS b ${ucTable ? ` ON TRUE` : ""}
           ${tokensJoin}
@@ -765,6 +815,7 @@ export const getUserTokensV9Options: RouteOptions = {
               1
           ) ELSE t.floor_sell_id END
           ${userCollectionsSorting}
+          ${sortFullResultsSet ? nftBalanceSorting : ""}
           ${limitFullResultsSet ? limit : ""}
       `;
 

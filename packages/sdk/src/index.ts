@@ -26,6 +26,7 @@ import * as Rarible from "./rarible";
 import * as SeaportV11 from "./seaport-v1.1";
 import * as SeaportV14 from "./seaport-v1.4";
 import * as SeaportV15 from "./seaport-v1.5";
+import * as SeaportV16 from "./seaport-v1.6";
 import * as Alienswap from "./alienswap";
 import * as SeaportBase from "./seaport-base";
 import * as Sudoswap from "./sudoswap";
@@ -84,6 +85,7 @@ export {
   SeaportV11,
   SeaportV14,
   SeaportV15,
+  SeaportV16,
   Alienswap,
   SeaportBase,
   Sudoswap,

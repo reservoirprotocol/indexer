@@ -7,7 +7,7 @@ import { toBuffer } from "@/common/utils";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { OrderKind } from "@/orderbook/orders";
-import { getTokenMetadata } from "./utils";
+import { getTokenMetadata, publishKafkaEvent } from "./utils";
 import { Assets } from "@/utils/assets";
 
 export type SaleWebsocketEventsTriggerQueueJobPayload = {
@@ -166,13 +166,19 @@ export class SaleWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandl
         tags.orderSource = result.orderSource;
       }
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
-        tags,
         changed,
         data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
+        tags,
         offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
     } catch (error) {
       logger.error(
         this.queueName,

@@ -8,6 +8,7 @@ export * as foundation from "@/orderbook/orders/foundation";
 export * as seaport from "@/orderbook/orders/seaport-v1.1";
 export * as seaportV14 from "@/orderbook/orders/seaport-v1.4";
 export * as seaportV15 from "@/orderbook/orders/seaport-v1.5";
+export * as seaportV16 from "@/orderbook/orders/seaport-v1.6";
 export * as alienswap from "@/orderbook/orders/alienswap";
 export * as sudoswap from "@/orderbook/orders/sudoswap";
 export * as x2y2 from "@/orderbook/orders/x2y2";
@@ -59,6 +60,7 @@ export type OrderKind =
   | "seaport"
   | "seaport-v1.4"
   | "seaport-v1.5"
+  | "seaport-v1.6"
   | "alienswap"
   | "rarible"
   | "element-erc721"
@@ -168,6 +170,7 @@ export const getOrderSourceByOrderKind = async (
       case "seaport":
       case "seaport-v1.4":
       case "seaport-v1.5":
+      case "seaport-v1.6":
       case "wyvern-v2":
       case "wyvern-v2.3":
         return sources.getOrInsert("opensea.io");
@@ -403,6 +406,48 @@ export const generateListingDetailsV6 = async (
 
         return {
           kind: "seaport-v1.5",
+          ...common,
+          order: sdkOrder,
+        };
+      }
+    }
+
+    case "seaport-v1.6": {
+      if (order.rawData && order.rawData.okxOrderId) {
+        return {
+          kind: "seaport-v1.6-partial-okx",
+          ...common,
+          order: {
+            okxId: order.rawData.okxOrderId,
+            id: order.id,
+          } as Sdk.SeaportBase.Types.OkxPartialOrder,
+        };
+      } else if (order.rawData && order.rawData.partial) {
+        return {
+          kind: "seaport-v1.6-partial",
+          ...common,
+          order: {
+            contract: token.contract,
+            tokenId: token.tokenId,
+            id: order.id,
+          } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
+        };
+      } else {
+        // Make sure on-chain orders have a "defined" signature
+        order.rawData.signature = order.rawData.signature ?? "0x";
+
+        const sdkOrder = new Sdk.SeaportV16.Order(config.chainId, order.rawData);
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+          })
+        );
+
+        return {
+          kind: "seaport-v1.6",
           ...common,
           order: sdkOrder,
         };
@@ -729,6 +774,66 @@ export const generateBidDetailsV6 = async (
       } else {
         return {
           kind: "seaport-v1.5-partial",
+          ...common,
+          order: {
+            contract: token.contract,
+            tokenId: token.tokenId,
+            id: order.id,
+            unitPrice: order.unitPrice,
+          } as Sdk.SeaportBase.Types.OpenseaPartialOrder,
+        };
+      }
+    }
+
+    case "seaport-v1.6": {
+      if (order.rawData && !order.rawData.partial) {
+        const extraArgs: any = {};
+
+        const sdkOrder = new Sdk.SeaportV16.Order(config.chainId, order.rawData);
+
+        // Make sure on-chain orders have a "defined" signature
+        sdkOrder.params.signature = sdkOrder.params.signature ?? "0x";
+
+        if (sdkOrder.params.kind?.includes("token-list")) {
+          // When filling a "token-list" order, we also need to pass in the
+          // full list of tokens the order was made on (in order to be able
+          // to generate a valid merkle proof)
+          const tokens = await idb.manyOrNone(
+            `
+              SELECT
+                token_sets_tokens.token_id
+              FROM token_sets_tokens
+              WHERE token_sets_tokens.token_set_id = (
+                SELECT
+                  orders.token_set_id
+                FROM orders
+                WHERE orders.id = $/id/
+              )
+            `,
+            { id: sdkOrder.hash() }
+          );
+          extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+        }
+
+        await offchainCancel.seaport.doSignOrder(
+          sdkOrder,
+          taker,
+          sdkOrder.buildMatching({
+            tokenId: common.tokenId,
+            amount: common.amount ?? 1,
+            ...extraArgs,
+          })
+        );
+
+        return {
+          kind: "seaport-v1.6",
+          ...common,
+          extraArgs,
+          order: sdkOrder,
+        };
+      } else {
+        return {
+          kind: "seaport-v1.6-partial",
           ...common,
           order: {
             contract: token.contract,

@@ -23,6 +23,7 @@ import { redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { randomUUID } from "crypto";
+import { customFetchTokenUriMetadata, hasCustomTokenUriHandler } from "@/metadata/custom";
 
 const erc721Interface = new ethers.utils.Interface([
   "function supportsInterface(bytes4 interfaceId) view returns (bool)",
@@ -56,24 +57,22 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
           const getTokenMetadataFromURILatency = Date.now() - getTokenMetadataFromURIStart;
 
-          if ([1, 137, 11155111].includes(config.chainId)) {
-            const tokenMetadataIndexingDebug = await redis.sismember(
-              "metadata-indexing-debug-contracts",
-              token.contract
-            );
+          const tokenMetadataIndexingDebug = await redis.sismember(
+            "metadata-indexing-debug-contracts",
+            token.contract
+          );
 
-            if (tokenMetadataIndexingDebug) {
-              logger.info(
-                "_getTokensMetadata",
-                JSON.stringify({
-                  topic: "tokenMetadataIndexingDebug",
-                  message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
-                  metadata: JSON.stringify(metadata),
-                  getTokenMetadataFromURILatency,
-                  error,
-                })
-              );
-            }
+          if (tokenMetadataIndexingDebug) {
+            logger.info(
+              "_getTokensMetadata",
+              JSON.stringify({
+                topic: "tokenMetadataIndexingDebug",
+                message: `getTokenMetadataFromURI. contract=${token.contract}, tokenId=${token.tokenId}, uri=${token.uri}`,
+                metadata: JSON.stringify(metadata),
+                getTokenMetadataFromURILatency,
+                error,
+              })
+            );
           }
 
           if (!metadata) {
@@ -329,27 +328,27 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   // parsers
   _parseToken(metadata: any): TokenMetadata {
-    // add handling for metadata.properties, convert to attributes
-    if (metadata?.properties && !metadata?.attributes) {
-      metadata.attributes = Object.keys(metadata.properties).map((key) => {
-        if (typeof metadata.properties[key] === "object") {
+    let attributes = metadata?.attributes || metadata?.properties || [];
+
+    if (typeof attributes === "string") {
+      attributes = JSON.parse(attributes);
+    }
+
+    if (!Array.isArray(attributes)) {
+      attributes = Object.keys(attributes).map((key) => {
+        if (typeof attributes[key] === "object") {
           return {
             trait_type: key,
-            value: metadata.properties[key],
+            value: attributes[key],
           };
         } else {
           return {
             trait_type: key,
-            value: metadata.properties[key],
+            value: attributes[key],
           };
         }
       });
     }
-
-    const attributes =
-      typeof metadata.attributes === "string"
-        ? JSON.parse(metadata.attributes)
-        : metadata?.attributes || [];
 
     return {
       contract: metadata.contract,
@@ -656,26 +655,25 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
 
   async getTokenMetadataFromURI(uri: string, contract: string, tokenId: string) {
     try {
-      let tokenMetadataIndexingDebug = 0;
-
-      if ([1, 137, 11155111].includes(config.chainId)) {
-        tokenMetadataIndexingDebug = await redis.sismember(
-          "metadata-indexing-debug-contracts",
-          contract
-        );
-
-        if (tokenMetadataIndexingDebug) {
-          logger.info(
-            "getTokenMetadataFromURI",
-            JSON.stringify({
-              topic: "tokenMetadataIndexingDebug",
-              message: `Start. contract=${contract}, contract=${tokenId}, uri=${uri}`,
-            })
-          );
-        }
-      }
+      const tokenMetadataIndexingDebug = await redis.sismember(
+        "metadata-indexing-debug-contracts",
+        contract
+      );
 
       uri = uri.trim();
+
+      if (hasCustomTokenUriHandler(contract)) {
+        return [
+          await customFetchTokenUriMetadata(
+            {
+              contract,
+              tokenId,
+            },
+            uri
+          ),
+          null,
+        ];
+      }
 
       if (uri.startsWith("data:application/json;base64,")) {
         uri = uri.replace("data:application/json;base64,", "");

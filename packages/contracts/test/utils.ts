@@ -377,6 +377,44 @@ export const setupZones = async (chainId: number, deployer: SignerWithAddress) =
   };
 };
 
+export const setupV16Zones = async (chainId: number, deployer: SignerWithAddress) => {
+  const signedZoneController: any = await ethers
+    .getContractFactory("SignedZoneControllerV16", deployer)
+    .then((factory) => factory.deploy());
+
+  const zoneName = "test";
+  const apiEndpoint = "test";
+  const documentationURI = "test";
+  const salt = `${deployer.address}` + getRandomBytes(12).toHexString().replace("0x", "");
+  const initialOwner = deployer.address;
+
+  const zoneAddress = await signedZoneController.callStatic.createZone(
+    zoneName,
+    apiEndpoint,
+    documentationURI,
+    initialOwner,
+    salt
+  );
+
+  await signedZoneController.createZone(
+    zoneName,
+    apiEndpoint,
+    documentationURI,
+    initialOwner,
+    salt
+  );
+
+  await signedZoneController.updateSigner(zoneAddress, deployer.address, true);
+
+  Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[chainId] = zoneAddress;
+
+  return {
+    zone: zoneAddress.toLowerCase(),
+    signedZoneController,
+    signer: deployer,
+  };
+};
+
 // Deploy router with modules and override any SDK addresses
 export const setupRouterWithModules = async (chainId: number, deployer: SignerWithAddress) => {
   // Deploy router
@@ -409,6 +447,13 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     );
   Sdk.RouterV6.Addresses.SeaportV15Module[chainId] = seaportV15Module.address.toLowerCase();
 
+  const seaportV16Module = await ethers
+    .getContractFactory("SeaportV16Module", deployer)
+    .then((factory) =>
+      factory.deploy(deployer.address, router.address, Sdk.SeaportV16.Addresses.Exchange[chainId])
+    );
+  Sdk.RouterV6.Addresses.SeaportV16Module[chainId] = seaportV16Module.address.toLowerCase();
+
   const zeroExV4Module = await ethers
     .getContractFactory("ZeroExV4Module", deployer)
     .then((factory) =>
@@ -427,18 +472,6 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
       )
     )) as any;
   Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
-
-  const oneInchSwapModule = (await ethers
-    .getContractFactory("OneInchSwapModule", deployer)
-    .then((factory) =>
-      factory.deploy(
-        deployer.address,
-        deployer.address,
-        Sdk.Common.Addresses.WNative[chainId],
-        Sdk.Common.Addresses.AggregationRouterV5[chainId]
-      )
-    )) as any;
-  Sdk.RouterV6.Addresses.OneInchSwapModule[chainId] = oneInchSwapModule.address.toLowerCase();
 
   const approvalProxy = await ethers
     .getContractFactory("ReservoirApprovalProxy", deployer)

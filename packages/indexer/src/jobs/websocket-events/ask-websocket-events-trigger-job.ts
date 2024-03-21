@@ -10,7 +10,7 @@ import { getNetAmount } from "@/common/utils";
 import { getJoiPriceObject, getJoiSourceObject } from "@/common/joi";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
-import { formatStatus, formatValidBetween } from "@/jobs/websocket-events/utils";
+import { formatStatus, formatValidBetween, publishKafkaEvent } from "@/jobs/websocket-events/utils";
 import { redis } from "@/common/redis";
 import { Assets } from "@/utils/assets";
 
@@ -212,18 +212,24 @@ export class AskWebsocketEventsTriggerQueueJob extends AbstractRabbitMqJobHandle
         rawData: data.after.raw_data ? JSON.parse(data.after.raw_data) : undefined,
       };
 
-      await publishWebsocketEvent({
+      const event = {
         event: eventType,
+        changed,
+        data: result,
+      };
+
+      await publishWebsocketEvent({
+        ...event,
         tags: {
           contract: data.after.contract,
           source: source?.domain || "unknown",
           maker: data.after.maker,
           taker: data.after.taker,
         },
-        changed,
-        data: result,
         offset: data.offset,
       });
+
+      await publishKafkaEvent(event);
 
       if ([1, 11155111].includes(config.chainId) && eventType === "ask.created") {
         try {

@@ -1,5 +1,17 @@
 import { idb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import * as kafkaStreamProducer from "@/common/kafka-stream-producer";
+import { getNetworkName } from "@/config/network";
+import { publishEventToKafkaStreamJob } from "@/jobs/websocket-events/publish-event-to-kafka-stream-job";
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+
+export interface KafkaEvent {
+  event: string;
+  changed?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+}
 
 // Utility functions for parsing cdc event data
 
@@ -60,4 +72,53 @@ export const formatStatus = (fillabilityStatus: string, approvalStatus: string) 
   }
 
   return "active";
+};
+
+export const publishKafkaEvent = async (event: KafkaEvent): Promise<void> => {
+  if (!config.doKafkaStreamWork) {
+    return;
+  }
+
+  const topic = mapEventToKafkaTopic(event);
+  const partitionKey = mapEventToKafkaPartitionKey(event);
+
+  const published = await kafkaStreamProducer.publish(topic, event, partitionKey);
+
+  if (!published) {
+    logger.info(
+      "publishKafkaEvent",
+      JSON.stringify({
+        topic: "kafka-stream",
+        message: `Sending to queue`,
+        event: JSON.stringify(event),
+      })
+    );
+
+    await publishEventToKafkaStreamJob.addToQueue([{ event }]);
+  }
+};
+
+const mapEventToKafkaTopic = (event: KafkaEvent): string => {
+  return `${getNetworkName()}.${event.event.split(".")[0]}s`;
+};
+
+const mapEventToKafkaPartitionKey = (event: KafkaEvent): string => {
+  switch (event.event.split(".")[0]) {
+    case "collection":
+      return event.data.id;
+    case "token":
+      return event.data.token.collection.id || event.data.token.contract;
+    case "ask":
+      return event.data.id;
+    case "bid":
+      return event.data.id;
+    case "sale":
+      return event.data.token.collection.id || event.data.token.contract;
+    case "transfer":
+      return event.data.token.contract;
+    case "pending-tx":
+      return event.data.contract;
+  }
+
+  return "";
 };

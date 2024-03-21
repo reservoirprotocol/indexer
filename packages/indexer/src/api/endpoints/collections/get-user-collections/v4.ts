@@ -44,10 +44,24 @@ export const getUserCollectionsV4Options: RouteOptions = {
         .description(
           "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
         ),
-      collection: Joi.string()
-        .lowercase()
+      collection: Joi.alternatives().try(
+        Joi.array()
+          .items(Joi.string().lowercase())
+          .min(1)
+          .max(100)
+          .description(
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          ),
+        Joi.string()
+          .lowercase()
+          .description(
+            "Array of collections. Max limit is 100. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          )
+      ),
+      excludeCollections: Joi.alternatives()
+        .try(Joi.array().max(50).items(Joi.string()), Joi.string())
         .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Exclude particular collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       name: Joi.string()
         .lowercase()
@@ -315,7 +329,20 @@ export const getUserCollectionsV4Options: RouteOptions = {
       }
 
       if (query.collection) {
-        conditions.push(`collections.id = $/collection/`);
+        if (!Array.isArray(query.collection)) {
+          query.collection = [query.collection];
+        }
+
+        conditions.push(`collections.id IN ($/collection:csv/)`);
+      }
+
+      if (query.excludeCollections) {
+        if (!Array.isArray(query.excludeCollections)) {
+          query.excludeCollections = [query.excludeCollections];
+        }
+
+        query.excludeCollections = _.join(query.excludeCollections, "','");
+        conditions.push(`collections.id NOT IN ('$/excludeCollections:raw/')`);
       }
 
       if (conditions.length) {

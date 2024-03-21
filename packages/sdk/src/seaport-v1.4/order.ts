@@ -10,6 +10,7 @@ import { verifyTypedData } from "@ethersproject/wallet";
 
 import * as Common from "../common";
 import { Exchange } from "./exchange";
+import * as BaseAddresses from "../seaport-base/addresses";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
 import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
@@ -235,7 +236,13 @@ export class Order implements IOrder {
   }
 
   public async cosign(signer: TypedDataSigner, taker: string, matchParams: Types.MatchParams) {
-    const { extraDataComponent } = await cosignOrder(this, signer, taker, matchParams);
+    const { extraDataComponent } = await cosignOrder(
+      this,
+      signer,
+      taker,
+      matchParams,
+      BaseAddresses.ReservoirCancellationZone[this.chainId]
+    );
     this.params.extraData = extraDataComponent.toString();
   }
 

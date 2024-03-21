@@ -37,7 +37,14 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid", "payment-processor-v2")
+        .valid(
+          "seaport-v1.4",
+          "seaport-v1.5",
+          "seaport-v1.6",
+          "alienswap",
+          "blur-bid",
+          "payment-processor-v2"
+        )
         .required()
         .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.5`"),
     }),
@@ -109,7 +116,8 @@ export const postCancelSignatureV1Options: RouteOptions = {
 
         case "alienswap":
         case "seaport-v1.4":
-        case "seaport-v1.5": {
+        case "seaport-v1.5":
+        case "seaport-v1.6": {
           const ordersResult = await idb.manyOrNone(
             `
               SELECT
@@ -169,14 +177,19 @@ export const postCancelSignatureV1Options: RouteOptions = {
               signature,
               maker,
             });
+
+            return { message: "Success" };
           } catch {
             throw Boom.badRequest("Cancellation failed");
           }
-          return { message: "Success" };
         }
       }
     } catch (error) {
-      logger.error(`post-cancel-signature-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `post-cancel-signature-${version}-handler`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        JSON.stringify({ msg: `Handler failure: ${error}`, stack: (error as any).stack })
+      );
       throw error;
     }
   },

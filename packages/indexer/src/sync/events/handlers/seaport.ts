@@ -27,6 +27,12 @@ const getProtocolInfoFromSubKind = (subKind: EventSubKind) => {
       Order: Sdk.SeaportV15.Order,
       Exchange: Sdk.SeaportV15.Exchange,
     };
+  } else if (subKind.startsWith("seaport-v1.6")) {
+    return {
+      orderKind: "seaport-v1.6" as OrderKind,
+      Order: Sdk.SeaportV16.Order,
+      Exchange: Sdk.SeaportV16.Exchange,
+    };
   } else if (subKind.startsWith("alienswap")) {
     return {
       orderKind: "alienswap" as OrderKind,
@@ -52,12 +58,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   const alienswapMatchedOrderIds: { [txHash: string]: Set<string> } = {};
   const seaportV14MatchedOrderIds: { [txHash: string]: Set<string> } = {};
   const seaportV15MatchedOrderIds: { [txHash: string]: Set<string> } = {};
+  const seaportV16MatchedOrderIds: { [txHash: string]: Set<string> } = {};
 
   for (const { baseEventParams, log } of events.filter(({ subKind }) =>
     [
       "alienswap-orders-matched",
       "seaport-v1.4-orders-matched",
       "seaport-v1.5-orders-matched",
+      "seaport-v1.6-orders-matched",
     ].includes(subKind)
   )) {
     const txHash = baseEventParams.txHash;
@@ -97,6 +105,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         seaportV15MatchedOrderIds[txHash].add(orderId);
       }
     }
+
+    const eventData4 = getEventData(["seaport-v1.6-orders-matched"])[0];
+    if (eventData4.addresses?.[baseEventParams.address]) {
+      if (!seaportV16MatchedOrderIds[txHash]) {
+        seaportV16MatchedOrderIds[txHash] = new Set<string>();
+      }
+
+      const parsedLog3 = eventData4.abi.parseLog(log);
+      for (const orderId of parsedLog3.args["orderHashes"]) {
+        seaportV16MatchedOrderIds[txHash].add(orderId);
+      }
+    }
   }
 
   // For each transaction keep track of the orders that were explicitly matched
@@ -104,10 +124,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     alienswap: { [txHash: string]: Set<string> };
     "seaport-v1.4": { [txHash: string]: Set<string> };
     "seaport-v1.5": { [txHash: string]: Set<string> };
+    "seaport-v1.6": { [txHash: string]: Set<string> };
   } = {
     alienswap: alienswapMatchedOrderIds,
     "seaport-v1.4": seaportV14MatchedOrderIds,
     "seaport-v1.5": seaportV15MatchedOrderIds,
+    "seaport-v1.6": seaportV16MatchedOrderIds,
   };
 
   // Handle the events
@@ -124,7 +146,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "alienswap-order-cancelled":
       case "seaport-order-cancelled":
       case "seaport-v1.4-order-cancelled":
-      case "seaport-v1.5-order-cancelled": {
+      case "seaport-v1.5-order-cancelled":
+      case "seaport-v1.6-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
 
@@ -155,7 +178,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "alienswap-counter-incremented":
       case "seaport-counter-incremented":
       case "seaport-v1.4-counter-incremented":
-      case "seaport-v1.5-counter-incremented": {
+      case "seaport-v1.5-counter-incremented":
+      case "seaport-v1.6-counter-incremented": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["offerer"].toLowerCase();
         const newCounter = parsedLog.args["newCounter"].toString();
@@ -175,7 +199,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "alienswap-order-filled":
       case "seaport-order-filled":
       case "seaport-v1.4-order-filled":
-      case "seaport-v1.5-order-filled": {
+      case "seaport-v1.5-order-filled":
+      case "seaport-v1.6-order-filled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
         const maker = parsedLog.args["offerer"].toLowerCase();
@@ -368,7 +393,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
       case "seaport-order-validated":
       case "seaport-v1.4-order-validated":
-      case "seaport-v1.5-order-validated": {
+      case "seaport-v1.5-order-validated":
+      case "seaport-v1.6-order-validated": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
 

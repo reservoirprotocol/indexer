@@ -198,12 +198,6 @@ jobs:
             ./prod/platform/indexer-worker-frame-testnet.yaml \
             ./prod/platform/indexer-worker-master-frame-testnet.yaml
 
-          ./utils/version_update_batch.sh indexer-goerli ${{ github.sha }} \
-            ./prod/platform/indexer-api-goerli.yaml \
-            ./prod/platform/indexer-worker-goerli.yaml \
-            ./prod/platform/indexer-worker-master-goerli.yaml \
-            ./prod/platform/indexer-websocket-goerli.yaml
-
           ./utils/version_update_batch.sh indexer-immutable-zkevm-testnet ${{ github.sha }} \
             ./prod/platform/indexer-api-immutable-zkevm-testnet.yaml \
             ./prod/platform/indexer-worker-immutable-zkevm-testnet.yaml \
@@ -288,7 +282,7 @@ jobs:
             ./prod/platform/indexer-api-apex.yaml \
             ./prod/platform/indexer-worker-apex.yaml \
             ./prod/platform/indexer-worker-master-apex.yaml
-          
+
           ./utils/version_update_batch.sh indexer-astar-zkevm ${{ github.sha }} \
             ./prod/platform/indexer-api-astar-zkevm.yaml \
             ./prod/platform/indexer-worker-astar-zkevm.yaml \
@@ -298,6 +292,11 @@ jobs:
             ./prod/platform/indexer-api-blast.yaml \
             ./prod/platform/indexer-worker-blast.yaml \
             ./prod/platform/indexer-worker-master-blast.yaml
+
+          ./utils/version_update_batch.sh indexer-apex-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-api-apex-testnet.yaml \
+            ./prod/platform/indexer-worker-apex-testnet.yaml \
+            ./prod/platform/indexer-worker-master-apex-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}

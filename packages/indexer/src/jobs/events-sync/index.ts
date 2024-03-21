@@ -61,11 +61,12 @@ if (config.catchup) {
     // are being missed.
     safeWebSocketSubscription(async (provider) => {
       provider.on("block", async (block) => {
+        const blockEventTimeReceived = now();
         logger.info("events-sync-catchup", `Detected new block ${block}`);
 
         try {
-          await redis.set("latest-block-websocket-received", now());
-          await eventsSyncRealtimeJob.addToQueue({ block });
+          await redis.set("latest-block-websocket-received", blockEventTimeReceived);
+          await eventsSyncRealtimeJob.addToQueue({ block, blockEventTimeReceived });
 
           if (![56, 137, 204, 80001].includes(config.chainId)) {
             await checkForMissingBlocks(block);
