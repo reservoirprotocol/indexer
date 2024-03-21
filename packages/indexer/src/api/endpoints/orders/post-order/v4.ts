@@ -658,6 +658,9 @@ export const postOrderV4Options: RouteOptions = {
               );
 
               if (["already-exists", "success"].includes(result.status)) {
+                const side =
+                  orderInfo.orderParams.maxRoyaltyFeeNumerator !== undefined ? "ask" : "bid";
+                let simulationResult: string | undefined;
                 try {
                   const response = await inject({
                     method: "POST",
@@ -675,12 +678,21 @@ export const postOrderV4Options: RouteOptions = {
                       id: result.id,
                       response: response.payload,
                       contract: orderInfo.orderParams.tokenAddress,
-                      side:
-                        orderInfo.orderParams.maxRoyaltyFeeNumerator !== undefined ? "ask" : "bid",
+                      side,
                     })
                   );
+
+                  simulationResult = JSON.parse(response.payload).message;
                 } catch {
                   // Skip errors
+                }
+
+                if (side === "ask" && simulationResult === "Order is not fillable") {
+                  return results.push({
+                    message: "order-not-fillable",
+                    orderIndex: i,
+                    orderId: result.id,
+                  });
                 }
 
                 return results.push({ message: "success", orderIndex: i, orderId: result.id });
