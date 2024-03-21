@@ -143,6 +143,12 @@ export const postCancelSignatureV1Options: RouteOptions = {
             return { message: "Success" };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } catch (error: any) {
+            logger.error(
+              `post-cancel-signature-${version}-handler`,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              JSON.stringify({ msg: "seaport", error, stack: (error as any).stack })
+            );
+
             if (error.response?.data) {
               throw Boom.badRequest(error.response.data.message);
             }
@@ -179,7 +185,13 @@ export const postCancelSignatureV1Options: RouteOptions = {
             });
 
             return { message: "Success" };
-          } catch {
+          } catch (error) {
+            logger.error(
+              `post-cancel-signature-${version}-handler`,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              JSON.stringify({ msg: "pp-v2", error, stack: (error as any).stack })
+            );
+
             throw Boom.badRequest("Cancellation failed");
           }
         }
