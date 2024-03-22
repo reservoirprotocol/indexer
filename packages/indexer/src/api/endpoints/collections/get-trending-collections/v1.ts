@@ -136,7 +136,7 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
     failAction: (_request, _h, error) => {
       logger.error(
         `get-trending-collections-${version}-handler`,
-        `Wrong response schema: ${error}`
+        `Wrong response schema: ${JSON.stringify(error)}`
       );
       throw error;
     },
@@ -167,7 +167,10 @@ export const getTrendingCollectionsV1Options: RouteOptions = {
       const response = h.response({ collections });
       return response;
     } catch (error) {
-      logger.error(`get-trending-collections-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `get-trending-collections-${version}-handler`,
+        `Handler failure: ${JSON.stringify(error)}`
+      );
       throw error;
     }
   },
