@@ -168,6 +168,7 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
 };
 
 export const ReservoirV16CancellationZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x2d1a340cd83434243d090931afabf95b7d3078b0",
   [Network.EthereumSepolia]: "0x2d1a340cd83434243d090931afabf95b7d3078b0",
   [Network.Polygon]: "0x2d1a340cd83434243d090931afabf95b7d3078b0",
   [Network.Mumbai]: "0x2d1a340cd83434243d090931afabf95b7d3078b0",

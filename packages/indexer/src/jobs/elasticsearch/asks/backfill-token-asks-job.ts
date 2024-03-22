@@ -111,7 +111,9 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
       const bulkIndexOps = askEvents
         .filter((askEvent) => askEvent.kind == "index")
         .flatMap((askEvent) => [
-          { create: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } },
+          payload.forceUpdate
+            ? { index: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } }
+            : { create: { _index: AskIndex.getIndexName(), _id: askEvent.info.id } },
           askEvent.info.document,
         ]);
 
@@ -180,6 +182,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
           payload.contract,
           payload.tokenId,
           payload.onlyActive,
+          payload.forceUpdate,
           nextCursor
         );
       }
@@ -200,6 +203,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
     contract: string,
     tokenId: string,
     onlyActive: boolean,
+    forceUpdate?: boolean,
     cursor?: {
       createdAt: string;
       id: string;
@@ -214,6 +218,7 @@ export class BackfillTokenAsksJob extends AbstractRabbitMqJobHandler {
         contract,
         tokenId,
         onlyActive,
+        forceUpdate,
         cursor,
       },
     });
@@ -226,6 +231,7 @@ export type BackfillTokenAsksJobPayload = {
   contract: string;
   tokenId: string;
   onlyActive: boolean;
+  forceUpdate?: boolean;
   cursor?: {
     createdAt: string;
     id: string;

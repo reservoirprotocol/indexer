@@ -251,12 +251,15 @@
   },
   "SeaportConduit": {
     "v1": {
+      "1": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
+      "10": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "56": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "137": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "204": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "1101": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "3776": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "8453": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
+      "42161": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "42170": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "43114": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "59144": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
@@ -264,6 +267,7 @@
       "70800": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "80001": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "81457": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
+      "84532": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "534352": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "7777777": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
       "11155111": "0xfbf166299d3c012de9efec0240d12756c1f4c0fc",
@@ -473,6 +477,7 @@
   },
   "SignedZoneControllerV16": {
     "v1": {
+      "1": "0x77f48ccb3ede5bf4abfb8eefe61739ed01c240ce",
       "10": "0x77f48ccb3ede5bf4abfb8eefe61739ed01c240ce",
       "56": "0x77f48ccb3ede5bf4abfb8eefe61739ed01c240ce",
       "137": "0x77f48ccb3ede5bf4abfb8eefe61739ed01c240ce",
@@ -488,6 +493,7 @@
   },
   "SignedZoneV16": {
     "v1": {
+      "1": "0x2d1a340cd83434243d090931afabf95b7d3078b0",
       "10": "0x2d1a340cd83434243d090931afabf95b7d3078b0",
       "56": "0x2d1a340cd83434243d090931afabf95b7d3078b0",
       "137": "0x2d1a340cd83434243d090931afabf95b7d3078b0",

@@ -164,6 +164,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
           await backfillTokenAsksJob.addToQueue(
             payload.after.contract,
             payload.after.token_id,
+            true,
             true
           );
         }
