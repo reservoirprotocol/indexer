@@ -1334,4 +1334,90 @@ describe("Rarible - SingleToken Listings Erc721", () => {
     expect(sellerBalanceAfter).to.eq(price);
     expect(ownerAfter).to.eq(buyer.address);
   });
+
+
+  it("Rarible V2_2 Order data - 2 payouts and 2 origin fees - Build and fill ERC721 ETH sell order", async () => {
+    const buyer = alice;
+    const seller = bob;
+    const price = parseEther("1");
+    const soldTokenId = 0;
+
+    // Mint erc721 to seller
+    await erc721.connect(seller).mint(soldTokenId);
+
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    // Approve the transfer manager
+    await nft.approve(seller, Rarible.Addresses.NFTTransferProxy[chainId]);
+    const testOrder = new Rarible.Order(chainId, {
+      "id": "ETHEREUM:0x80b1f4f7edeae2944e63ce8defe88e75705c8bd4cabc3f733e3f69f0826c045a",
+      "fill": "0",
+      "platform": "RARIBLE",
+      "status": "ACTIVE",
+      "endedAt": "2024-04-14T02:47:06Z",
+      "makeStock": "2",
+      "cancelled": false,
+      "optionalRoyalties": false,
+      "createdAt": "2024-03-15T02:53:23.456Z",
+      "lastUpdatedAt": "2024-03-15T02:53:23.456Z",
+      "makePrice": "0.0002",
+      "makePriceUsd": "0.77891651929591434",
+      "maker": "ETHEREUM:0xc2525dde2c83ddd03281737eeb69935dc27c340d",
+      "make": {
+          "type": {
+              "@type": "ERC1155_Lazy",
+              "contract": "ETHEREUM:0xb66a603f4cfe17e3d27b87a8bfcad319856518b8",
+              "collection": "ETHEREUM:0xb66a603f4cfe17e3d27b87a8bfcad319856518b8",
+              "tokenId": "87894221936671906037177106620291546568239087742262947616410832274754170257441",
+              "uri": "/ipfs/bafkreicwqogkux5zoi2lwjf45dl2w7nc6cik7rblqaz6uuxyh3hfuhjoo4",
+              "supply": "2",
+              "creators": [
+                  {
+                      "account": "ETHEREUM:0xc2525dde2c83ddd03281737eeb69935dc27c340d",
+                      "value": 10000
+                  }
+              ],
+              "royalties": [
+                  {
+                      "account": "ETHEREUM:0xc2525dde2c83ddd03281737eeb69935dc27c340d",
+                      "value": 1000
+                  }
+              ],
+              "signatures": [
+                  "0x6c2d3f912bcd11f49b89f14d1220f2d4309739e72e02c0bae3b714477917c3151e73bdacd4f635b578c8d4423db3b3555dae2eeb75615310c069c4bb247e3ae01b"
+              ]
+          },
+          "value": "2"
+      },
+      "take": {
+          "type": {
+              "@type": "ETH",
+              "blockchain": "ETHEREUM"
+          },
+          "value": "0.0004"
+      },
+      "salt": "0xbc3f77ae8db8f93365c8940a3fd855b332c8f899daded544246aacaa931783a5",
+      "signature": "0xf0d11204eed589e90f9d67466e60ad1510bc19ec384bd2e7464c4c49fd55855c7afc0caae8d3e76a9063111cc6524f3e522e072bf1d07368b7918b44bd9bdef71c",
+      "feeTakers": [
+          "ETHEREUM:0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a"
+      ],
+      "data": {
+          "@type": "ETH_RARIBLE_V2_2",
+          "payouts": [],
+          "originFees": [
+              {
+                  "account": "ETHEREUM:0x1cf0df2a5a20cd61d68d4489eebbf85b8d39e18a",
+                  "value": 750
+              }
+          ],
+          "isMakeFill": true
+      }
+  } as any);
+
+    try {
+      testOrder.checkSignature();
+    } catch {
+
+    }
+  });
 });

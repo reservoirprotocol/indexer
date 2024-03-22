@@ -365,6 +365,7 @@ const normalize = (order: Types.Order): Types.Order => {
       break;
     case ORDER_DATA_TYPES.V2:
     case ORDER_DATA_TYPES.API_V2:
+    case ORDER_DATA_TYPES.API_V2_2:
       order.data.dataType = ORDER_DATA_TYPES.V2;
 
       dataInfo = order.data as Types.IV2OrderData;

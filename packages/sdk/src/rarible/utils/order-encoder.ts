@@ -115,11 +115,12 @@ export const encodeOrderData = (order: Types.Order | Types.TakerOrderParams) => 
     }
 
     case Constants.ORDER_DATA_TYPES.V2:
-    case Constants.ORDER_DATA_TYPES.API_V2: {
-      const v2Data = order.data as Types.IV2OrderData;
+    case Constants.ORDER_DATA_TYPES.API_V2:
+    case Constants.ORDER_DATA_TYPES.API_V2_2: {
+      const v2Data = order.data as Types.IV2OrderDataV2;
       const side = getOrderSide(order.make.assetType.assetClass, order.take.assetType.assetClass);
 
-      const isMakeFill = side === "buy" ? 0 : 1;
+      const isMakeFill = v2Data.isMakeFill ?? (side === "buy" ? 0 : 1);
 
       encodedOrderData = defaultAbiCoder.encode(
         [
