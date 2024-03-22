@@ -28,4 +28,5 @@ export const Exchange: ChainIdToAddress = {
   [Network.Blast]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.AstarZkevm]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
   [Network.ApexTestnet]: "0x613D3c588F6B8f89302b463F8F19f7241B2857E2",
+  [Network.RedstoneTestnet]: "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",
 };

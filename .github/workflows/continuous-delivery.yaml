@@ -297,6 +297,11 @@ jobs:
             ./prod/platform/indexer-api-apex-testnet.yaml \
             ./prod/platform/indexer-worker-apex-testnet.yaml \
             ./prod/platform/indexer-worker-master-apex-testnet.yaml
+          
+          ./utils/version_update_batch.sh indexer-redstone-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-api-redstone-testnet.yaml \
+            ./prod/platform/indexer-worker-redstone-testnet.yaml \
+            ./prod/platform/indexer-worker-master-redstone-testnet.yaml
 
       - name: Post to Slack
         if: ${{ always() }}

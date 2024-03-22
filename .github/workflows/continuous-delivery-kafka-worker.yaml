@@ -235,6 +235,9 @@ jobs:
           ./utils/version_update_batch.sh indexer-apex-testnet ${{ github.sha }} \
             ./prod/platform/indexer-kafka-worker-apex-testnet.yaml
 
+          ./utils/version_update_batch.sh indexer-redstone-testnet ${{ github.sha }} \
+            ./prod/platform/indexer-kafka-worker-redstone-testnet.yaml
+
       - name: Post to Slack
         if: ${{ always() }}
         id: slack-deploy-prod
