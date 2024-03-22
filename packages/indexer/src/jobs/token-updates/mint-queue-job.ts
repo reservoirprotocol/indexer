@@ -109,6 +109,7 @@ export default class MintQueueJob extends AbstractRabbitMqJobHandler {
                 updated_at = now()
               WHERE tokens.contract = $/contract/
                 AND tokens.token_id = $/tokenId/
+                AND ("collection_id" IS DISTINCT FROM $/collection/)
             `,
             values: {
               contract: toBuffer(contract),
