@@ -147,6 +147,15 @@ export interface IV2OrderData {
   payouts: IPart[];
   originFees: IPart[];
 }
+
+export interface IV2OrderDataV2 {
+  "@type"?: string;
+  dataType: ORDER_DATA_TYPES;
+  payouts: IPart[];
+  originFees: IPart[];
+  isMakeFill?: boolean;
+}
+
 export interface IV3OrderSellData {
   "@type"?: string;
   dataType: ORDER_DATA_TYPES;
@@ -175,7 +184,13 @@ export type TakerOrderParams = {
   salt: number;
   start: number;
   end: number;
-  data: ILegacyOrderData | IV1OrderData | IV2OrderData | IV3OrderSellData | IV3OrderBuyData;
+  data:
+    | ILegacyOrderData
+    | IV1OrderData
+    | IV2OrderData
+    | IV2OrderDataV2
+    | IV3OrderSellData
+    | IV3OrderBuyData;
 };
 
 export interface BaseBuildParams {

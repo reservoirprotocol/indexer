@@ -143,9 +143,10 @@ export const trigger = {
             true,
             getGasConfigs(chainId)
           );
+          console.log("Granted conduit access to ApprovalProxy");
         }
 
-        // Grant Seaport
+        // Grant Seaport 1.5
         if (
           Sdk.SeaportV15.Addresses.Exchange[chainId] &&
           !(await conduitController.getChannelStatus(
@@ -159,6 +160,24 @@ export const trigger = {
             true,
             getGasConfigs(chainId)
           );
+          console.log("Granted conduit access to Seaport v1.5");
+        }
+
+        // Grant Seaport 1.6
+        if (
+          Sdk.SeaportV16.Addresses.Exchange[chainId] &&
+          !(await conduitController.getChannelStatus(
+            result.conduit,
+            Sdk.SeaportV16.Addresses.Exchange[chainId]
+          ))
+        ) {
+          await conduitController.updateChannel(
+            result.conduit,
+            Sdk.SeaportV16.Addresses.Exchange[chainId],
+            true,
+            getGasConfigs(chainId)
+          );
+          console.log("Granted conduit access to Seaport v1.6");
         }
 
         if (!(await readDeployment(contractName, version, chainId))) {
