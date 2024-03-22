@@ -5,7 +5,7 @@
     "name": "OpenSea",
     "address": "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/opensea-logo.svg",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/opensea-logo.svg",
       "tokenUrlMainnet": "https://opensea.io/assets/ethereum/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
@@ -27,7 +27,7 @@
     "name": "Forgotten Market",
     "address": "0xfdfda3d504b1431ea0fd70084b1bfa39fa99dcc4",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/forgottenmarket-logo.png",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/forgottenmarket-logo.png",
       "tokenUrlMainnet": "https://forgotten.market/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://forgotten.market/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://forgotten.market/${contract}/${tokenId}"
@@ -39,7 +39,7 @@
     "name": "LooksRare",
     "address": "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/looksrare-logo.svg",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/looksrare-logo.svg",
       "tokenUrlMainnet": "https://looksrare.org/collections/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://rinkeby.looksrare.org/collections/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://rinkeby.looksrare.org/collections/${contract}/${tokenId}"
@@ -51,7 +51,7 @@
     "name": "PleaseBePatientWith.Me",
     "address": "0x4713dbc943a3f892d3e8ae2778a0aa9b2c1fb0af",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/pleasebepatientwithme-logo.png",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/pleasebepatientwithme-logo.png",
       "tokenUrlMainnet": "https://www.pleasebepatientwith.me/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://www.pleasebepatientwith.me/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://www.pleasebepatientwith.me/${contract}/${tokenId}"
@@ -63,7 +63,7 @@
     "name": "KNNY",
     "address": "0x912e86686ff6d8d57a439666b5fe8401de13cf02",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/KNNY-logo.png",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/KNNY-logo.png",
       "tokenUrlMainnet": "https://knny.vercel.app/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://knny.vercel.app/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://knny.vercel.app/${contract}/${tokenId}"
@@ -75,7 +75,7 @@
     "name": "Foundation",
     "address": "0x6c51c470341fa0e9894ee5e4e227c786c51650b4",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/foundation-logo.svg",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/foundation-logo.svg",
       "tokenUrlMainnet": "https://foundation.app/",
       "tokenUrlRinkeby": "https://foundation.app/",
       "tokenUrlGoerli": "https://foundation.app/"
@@ -87,7 +87,7 @@
     "name": "gmoney market",
     "address": "0xec2184ba5c8d6bfbeda759119addc183ba1c3ac2",
     "data": {
-      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/gmoney-logo.png",
+      "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/main/packages/indexer/src/models/sources/gmoney-logo.png",
       "tokenUrlMainnet": "https://gmoney.market/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://gmoney.market/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://gmoney.market/${contract}/${tokenId}"

@@ -17,7 +17,6 @@ import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { config } from "@/config/index";
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
-import { getNetworkSettings } from "@/config/network";
 import { burnedTokenJob } from "@/jobs/token-updates/burned-token-job";
 
 export class IndexerTokensHandler extends KafkaEventHandler {
@@ -26,35 +25,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
   protected async handleInsert(payload: any, offset: string): Promise<void> {
     if (!payload.after) {
       return;
-    }
-
-    if ([1, 11155111].includes(config.chainId)) {
-      try {
-        await redis.set(
-          `token-created-kafka-message-ts:${payload.after.contract}:${payload.after.token_id}`,
-          payload.ts_ms,
-          "EX",
-          600
-        );
-
-        await redis.set(
-          `token-created-cdc-event-start:${payload.after.contract}:${payload.after.token_id}`,
-          Date.now(),
-          "EX",
-          600
-        );
-      } catch (error) {
-        logger.error(
-          "IndexerTokensHandler",
-          JSON.stringify({
-            message: `Handle event latency error. error=${error}`,
-            contract: payload.after.contract,
-            tokenId: payload.after.token_id,
-            payload: JSON.stringify(payload),
-            error,
-          })
-        );
-      }
     }
 
     await WebsocketEventRouter({
@@ -81,26 +51,6 @@ export class IndexerTokensHandler extends KafkaEventHandler {
 
       if (beforeValue !== afterValue) {
         changed.push(key);
-      }
-    }
-
-    if (
-      [1, 11155111].includes(config.chainId) &&
-      config.debugWsApiKey &&
-      getNetworkSettings().multiCollectionContracts.includes(payload.after.contract)
-    ) {
-      if (changed.some((value) => ["normalized_floor_sell_id"].includes(value))) {
-        logger.info(
-          "IndexerTokensHandler",
-          JSON.stringify({
-            topic: "debugMissingTokenNormalizedFloorAskChangedEvents",
-            message: `normalizedFloorSellIdChanged. collectionId=${payload.after.collection_id}, contract=${payload.after.contract}, tokenId=${payload.after.token_id}`,
-            collectionId: payload.after.collection_id,
-            contract: payload.after.contract,
-            tokenId: payload.after.token_id,
-            payload: JSON.stringify(payload),
-          })
-        );
       }
     }
 
