@@ -660,16 +660,13 @@ export class OnchainMetadataProvider extends AbstractBaseMetadataProvider {
       uri = uri.trim();
 
       if (hasCustomTokenUriHandler(contract)) {
-        return [
-          await customFetchTokenUriMetadata(
-            {
-              contract,
-              tokenId,
-            },
-            uri
-          ),
-          null,
-        ];
+        await customFetchTokenUriMetadata(
+          {
+            contract,
+            tokenId,
+          },
+          uri
+        );
       }
 
       if (uri.startsWith("data:application/json;base64,")) {

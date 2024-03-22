@@ -35,10 +35,13 @@ export const fetchTokenUriMetadata = async (
     }
   }
 
-  return {
-    ...info?.data,
-    contract,
-    tokenId,
-    image,
-  };
+  return [
+    {
+      ...info?.data,
+      contract,
+      tokenId,
+      image,
+    },
+    null,
+  ];
 };
