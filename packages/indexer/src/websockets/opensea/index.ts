@@ -36,7 +36,7 @@ import { getNetworkSettings, getOpenseaNetworkName } from "@/config/network";
 import _ from "lodash";
 import { Collections } from "@/models/collections";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
-import { idb } from "@/common/db";
+import { ridb } from "@/common/db";
 
 let lastReceivedEventTimestamp: number;
 
@@ -150,27 +150,25 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
-      if (config.chainId === 137) {
-        // Check: order doesn't already exist
-        const tokenExists = await idb.oneOrNone(
-          `SELECT 1 FROM tokens WHERE tokens.contract = $/contract/ AND tokens.token_id=$/tokenId/`,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-          }
+      // Check: token doesn't exist
+      const tokenExists = await ridb.oneOrNone(
+        `SELECT 1 FROM tokens WHERE tokens.contract = $/contract/ AND tokens.token_id=$/tokenId/`,
+        {
+          contract: toBuffer(contract),
+          tokenId,
+        }
+      );
+
+      if (!tokenExists) {
+        logger.info(
+          "opensea-websocket-item-metadata-update-event",
+          JSON.stringify({
+            message: `Token does not exist. contract=${contract}, tokenId=${tokenId}, network=${network}`,
+            event: JSON.stringify(event),
+          })
         );
 
-        if (!tokenExists) {
-          logger.info(
-            "opensea-websocket-item-metadata-update-event",
-            JSON.stringify({
-              message: `Token does not exist. contract=${contract}, tokenId=${tokenId}, network=${network}`,
-              event: JSON.stringify(event),
-            })
-          );
-
-          return;
-        }
+        return;
       }
 
       const lockExists = await doesLockExist(`refresh-new-token-metadata:${contract}:${tokenId}`);
