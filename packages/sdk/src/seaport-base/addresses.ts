@@ -42,6 +42,7 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.AstarZkevm]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Blast]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.ApexTestnet]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
+  [Network.RedstoneTestnet]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
 export const ConduitController: ChainIdToAddress = {
@@ -74,6 +75,7 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Blast]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.AstarZkevm]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.ApexTestnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.RedstoneTestnet]: "0x00000000f9490004c11cef243f5400493c00ad63",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
@@ -107,6 +109,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Blast]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.AstarZkevm]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.ApexTestnet]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.RedstoneTestnet]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {
@@ -165,6 +168,7 @@ export const ReservoirCancellationZone: ChainIdToAddress = {
   [Network.AstarZkevm]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.Blast]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
   [Network.ApexTestnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
+  [Network.RedstoneTestnet]: "0x80a5f08f89e55ddeceedfe76612fb87fd8180f80",
 };
 
 export const ReservoirV16CancellationZone: ChainIdToAddress = {
