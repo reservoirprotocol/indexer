@@ -273,6 +273,7 @@ export const NFTXV3Module: ChainIdToAddress = {
 export const RaribleModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4",
   [Network.EthereumGoerli]: "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4",
+  [Network.Polygon]: "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4",
 };
 
 export const SuperRareModule: ChainIdToAddress = {

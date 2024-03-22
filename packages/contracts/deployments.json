@@ -153,7 +153,8 @@
     },
     "v3": {
       "1": "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4",
-      "5": "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4"
+      "5": "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4",
+      "137": "0x0ac4aa4e2b50b9a1638c046f2564a6552427d9e4"
     }
   },
   "ReservoirApprovalProxy": {
