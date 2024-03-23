@@ -63,7 +63,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       this.queueName,
       `fetchTokens = ${JSON.stringify(fetchTokens)}, tokensUri = ${JSON.stringify(
         tokensUri
-      )}, filteredFetchTokens=${filteredFetchTokens}`
+      )}, filteredFetchTokens=${JSON.stringify(filteredFetchTokens)}`
     );
 
     let results: {
