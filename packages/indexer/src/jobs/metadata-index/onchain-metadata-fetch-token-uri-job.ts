@@ -11,6 +11,7 @@ import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import { metadataIndexFetchJob } from "@/jobs/metadata-index/metadata-fetch-job";
 import { hasCustomHandler } from "@/metadata/custom";
 import { redis } from "@/common/redis";
+import { Tokens } from "@/models/tokens";
 
 export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJobHandler {
   queueName = "onchain-metadata-index-fetch-uri-queue";
@@ -49,27 +50,14 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       return;
     }
 
-    // let tokenMetadataIndexingDebugContracts: {
-    //   contract: string;
-    //   tokenMetadataIndexingDebug: number;
-    // }[] = [];
-    //
-    // if ([1, 137, 11155111].includes(config.chainId)) {
-    //   tokenMetadataIndexingDebugContracts = fetchTokens.map((fetchToken) => ({
-    //     contract: fetchToken.contract,
-    //     tokenMetadataIndexingDebug: 0,
-    //   }));
-    //
-    //   const tokenMetadataIndexingDebugs = await redis.smismember(
-    //     "metadata-indexing-debug-contracts",
-    //     ...tokenMetadataIndexingDebugContracts.map((token) => token.contract)
-    //   );
-    //
-    //   for (let i = 0; i < tokenMetadataIndexingDebugContracts.length; i++) {
-    //     tokenMetadataIndexingDebugContracts[i].tokenMetadataIndexingDebug =
-    //       tokenMetadataIndexingDebugs[i];
-    //   }
-    // }
+    // Filter tokens for which the token URI already known
+    const tokensUri = await Tokens.getMultipleContractsTokensUri(fetchTokens);
+    const filteredFetchTokens = _.filter(fetchTokens, function (token) {
+      return !_.some(tokensUri, {
+        contract: token.contract,
+        tokenId: token.tokenId,
+      });
+    });
 
     let results: {
       contract: string;
@@ -78,38 +66,40 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       error?: string;
     }[] = [];
 
-    try {
-      results = await onchainMetadataProvider._getTokensMetadataUri(fetchTokens);
-    } catch (e) {
-      if (e instanceof RequestWasThrottledError) {
-        logger.warn(
+    if (!_.isEmpty(filteredFetchTokens)) {
+      try {
+        results = await onchainMetadataProvider._getTokensMetadataUri(filteredFetchTokens);
+      } catch (e) {
+        if (e instanceof RequestWasThrottledError) {
+          logger.warn(
+            this.queueName,
+            `Request was throttled. fetchUriTokenCount=${filteredFetchTokens.length}`
+          );
+
+          await pendingRefreshTokens.add(filteredFetchTokens, true);
+
+          // Add to queue again with a delay from the error
+          await this.addToQueue(e.delay);
+          return;
+        }
+
+        logger.error(
           this.queueName,
-          `Request was throttled. fetchUriTokenCount=${fetchTokens.length}`
+          `Error. fetchUriTokenCount=${filteredFetchTokens.length}, tokens=${JSON.stringify(
+            filteredFetchTokens
+          )}, error=${JSON.stringify(e)}`
         );
-
-        await pendingRefreshTokens.add(fetchTokens, true);
-
-        // Add to queue again with a delay from the error
-        await this.addToQueue(e.delay);
-        return;
       }
-
-      logger.error(
-        this.queueName,
-        `Error. fetchUriTokenCount=${fetchTokens.length}, tokens=${JSON.stringify(
-          fetchTokens
-        )}, error=${JSON.stringify(e)}`
-      );
     }
 
-    if (results?.length) {
-      const tokensToProcess: {
-        contract: string;
-        tokenId: string;
-        uri: string;
-        error?: string;
-      }[] = [];
+    const tokensToProcess: {
+      contract: string;
+      tokenId: string;
+      uri: string;
+      error?: string;
+    }[] = tokensUri;
 
+    if (results?.length) {
       const fallbackTokens: {
         collection: string;
         contract: string;

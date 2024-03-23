@@ -86,6 +86,16 @@ export abstract class KafkaEventHandler {
       "floor_sell_currency_value",
       "normalized_floor_sell_value",
       "normalized_floor_sell_currency_value",
+      "top_buy_value",
+      "day0_volume",
+      "day1_volume",
+      "day7_volume",
+      "day30_volume",
+      "all_time_volume",
+      "day1_floor_sell_value",
+      "day7_floor_sell_value",
+      "day30_floor_sell_value",
+      "non_flagged_floor_sell_value",
     ];
 
     // Handling for fields that should not be converted
