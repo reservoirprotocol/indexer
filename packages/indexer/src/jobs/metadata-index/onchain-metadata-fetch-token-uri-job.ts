@@ -59,13 +59,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       });
     });
 
-    logger.info(
-      this.queueName,
-      `fetchTokens = ${JSON.stringify(fetchTokens)}, tokensUri = ${JSON.stringify(
-        tokensUri
-      )}, filteredFetchTokens=${JSON.stringify(filteredFetchTokens)}`
-    );
-
     let results: {
       contract: string;
       tokenId: string;
@@ -76,7 +69,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
     if (!_.isEmpty(filteredFetchTokens)) {
       try {
         results = await onchainMetadataProvider._getTokensMetadataUri(filteredFetchTokens);
-        logger.info(this.queueName, `results = ${JSON.stringify(results)}`);
       } catch (e) {
         if (e instanceof RequestWasThrottledError) {
           logger.warn(
@@ -178,26 +170,6 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
     }
 
     if (tokensToProcess.length) {
-      // for (const tokenToProcess of tokensToProcess) {
-      //   const tokenMetadataIndexingDebug = tokenMetadataIndexingDebugContracts.find(
-      //     (t) => t.contract === tokenToProcess.contract && t.tokenMetadataIndexingDebug
-      //   );
-      //
-      //   if (tokenMetadataIndexingDebug) {
-      //     logger.info(
-      //       this.queueName,
-      //       JSON.stringify({
-      //         topic: "tokenMetadataIndexingDebug",
-      //         message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
-      //         tokenToProcess,
-      //         _getTokensMetadataUriLatency,
-      //         fetchTokensCount: fetchTokens.length,
-      //       })
-      //     );
-      //   }
-      // }
-
-      logger.info(this.queueName, `tokensToProcess = ${JSON.stringify(tokensToProcess)}`);
       await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
     }
 
