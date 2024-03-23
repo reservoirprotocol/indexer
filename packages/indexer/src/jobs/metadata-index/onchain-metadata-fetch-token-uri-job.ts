@@ -196,6 +196,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
         //   }
         // }
 
+        logger.info(this.queueName, `tokensToProcess = ${JSON.stringify(tokensToProcess)}`);
         await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
       }
 
