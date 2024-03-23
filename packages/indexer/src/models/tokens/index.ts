@@ -421,25 +421,21 @@ export class Tokens {
       uri: string;
     }[]
   > {
-    let tokensFilter = "";
-    const values = {};
-    let i = 0;
+    const columns = new pgp.helpers.ColumnSet(["contract", "token_id"], { table: "tokens" });
 
-    _.map(tokens, (token) => {
-      tokensFilter += `($/contract${i}/, $/token${i}/),`;
-      (values as any)[`contract${i}`] = toBuffer(token.contract);
-      (values as any)[`token${i}`] = token.tokenId;
-      ++i;
-    });
+    const data = tokens.map((activity) => ({
+      contract: toBuffer(activity.contract),
+      token_id: activity.tokenId,
+    }));
 
     const query = `
       SELECT contract, token_id, token_uri
       FROM tokens
-      WHERE (contract, token_id) IN (${tokensFilter})
+      WHERE (contract, token_id) IN (${pgp.helpers.values(data, columns)})
       AND token_uri IS NOT NULL
     `;
 
-    const result = await redb.manyOrNone(query, values);
+    const result = await redb.manyOrNone(query);
 
     return _.map(result, (r) => ({
       contract: fromBuffer(r.contract),
