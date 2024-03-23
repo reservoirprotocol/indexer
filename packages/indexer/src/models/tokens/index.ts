@@ -412,6 +412,42 @@ export class Tokens {
     }));
   }
 
+  public static async getMultipleContractsTokensUri(
+    tokens: { contract: string; tokenId: string }[]
+  ): Promise<
+    {
+      contract: string;
+      tokenId: string;
+      uri: string;
+    }[]
+  > {
+    let tokensFilter = "";
+    const values = {};
+    let i = 0;
+
+    _.map(tokens, (token) => {
+      tokensFilter += `($/contract${i}/, $/token${i}/),`;
+      (values as any)[`contract${i}`] = toBuffer(token.contract);
+      (values as any)[`token${i}`] = token.tokenId;
+      ++i;
+    });
+
+    const query = `
+      SELECT contract, token_id, token_uri
+      FROM tokens
+      WHERE (contract, token_id) IN (${tokensFilter})
+      AND token_uri IS NOT NULL
+    `;
+
+    const result = await redb.manyOrNone(query, values);
+
+    return _.map(result, (r) => ({
+      contract: fromBuffer(r.contract),
+      tokenId: r.token_id,
+      uri: r.token_uri,
+    }));
+  }
+
   /**
    * Get top bids for tokens within multiple contracts, this is not the most efficient query, if the intention is to get
    * top bid for tokens which are all in the same contract, better to use getTokensTopBid
