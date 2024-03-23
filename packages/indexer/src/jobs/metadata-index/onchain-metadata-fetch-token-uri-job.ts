@@ -59,6 +59,13 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       });
     });
 
+    logger.info(
+      this.queueName,
+      `fetchTokens = ${JSON.stringify(fetchTokens)}, tokensUri = ${JSON.stringify(
+        tokensUri
+      )}, filteredFetchTokens=${filteredFetchTokens}`
+    );
+
     let results: {
       contract: string;
       tokenId: string;
@@ -69,6 +76,7 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
     if (!_.isEmpty(filteredFetchTokens)) {
       try {
         results = await onchainMetadataProvider._getTokensMetadataUri(filteredFetchTokens);
+        logger.info(this.queueName, `results = ${JSON.stringify(results)}`);
       } catch (e) {
         if (e instanceof RequestWasThrottledError) {
           logger.warn(
