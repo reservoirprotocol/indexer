@@ -107,13 +107,13 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
       error?: string;
     }[] = tokensUri;
 
-    if (results?.length) {
-      const fallbackTokens: {
-        collection: string;
-        contract: string;
-        tokenId: string;
-      }[] = [];
+    const fallbackTokens: {
+      collection: string;
+      contract: string;
+      tokenId: string;
+    }[] = [];
 
+    if (results?.length) {
       // Filter out tokens that have no metadata
       for (const result of results) {
         if (result.uri) {
@@ -175,47 +175,47 @@ export default class OnchainMetadataFetchTokenUriJob extends AbstractRabbitMqJob
           }
         }
       }
+    }
 
-      if (tokensToProcess.length) {
-        // for (const tokenToProcess of tokensToProcess) {
-        //   const tokenMetadataIndexingDebug = tokenMetadataIndexingDebugContracts.find(
-        //     (t) => t.contract === tokenToProcess.contract && t.tokenMetadataIndexingDebug
-        //   );
-        //
-        //   if (tokenMetadataIndexingDebug) {
-        //     logger.info(
-        //       this.queueName,
-        //       JSON.stringify({
-        //         topic: "tokenMetadataIndexingDebug",
-        //         message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
-        //         tokenToProcess,
-        //         _getTokensMetadataUriLatency,
-        //         fetchTokensCount: fetchTokens.length,
-        //       })
-        //     );
-        //   }
-        // }
+    if (tokensToProcess.length) {
+      // for (const tokenToProcess of tokensToProcess) {
+      //   const tokenMetadataIndexingDebug = tokenMetadataIndexingDebugContracts.find(
+      //     (t) => t.contract === tokenToProcess.contract && t.tokenMetadataIndexingDebug
+      //   );
+      //
+      //   if (tokenMetadataIndexingDebug) {
+      //     logger.info(
+      //       this.queueName,
+      //       JSON.stringify({
+      //         topic: "tokenMetadataIndexingDebug",
+      //         message: `onchainMetadataProcessTokenUriJob. contract=${tokenToProcess.contract}, tokenId=${tokenToProcess.tokenId}, uri=${tokenToProcess.uri}, error=${tokenToProcess.error}`,
+      //         tokenToProcess,
+      //         _getTokensMetadataUriLatency,
+      //         fetchTokensCount: fetchTokens.length,
+      //       })
+      //     );
+      //   }
+      // }
 
-        logger.info(this.queueName, `tokensToProcess = ${JSON.stringify(tokensToProcess)}`);
-        await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
-      }
+      logger.info(this.queueName, `tokensToProcess = ${JSON.stringify(tokensToProcess)}`);
+      await onchainMetadataProcessTokenUriJob.addToQueueBulk(tokensToProcess);
+    }
 
-      if (config.fallbackMetadataIndexingMethod && fallbackTokens.length) {
-        await metadataIndexFetchJob.addToQueue(
-          fallbackTokens.map((fallbackToken) => ({
-            kind: "single-token",
-            data: {
-              method: config.fallbackMetadataIndexingMethod!,
-              contract: fallbackToken.contract,
-              tokenId: fallbackToken.tokenId,
-              collection: fallbackToken.collection,
-            },
-            context: this.queueName,
-          })),
-          true,
-          30
-        );
-      }
+    if (config.fallbackMetadataIndexingMethod && fallbackTokens.length) {
+      await metadataIndexFetchJob.addToQueue(
+        fallbackTokens.map((fallbackToken) => ({
+          kind: "single-token",
+          data: {
+            method: config.fallbackMetadataIndexingMethod!,
+            contract: fallbackToken.contract,
+            tokenId: fallbackToken.tokenId,
+            collection: fallbackToken.collection,
+          },
+          context: this.queueName,
+        })),
+        true,
+        30
+      );
     }
 
     // If there are potentially more token uris to process, trigger another job
