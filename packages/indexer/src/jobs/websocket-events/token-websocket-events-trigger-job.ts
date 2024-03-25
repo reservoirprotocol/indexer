@@ -14,7 +14,6 @@ import { Assets, ImageSize } from "@/utils/assets";
 import * as Sdk from "@reservoir0x/sdk";
 import { Sources } from "@/models/sources";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { redis } from "@/common/redis";
 import { publishKafkaEvent } from "@/jobs/websocket-events/utils";
 
 export type TokenWebsocketEventsTriggerJobPayload =
@@ -278,10 +277,6 @@ export class TokenWebsocketEventsTriggerJob extends AbstractRabbitMqJobHandler {
                     token: `${contract}:${tokenId}`,
                   })
                 );
-
-                if (config.chainId === 137) {
-                  redis.sadd("metadata-indexing-debug-contracts", contract);
-                }
               }
             } catch (error) {
               logger.error(

@@ -160,14 +160,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       );
 
       if (!tokenExists) {
-        logger.info(
-          "opensea-websocket-item-metadata-update-event",
-          JSON.stringify({
-            message: `Token does not exist. contract=${contract}, tokenId=${tokenId}, network=${network}`,
-            event: JSON.stringify(event),
-          })
-        );
-
         return;
       }
 

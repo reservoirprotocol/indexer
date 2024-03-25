@@ -55,6 +55,23 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       payload.data.collection
     );
 
+    if (config.chainId === 1) {
+      logger.info(
+        this.queueName,
+        JSON.stringify({
+          topic: "debugQuickNodeUsage",
+          message: `Start. collection=${payload.data.collection}, tokenId=${
+            payload.kind === "single-token" ? payload.data.tokenId : ""
+          }`,
+          payload,
+          token:
+            payload.kind === "single-token"
+              ? `${payload.data.collection}:${payload.data.tokenId}`
+              : undefined,
+        })
+      );
+    }
+
     if (tokenMetadataIndexingDebug) {
       logger.info(
         this.queueName,
