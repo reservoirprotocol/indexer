@@ -105,7 +105,10 @@ export const isCosignedOrder = (params: Types.OrderComponents, chainId: number) 
   // Only includes orders for which we can generate the signature locally.
   // Other types of cosigned orders (eg. OpenSea, Okx) should have special
   // handling at the router level for generating the cosignature.
-  [BaseAddresses.ReservoirCancellationZone[chainId]].includes(params.zone);
+  [
+    BaseAddresses.ReservoirCancellationZone[chainId],
+    BaseAddresses.ReservoirV16CancellationZone[chainId],
+  ].includes(params.zone);
 
 export const constructPrivateListingCounterOrder = (
   orderMaker: string,

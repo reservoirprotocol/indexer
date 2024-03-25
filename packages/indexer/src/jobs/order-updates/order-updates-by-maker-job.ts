@@ -69,6 +69,27 @@ export type OrderUpdatesByMakerJobPayload = {
       };
 };
 
+// Revalidation of some cosigned orders will be skipped
+const isCosignedOrder = (seaportZone?: string, ppCosigner?: string) => {
+  // Payment processor
+  if (ppCosigner && ppCosigner !== AddressZero) {
+    return true;
+  }
+
+  // Seaport
+  if (
+    seaportZone &&
+    [
+      Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
+      Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId],
+    ].includes(seaportZone)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
   queueName = "order-updates-by-maker";
   maxRetries = 10;
@@ -392,6 +413,8 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
                 orders.id,
                 orders.source_id_int,
                 orders.fillability_status AS old_status,
+                orders.raw_data->>'zone' as seaport_zone,
+                orders.raw_data->>'cosigner' as pp_cosigner,
                 orders.kind,
                 (CASE
                   WHEN nft_balances.amount >= orders.quantity_remaining THEN 'fillable'
@@ -433,6 +456,8 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             .filter(({ new_status, kind }) =>
               ["sudoswap", "sudoswap-v2", "nftx"].includes(kind) ? new_status !== "fillable" : true
             )
+            // Exclude cosigned orders
+            .filter(({ seaport_zone, pp_cosigner }) => !isCosignedOrder(seaport_zone, pp_cosigner))
             // Some orders should never get revalidated
             .map((data) =>
               data.new_status === "no-balance" &&
@@ -490,6 +515,8 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
                 orders.kind,
                 orders.source_id_int,
                 orders.approval_status AS old_status,
+                orders.raw_data->>'zone' as seaport_zone,
+                orders.raw_data->>'cosigner' as pp_cosigner,
                 x.new_status,
                 x.expiration
               FROM orders
@@ -530,6 +557,8 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             // TODO: Is the below filtering needed anymore?
             // Exclude escrowed orders
             .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
+            // Exclude cosigned orders
+            .filter(({ seaport_zone, pp_cosigner }) => !isCosignedOrder(seaport_zone, pp_cosigner))
             .map(({ id, new_status, expiration }) => ({
               id,
               approval_status: new_status,
