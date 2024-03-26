@@ -523,9 +523,7 @@ export const getCollectionsV7Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-            ORDER BY rarity_rank ${query.sortDirection} NULLS ${
-        query.sortDirection === "asc" ? "FIRST" : "LAST"
-      }
+            ORDER BY rarity_rank DESC NULLS LAST
             LIMIT 4
           ) AS sample_images
         FROM collections

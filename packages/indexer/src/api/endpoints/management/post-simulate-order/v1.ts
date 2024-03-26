@@ -275,6 +275,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
         "0x99f419934192f8de7bf53b490d5bdb88527654bf:1",
         // Valeria Games Genesis Lands
         "0x2187093a2736442d0b5c5d5464b98fc703e3b88d:1",
+        // Potatoz
+        "0x39ee2c7b3cb80254225884ca001f57118c8f21b6:1",
         // y00ts
         "0x670fd103b1a08628e9557cd66b87ded841115190:137",
       ];
