@@ -224,6 +224,7 @@ export class IndexerTokensHandler extends KafkaEventHandler {
                   contract: payload.after.contract,
                   tokenId: payload.after.token_id,
                   collection: collection?.id || payload.after.contract,
+                  force: true,
                 },
                 context: "IndexerTokensHandler",
               },

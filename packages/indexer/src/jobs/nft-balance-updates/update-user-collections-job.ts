@@ -50,6 +50,7 @@ export default class UpdateUserCollectionsJob extends AbstractRabbitMqJobHandler
                 contract,
                 tokenId,
                 collection: contract,
+                force: true,
               },
               context: "update-user-collections",
             },

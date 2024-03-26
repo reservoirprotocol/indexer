@@ -192,6 +192,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
                     contract,
                     tokenId,
                     collection: collection?.id || contract,
+                    force: true,
                   },
                   context: "kafka-event-handler",
                 },

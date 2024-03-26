@@ -72,6 +72,7 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
                 contract,
                 tokenId,
                 collection: collection?.id || contract,
+                force: true,
               },
               context: this.queueName,
             },

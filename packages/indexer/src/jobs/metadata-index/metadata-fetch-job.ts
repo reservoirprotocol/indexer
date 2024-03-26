@@ -9,7 +9,8 @@ import { AddressZero } from "@ethersproject/constants";
 import { metadataIndexProcessJob } from "@/jobs/metadata-index/metadata-process-job";
 import { onchainMetadataFetchTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-fetch-token-uri-job";
 import { isOpenseaSlugSharedContract } from "@/metadata/extend";
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
+import { onchainMetadataProcessTokenUriJob } from "@/jobs/metadata-index/onchain-metadata-process-token-uri-job";
 
 export type MetadataIndexFetchJobPayload =
   | {
@@ -29,6 +30,7 @@ export type MetadataIndexFetchJobPayload =
         contract: string;
         tokenId: string;
         isFallback?: boolean;
+        force?: boolean;
       };
       context?: string;
     };
@@ -54,6 +56,27 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       "metadata-indexing-debug-contracts",
       payload.data.collection
     );
+
+    if (config.chainId === 1 && payload.kind === "single-token" && !payload.data.force) {
+      const lockAcquired = await acquireLock(
+        `metadata-index-fetch-queue:single-token:${payload.data.collection}:${payload.data.tokenId}`,
+        60
+      );
+
+      if (!lockAcquired) {
+        logger.info(
+          this.queueName,
+          JSON.stringify({
+            topic: "debugQuickNodeUsage",
+            message: `Already processing. collection=${payload.data.collection}, tokenId=${payload.data.tokenId}`,
+            payload,
+            token: `${payload.data.collection}:${payload.data.tokenId}`,
+          })
+        );
+
+        return;
+      }
+    }
 
     if (config.chainId === 1) {
       logger.info(
@@ -144,7 +167,44 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
         data.method = "simplehash";
       }
 
-      // Create the single token from the params
+      if (config.chainId === 1 && data.method === "onchain" && !payload.data.force) {
+        const { tokenUri } = await redb.oneOrNone(
+          `SELECT tokens.token_uri AS "tokenUri"
+                       FROM tokens
+                       WHERE tokens.collection_id = $/collection/
+                       AND tokens.token_id = $/tokenId/
+                       AND tokens.token_uri IS NOT NULL
+                       LIMIT 1`,
+          {
+            collection: data.collection,
+            tokenId: data.tokenId,
+          }
+        );
+
+        if (tokenUri) {
+          redis.sadd("metadata-indexing-debug-contracts", payload.data.contract);
+
+          logger.info(
+            this.queueName,
+            JSON.stringify({
+              topic: "debugQuickNodeUsage",
+              message: `Skip Fetch Token Uri. collection=${payload.data.collection}, tokenId=${payload.data.tokenId}, tokenUri=${tokenUri}`,
+              payload,
+              token: `${payload.data.collection}:${payload.data.tokenId}`,
+              tokenUri,
+            })
+          );
+
+          await onchainMetadataProcessTokenUriJob.addToQueue({
+            contract: data.contract,
+            tokenId: data.tokenId,
+            uri: tokenUri,
+          });
+
+          return;
+        }
+      }
+
       refreshTokens.push({
         collection: data.collection,
         contract: data.contract,

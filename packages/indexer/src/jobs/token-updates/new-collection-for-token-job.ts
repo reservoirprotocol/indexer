@@ -268,6 +268,7 @@ export class NewCollectionForTokenJob extends AbstractRabbitMqJobHandler {
                 contract,
                 tokenId,
                 collection: collection.id,
+                force: true,
               },
               context: this.queueName,
             },

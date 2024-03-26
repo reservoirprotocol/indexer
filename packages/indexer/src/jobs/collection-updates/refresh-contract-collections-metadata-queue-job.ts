@@ -72,6 +72,7 @@ export default class RefreshContractCollectionsMetadataQueueJob extends Abstract
               contract: contract,
               tokenId: contractToken.token_id,
               collection: contract,
+              force: true,
             },
             context: this.queueName,
           },
