@@ -150,7 +150,11 @@ export class FeeRecipients {
     );
 
     if (entity) {
-      logger.warn("fee-recipients", `address ${address} already exist with kind ${entity.kind}`);
+      logger.warn(
+        "fee-recipients",
+        `address ${address} already exist recipient=${JSON.stringify(entity)}`
+      );
+      return new FeeRecipientEntity(entity);
     }
 
     // Create the new fee recipient

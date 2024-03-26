@@ -87,7 +87,7 @@ export const masterNonceInvalidated: EventData = {
   subKind: "payment-processor-v2-master-nonce-invalidated",
   addresses: { [PaymentProcessorV2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x9614574d6542397172c19ba2bf4588434feeb977576e92b7b59b38242ab59609",
-  numTopics: 3,
+  numTopics: 2,
   abi: new Interface([
     `event MasterNonceInvalidated(
       address indexed account,
