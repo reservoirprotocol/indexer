@@ -4822,7 +4822,7 @@ export class Router {
 
         case "seaport-v1.6": {
           const order = detail.order as Sdk.SeaportV16.Order;
-          const module = this.contracts.seaportV15Module;
+          const module = this.contracts.seaportV16Module;
 
           const matchParams = order.buildMatching({
             tokenId: detail.tokenId,

@@ -109,6 +109,18 @@ export const isBlockedByCustomLogic = async (
     }
 
     if (
+      config.chainId === 137 &&
+      [
+        "0x4768cbf202f365fbf704b9b9d397551a0443909b",
+        "0xb6fd6ba3fc87816e1a5450a02f69577dfa46a475",
+      ].includes(contract) &&
+      operators.includes(OPENSEA)
+    ) {
+      result = true;
+      blacklist = [OPENSEA];
+    }
+
+    if (
       config.chainId === 1 &&
       ["0xcc7542d4736fca6df3a13615a49d0e1f510ef510"].includes(contract) &&
       !operators.includes(OPENSEA)
