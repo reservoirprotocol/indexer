@@ -73,7 +73,7 @@ export type OrderUpdatesByMakerJobPayload = {
 const isCosignedOrder = (seaportZone?: string, ppCosigner?: string) => {
   // Payment processor
   if (ppCosigner && ppCosigner !== AddressZero) {
-    return false; // return true;
+    return true;
   }
 
   // Seaport
@@ -84,7 +84,7 @@ const isCosignedOrder = (seaportZone?: string, ppCosigner?: string) => {
       Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId],
     ].includes(seaportZone)
   ) {
-    return false; // return true;
+    return true;
   }
 
   return false;
@@ -456,8 +456,10 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             .filter(({ new_status, kind }) =>
               ["sudoswap", "sudoswap-v2", "nftx"].includes(kind) ? new_status !== "fillable" : true
             )
-            // Exclude cosigned orders
-            .filter(({ seaport_zone, pp_cosigner }) => !isCosignedOrder(seaport_zone, pp_cosigner))
+            // Do not revalidate cosigned orders
+            .filter(({ seaport_zone, pp_cosigner, new_status }) =>
+              isCosignedOrder(seaport_zone, pp_cosigner) ? new_status !== "fillable" : true
+            )
             // Some orders should never get revalidated
             .map((data) =>
               data.new_status === "no-balance" &&
@@ -557,8 +559,10 @@ export default class OrderUpdatesByMakerJob extends AbstractRabbitMqJobHandler {
             // TODO: Is the below filtering needed anymore?
             // Exclude escrowed orders
             .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
-            // Exclude cosigned orders
-            .filter(({ seaport_zone, pp_cosigner }) => !isCosignedOrder(seaport_zone, pp_cosigner))
+            // Do not revalidate cosigned orders
+            .filter(({ seaport_zone, pp_cosigner, new_status }) =>
+              isCosignedOrder(seaport_zone, pp_cosigner) ? new_status !== "fillable" : true
+            )
             .map(({ id, new_status, expiration }) => ({
               id,
               approval_status: new_status,
