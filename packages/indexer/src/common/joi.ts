@@ -20,7 +20,6 @@ import {
   getUSDAndNativePrices,
   isWhitelistedCurrency,
 } from "@/utils/prices";
-import { logger } from "@/common/logger";
 
 // --- Prices ---
 
@@ -79,15 +78,6 @@ export const getJoiAmountObject = async (
   usdAmount?: string,
   totalFeeBps?: number
 ) => {
-  if (config.chainId === 1 && !amount) {
-    logger.info(
-      "getJoiAmountObject-debug",
-      `currency=${JSON.stringify(
-        currency
-      )}, amount=${amount}, nativeAmount=${nativeAmount}, usdAmount=${usdAmount}, totalFeeBps=${totalFeeBps}`
-    );
-  }
-
   let usdPrice = usdAmount;
   if (amount && !usdPrice) {
     usdPrice = (

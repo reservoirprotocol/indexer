@@ -73,7 +73,7 @@ export type OrderUpdatesByMakerJobPayload = {
 const isCosignedOrder = (seaportZone?: string, ppCosigner?: string) => {
   // Payment processor
   if (ppCosigner && ppCosigner !== AddressZero) {
-    return true;
+    return false; // return true;
   }
 
   // Seaport
@@ -84,7 +84,7 @@ const isCosignedOrder = (seaportZone?: string, ppCosigner?: string) => {
       Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId],
     ].includes(seaportZone)
   ) {
-    return true;
+    return false; // return true;
   }
 
   return false;
