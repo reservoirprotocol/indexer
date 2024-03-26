@@ -5,6 +5,7 @@ import { searchForCalls } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
+import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
@@ -68,7 +69,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         onChainData.bulkCancelEvents.push({
           orderKind: "payment-processor-v2",
           maker,
-          minNonce: newNonce,
+          minNonce: bn(newNonce).add(1).toString(),
           acrossAll: true,
           baseEventParams,
         });

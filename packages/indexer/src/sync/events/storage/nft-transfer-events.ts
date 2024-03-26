@@ -42,6 +42,23 @@ export type DbEvent = {
   kind: "airdrop" | "mint" | "burn" | null;
 };
 
+export const whitelistedRelayers = [
+  "0x267bfe2905dccec10cb22115ca1d0b1da11ddad5",
+  "0x965ef172b303b0bcdc38669df1de3c26bad2db8a",
+  "0x81f91aca8c05b3eefebc00171139afefac17c9a6",
+  "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+  "0xb6bc506d4c191d61df37bb058ed061337a848dd9",
+  "0x2956be76d7164486ad89aa748db054ff91ffbfcd",
+  "0x2d93c2f74b2c4697f9ea85d0450148aa45d4d5a2",
+  "0x56ad2cd6ad6f52c72181b93ac66d5dc887c3d0bd",
+  "0xbe0c12b56aa9b4f5dde36c733b3a2997ed775a4f",
+  "0x3a4afca659f54922a0d7a7b0bebabf641dec66bb",
+  "0xf6ea479f30a71cc8cb28dc28f9a94246e1edc492",
+  "0x855a4621d491ff98bc3d02eadbc108403887561c",
+  "0x3f6b7c4870de594418d7c52f32de501edec75673",
+  "0x3d5750d305f8d9c133faceaa92a2e46558130371",
+];
+
 type erc721Token = {
   collection_id: string;
   contract: Buffer;
@@ -181,10 +198,12 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           erc1155TransfersPerTx[fromBuffer(event.tx_hash)] = [];
         }
 
-        erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push({
-          to: fromBuffer(event.to),
-          contract: fromBuffer(event.address),
-        });
+        if (!whitelistedRelayers.includes(fromBuffer(event.from).toLowerCase())) {
+          erc1155TransfersPerTx[fromBuffer(event.tx_hash)].push({
+            to: fromBuffer(event.to),
+            contract: fromBuffer(event.address),
+          });
+        }
       }
 
       // Atomically insert the transfer events and update balances
