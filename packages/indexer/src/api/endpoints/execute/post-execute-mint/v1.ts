@@ -81,6 +81,9 @@ export const postExecuteMintV1Options: RouteOptions = {
               }).required(),
             }).description("Optional custom details to use for minting."),
             quantity: Joi.number().integer().positive().description("Quantity of tokens to mint."),
+            preferredMintStage: Joi.string()
+              .optional()
+              .description("Optionally specify a stage to mint"),
           })
             .oxor("token", "collection", "custom")
             .or("token", "collection", "custom")
@@ -332,6 +335,7 @@ export const postExecuteMintV1Options: RouteOptions = {
           };
         };
         quantity: number;
+        preferredMintStage?: string;
         originalItemIndex?: number;
       }[] = payload.items;
 
@@ -457,6 +461,7 @@ export const postExecuteMintV1Options: RouteOptions = {
             // Fetch any open mints on the collection which the taker is elligible for
             const openMints = await mints.getCollectionMints(item.collection, {
               status: "open",
+              stage: item.preferredMintStage,
             });
 
             for (const mint of openMints) {
@@ -585,6 +590,7 @@ export const postExecuteMintV1Options: RouteOptions = {
             const openMints = await mints.getCollectionMints(collectionData.id, {
               status: "open",
               tokenId,
+              stage: item.preferredMintStage,
             });
 
             for (const mint of openMints) {

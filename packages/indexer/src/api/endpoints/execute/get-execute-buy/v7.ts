@@ -102,6 +102,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .description(
                 "Optionally specify a particular fill method. Only relevant when filling via `collection`."
               ),
+            preferredMintStage: Joi.string()
+              .optional()
+              .description("Optionally specify a stage to mint"),
             preferredOrderSource: Joi.string()
               .lowercase()
               .pattern(regex.domain)
@@ -578,6 +581,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         };
         quantity: number;
         preferredOrderSource?: string;
+        preferredMintStage?: string;
         exactOrderSource?: string;
         exclusions?: {
           orderId: string;
@@ -900,6 +904,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               // Fetch any open mints on the collection which the taker is elligible for
               const openMints = await mints.getCollectionMints(item.collection, {
                 status: "open",
+                stage: item.preferredMintStage,
               });
 
               for (const mint of openMints) {
@@ -1090,6 +1095,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 fillType: item.fillType,
                 quantity: 1,
                 originalItemIndex: itemIndex,
+                preferredMintStage: item.preferredMintStage,
               });
             }
 
@@ -1132,6 +1138,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               const openMints = await mints.getCollectionMints(collectionData.id, {
                 status: "open",
                 tokenId,
+                stage: item.preferredMintStage,
               });
 
               for (const mint of openMints) {
