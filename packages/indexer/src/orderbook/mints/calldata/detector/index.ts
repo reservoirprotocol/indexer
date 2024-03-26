@@ -31,6 +31,7 @@ import * as fairxyz from "@/orderbook/mints/calldata/detector/fairxyz";
 import * as fabric from "@/orderbook/mints/calldata/detector/fabric";
 import * as paragraph from "@/orderbook/mints/calldata/detector/paragraph";
 import * as mirror from "@/orderbook/mints/calldata/detector/mirror";
+import * as nfts2me from "@/orderbook/mints/calldata/detector/nfts2me";
 
 export {
   artblocks,
@@ -51,6 +52,7 @@ export {
   fabric,
   paragraph,
   mirror,
+  nfts2me,
 };
 
 export const extractByTx = async (txHash: string, skipCache = false) => {
@@ -298,6 +300,12 @@ export const extractByTx = async (txHash: string, skipCache = false) => {
   const mirrorResults = await mirror.extractByTx(collection, tx);
   if (mirrorResults.length) {
     return mirrorResults;
+  }
+
+  // Nfts2me
+  const nfts2meResults = await nfts2me.extractByTx(collection, tx);
+  if (nfts2meResults.length) {
+    return nfts2meResults;
   }
 
   // Generic via `mintConfig`

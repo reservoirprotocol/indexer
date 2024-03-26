@@ -30,7 +30,8 @@ export type CollectionMintStandard =
   | "fairxyz"
   | "fabric"
   | "paragraph"
-  | "mirror";
+  | "mirror"
+  | "nfts2me";
 
 export type CollectionMintDetails = {
   tx: MintTxSchema;
