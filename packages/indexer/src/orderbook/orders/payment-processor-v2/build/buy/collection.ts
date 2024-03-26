@@ -21,8 +21,7 @@ export const build = async (options: BuildOrderOptions) => {
       collection: options.collection,
     }
   );
-  if (!collectionResult?.id || collectionResult.id.includes(":")) {
-    // Skip if the collection is not available or not supported (eg. range or list collection)
+  if (!collectionResult?.id) {
     throw new Error("Could not fetch collection");
   }
 
