@@ -26,6 +26,7 @@ export type CollectionPaymentSettings = {
   constrainedPricingPaymentMethod: string;
   royaltyBackfillNumerator: number;
   royaltyBountyNumerator: number;
+  royaltyBackfillReceiver: string;
   isRoyaltyBountyExclusive: boolean;
   blockTradesFromUntrustedChannels: boolean;
   blockBannedAccounts: boolean;
@@ -71,6 +72,12 @@ export const getConfigByContract = async (
               bool blockBannedAccounts
             )
           )`,
+          `function collectionRoyaltyBackfillSettings(address token) view returns (
+            (
+              uint16 royaltyBackfillNumerator,
+              address royaltyBackfillReceiver
+            )
+          )`,
           "function getFloorPrice(address token, uint256 tokenId) view returns (uint256)",
           "function getCeilingPrice(address token, uint256 tokenId) view returns (uint256)",
         ]),
@@ -78,6 +85,7 @@ export const getConfigByContract = async (
       );
 
       const paymentSettings = await exchange.collectionPaymentSettings(contract);
+      const royaltyBackfill = await exchange.collectionRoyaltyBackfillSettings(contract);
 
       result = {
         paymentSettings: paymentSettings.paymentSettings,
@@ -85,6 +93,7 @@ export const getConfigByContract = async (
           paymentSettings.constrainedPricingPaymentMethod.toLowerCase(),
         royaltyBackfillNumerator: paymentSettings.royaltyBackfillNumerator,
         royaltyBountyNumerator: paymentSettings.royaltyBountyNumerator,
+        royaltyBackfillReceiver: royaltyBackfill.royaltyBackfillReceiver.toLowerCase(),
         isRoyaltyBountyExclusive: paymentSettings.isRoyaltyBountyExclusive,
         blockTradesFromUntrustedChannels: paymentSettings.blockTradesFromUntrustedChannels,
         blockBannedAccounts: paymentSettings.blockBannedAccounts,

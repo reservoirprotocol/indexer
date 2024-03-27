@@ -152,8 +152,11 @@ export class FeeRecipients {
     if (entity) {
       logger.warn(
         "fee-recipients",
-        `address ${address} already exist recipient=${JSON.stringify(entity)}`
+        `address ${address} already exist recipient=${JSON.stringify(entity)} stack=${
+          new Error().stack
+        }`
       );
+
       return new FeeRecipientEntity(entity);
     }
 

@@ -194,6 +194,10 @@ export const save = async (
         });
       }
 
+      const isProtectedOffer =
+        Sdk.SeaportBase.Addresses.OpenSeaV16ProtectedOffersZone[config.chainId] ===
+          order.params.zone && info.side === "buy";
+
       // Check: order has a known zone
       if (order.params.orderType > 1) {
         if (
@@ -202,7 +206,9 @@ export const save = async (
             AddressZero,
             // Reservoir cancellation zone
             Sdk.SeaportBase.Addresses.ReservoirV16CancellationZone[config.chainId],
-          ].includes(order.params.zone)
+          ].includes(order.params.zone) &&
+          // Protected offers zone
+          !isProtectedOffer
         ) {
           return results.push({
             id,
