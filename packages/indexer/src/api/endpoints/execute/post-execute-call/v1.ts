@@ -194,6 +194,17 @@ export const postExecuteCallV1Options: RouteOptions = {
         },
       });
 
+      logger.info(
+        "debug",
+        JSON.stringify({
+          requestId,
+          shortRequestId,
+          cost: cost.toString(),
+          price,
+          relayerFee,
+        })
+      );
+
       return {
         steps,
         fees: {
