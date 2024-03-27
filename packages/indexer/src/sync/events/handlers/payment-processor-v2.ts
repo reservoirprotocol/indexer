@@ -540,17 +540,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const tokenAddress = parsedLog.args["tokenAddress"].toLowerCase();
 
         // Refresh
-        await paymentProcessorV2Utils.getConfigByContract(tokenAddress, true);
-
-        // Update backfilled royalties
-        const royaltyBackfillReceiver = parsedLog.args["royaltyBackfillReceiver"].toLowerCase();
-        const royaltyBackfillNumerator = parsedLog.args["royaltyBackfillNumerator"];
-        await paymentProcessorV2Utils.saveBackfilledRoyalties(tokenAddress, [
-          {
-            recipient: royaltyBackfillReceiver,
-            bps: royaltyBackfillNumerator,
-          },
-        ]);
+        const config = await paymentProcessorV2Utils.getConfigByContract(tokenAddress, true);
+        if (config) {
+          // Update backfilled royalties
+          await paymentProcessorV2Utils.saveBackfilledRoyalties(tokenAddress, [
+            {
+              recipient: config.royaltyBackfillReceiver,
+              bps: config.royaltyBackfillNumerator,
+            },
+          ]);
+        }
 
         break;
       }
