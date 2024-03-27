@@ -175,6 +175,7 @@ export const config = {
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
   enableElasticsearchAsks: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_ASKS)),
+  deleteExpiredBidsElasticsearch: Boolean(Number(process.env.DELETE_EXPIRED_BIDS_ELASTICSEARCH)),
 
   // RabbitMq
   rabbitHttpUrl: `http://${String(process.env.RABBIT_USERNAME)}:${String(

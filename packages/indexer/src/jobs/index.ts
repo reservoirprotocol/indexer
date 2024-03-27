@@ -370,6 +370,7 @@ export class RabbitMqJobsConsumer {
       burnedTokenJob,
       publishEventToKafkaStreamJob,
       backfillInvalidatedPPV2OrdersJob,
+      deleteArchivedExpiredBidActivitiesJob,
     ];
   }
 

@@ -10,6 +10,7 @@ import { logger } from "@/common/logger";
 import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-interface";
 import { PendingExpiredBidActivitiesQueue } from "@/elasticsearch/indexes/activities/pending-expired-bid-activities-queue";
 import { deleteArchivedExpiredBidActivitiesJob } from "@/jobs/elasticsearch/activities/delete-archived-expired-bid-activities-job";
+import { config } from "@/config/index";
 
 export class ArchiveBidOrders implements ArchiveInterface {
   static tableName = "orders";
@@ -121,7 +122,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   }
 
   async deleteFromTable(startTime: string, endTime: string) {
-    const limit = 1000;
+    const limit = 5000;
     let deletedOrdersResult;
     let deleteActivities = false;
 
@@ -148,7 +149,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
         )}`
       );
 
-      if (deletedOrdersResult.length) {
+      if (deletedOrdersResult.length && config.deleteExpiredBidsElasticsearch) {
         const pendingExpiredBidActivitiesQueue = new PendingExpiredBidActivitiesQueue();
 
         await pendingExpiredBidActivitiesQueue.add(
