@@ -245,7 +245,6 @@ export const extractByCollectionERC1155 = async (
   minter?: string
 ): Promise<CollectionMint[]> => {
   const results: CollectionMint[] = [];
-
   const c = new Contract(
     collection,
     new Interface([
@@ -288,6 +287,9 @@ export const extractByCollectionERC1155 = async (
         // Skip errors
       }
     }
+
+    defaultMinters.push(Sdk.Zora.Addresses.ERC1155ZoraFixedPriceEMinter[config.chainId]);
+    defaultMinters.push(Sdk.Zora.Addresses.ERC1155ZoraMerkleMinter[config.chainId]);
 
     for (const minter of defaultMinters) {
       // Try both `getPermissions` and `permissions` to cover as many versions as possible
@@ -546,56 +548,82 @@ export const extractByCollectionERC1155 = async (
 
 export const extractByTx = async (
   collection: string,
-  tx: Transaction
+  rawTx: Transaction
 ): Promise<CollectionMint[]> => {
-  // ERC721
-  if (
-    [
-      "0xefef39a1", // `purchase`
-      "0x03ee2733", // `purchaseWithComment`
-      "0x25024a2b", // `purchasePresale`
-      "0x2e706b5a", // `purchasePresaleWithComment`
-      "0x45368181", // `mintWithRewards`
-      "0xae6e7875", // `purchasePresaleWithRewards`
-    ].some((bytes4) => tx.data.startsWith(bytes4))
-  ) {
-    return extractByCollectionERC721(collection);
+  const isMulticall = rawTx.data.includes("0xac9650d8");
+  const nestedTxs: Transaction[] = [rawTx];
+
+  if (isMulticall) {
+    const multicall = new Interface(["function multicall(bytes[] calls)"]).decodeFunctionData(
+      "multicall",
+      rawTx.data
+    );
+
+    for (const call of multicall.calls) {
+      nestedTxs.push({
+        ...rawTx,
+        data: call,
+      });
+    }
   }
 
-  // ERC1155
-  if (
-    [
-      "0x731133e9", // `mint`
-      "0x9dbb844d", // `mintWithRewards`
-      "0xc9a05470", // `premint`
-    ].some((bytes4) => tx.data.startsWith(bytes4))
-  ) {
-    const iface = new Interface([
-      "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
-      "function mintWithRewards(address minter, uint256 tokenId, uint256 quantity, bytes minterArguments, address mintReferral)",
-      "function premint((address, string, string) contractConfig, ((string, uint256, uint64, uint96, uint64, uint64, uint32, uint32, address, address), uint32 tokenId, uint32, bool) premintConfig, bytes signature, uint256 quantityToMint, string mintComment)",
-    ]);
-
-    let tokenId: string;
-    let minter: string | undefined;
-    switch (tx.data.slice(0, 10)) {
-      case "0x731133e9":
-        tokenId = iface.decodeFunctionData("mint", tx.data).tokenId.toString();
-        break;
-
-      case "0x9dbb844d": {
-        const parseArgs = iface.decodeFunctionData("mintWithRewards", tx.data);
-        tokenId = parseArgs.tokenId.toString();
-        minter = parseArgs.minter.toLowerCase();
-        break;
-      }
-
-      case "0xc9a05470":
-        tokenId = String(iface.decodeFunctionData("premint", tx.data).premintConfig.tokenId);
-        break;
+  for (const tx of nestedTxs) {
+    // ERC721
+    if (
+      [
+        "0xefef39a1", // `purchase`
+        "0x03ee2733", // `purchaseWithComment`
+        "0x25024a2b", // `purchasePresale`
+        "0x2e706b5a", // `purchasePresaleWithComment`
+        "0x45368181", // `mintWithRewards`
+        "0xae6e7875", // `purchasePresaleWithRewards`
+      ].some((bytes4) => tx.data.startsWith(bytes4))
+    ) {
+      return extractByCollectionERC721(collection);
     }
 
-    return extractByCollectionERC1155(collection, tokenId!, minter);
+    // ERC1155
+    if (
+      [
+        "0x731133e9", // `mint`
+        "0x9dbb844d", // `mintWithRewards`
+        "0xc9a05470", // `premint`
+        "0xd904b94a", // `callSale`
+      ].some((bytes4) => tx.data.startsWith(bytes4))
+    ) {
+      const iface = new Interface([
+        "function mint(address minter, uint256 tokenId, uint256 quantity, bytes data)",
+        "function mintWithRewards(address minter, uint256 tokenId, uint256 quantity, bytes minterArguments, address mintReferral)",
+        "function premint((address, string, string) contractConfig, ((string, uint256, uint64, uint96, uint64, uint64, uint32, uint32, address, address), uint32 tokenId, uint32, bool) premintConfig, bytes signature, uint256 quantityToMint, string mintComment)",
+        "function callSale(uint256 tokenId, address salesConfig, bytes data)",
+      ]);
+
+      let tokenId: string;
+      let minter: string | undefined;
+      switch (tx.data.slice(0, 10)) {
+        case "0x731133e9":
+          tokenId = iface.decodeFunctionData("mint", tx.data).tokenId.toString();
+          break;
+
+        case "0x9dbb844d": {
+          const parseArgs = iface.decodeFunctionData("mintWithRewards", tx.data);
+          tokenId = parseArgs.tokenId.toString();
+          minter = parseArgs.minter.toLowerCase();
+          break;
+        }
+
+        case "0xd904b94a": {
+          tokenId = iface.decodeFunctionData("callSale", tx.data).tokenId.toString();
+          break;
+        }
+
+        case "0xc9a05470":
+          tokenId = String(iface.decodeFunctionData("premint", tx.data).premintConfig.tokenId);
+          break;
+      }
+
+      return extractByCollectionERC1155(collection, tokenId!, minter);
+    }
   }
 
   return [];

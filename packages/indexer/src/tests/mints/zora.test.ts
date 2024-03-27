@@ -42,4 +42,15 @@ describe("Mints - Zora", () => {
     expect(infos.length).not.toBe(0);
     expect(infos[0]?.details.tx.data.signature).toBe("0x9dbb844d");
   });
+
+  it("multicall", async () => {
+    const collection = `0x48f4724fabf58f710c1f97632a93399e441d8ceb`;
+    const transcation = await utils.fetchTransaction(
+      "0xad0b13a1acac2d99ffaa9d79ea3f8df21e72dc86c03926a1c7a381ec444a72b0"
+    );
+    const infos = await extractByTx(collection, transcation);
+    // console.log("infos", infos)
+    expect(infos.length).not.toBe(0);
+    expect(infos[0]?.details.tx.data.signature).toBe("0x9dbb844d");
+  });
 });

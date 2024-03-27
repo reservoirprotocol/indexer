@@ -39,3 +39,21 @@ export const ERC1155FactoryV2: ChainIdToAddress = {
   [Network.Optimism]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
   [Network.Zora]: "0x777777c338d93e2c7adf08d102d45ca7cc4ed021",
 };
+
+export const ERC1155ZoraFixedPriceEMinter: ChainIdToAddress = {
+  [Network.Ethereum]: "0x04e2516a2c207e84a1839755675dfd8ef6302f0a",
+  [Network.Optimism]: "0x3678862f04290e565cca2ef163baeb92bb76790c",
+  [Network.Base]: "0x04e2516a2c207e84a1839755675dfd8ef6302f0a",
+  [Network.Arbitrum]: "0x1cd1c1f3b8b779b50db23155f2cb244fcca06b21",
+  [Network.Blast]: "0x3eb144aee170bf62fda1536e38af51f08e34a5d0",
+  [Network.Zora]: "0x04e2516a2c207e84a1839755675dfd8ef6302f0a",
+};
+
+export const ERC1155ZoraMerkleMinter: ChainIdToAddress = {
+  [Network.Ethereum]: "0xf48172ca3b6068b20ee4917eb27b5472f1f272c7",
+  [Network.Optimism]: "0x899ce31df6c6af81203acaad285bf539234ef4b8",
+  [Network.Base]: "0xf48172ca3b6068b20ee4917eb27b5472f1f272c7",
+  [Network.Arbitrum]: "0xe770e6f19aecf8ef3145a50087999b5556ab3610",
+  [Network.Blast]: "0xb9c997fcc46a27331cc986cc2416ee99c1d506c3",
+  [Network.Zora]: "0xf48172ca3b6068b20ee4917eb27b5472f1f272c7",
+};
