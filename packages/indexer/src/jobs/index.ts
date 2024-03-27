@@ -193,6 +193,7 @@ import { backfillTokensWithMissingCollectionJob } from "@/jobs/backfill/backfill
 import { recalcOnSaleCountQueueJob } from "@/jobs/collection-updates/recalc-on-sale-count-queue-job";
 import { burnedTokenJob } from "@/jobs/token-updates/burned-token-job";
 import { publishEventToKafkaStreamJob } from "@/jobs/websocket-events/publish-event-to-kafka-stream-job";
+import { backfillInvalidatedPPV2OrdersJob } from "@/jobs/backfill/backfill-invalidated-ppv2-orders";
 
 export const allJobQueues = [
   backfillWrongNftBalances.queue,
@@ -368,6 +369,7 @@ export class RabbitMqJobsConsumer {
       recalcOnSaleCountQueueJob,
       burnedTokenJob,
       publishEventToKafkaStreamJob,
+      backfillInvalidatedPPV2OrdersJob,
     ];
   }
 
