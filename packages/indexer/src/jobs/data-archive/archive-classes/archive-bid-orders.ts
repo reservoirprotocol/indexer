@@ -49,7 +49,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   }
 
   async generateJsonFile(filename: string, startTime: string, endTime: string) {
-    const limit = 5000;
+    const limit = 2000;
     let continuation = "";
     let continuationValues: { updatedAt: number; id: string } = { updatedAt: 0, id: "" };
     let count = 0;
@@ -121,7 +121,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   }
 
   async deleteFromTable(startTime: string, endTime: string) {
-    const limit = 5000;
+    const limit = 1000;
     let deletedOrdersResult;
     let deleteActivities = false;
 
