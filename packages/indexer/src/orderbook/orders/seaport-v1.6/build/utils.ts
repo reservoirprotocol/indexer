@@ -23,7 +23,7 @@ export const getConduitKeyWithDefault = (conduitKey?: string) => {
   // - no conduit (exchange address)
   return (
     conduitKey ??
-    // Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
+    Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId] ??
     Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId] ??
     HashZero
   );
