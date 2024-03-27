@@ -50,7 +50,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   }
 
   async generateJsonFile(filename: string, startTime: string, endTime: string) {
-    const limit = 2000;
+    const limit = 5000;
     let continuation = "";
     let continuationValues: { updatedAt: number; id: string } = { updatedAt: 0, id: "" };
     let count = 0;
