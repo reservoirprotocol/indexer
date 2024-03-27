@@ -23,23 +23,22 @@ export class BackfillInvalidatedPPV2OrdersJob extends AbstractRabbitMqJobHandler
     const disabledOrders: { id: string }[] = await idb.manyOrNone(
       `
           SELECT
-            oe.order_id AS id
+            DISTINCT oe.order_id AS id
           FROM order_events oe
           JOIN tokens ON tokens.contract = oe.contract AND tokens.token_id = oe.token_id
+          JOIN collections ON collections.id = tokens.collection_id
           WHERE oe.contract = $/contract/
           AND oe.kind = 'revalidation'
           AND oe.status = 'cancelled'
           AND OE.created_at < '2024-03-26 18:19:12' AND OE.created_at >= '2024-03-26 18:19:05'
-          AND (tokens.floor_sell_value IS NULL OR oe.price > tokens.floor_sell_value)
+          AND oe.price > collections.floor_sell_value
         `,
       { contract: toBuffer(contract) }
     );
 
-    const uniqueDisabledOrders = [...new Set(disabledOrders.map((order) => order.id))];
-
     // Simulate
     await Promise.all(
-      uniqueDisabledOrders.map((id) =>
+      disabledOrders.map(({ id }) =>
         inject({
           method: "POST",
           url: `/management/orders/simulate/v1`,
