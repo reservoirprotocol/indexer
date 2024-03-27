@@ -38,7 +38,7 @@ export class BackfillDeleteExpiredBidsElasticsearchJob extends AbstractRabbitMqJ
         types: [ActivityType.bid],
         continuation: cursor,
         sortBy: "timestamp",
-        sortDirection: "asc",
+        sortDirection: "desc",
         limit: Number(limit),
       },
       true

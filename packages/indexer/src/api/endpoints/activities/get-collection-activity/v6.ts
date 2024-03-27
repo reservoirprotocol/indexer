@@ -256,20 +256,17 @@ export const getCollectionActivityV6Options: RouteOptions = {
         );
       }
 
-      const { activities, continuation } = await ActivitiesIndex.search(
-        {
-          types: query.types,
-          contracts,
-          tokens,
-          excludeSpam: query.excludeSpam,
-          excludeNsfw: query.excludeNsfw,
-          collections: query.collection,
-          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
-          limit,
-          continuation: query.continuation,
-        },
-        debug
-      );
+      const { activities, continuation } = await ActivitiesIndex.search({
+        types: query.types,
+        contracts,
+        tokens,
+        excludeSpam: query.excludeSpam,
+        excludeNsfw: query.excludeNsfw,
+        collections: query.collection,
+        sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+        limit,
+        continuation: query.continuation,
+      });
 
       let tokensMetadata: any[] = [];
       let collectionsMetadata: any[] = [];
