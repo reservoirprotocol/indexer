@@ -23,6 +23,9 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import { cosigner, saveOffChainCancellations } from "@/utils/offchain-cancel";
 import { getExternalCosigner } from "@/utils/offchain-cancel/external-cosign";
 import { Royalty } from "@/utils/royalties";
+import { redis } from "@/common/redis";
+import { ERC721CConfig } from "@/utils/erc721c/v1";
+import { ERC721CV2Config } from "@/utils/erc721c/v2";
 
 export type OrderInfo = {
   orderParams: Sdk.PaymentProcessorV2.Types.BaseOrder;
@@ -299,8 +302,33 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: security level 4 and 6 EOA verification
       if (side === "buy") {
-        const configV1 = await erc721c.v1.getConfig(order.params.tokenAddress);
-        const configV2 = await erc721c.v2.getConfig(order.params.tokenAddress);
+        let configV1: ERC721CConfig | undefined;
+        let configV2: ERC721CV2Config | undefined;
+
+        const erc721EoaVerificationConfigCache = await redis.get(
+          `erc721-eoa-verification-config:${order.params.tokenAddress}`
+        );
+
+        if (erc721EoaVerificationConfigCache) {
+          const erc721EoaVerificationConfig = JSON.parse(erc721EoaVerificationConfigCache);
+
+          configV1 = erc721EoaVerificationConfig.configV1;
+          configV2 = erc721EoaVerificationConfig.configV2;
+        } else {
+          configV1 = await erc721c.v1.getConfig(order.params.tokenAddress);
+          configV2 = await erc721c.v2.getConfig(order.params.tokenAddress);
+
+          await redis.set(
+            `erc721-eoa-verification-config:${order.params.tokenAddress}`,
+            JSON.stringify({
+              configV1,
+              configV2,
+            }),
+            "EX",
+            3600
+          );
+        }
+
         if (
           (configV1 && [4, 6].includes(configV1.transferSecurityLevel)) ||
           (configV2 && [6, 8].includes(configV2.transferSecurityLevel))
@@ -311,6 +339,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             transferValidator,
             order.params.sellerOrBuyer
           );
+
           if (!isVerified) {
             return results.push({
               id,
