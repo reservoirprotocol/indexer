@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 
 import { idb, redb } from "@/common/db";
-import { baseProvider } from "@/common/provider";
+import { baseProvider, metadataIndexingBaseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
@@ -36,7 +36,7 @@ export const getConfig = async (contract: string): Promise<ERC721CV2Config | und
     const token = new Contract(
       contract,
       new Interface(["function getTransferValidator() view returns (address)"]),
-      baseProvider
+      metadataIndexingBaseProvider
     );
 
     const transferValidatorAddress = await token.getTransferValidator();
@@ -50,7 +50,7 @@ export const getConfig = async (contract: string): Promise<ERC721CV2Config | und
           )
         `,
       ]),
-      baseProvider
+      metadataIndexingBaseProvider
     );
 
     const securityPolicy = await transferValidator.getCollectionSecurityPolicyV2(contract);

@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 
 import { idb, redb } from "@/common/db";
-import { baseProvider } from "@/common/provider";
+import { baseProvider, metadataIndexingBaseProvider } from "@/common/provider";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { orderRevalidationsJob } from "@/jobs/order-fixes/order-revalidations-job";
 
@@ -27,7 +27,7 @@ export const getConfig = async (contract: string): Promise<ERC721CConfig | undef
           uint120 permittedContractReceiverAllowlistId
         )`,
       ]),
-      baseProvider
+      metadataIndexingBaseProvider
     );
 
     const [transferValidator, securityPolicy] = await Promise.all([
