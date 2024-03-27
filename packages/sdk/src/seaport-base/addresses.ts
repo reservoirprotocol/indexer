@@ -140,6 +140,21 @@ export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
   [Network.Mumbai]: "0x000000e7ec00e7b300774b00001314b8610022b8",
 };
 
+export const OpenSeaV16ProtectedOffersZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.EthereumGoerli]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.EthereumSepolia]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Bsc]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Optimism]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Polygon]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Arbitrum]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Avalanche]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Base]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Zora]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.ArbitrumNova]: "0x000056f7000000ece9003ca63978907a00ffd100",
+  [Network.Mumbai]: "0x000056f7000000ece9003ca63978907a00ffd100",
+};
+
 export const FxHashPausableZone: ChainIdToAddress = {
   [Network.Ethereum]: "0x0000000006b429721d1f4c4cd256bf3a38c09ac6",
   [Network.EthereumGoerli]: "0x0000000006b429721d1f4c4cd256bf3a38c09ac6",
