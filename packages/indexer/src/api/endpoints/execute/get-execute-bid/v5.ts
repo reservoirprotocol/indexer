@@ -28,6 +28,7 @@ import * as erc721c from "@/utils/erc721c";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { checkAddressIsBlockedByOFAC } from "@/utils/ofac";
 import { getEphemeralPermit, getEphemeralPermitId, saveEphemeralPermit } from "@/utils/permits";
+import * as orderbookFee from "@/orderbook/fee";
 
 // Blur
 import * as blurBuyCollection from "@/orderbook/orders/blur/build/buy/collection";
@@ -318,6 +319,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         royaltyBps?: number;
         excludeFlaggedTokens: boolean;
         fees?: string[];
+        feeRecipient?: string[];
         marketplaceFees?: string[];
         marketplaceFlatFees?: string[];
         customRoyalties?: string[];
@@ -724,6 +726,9 @@ export const getExecuteBidV5Options: RouteOptions = {
             (params as any).feeRecipient.push(feeRecipient);
             await feeRecipients.create(feeRecipient, "royalty", source);
           }
+
+          // Handle orderbook fee
+          await orderbookFee.attachOrderbookFee(params);
 
           try {
             const WNATIVE = Sdk.Common.Addresses.WNative[config.chainId];

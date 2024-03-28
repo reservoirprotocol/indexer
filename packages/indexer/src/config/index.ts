@@ -201,4 +201,7 @@ export const config = {
   forceIpfsGateway: Boolean(Number(process.env.FORCE_IPFS_GATEWAY)),
 
   yugalabsMetadataApiUserAgent: String(process.env.YUGALABS_METADATA_API_USER_AGENT || ""),
+
+  defaultOrderbookFeeBps: String(process.env.DEFAULT_ORDERBOOK_FEE_BPS || "50"),
+  orderbookFeeRecipient: String(process.env.ORDERBOOK_FEE_RECIPIENT || ""),
 };

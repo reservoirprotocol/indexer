@@ -23,6 +23,7 @@ import { OrderKind, checkBlacklistAndFallback } from "@/orderbook/orders";
 import * as b from "@/utils/auth/blur";
 import { ExecutionsBuffer } from "@/utils/executions";
 import { checkAddressIsBlockedByOFAC } from "@/utils/ofac";
+import * as orderbookFee from "@/orderbook/fee";
 
 // Blur
 import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
@@ -294,6 +295,7 @@ export const getExecuteListV5Options: RouteOptions = {
       orderKind: OrderKind;
       orderbook: string;
       fees?: string[];
+      feeRecipient?: string[];
       marketplaceFees?: string[];
       marketplaceFlatFees?: string[];
       customRoyalties?: string[];
@@ -537,6 +539,9 @@ export const getExecuteListV5Options: RouteOptions = {
             (params as any).feeRecipient.push(feeRecipient);
             await feeRecipients.create(feeRecipient, "royalty", source);
           }
+
+          // Handle orderbook fee
+          await orderbookFee.attachOrderbookFee(params);
 
           if (
             params.taker &&
